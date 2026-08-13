@@ -33,17 +33,24 @@ namespace Leon {
         virtual void OnShutdown() {}
 
         FWindow& GetWindow() { return *m_Window; }
+        bool IsHUDEnabled() const { return m_bShowHUD; }
+        bool IsLightGizmosEnabled() const { return m_bShowLightGizmos; }
+        void SetHUDEnabled(bool InbEnabled) { m_bShowHUD = InbEnabled; }
+        void SetLightGizmosEnabled(bool InbEnabled) { m_bShowLightGizmos = InbEnabled; }
 
         static FApplication& Get() { return *s_Instance; }
 
     private:
         bool OnWindowClose(FWindowCloseEvent& InEvent);
         bool OnWindowResize(FWindowResizeEvent& InEvent);
+        bool OnKeyPressed(class FKeyPressedEvent& InEvent);
 
     private:
         TScope<FWindow> m_Window;
         bool bRunning = true;
         bool bMinimized = false;
+        bool m_bShowHUD = false;
+        bool m_bShowLightGizmos = false;
         FLayerStack m_LayerStack;
         float m_LastFrameTime = 0.0f;
 

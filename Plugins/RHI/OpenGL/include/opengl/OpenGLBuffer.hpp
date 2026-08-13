@@ -19,6 +19,7 @@ namespace Leon {
 
     private:
         unsigned int m_RendererID = 0;
+        size_t m_AllocatedBytes = 0;
         FBufferLayout m_Layout;
     };
 
@@ -37,6 +38,7 @@ namespace Leon {
     private:
         unsigned int m_RendererID = 0;
         unsigned int m_Count = 0;
+        size_t m_AllocatedBytes = 0;
     };
 
     using OpenGLIndexBuffer = FOpenGLIndexBuffer;

@@ -23,7 +23,7 @@ namespace Leon {
         auto shaderSources = PreProcess(source);
         Compile(shaderSources);
 
-        // Extract name from filepath (e.g. "Assets/Shaders/DirectionalLit.glsl" -> "DirectionalLit")
+        // Extract name from filepath (e.g. "Assets/Shaders/DefaultLit.glsl" -> "DefaultLit")
         std::filesystem::path path = InFilePath;
         m_Name = path.stem().string();
     }

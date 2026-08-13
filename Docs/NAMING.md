@@ -68,7 +68,7 @@ Tooling and build automation scripts follow the official naming standards of the
 - Standard source/header folders within each module are named in lowercase:
   - `src/`: Implementation files (`.cpp`, `.c`).
   - `include/`: Public/exported header files (`.hpp`, `.h`).
-- Namespace subdirectories inside `include/` follow module conventions (e.g., `include/engine/core/`, `include/engine/renderer/`, `include/plugin_opengl/`).
+- Namespace subdirectories inside `include/` follow module conventions (e.g., `include/engine/core/`, `include/engine/renderer/`, `include/opengl/`).
 
 ---
 
@@ -86,129 +86,22 @@ Tooling and build automation scripts follow the official naming standards of the
   - `OpenGLShader.cpp` / `OpenGLShader.hpp`
   - `OpenGLRenderDriver.cpp` / `OpenGLRenderDriver.hpp`
   - `SandboxApp.cpp`
-  - `LeonEngine.hpp`
-  - `EntryPoint.hpp`
+### 4.2 Asset Naming Standards (Unreal Engine Standard)
+- **Shaders (`.glsl`)**: Use `PascalCase` with descriptive purpose and standard lighting models:
+  - `DefaultLit.glsl` (Multi-light Blinn-Phong shading model)
+  - `DebugLine.glsl` (3D debug wireframe gizmo rendering)
+  - `DebugFont.glsl` (2D orthographic text & HUD overlay)
+- **Textures (`.png`, `.jpg`)**: Use `T_<Asset>_<Suffix>` prefix:
+  - `T_Container_D.png` (`_D` for Diffuse/Albedo)
+  - `T_Container_N.png` (`_N` for Normal map)
+  - `T_Container_S.png` (`_S` for Specular/Roughness)
+- **Fonts (`.ttf`, `.otf`)**: Use `<FontFamily>-<Weight>.ttf`:
+  - `Inter-Regular.ttf`
 
 ---
 
 ## 5. Architectural Directory Hierarchy
 
-```
-LeonEngine2/
-├── CMakeLists.txt                         # Root CMake project orchestrator
-├── .clang-format                          # Official C++20 code formatting rules
-├── .clangd                                # Clangd language server configuration
-├── .gitignore                             # Build artifacts and cache ignores
-├── .vscode/                               # VS Code and IntelliSense configs
-│   ├── c_cpp_properties.json
-│   └── settings.json
-│
-├── Docs/                                  # Technical documentation & standards
-│   ├── ARCHITECTURE.md                    # Architecture and dependency specifications
-│   └── NAMING.md                          # Naming conventions and coding standard
-│
-├── scripts/                               # Developer workflow automation
-│   ├── BuildIncremental.ps1               # Fast incremental build (PowerShell)
-│   ├── CleanRebuild.ps1                   # Clean rebuild from scratch (PowerShell)
-│   ├── RunSandbox.ps1                     # Build & run demo app (PowerShell)
-│   ├── FormatCode.ps1                     # Code formatter (PowerShell)
-│   ├── build_incremental.py               # Fast incremental build (Python)
-│   ├── clean_rebuild.py                   # Clean rebuild from scratch (Python)
-│   ├── run_sandbox.py                     # Build & run demo app (Python)
-│   └── format_code.py                     # Code formatter (Python)
-│
-├── Engine/                                # Core Engine Shared Library (Leon::Core)
-│   ├── CMakeLists.txt
-│   ├── include/                           # Public Engine Header Files
-│   │   └── engine/
-│   │       ├── LeonEngine.hpp             # Master include header for clients
-│   │       ├── core/                      # Application lifecycle & foundation
-│   │       │   ├── Application.hpp        # FApplication & FApplicationProps
-│   │       │   ├── Base.hpp               # TScope, TRef, MakeScope, MakeRef
-│   │       │   ├── EntryPoint.hpp         # Standard engine main() entry point
-│   │       │   ├── Input.hpp              # Key/Mouse/Gamepad polling
-│   │       │   ├── Layer.hpp              # FLayer base class
-│   │       │   ├── LayerStack.hpp         # FLayerStack container
-│   │       │   ├── Log.hpp                # FLog & ELogLevel
-│   │       │   ├── Timestep.hpp           # FTimestep wrapper
-│   │       │   ├── Window.hpp             # FWindow & FWindowProps
-│   │       │   └── events/                # Event dispatching subsystem
-│   │       │       ├── ApplicationEvent.hpp # FWindowResizeEvent, FWindowCloseEvent
-│   │       │       ├── Event.hpp          # FEvent, EEventType, EEventCategory, FEventDispatcher
-│   │       │       ├── KeyEvent.hpp       # FKeyEvent, FKeyPressedEvent, FKeyReleasedEvent
-│   │       │       └── MouseEvent.hpp     # FMouseMovedEvent, FMouseButtonPressedEvent, etc.
-│   │       └── renderer/                  # RHI Interfaces and contracts
-│   │           ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout, EShaderDataType
-│   │           ├── GraphicsContext.hpp    # IGraphicsContext interface
-│   │           ├── PerspectiveCamera.hpp  # FPerspectiveCamera
-│   │           ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
-│   │           ├── RenderAPI.hpp          # IRenderAPI interface & ERenderAPI
-│   │           ├── RenderCommand.hpp      # FRenderCommand static dispatcher
-│   │           ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
-│   │           ├── Renderer.hpp           # FRenderer high-level API
-│   │           ├── Shader.hpp             # FShader interface
-│   │           ├── Texture.hpp            # FTexture & FTexture2D
-│   │           └── VertexArray.hpp        # FVertexArray interface
-│   └── src/                               # Internal Engine Implementations
-│       ├── core/                          # Core subsystem implementations
-│       │   ├── Application.cpp            # FApplication lifecycle & main loop
-│       │   ├── Input.cpp                  # FInput polling implementations
-│       │   ├── LayerStack.cpp             # FLayerStack implementation
-│       │   ├── Log.cpp                    # FLog implementation
-│       │   └── Window.cpp                 # FWindow implementation
-│       └── renderer/                      # Renderer & RHI implementations
-│           ├── Buffer.cpp                 # FVertexBuffer & FIndexBuffer factory dispatch
-│           ├── GraphicsContext.cpp        # IGraphicsContext factory dispatch
-│           ├── PerspectiveCamera.cpp      # FPerspectiveCamera implementation
-│           ├── PerspectiveCameraController.cpp # FPerspectiveCameraController implementation
-│           ├── RenderAPI.cpp              # IRenderAPI factory dispatch
-│           ├── RenderCommand.cpp          # FRenderCommand static dispatcher
-│           ├── RenderDriver.cpp           # FRenderDriverRegistry factory registry
-│           ├── Renderer.cpp               # FRenderer high-level pipeline
-│           ├── Shader.cpp                 # FShader factory dispatch
-│           ├── Texture.cpp                # FTexture2D factory dispatch
-│           └── VertexArray.cpp            # FVertexArray factory dispatch
-│
-├── Plugins/                               # Engine Plugins & Graphics Backends
-│   └── RHI/                               # Render Hardware Interface Plugins
-│       └── OpenGL/                        # OpenGL Backend Library (Leon::OpenGL)
-│           ├── CMakeLists.txt
-│           ├── include/
-│           │   └── opengl/                # Exported OpenGL backend headers
-│           │       ├── OpenGLBuffer.hpp   # FOpenGLVertexBuffer, FOpenGLIndexBuffer
-│           │       ├── OpenGLContext.hpp  # FOpenGLContext
-│           │       ├── OpenGLRenderAPI.hpp # FOpenGLRenderAPI
-│           │       ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
-│           │       ├── OpenGLShader.hpp   # FOpenGLShader
-│           │       ├── OpenGLTexture2D.hpp # FOpenGLTexture2D
-│           │       └── OpenGLVertexArray.hpp # FOpenGLVertexArray
-│           └── src/                       # Internal OpenGL implementations
-│               ├── OpenGLBuffer.cpp
-│               ├── OpenGLContext.cpp
-│               ├── OpenGLRenderAPI.cpp
-│               ├── OpenGLRenderDriver.cpp
-│               ├── OpenGLShader.cpp
-│               ├── OpenGLTexture2D.cpp
-│               └── OpenGLVertexArray.cpp
-│
-├── ThirdParty/                            # Third-Party Dependencies (Vendored)
-│   ├── glad/                              # OpenGL loader library (Leon::Glad)
-│   │   ├── CMakeLists.txt
-│   │   ├── include/
-│   │   │   ├── KHR/
-│   │   │   │   └── khrplatform.h
-│   │   │   └── glad/
-│   │   │       └── glad.h
-│   │   └── src/
-│   │       └── glad.c
-│   └── stb/                               # stb image decoding library
-│       ├── CMakeLists.txt
-│       ├── stb_image.h
-│       └── stb_image.cpp
-│
-└── Projects/                              # Client Applications & Demos
-    └── Sandbox/                           # Sandbox Demo App (Sandbox)
-        ├── CMakeLists.txt
-        └── src/
-            └── SandboxApp.cpp             # FCubeLayer & FSandboxApp client demo
-```
+For the official, single-source-of-truth directory tree and module dependency specifications, refer to:
+👉 [**`Docs/ARCHITECTURE.md` — Section 2: Directory Hierarchy**](ARCHITECTURE.md#2-directory-hierarchy)
+

@@ -56,6 +56,13 @@ LeonEngine2/
 │
 ├── Engine/                                # Core Engine Subsystems (Leon::Core)
 │   ├── CMakeLists.txt
+│   ├── Assets/                            # Built-in Engine Assets
+│   │   ├── Fonts/                         # Engine typography assets
+│   │   │   └── Inter-Regular.ttf          # Official Inter TrueType font
+│   │   └── Shaders/                       # Core engine multi-stage shaders
+│   │       ├── DebugFont.glsl             # 2D orthographic font & HUD panel shader
+│   │       ├── DebugLine.glsl             # 3D line & wireframe gizmo shader
+│   │       └── DefaultLit.glsl            # Multi-light Blinn-Phong default lit shader (Unreal standard)
 │   ├── include/                           # Public exported headers
 │   │   └── engine/
 │   │       ├── LeonEngine.hpp             # Master include header
@@ -67,6 +74,7 @@ LeonEngine2/
 │   │       │   ├── Layer.hpp              # FLayer base class
 │   │       │   ├── LayerStack.hpp         # FLayerStack container
 │   │       │   ├── Log.hpp                # FLog & ELogLevel
+│   │       │   ├── PlatformMemory.hpp     # FPlatformMemory & FMemoryStats (RAM, GPU queries)
 │   │       │   ├── Timestep.hpp           # FTimestep wrapper
 │   │       │   ├── Window.hpp             # FWindow & FWindowProps
 │   │       │   └── events/                # Event dispatching subsystem
@@ -76,26 +84,35 @@ LeonEngine2/
 │   │       │       └── MouseEvent.hpp
 │   │       └── renderer/                  # Hardware abstraction interfaces
 │   │           ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout
+│   │           ├── DebugOverlay.hpp       # FDebugOverlay (F1 Performance & Stats HUD)
+│   │           ├── DebugRenderer.hpp      # FDebugRenderer (F2 3D Light Gizmos & Lines)
 │   │           ├── GraphicsContext.hpp    # IGraphicsContext
+│   │           ├── Light.hpp              # FDirectionalLight, FPointLight, FSpotLight
+│   │           ├── MeshPrimitives.hpp     # FMeshPrimitives (Cube, Cylinder, Quad, Sphere, Plane)
 │   │           ├── PerspectiveCamera.hpp  # FPerspectiveCamera
 │   │           ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
 │   │           ├── RenderAPI.hpp          # IRenderAPI & ERenderAPI
 │   │           ├── RenderCommand.hpp      # FRenderCommand
 │   │           ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
+│   │           ├── RenderStats.hpp        # FRenderStats (DrawCalls, Tris, Vertices)
 │   │           ├── Renderer.hpp           # FRenderer
 │   │           ├── Shader.hpp             # FShader
 │   │           ├── Texture.hpp            # FTexture & FTexture2D
 │   │           └── VertexArray.hpp        # FVertexArray
 │   └── src/                               # Internal engine implementations
 │       ├── core/                          # Core subsystem implementations
-│       │   ├── Application.cpp            # FApplication
+│       │   ├── Application.cpp            # FApplication (F1/F2 key handlers & auto-render)
 │       │   ├── Input.cpp                  # FInput
 │       │   ├── LayerStack.cpp             # FLayerStack
 │       │   ├── Log.cpp                    # FLog
+│       │   ├── PlatformMemory.cpp         # FPlatformMemory (Win32 & OpenGL queries)
 │       │   └── Window.cpp                 # FWindow
 │       └── renderer/                      # Renderer & RHI implementations
 │           ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer
+│           ├── DebugOverlay.cpp           # FDebugOverlay HUD batcher & 8x8 font
+│           ├── DebugRenderer.cpp          # FDebugRenderer 3D line & gizmo batcher
 │           ├── GraphicsContext.cpp        # IGraphicsContext
+│           ├── MeshPrimitives.cpp         # FMeshPrimitives procedural generation
 │           ├── PerspectiveCamera.cpp      # FPerspectiveCamera
 │           ├── PerspectiveCameraController.cpp # FPerspectiveCameraController
 │           ├── RenderAPI.cpp              # IRenderAPI
@@ -135,16 +152,20 @@ LeonEngine2/
 │   │   │   ├── KHR/khrplatform.h
 │   │   │   └── glad/glad.h
 │   │   └── src/glad.c
-│   └── stb/                               # stb image decoding (Leon::Stb)
+│   └── stb/                               # stb image and font utilities (Leon::Stb)
 │       ├── CMakeLists.txt
 │       ├── stb_image.h
-│       └── stb_image.cpp
+│       ├── stb_image.cpp
+│       └── stb_truetype.h
 │
 └── Projects/                              # Client Applications & Demos
     └── Sandbox/                           # Interactive demo application (Sandbox)
         ├── CMakeLists.txt
+        ├── Assets/                        # Project-specific Assets
+        │   └── Textures/
+        │       └── T_Container_D.png
         └── src/
-            └── SandboxApp.cpp             # FCubeLayer & FSandboxApp
+            └── SandboxApp.cpp             # FLightingShowcaseLayer & FSandboxApp
 ```
 
 ---

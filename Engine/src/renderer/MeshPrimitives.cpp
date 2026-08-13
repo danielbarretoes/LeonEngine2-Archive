@@ -1,0 +1,418 @@
+#include "engine/renderer/MeshPrimitives.hpp"
+#include "engine/renderer/Buffer.hpp"
+
+#include <cmath>
+#include <vector>
+
+namespace Leon {
+
+    TRef<FVertexArray> FMeshPrimitives::CreateCube(float InSize) {
+        float h = InSize * 0.5f;
+
+        // 24 vertices (4 per face x 6 faces) for crisp per-face normals & UVs
+        // Format: Position (x,y,z), Normal (nx,ny,nz), TexCoord (u,v), Color (r,g,b)
+        float vertices[] = {// Front Face (+Z)
+                            -h, -h, h, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, h, 0.0f, 0.0f, 1.0f, 1.0f,
+                            0.0f, 1.0f, 1.0f, 1.0f, h, h, h, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h, h, h,
+                            0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+                            // Back Face (-Z)
+                            h, -h, -h, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, -h, -h, 0.0f, 0.0f, -1.0f,
+                            1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, -h, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, h,
+                            h, -h, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+                            // Top Face (+Y)
+                            -h, h, h, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, h, h, 0.0f, 1.0f, 0.0f, 1.0f,
+                            0.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h, h, -h,
+                            0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+                            // Bottom Face (-Y)
+                            -h, -h, -h, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, -h, 0.0f, -1.0f, 0.0f,
+                            1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, h, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h,
+                            -h, h, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+                            // Left Face (-X)
+                            -h, -h, -h, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, -h, h, -1.0f, 0.0f, 0.0f,
+                            1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, h, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h,
+                            h, -h, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+                            // Right Face (+X)
+                            h, -h, h, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, -h, 1.0f, 0.0f, 0.0f, 1.0f,
+                            0.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, h, h, h,
+                            1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+        uint32_t indices[] = {
+            0,  1,  2,  2,  3,  0,  // Front
+            4,  5,  6,  6,  7,  4,  // Back
+            8,  9,  10, 10, 11, 8,  // Top
+            12, 13, 14, 14, 15, 12, // Bottom
+            16, 17, 18, 18, 19, 16, // Left
+            20, 21, 22, 22, 23, 20  // Right
+        };
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer = FVertexBuffer::Create(vertices, sizeof(vertices));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer = FIndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreateQuad(float InWidth, float InHeight) {
+        float hx = InWidth * 0.5f;
+        float hy = InHeight * 0.5f;
+
+        float vertices[] = {-hx,  -hy,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, hx,   -hy,  0.0f, 0.0f,
+                            0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, hx,   hy,   0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                            1.0f, 1.0f, 1.0f, -hx,  hy,   0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+        uint32_t indices[] = {0, 1, 2, 2, 3, 0};
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer = FVertexBuffer::Create(vertices, sizeof(vertices));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer = FIndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreateSphere(float InRadius, unsigned int InSegments, unsigned int InRings) {
+        std::vector<float> vertices;
+        std::vector<uint32_t> indices;
+
+        constexpr float PI = 3.14159265358979323846f;
+
+        for (unsigned int y = 0; y <= InRings; ++y) {
+            float v = static_cast<float>(y) / static_cast<float>(InRings);
+            float phi = v * PI;
+
+            for (unsigned int x = 0; x <= InSegments; ++x) {
+                float u = static_cast<float>(x) / static_cast<float>(InSegments);
+                float theta = u * (PI * 2.0f);
+
+                float nx = std::cos(theta) * std::sin(phi);
+                float ny = std::cos(phi);
+                float nz = std::sin(theta) * std::sin(phi);
+
+                float px = InRadius * nx;
+                float py = InRadius * ny;
+                float pz = InRadius * nz;
+
+                // Position (3)
+                vertices.push_back(px);
+                vertices.push_back(py);
+                vertices.push_back(pz);
+
+                // Normal (3)
+                vertices.push_back(nx);
+                vertices.push_back(ny);
+                vertices.push_back(nz);
+
+                // TexCoord (2)
+                vertices.push_back(u);
+                vertices.push_back(v);
+
+                // Color (3)
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+            }
+        }
+
+        for (unsigned int y = 0; y < InRings; ++y) {
+            for (unsigned int x = 0; x < InSegments; ++x) {
+                uint32_t i0 = y * (InSegments + 1) + x;
+                uint32_t i1 = (y + 1) * (InSegments + 1) + x;
+                uint32_t i2 = (y + 1) * (InSegments + 1) + (x + 1);
+                uint32_t i3 = y * (InSegments + 1) + (x + 1);
+
+                indices.push_back(i0);
+                indices.push_back(i1);
+                indices.push_back(i2);
+
+                indices.push_back(i0);
+                indices.push_back(i2);
+                indices.push_back(i3);
+            }
+        }
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer =
+            FVertexBuffer::Create(vertices.data(), static_cast<unsigned int>(vertices.size() * sizeof(float)));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer =
+            FIndexBuffer::Create(indices.data(), static_cast<unsigned int>(indices.size()));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreatePlane(float InWidth, float InDepth, unsigned int InSubdivisionsX,
+                                                    unsigned int InSubdivisionsZ) {
+        std::vector<float> vertices;
+        std::vector<uint32_t> indices;
+
+        float hx = InWidth * 0.5f;
+        float hz = InDepth * 0.5f;
+
+        float dx = InWidth / static_cast<float>(InSubdivisionsX);
+        float dz = InDepth / static_cast<float>(InSubdivisionsZ);
+
+        for (unsigned int z = 0; z <= InSubdivisionsZ; ++z) {
+            float posZ = -hz + z * dz;
+            float v = static_cast<float>(z) / static_cast<float>(InSubdivisionsZ);
+
+            for (unsigned int x = 0; x <= InSubdivisionsX; ++x) {
+                float posX = -hx + x * dx;
+                float u = static_cast<float>(x) / static_cast<float>(InSubdivisionsX);
+
+                // Position
+                vertices.push_back(posX);
+                vertices.push_back(0.0f);
+                vertices.push_back(posZ);
+
+                // Normal (pointing +Y)
+                vertices.push_back(0.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(0.0f);
+
+                // TexCoord
+                vertices.push_back(u);
+                vertices.push_back(v);
+
+                // Color
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+            }
+        }
+
+        for (unsigned int z = 0; z < InSubdivisionsZ; ++z) {
+            for (unsigned int x = 0; x < InSubdivisionsX; ++x) {
+                uint32_t i0 = z * (InSubdivisionsX + 1) + x;
+                uint32_t i1 = (z + 1) * (InSubdivisionsX + 1) + x;
+                uint32_t i2 = (z + 1) * (InSubdivisionsX + 1) + (x + 1);
+                uint32_t i3 = z * (InSubdivisionsX + 1) + (x + 1);
+
+                indices.push_back(i0);
+                indices.push_back(i1);
+                indices.push_back(i2);
+
+                indices.push_back(i0);
+                indices.push_back(i2);
+                indices.push_back(i3);
+            }
+        }
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer =
+            FVertexBuffer::Create(vertices.data(), static_cast<unsigned int>(vertices.size() * sizeof(float)));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer =
+            FIndexBuffer::Create(indices.data(), static_cast<unsigned int>(indices.size()));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreateCylinder(float InBottomRadius, float InTopRadius, float InHeight,
+                                                       unsigned int InSegments, bool InbCaps) {
+        std::vector<float> vertices;
+        std::vector<uint32_t> indices;
+
+        constexpr float PI = 3.14159265358979323846f;
+        float h = InHeight * 0.5f;
+
+        // 1. Generate Side Surface Vertices
+        float dr = InBottomRadius - InTopRadius;
+        float sideLen = std::sqrt(dr * dr + InHeight * InHeight);
+        float ny = (sideLen > 0.0001f) ? (dr / sideLen) : 0.0f;
+        float nr = (sideLen > 0.0001f) ? (InHeight / sideLen) : 1.0f;
+
+        uint32_t sideBaseVertex = 0;
+        for (unsigned int x = 0; x <= InSegments; ++x) {
+            float u = static_cast<float>(x) / static_cast<float>(InSegments);
+            float theta = u * (PI * 2.0f);
+            float cosTheta = std::cos(theta);
+            float sinTheta = std::sin(theta);
+
+            float nx = nr * cosTheta;
+            float nz = nr * sinTheta;
+
+            // Bottom Ring Vertex
+            float bx = InBottomRadius * cosTheta;
+            float bz = InBottomRadius * sinTheta;
+            vertices.push_back(bx);
+            vertices.push_back(-h);
+            vertices.push_back(bz);
+            vertices.push_back(nx);
+            vertices.push_back(ny);
+            vertices.push_back(nz);
+            vertices.push_back(u);
+            vertices.push_back(0.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+
+            // Top Ring Vertex
+            float tx = InTopRadius * cosTheta;
+            float tz = InTopRadius * sinTheta;
+            vertices.push_back(tx);
+            vertices.push_back(h);
+            vertices.push_back(tz);
+            vertices.push_back(nx);
+            vertices.push_back(ny);
+            vertices.push_back(nz);
+            vertices.push_back(u);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+        }
+
+        // Side Indices
+        for (unsigned int x = 0; x < InSegments; ++x) {
+            uint32_t b0 = sideBaseVertex + x * 2;
+            uint32_t t0 = b0 + 1;
+            uint32_t b1 = sideBaseVertex + (x + 1) * 2;
+            uint32_t t1 = b1 + 1;
+
+            indices.push_back(b0);
+            indices.push_back(b1);
+            indices.push_back(t1);
+
+            indices.push_back(b0);
+            indices.push_back(t1);
+            indices.push_back(t0);
+        }
+
+        // 2. Top Cap (if enabled and radius > 0)
+        if (InbCaps && InTopRadius > 0.0001f) {
+            uint32_t topCenterIndex = static_cast<uint32_t>(vertices.size() / 11);
+            // Center vertex
+            vertices.push_back(0.0f);
+            vertices.push_back(h);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.5f);
+            vertices.push_back(0.5f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+
+            uint32_t ringStart = static_cast<uint32_t>(vertices.size() / 11);
+            for (unsigned int x = 0; x <= InSegments; ++x) {
+                float u = static_cast<float>(x) / static_cast<float>(InSegments);
+                float theta = u * (PI * 2.0f);
+                float cosTheta = std::cos(theta);
+                float sinTheta = std::sin(theta);
+
+                vertices.push_back(InTopRadius * cosTheta);
+                vertices.push_back(h);
+                vertices.push_back(InTopRadius * sinTheta);
+                vertices.push_back(0.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.5f + 0.5f * cosTheta);
+                vertices.push_back(0.5f + 0.5f * sinTheta);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+            }
+
+            for (unsigned int x = 0; x < InSegments; ++x) {
+                indices.push_back(topCenterIndex);
+                indices.push_back(ringStart + x);
+                indices.push_back(ringStart + x + 1);
+            }
+        }
+
+        // 3. Bottom Cap (if enabled and radius > 0)
+        if (InbCaps && InBottomRadius > 0.0001f) {
+            uint32_t botCenterIndex = static_cast<uint32_t>(vertices.size() / 11);
+            // Center vertex
+            vertices.push_back(0.0f);
+            vertices.push_back(-h);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(-1.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.5f);
+            vertices.push_back(0.5f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
+
+            uint32_t ringStart = static_cast<uint32_t>(vertices.size() / 11);
+            for (unsigned int x = 0; x <= InSegments; ++x) {
+                float u = static_cast<float>(x) / static_cast<float>(InSegments);
+                float theta = u * (PI * 2.0f);
+                float cosTheta = std::cos(theta);
+                float sinTheta = std::sin(theta);
+
+                vertices.push_back(InBottomRadius * cosTheta);
+                vertices.push_back(-h);
+                vertices.push_back(InBottomRadius * sinTheta);
+                vertices.push_back(0.0f);
+                vertices.push_back(-1.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.5f + 0.5f * cosTheta);
+                vertices.push_back(0.5f - 0.5f * sinTheta);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+            }
+
+            for (unsigned int x = 0; x < InSegments; ++x) {
+                indices.push_back(botCenterIndex);
+                indices.push_back(ringStart + x + 1);
+                indices.push_back(ringStart + x);
+            }
+        }
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer =
+            FVertexBuffer::Create(vertices.data(), static_cast<unsigned int>(vertices.size() * sizeof(float)));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer =
+            FIndexBuffer::Create(indices.data(), static_cast<unsigned int>(indices.size()));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+} // namespace Leon

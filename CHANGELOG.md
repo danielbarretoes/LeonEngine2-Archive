@@ -27,10 +27,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Abstract `FTexture` and `FTexture2D` interfaces in engine core with slot binding (`Bind(slot)`) and data mutation (`SetData`).
   - `FOpenGLTexture2D` implementation supporting RGB8 and RGBA8 formats, trilinear filtering, mipmaps, and wrapping.
   - Integrated `stb_image` for fast, lightweight PNG and JPG image decoding.
-- **Textured 3D Cube Demo & Assets**:
-  - Added external shader `Assets/Shaders/DirectionalLit.glsl` with texture sampler `u_DiffuseMap`.
-  - Added diffuse texture `Assets/Textures/Container_Diffuse.png`.
-  - Updated vertex layout with UV coordinates (`aTexCoord`) combining texture mapping with real-time Blinn-Phong directional lighting.
+- **Procedural 3D/2D Geometric Mesh Primitives (`FMeshPrimitives`)**:
+  - `FMeshPrimitives::CreateCube(size)`: Procedural indexed 3D cube with per-face normals, UVs, and colors (24 vertices, 36 indices).
+  - `FMeshPrimitives::CreateCylinder(bottomRadius, topRadius, height, segments, bCaps)`: Procedural 3D cylinder / cone with side normals and top/bottom cap generation.
+  - `FMeshPrimitives::CreateQuad(width, height)`: 2D indexed quad on the XY plane.
+  - `FMeshPrimitives::CreateSphere(radius, segments, rings)`: 3D UV Sphere generator.
+  - `FMeshPrimitives::CreatePlane(width, depth, subX, subZ)`: 3D XZ ground plane grid.
+- **Lighting Subsystem (`Light.hpp` & Multi-Light Shader Pipeline)**:
+  - `FDirectionalLight`: Directional sunlight with ambient, diffuse, and specular terms.
+  - `FPointLight`: Omni-directional point light with distance attenuation (`constant`, `linear`, `quadratic`).
+  - `FSpotLight`: Directional cone spot light with smooth penumbra cutoff (`cutOff`, `outerCutOff`) and distance attenuation.
+  - Upgraded multi-light Blinn-Phong shader (`Engine/Assets/Shaders/DirectionalLit.glsl`) calculating combined illumination from all light sources.
+- **Performance & Diagnostics HUD Overlay (`FDebugOverlay` & `F1` Hotkey)**:
+  - Global `F1` hotkey in `FApplication` toggling real-time performance telemetry.
+  - Integrated official **Inter TrueType Font** (`Engine/Assets/Fonts/Inter-Regular.ttf`) rasterized with `stb_truetype` for crisp, anti-aliased typography.
+  - Real-time **VRAM Telemetry** (dedicated video memory and current usage) via OpenGL `GL_NVX_gpu_memory_info` with Windows DXGI fallback.
+  - Real-time smoothed **FPS**, **Frame Time (ms)**, **RAM usage (Process Working Set & Peak)**, **GPU model & OpenGL driver**, **Viewport resolution**, and **Render stats (Draw calls, Triangles, Vertices)**.
+- **3D Light Debug Gizmos & Wireframe Pipeline (`FDebugRenderer` & `F2` Hotkey)**:
+  - Global `F2` hotkey toggling 3D wireframe light visualizers.
+  - `FDebugRenderer::DrawSpotLightGizmo`: Visualizes inner cone (`cutOff`), outer penumbra cone (`outerCutOff`), and center ray.
+  - `FDebugRenderer::DrawPointLightGizmo`: Visualizes center 3D marker and spherical distance attenuation boundary (XY, XZ, YZ rings).
+  - `FDebugRenderer::DrawDirectionalLightGizmo`: Visualizes sunlight directional rays and orientation arrows.
+- **Render Telemetry & Line Rendering RHI Subsystem**:
+  - `FRenderStats`: Tracks `DrawCalls`, `IndexCount`, `VertexCount`, and `TriangleCount` per frame in `FRenderer`.
+  - Added `DrawLines` and `SetLineWidth` to `IRenderAPI`, `FRenderCommand`, and `FOpenGLRenderAPI`.
+  - `FPlatformMemory`: Cross-platform RAM queries (Win32 `GetProcessMemoryInfo`), VRAM queries (`GL_NVX_gpu_memory_info` & DXGI), and OpenGL GPU strings.
+- **Engine vs Project Asset Separation**:
+  - `Engine/Assets/Fonts/Inter-Regular.ttf` for built-in engine typography.
+  - `Engine/Assets/Shaders/DirectionalLit.glsl` for built-in engine shaders.
+  - `Engine/Assets/Shaders/DebugLine.glsl` and `Engine/Assets/Shaders/DebugFont.glsl` for built-in debug rendering.
+  - `Projects/Sandbox/Assets/Textures/Container_Diffuse.png` for project-specific textures.
 
 ---
 

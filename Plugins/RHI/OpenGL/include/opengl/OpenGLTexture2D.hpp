@@ -29,6 +29,7 @@ namespace Leon {
         uint32_t m_Width = 0;
         uint32_t m_Height = 0;
         uint32_t m_RendererID = 0;
+        size_t m_AllocatedBytes = 0;
         GLenum m_InternalFormat = 0;
         GLenum m_DataFormat = 0;
     };

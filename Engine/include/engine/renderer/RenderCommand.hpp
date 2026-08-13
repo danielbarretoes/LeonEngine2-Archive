@@ -40,6 +40,16 @@ namespace Leon {
                 s_RenderAPI->DrawIndexed(InVertexArray, InIndexCount);
         }
 
+        static void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
+            if (s_RenderAPI)
+                s_RenderAPI->DrawLines(InVertexArray, InVertexCount);
+        }
+
+        static void SetLineWidth(float InWidth) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetLineWidth(InWidth);
+        }
+
     private:
         static TScope<IRenderAPI> s_RenderAPI;
     };

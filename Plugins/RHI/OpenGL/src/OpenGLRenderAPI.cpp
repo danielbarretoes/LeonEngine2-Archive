@@ -33,4 +33,12 @@ namespace Leon {
         glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_INT, nullptr);
     }
 
+    void FOpenGLRenderAPI::DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
+        glDrawArrays(GL_LINES, 0, (GLsizei)InVertexCount);
+    }
+
+    void FOpenGLRenderAPI::SetLineWidth(float InWidth) {
+        glLineWidth(InWidth);
+    }
+
 } // namespace Leon
