@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/renderer/Shader.hpp"
+#include <glad/glad.h>
 #include <string>
 #include <unordered_map>
 
@@ -8,8 +9,8 @@ namespace Leon {
 
     class FOpenGLShader : public FShader {
     public:
+        FOpenGLShader(const std::string& InFilePath);
         FOpenGLShader(const std::string& InName, const std::string& InVertexSrc, const std::string& InFragmentSrc);
-        FOpenGLShader(const std::string& InVertexSrc, const std::string& InFragmentSrc);
         ~FOpenGLShader() override;
 
         void Bind() const override;
@@ -24,6 +25,9 @@ namespace Leon {
         const std::string& GetName() const override { return m_Name; }
 
     private:
+        std::string ReadFile(const std::string& InFilePath);
+        std::unordered_map<GLenum, std::string> PreProcess(const std::string& InSource);
+        void Compile(const std::unordered_map<GLenum, std::string>& InShaderSources);
         unsigned int CompileShader(unsigned int InType, const std::string& InSource);
         int GetUniformLocation(const std::string& InName) const;
 

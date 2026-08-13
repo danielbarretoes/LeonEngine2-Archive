@@ -1,4 +1,4 @@
-#include "plugin_opengl/OpenGLContext.hpp"
+#include "opengl/OpenGLContext.hpp"
 #include "engine/core/Log.hpp"
 
 #include <glad/glad.h>

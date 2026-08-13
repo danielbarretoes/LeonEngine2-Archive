@@ -11,6 +11,28 @@
 #define LE_BIND_EVENT_FN(fn)                                                                                           \
     [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 
+#ifdef _MSC_VER
+#define LE_DEBUGBREAK() __debugbreak()
+#else
+#define LE_DEBUGBREAK() __builtin_trap()
+#endif
+
+#define LE_CORE_ASSERT(x, msg)                                                                                         \
+    do {                                                                                                               \
+        if (!(x)) {                                                                                                    \
+            std::cerr << "[LEON ENGINE FATAL ASSERTION] " << (msg) << " (" << __FILE__ << ":" << __LINE__ << ")\n";    \
+            LE_DEBUGBREAK();                                                                                           \
+        }                                                                                                              \
+    } while (0)
+
+#define LE_ASSERT(x, msg)                                                                                              \
+    do {                                                                                                               \
+        if (!(x)) {                                                                                                    \
+            std::cerr << "[LEON CLIENT FATAL ASSERTION] " << (msg) << " (" << __FILE__ << ":" << __LINE__ << ")\n";    \
+            LE_DEBUGBREAK();                                                                                           \
+        }                                                                                                              \
+    } while (0)
+
 namespace Leon {
 
     // Unreal Engine Style Smart Pointer & Template Aliases

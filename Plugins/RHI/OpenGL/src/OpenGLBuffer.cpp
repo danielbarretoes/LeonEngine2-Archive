@@ -1,4 +1,4 @@
-#include "plugin_opengl/OpenGLBuffer.hpp"
+#include "opengl/OpenGLBuffer.hpp"
 #include <glad/glad.h>
 
 namespace Leon {

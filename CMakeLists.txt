@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(LeonEngine2 
-    VERSION 0.1.0 
+    VERSION 0.2.0 
     LANGUAGES C CXX
 )
 
@@ -36,6 +36,7 @@ FetchContent_MakeAvailable(glm)
 
 # Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Projects)
 add_subdirectory(ThirdParty/glad)
+add_subdirectory(ThirdParty/stb)
 add_subdirectory(Engine)
 add_subdirectory(Plugins/RHI/OpenGL)
 add_subdirectory(Projects/Sandbox)

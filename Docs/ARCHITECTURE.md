@@ -29,7 +29,7 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
 1. **Engine $\rightarrow$ Projects**: **FORBIDDEN.** The engine is an agnostic reusable library. It must never reference or include any code from `Projects/`.
 2. **Plugins $\rightarrow$ Projects**: **FORBIDDEN.** Hardware plugins/drivers are low-level rendering backends. They must never know about client applications.
 3. **Plugins $\rightarrow$ Engine (`include/`)**: **ALLOWED & REQUIRED.** Plugins depend on the abstract interfaces defined in `Engine/include/engine/` (such as `IGraphicsContext`, `FVertexBuffer`, `IRenderDriver`, `Base.hpp`) in order to implement them.
-4. **Engine $\rightarrow$ Plugins**: **FORBIDDEN.** The `Engine` core contains **zero `#include` directives** pointing to plugin implementation headers (e.g., `plugin_opengl/...`). All hardware object instantiation is mediated via the **`FRenderDriverRegistry`** factory registry.
+4. **Engine $\rightarrow$ Plugins**: **FORBIDDEN.** The `Engine` core contains **zero `#include` directives** pointing to plugin implementation headers (e.g., `opengl/...`). All hardware object instantiation is mediated via the **`FRenderDriverRegistry`** factory registry.
 
 ---
 
@@ -56,77 +56,89 @@ LeonEngine2/
 │
 ├── Engine/                                # Core Engine Subsystems (Leon::Core)
 │   ├── CMakeLists.txt
-│   ├── Core/                              # Application, Window, LayerStack, Events, Logging
-│   │   └── src/
-│   │       ├── Application.cpp            # FApplication
-│   │       ├── LayerStack.cpp             # FLayerStack
-│   │       ├── Log.cpp                    # FLog
-│   │       └── Window.cpp                 # FWindow
-│   ├── Renderer/                          # Render Hardware Interface (RHI) & Renderer
-│   │   └── src/
-│   │       ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer
-│   │       ├── GraphicsContext.cpp        # IGraphicsContext
-│   │       ├── RenderAPI.cpp              # IRenderAPI
-│   │       ├── RenderCommand.cpp          # FRenderCommand
-│   │       ├── RenderDriver.cpp           # FRenderDriverRegistry
-│   │       ├── Renderer.cpp               # FRenderer
-│   │       ├── Shader.cpp                 # FShader
-│   │       └── VertexArray.cpp            # FVertexArray
-│   └── include/                           # Public exported headers
-│       └── engine/
-│           ├── LeonEngine.hpp             # Master include header
-│           ├── core/                      # Application foundation
-│           │   ├── Application.hpp        # FApplication & FApplicationProps
-│           │   ├── Base.hpp               # TScope, TRef, MakeScope, MakeRef
-│           │   ├── EntryPoint.hpp         # Standard main() execution entry point
-│           │   ├── Input.hpp
-│           │   ├── Layer.hpp              # FLayer base class
-│           │   ├── LayerStack.hpp         # FLayerStack container
-│           │   ├── Log.hpp                # FLog & ELogLevel
-│           │   ├── Timestep.hpp           # FTimestep wrapper
-│           │   ├── Window.hpp             # FWindow & FWindowProps
-│           │   └── events/                # Event dispatching subsystem
-│           │       ├── ApplicationEvent.hpp
-│           │       ├── Event.hpp
-│           │       ├── KeyEvent.hpp
-│           │       └── MouseEvent.hpp
-│           └── renderer/                  # Hardware abstraction interfaces
-│               ├── Buffer.hpp
-│               ├── GraphicsContext.hpp    # IGraphicsContext
-│               ├── RenderAPI.hpp          # IRenderAPI & ERenderAPI
-│               ├── RenderCommand.hpp      # FRenderCommand
-│               ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
-│               ├── Renderer.hpp           # FRenderer
-│               ├── Shader.hpp             # FShader
-│               └── VertexArray.hpp        # FVertexArray
+│   ├── include/                           # Public exported headers
+│   │   └── engine/
+│   │       ├── LeonEngine.hpp             # Master include header
+│   │       ├── core/                      # Application foundation
+│   │       │   ├── Application.hpp        # FApplication & FApplicationProps
+│   │       │   ├── Base.hpp               # TScope, TRef, MakeScope, MakeRef
+│   │       │   ├── EntryPoint.hpp         # Standard main() execution entry point
+│   │       │   ├── Input.hpp              # FInput polling (Keyboard, Mouse, Gamepad)
+│   │       │   ├── Layer.hpp              # FLayer base class
+│   │       │   ├── LayerStack.hpp         # FLayerStack container
+│   │       │   ├── Log.hpp                # FLog & ELogLevel
+│   │       │   ├── Timestep.hpp           # FTimestep wrapper
+│   │       │   ├── Window.hpp             # FWindow & FWindowProps
+│   │       │   └── events/                # Event dispatching subsystem
+│   │       │       ├── ApplicationEvent.hpp
+│   │       │       ├── Event.hpp
+│   │       │       ├── KeyEvent.hpp
+│   │       │       └── MouseEvent.hpp
+│   │       └── renderer/                  # Hardware abstraction interfaces
+│   │           ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout
+│   │           ├── GraphicsContext.hpp    # IGraphicsContext
+│   │           ├── PerspectiveCamera.hpp  # FPerspectiveCamera
+│   │           ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
+│   │           ├── RenderAPI.hpp          # IRenderAPI & ERenderAPI
+│   │           ├── RenderCommand.hpp      # FRenderCommand
+│   │           ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
+│   │           ├── Renderer.hpp           # FRenderer
+│   │           ├── Shader.hpp             # FShader
+│   │           ├── Texture.hpp            # FTexture & FTexture2D
+│   │           └── VertexArray.hpp        # FVertexArray
+│   └── src/                               # Internal engine implementations
+│       ├── core/                          # Core subsystem implementations
+│       │   ├── Application.cpp            # FApplication
+│       │   ├── Input.cpp                  # FInput
+│       │   ├── LayerStack.cpp             # FLayerStack
+│       │   ├── Log.cpp                    # FLog
+│       │   └── Window.cpp                 # FWindow
+│       └── renderer/                      # Renderer & RHI implementations
+│           ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer
+│           ├── GraphicsContext.cpp        # IGraphicsContext
+│           ├── PerspectiveCamera.cpp      # FPerspectiveCamera
+│           ├── PerspectiveCameraController.cpp # FPerspectiveCameraController
+│           ├── RenderAPI.cpp              # IRenderAPI
+│           ├── RenderCommand.cpp          # FRenderCommand
+│           ├── RenderDriver.cpp           # FRenderDriverRegistry
+│           ├── Renderer.cpp               # FRenderer
+│           ├── Shader.cpp                 # FShader
+│           ├── Texture.cpp                # FTexture2D
+│           └── VertexArray.cpp            # FVertexArray
 │
 ├── Plugins/                               # Hardware Backends and Extensions
 │   └── RHI/
-│       ├── include/
-│       │   └── plugin_opengl/             # OpenGL backend headers
-│       │       ├── OpenGLBuffer.hpp       # FOpenGLVertexBuffer, FOpenGLIndexBuffer
-│       │       ├── OpenGLContext.hpp      # FOpenGLContext
-│       │       ├── OpenGLRenderAPI.hpp    # FOpenGLRenderAPI
-│       │       ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
-│       │       ├── OpenGLShader.hpp       # FOpenGLShader
-│       │       └── OpenGLVertexArray.hpp  # FOpenGLVertexArray
 │       └── OpenGL/                        # OpenGL plugin library (Leon::OpenGL)
 │           ├── CMakeLists.txt
-│           └── src/
+│           ├── include/
+│           │   └── opengl/                # Exported OpenGL backend headers
+│           │       ├── OpenGLBuffer.hpp   # FOpenGLVertexBuffer, FOpenGLIndexBuffer
+│           │       ├── OpenGLContext.hpp  # FOpenGLContext
+│           │       ├── OpenGLRenderAPI.hpp # FOpenGLRenderAPI
+│           │       ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
+│           │       ├── OpenGLShader.hpp   # FOpenGLShader
+│           │       ├── OpenGLTexture2D.hpp # FOpenGLTexture2D
+│           │       └── OpenGLVertexArray.hpp # FOpenGLVertexArray
+│           └── src/                       # Internal OpenGL implementations
 │               ├── OpenGLBuffer.cpp
 │               ├── OpenGLContext.cpp
 │               ├── OpenGLRenderAPI.cpp
 │               ├── OpenGLRenderDriver.cpp
 │               ├── OpenGLShader.cpp
+│               ├── OpenGLTexture2D.cpp
 │               └── OpenGLVertexArray.cpp
 │
 ├── ThirdParty/                            # External Dependencies
-│   └── glad/                              # OpenGL loader (Leon::Glad)
+│   ├── glad/                              # OpenGL loader (Leon::Glad)
+│   │   ├── CMakeLists.txt
+│   │   ├── include/
+│   │   │   ├── KHR/khrplatform.h
+│   │   │   └── glad/glad.h
+│   │   └── src/glad.c
+│   └── stb/                               # stb image decoding (Leon::Stb)
 │       ├── CMakeLists.txt
-│       ├── include/
-│       │   ├── KHR/khrplatform.h
-│       │   └── glad/glad.h
-│       └── src/glad.c
+│       ├── stb_image.h
+│       └── stb_image.cpp
 │
 └── Projects/                              # Client Applications & Demos
     └── Sandbox/                           # Interactive demo application (Sandbox)

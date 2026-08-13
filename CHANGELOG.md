@@ -10,10 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Shader loading pipeline from external asset files (`Assets/Shaders/*.glsl`).
-- 2D Texture support (`FTexture2D`) with `stb_image` integration.
 - Dear ImGui debug and editor overlay layer (`FImGuiLayer`).
+- Transform component and multi-object 3D scene rendering.
 - 3D Model loading pipeline with Assimp (glTF / OBJ).
+
+---
+
+## [0.3.0] - 2026-08-14
+
+### Added
+- **Multi-Stage Shader File Loading Pipeline (`.glsl`)**:
+  - `FShader::Create("Assets/Shaders/DirectionalLit.glsl")` loading external shaders directly from disk.
+  - Multi-stage shader preprocessor supporting `#type vertex` and `#type fragment` / `#type pixel` within a single file.
+  - Automatic shader name derivation from file stem.
+- **2D Texture RHI Subsystem (`FTexture2D`)**:
+  - Abstract `FTexture` and `FTexture2D` interfaces in engine core with slot binding (`Bind(slot)`) and data mutation (`SetData`).
+  - `FOpenGLTexture2D` implementation supporting RGB8 and RGBA8 formats, trilinear filtering, mipmaps, and wrapping.
+  - Integrated `stb_image` for fast, lightweight PNG and JPG image decoding.
+- **Textured 3D Cube Demo & Assets**:
+  - Added external shader `Assets/Shaders/DirectionalLit.glsl` with texture sampler `u_DiffuseMap`.
+  - Added diffuse texture `Assets/Textures/Container_Diffuse.png`.
+  - Updated vertex layout with UV coordinates (`aTexCoord`) combining texture mapping with real-time Blinn-Phong directional lighting.
 
 ---
 

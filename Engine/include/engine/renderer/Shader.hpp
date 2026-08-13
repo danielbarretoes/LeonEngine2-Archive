@@ -20,9 +20,9 @@ namespace Leon {
 
         virtual const std::string& GetName() const = 0;
 
+        static TRef<FShader> Create(const std::string& InFilePath);
         static TRef<FShader> Create(const std::string& InName, const std::string& InVertexSrc,
                                     const std::string& InFragmentSrc);
-        static TRef<FShader> Create(const std::string& InVertexSrc, const std::string& InFragmentSrc);
     };
 
     using Shader = FShader;

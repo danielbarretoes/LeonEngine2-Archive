@@ -1,19 +1,20 @@
 add_library(LeonEngineCore STATIC
-    Core/src/Log.cpp
-    Core/src/Window.cpp
-    Core/src/Input.cpp
-    Core/src/LayerStack.cpp
-    Core/src/Application.cpp
-    Renderer/src/GraphicsContext.cpp
-    Renderer/src/RenderDriver.cpp
-    Renderer/src/RenderCommand.cpp
-    Renderer/src/Renderer.cpp
-    Renderer/src/RenderAPI.cpp
-    Renderer/src/Buffer.cpp
-    Renderer/src/Shader.cpp
-    Renderer/src/VertexArray.cpp
-    Renderer/src/PerspectiveCamera.cpp
-    Renderer/src/PerspectiveCameraController.cpp
+    src/core/Log.cpp
+    src/core/Window.cpp
+    src/core/Input.cpp
+    src/core/LayerStack.cpp
+    src/core/Application.cpp
+    src/renderer/GraphicsContext.cpp
+    src/renderer/RenderDriver.cpp
+    src/renderer/RenderCommand.cpp
+    src/renderer/Renderer.cpp
+    src/renderer/RenderAPI.cpp
+    src/renderer/Buffer.cpp
+    src/renderer/Shader.cpp
+    src/renderer/Texture.cpp
+    src/renderer/VertexArray.cpp
+    src/renderer/PerspectiveCamera.cpp
+    src/renderer/PerspectiveCameraController.cpp
 )
 
 add_library(Leon::Core ALIAS LeonEngineCore)

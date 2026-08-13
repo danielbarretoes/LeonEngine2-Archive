@@ -1,9 +1,10 @@
-#include "plugin_opengl/OpenGLRenderDriver.hpp"
-#include "plugin_opengl/OpenGLBuffer.hpp"
-#include "plugin_opengl/OpenGLContext.hpp"
-#include "plugin_opengl/OpenGLRenderAPI.hpp"
-#include "plugin_opengl/OpenGLShader.hpp"
-#include "plugin_opengl/OpenGLVertexArray.hpp"
+#include "opengl/OpenGLRenderDriver.hpp"
+#include "opengl/OpenGLBuffer.hpp"
+#include "opengl/OpenGLContext.hpp"
+#include "opengl/OpenGLRenderAPI.hpp"
+#include "opengl/OpenGLShader.hpp"
+#include "opengl/OpenGLTexture2D.hpp"
+#include "opengl/OpenGLVertexArray.hpp"
 
 #include <GLFW/glfw3.h>
 
@@ -33,9 +34,21 @@ namespace Leon {
         return MakeRef<FOpenGLVertexArray>();
     }
 
+    TRef<FShader> FOpenGLRenderDriver::CreateShader(const std::string& InFilePath) {
+        return MakeRef<FOpenGLShader>(InFilePath);
+    }
+
     TRef<FShader> FOpenGLRenderDriver::CreateShader(const std::string& InName, const std::string& InVertexSrc,
                                                     const std::string& InFragmentSrc) {
         return MakeRef<FOpenGLShader>(InName, InVertexSrc, InFragmentSrc);
+    }
+
+    TRef<FTexture2D> FOpenGLRenderDriver::CreateTexture2D(uint32_t InWidth, uint32_t InHeight) {
+        return MakeRef<FOpenGLTexture2D>(InWidth, InHeight);
+    }
+
+    TRef<FTexture2D> FOpenGLRenderDriver::CreateTexture2D(const std::string& InPath) {
+        return MakeRef<FOpenGLTexture2D>(InPath);
     }
 
     void FOpenGLRenderDriver::Register() {

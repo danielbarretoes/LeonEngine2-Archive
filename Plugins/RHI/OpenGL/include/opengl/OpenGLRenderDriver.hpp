@@ -12,8 +12,11 @@ namespace Leon {
         TRef<FVertexBuffer> CreateVertexBuffer(const float* InVertices, unsigned int InSize) override;
         TRef<FIndexBuffer> CreateIndexBuffer(const uint32_t* InIndices, unsigned int InCount) override;
         TRef<FVertexArray> CreateVertexArray() override;
+        TRef<FShader> CreateShader(const std::string& InFilePath) override;
         TRef<FShader> CreateShader(const std::string& InName, const std::string& InVertexSrc,
                                    const std::string& InFragmentSrc) override;
+        TRef<FTexture2D> CreateTexture2D(uint32_t InWidth, uint32_t InHeight) override;
+        TRef<FTexture2D> CreateTexture2D(const std::string& InPath) override;
 
         static void Register();
     };

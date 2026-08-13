@@ -1,4 +1,4 @@
-#include "plugin_opengl/OpenGLVertexArray.hpp"
+#include "opengl/OpenGLVertexArray.hpp"
 #include "engine/core/Log.hpp"
 
 #include <glad/glad.h>

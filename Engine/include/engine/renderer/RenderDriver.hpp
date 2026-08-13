@@ -5,6 +5,7 @@
 #include "engine/renderer/GraphicsContext.hpp"
 #include "engine/renderer/RenderAPI.hpp"
 #include "engine/renderer/Shader.hpp"
+#include "engine/renderer/Texture.hpp"
 #include "engine/renderer/VertexArray.hpp"
 #include <string>
 
@@ -20,8 +21,11 @@ namespace Leon {
         virtual TRef<FVertexBuffer> CreateVertexBuffer(const float* InVertices, unsigned int InSize) = 0;
         virtual TRef<FIndexBuffer> CreateIndexBuffer(const uint32_t* InIndices, unsigned int InCount) = 0;
         virtual TRef<FVertexArray> CreateVertexArray() = 0;
+        virtual TRef<FShader> CreateShader(const std::string& InFilePath) = 0;
         virtual TRef<FShader> CreateShader(const std::string& InName, const std::string& InVertexSrc,
                                            const std::string& InFragmentSrc) = 0;
+        virtual TRef<FTexture2D> CreateTexture2D(uint32_t InWidth, uint32_t InHeight) = 0;
+        virtual TRef<FTexture2D> CreateTexture2D(const std::string& InPath) = 0;
     };
 
     using RenderDriver = IRenderDriver;

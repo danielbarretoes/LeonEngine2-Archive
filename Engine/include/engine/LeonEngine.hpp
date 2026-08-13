@@ -25,6 +25,7 @@
 #include "engine/renderer/RenderCommand.hpp"
 #include "engine/renderer/Renderer.hpp"
 #include "engine/renderer/Shader.hpp"
+#include "engine/renderer/Texture.hpp"
 #include "engine/renderer/VertexArray.hpp"
 
 // Entry Point

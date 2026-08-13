@@ -117,82 +117,94 @@ LeonEngine2/
 │   ├── run_sandbox.py                     # Build & run demo app (Python)
 │   └── format_code.py                     # Code formatter (Python)
 │
-├── Engine/                                # Core Engine Library (Leon::Core)
+├── Engine/                                # Core Engine Shared Library (Leon::Core)
 │   ├── CMakeLists.txt
-│   ├── Core/                              # Application, Window, LayerStack, Events, Logging
-│   │   └── src/
-│   │       ├── Application.cpp            # FApplication implementation
-│   │       ├── LayerStack.cpp             # FLayerStack implementation
-│   │       ├── Log.cpp                    # FLog implementation
-│   │       └── Window.cpp                 # FWindow implementation
-│   ├── Renderer/                          # Render Hardware Interface (RHI) & Renderer
-│   │   └── src/
-│   │       ├── Buffer.cpp                 # FVertexBuffer & FIndexBuffer factory dispatch
-│   │       ├── GraphicsContext.cpp        # IGraphicsContext factory dispatch
-│   │       ├── RenderAPI.cpp              # IRenderAPI factory dispatch
-│   │       ├── RenderCommand.cpp          # FRenderCommand static dispatcher
-│   │       ├── RenderDriver.cpp           # FRenderDriverRegistry factory registry
-│   │       ├── Renderer.cpp               # FRenderer high-level pipeline
-│   │       ├── Shader.cpp                 # FShader factory dispatch
-│   │       └── VertexArray.cpp            # FVertexArray factory dispatch
-│   └── include/                           # Public Engine Header Files
-│       └── engine/
-│           ├── LeonEngine.hpp             # Master include header for clients
-│           ├── core/                      # Application lifecycle & foundation
-│           │   ├── Application.hpp        # FApplication & FApplicationProps
-│           │   ├── Base.hpp               # TScope, TRef, MakeScope, MakeRef
-│           │   ├── EntryPoint.hpp         # Standard engine main() entry point
-│           │   ├── Input.hpp              # Key/Mouse code constants
-│           │   ├── Layer.hpp              # FLayer base class
-│           │   ├── LayerStack.hpp         # FLayerStack container
-│           │   ├── Log.hpp                # FLog & ELogLevel
-│           │   ├── Timestep.hpp           # FTimestep wrapper
-│           │   ├── Window.hpp             # FWindow & FWindowProps
-│           │   └── events/                # Event dispatching subsystem
-│           │       ├── ApplicationEvent.hpp # FWindowResizeEvent, FWindowCloseEvent
-│           │       ├── Event.hpp          # FEvent, EEventType, EEventCategory, FEventDispatcher
-│           │       ├── KeyEvent.hpp       # FKeyEvent, FKeyPressedEvent, FKeyReleasedEvent
-│           │       └── MouseEvent.hpp     # FMouseMovedEvent, FMouseButtonPressedEvent, etc.
-│           └── renderer/                  # RHI Interfaces and contracts
-│               ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout, EShaderDataType
-│               ├── GraphicsContext.hpp    # IGraphicsContext interface
-│               ├── RenderAPI.hpp          # IRenderAPI interface & ERenderAPI
-│               ├── RenderCommand.hpp      # FRenderCommand static dispatcher
-│               ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
-│               ├── Renderer.hpp           # FRenderer high-level API
-│               ├── Shader.hpp             # FShader interface
-│               └── VertexArray.hpp        # FVertexArray interface
+│   ├── include/                           # Public Engine Header Files
+│   │   └── engine/
+│   │       ├── LeonEngine.hpp             # Master include header for clients
+│   │       ├── core/                      # Application lifecycle & foundation
+│   │       │   ├── Application.hpp        # FApplication & FApplicationProps
+│   │       │   ├── Base.hpp               # TScope, TRef, MakeScope, MakeRef
+│   │       │   ├── EntryPoint.hpp         # Standard engine main() entry point
+│   │       │   ├── Input.hpp              # Key/Mouse/Gamepad polling
+│   │       │   ├── Layer.hpp              # FLayer base class
+│   │       │   ├── LayerStack.hpp         # FLayerStack container
+│   │       │   ├── Log.hpp                # FLog & ELogLevel
+│   │       │   ├── Timestep.hpp           # FTimestep wrapper
+│   │       │   ├── Window.hpp             # FWindow & FWindowProps
+│   │       │   └── events/                # Event dispatching subsystem
+│   │       │       ├── ApplicationEvent.hpp # FWindowResizeEvent, FWindowCloseEvent
+│   │       │       ├── Event.hpp          # FEvent, EEventType, EEventCategory, FEventDispatcher
+│   │       │       ├── KeyEvent.hpp       # FKeyEvent, FKeyPressedEvent, FKeyReleasedEvent
+│   │       │       └── MouseEvent.hpp     # FMouseMovedEvent, FMouseButtonPressedEvent, etc.
+│   │       └── renderer/                  # RHI Interfaces and contracts
+│   │           ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout, EShaderDataType
+│   │           ├── GraphicsContext.hpp    # IGraphicsContext interface
+│   │           ├── PerspectiveCamera.hpp  # FPerspectiveCamera
+│   │           ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
+│   │           ├── RenderAPI.hpp          # IRenderAPI interface & ERenderAPI
+│   │           ├── RenderCommand.hpp      # FRenderCommand static dispatcher
+│   │           ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
+│   │           ├── Renderer.hpp           # FRenderer high-level API
+│   │           ├── Shader.hpp             # FShader interface
+│   │           ├── Texture.hpp            # FTexture & FTexture2D
+│   │           └── VertexArray.hpp        # FVertexArray interface
+│   └── src/                               # Internal Engine Implementations
+│       ├── core/                          # Core subsystem implementations
+│       │   ├── Application.cpp            # FApplication lifecycle & main loop
+│       │   ├── Input.cpp                  # FInput polling implementations
+│       │   ├── LayerStack.cpp             # FLayerStack implementation
+│       │   ├── Log.cpp                    # FLog implementation
+│       │   └── Window.cpp                 # FWindow implementation
+│       └── renderer/                      # Renderer & RHI implementations
+│           ├── Buffer.cpp                 # FVertexBuffer & FIndexBuffer factory dispatch
+│           ├── GraphicsContext.cpp        # IGraphicsContext factory dispatch
+│           ├── PerspectiveCamera.cpp      # FPerspectiveCamera implementation
+│           ├── PerspectiveCameraController.cpp # FPerspectiveCameraController implementation
+│           ├── RenderAPI.cpp              # IRenderAPI factory dispatch
+│           ├── RenderCommand.cpp          # FRenderCommand static dispatcher
+│           ├── RenderDriver.cpp           # FRenderDriverRegistry factory registry
+│           ├── Renderer.cpp               # FRenderer high-level pipeline
+│           ├── Shader.cpp                 # FShader factory dispatch
+│           ├── Texture.cpp                # FTexture2D factory dispatch
+│           └── VertexArray.cpp            # FVertexArray factory dispatch
 │
 ├── Plugins/                               # Engine Plugins & Graphics Backends
 │   └── RHI/                               # Render Hardware Interface Plugins
-│       ├── include/
-│       │   └── plugin_opengl/             # OpenGL backend headers
-│       │       ├── OpenGLBuffer.hpp       # FOpenGLVertexBuffer, FOpenGLIndexBuffer
-│       │       ├── OpenGLContext.hpp      # FOpenGLContext
-│       │       ├── OpenGLRenderAPI.hpp    # FOpenGLRenderAPI
-│       │       ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
-│       │       ├── OpenGLShader.hpp       # FOpenGLShader
-│       │       └── OpenGLVertexArray.hpp  # FOpenGLVertexArray
 │       └── OpenGL/                        # OpenGL Backend Library (Leon::OpenGL)
 │           ├── CMakeLists.txt
-│           └── src/
+│           ├── include/
+│           │   └── opengl/                # Exported OpenGL backend headers
+│           │       ├── OpenGLBuffer.hpp   # FOpenGLVertexBuffer, FOpenGLIndexBuffer
+│           │       ├── OpenGLContext.hpp  # FOpenGLContext
+│           │       ├── OpenGLRenderAPI.hpp # FOpenGLRenderAPI
+│           │       ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
+│           │       ├── OpenGLShader.hpp   # FOpenGLShader
+│           │       ├── OpenGLTexture2D.hpp # FOpenGLTexture2D
+│           │       └── OpenGLVertexArray.hpp # FOpenGLVertexArray
+│           └── src/                       # Internal OpenGL implementations
 │               ├── OpenGLBuffer.cpp
 │               ├── OpenGLContext.cpp
 │               ├── OpenGLRenderAPI.cpp
 │               ├── OpenGLRenderDriver.cpp
 │               ├── OpenGLShader.cpp
+│               ├── OpenGLTexture2D.cpp
 │               └── OpenGLVertexArray.cpp
 │
 ├── ThirdParty/                            # Third-Party Dependencies (Vendored)
-│   └── glad/                              # OpenGL loader library (Leon::Glad)
+│   ├── glad/                              # OpenGL loader library (Leon::Glad)
+│   │   ├── CMakeLists.txt
+│   │   ├── include/
+│   │   │   ├── KHR/
+│   │   │   │   └── khrplatform.h
+│   │   │   └── glad/
+│   │   │       └── glad.h
+│   │   └── src/
+│   │       └── glad.c
+│   └── stb/                               # stb image decoding library
 │       ├── CMakeLists.txt
-│       ├── include/
-│       │   ├── KHR/
-│       │   │   └── khrplatform.h
-│       │   └── glad/
-│       │       └── glad.h
-│       └── src/
-│           └── glad.c
+│       ├── stb_image.h
+│       └── stb_image.cpp
 │
 └── Projects/                              # Client Applications & Demos
     └── Sandbox/                           # Sandbox Demo App (Sandbox)
