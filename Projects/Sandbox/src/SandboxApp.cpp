@@ -7,21 +7,32 @@
 
 class FCubeLayer : public Leon::FLayer {
 public:
-    FCubeLayer() : FLayer("Cube3DLayer") {}
+    FCubeLayer() : FLayer("Cube3DLayer"), m_CameraController(45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f) {}
 
     void OnAttach() override {
-        LE_INFO("FCubeLayer attached! Initializing 3D cube mesh and Blinn-Phong directional lighting shader.");
+        LE_INFO("FCubeLayer attached! Initializing 3D cube mesh and interactive camera controller.");
+        LE_INFO("Controls (Keyboard & Mouse):");
+        LE_INFO("  - W, A, S, D: Move Forward / Left / Backward / Right");
+        LE_INFO("  - Space / LeftControl (or E / Q): Move Up / Down");
+        LE_INFO("  - LeftShift (Hold): 2.5x Speed Boost");
+        LE_INFO("  - Right Click (Hold & Drag) or Left Click: Rotate View (Pitch / Yaw)");
+        LE_INFO("  - Mouse Scroll: Adjust Field of View (Zoom)");
+        LE_INFO("Controls (Xbox / Gamepad):");
+        LE_INFO("  - Left Stick: 3D Movement");
+        LE_INFO("  - Right Stick: Camera Look (Pitch / Yaw)");
+        LE_INFO("  - Right Trigger (RT) / A: Fly Up");
+        LE_INFO("  - Left Trigger (LT) / B: Fly Down");
+        LE_INFO("  - Left Thumb (L3) / RB: 2.5x Speed Boost");
 
-        // 1. Shaders (3D Blinn-Phong with Directional Lighting)
+        // 1. Shaders (3D Blinn-Phong with Directional Lighting & ViewProjection matrix)
         const std::string vertexSrc = R"(
             #version 330 core
             layout (location = 0) in vec3 aPos;
             layout (location = 1) in vec3 aNormal;
             layout (location = 2) in vec3 aColor;
 
+            uniform mat4 u_ViewProjection;
             uniform mat4 u_Model;
-            uniform mat4 u_View;
-            uniform mat4 u_Projection;
 
             out vec3 v_FragPos;
             out vec3 v_Normal;
@@ -32,7 +43,7 @@ public:
                 v_Normal = mat3(transpose(inverse(u_Model))) * aNormal;
                 v_Color = aColor;
 
-                gl_Position = u_Projection * u_View * vec4(v_FragPos, 1.0);
+                gl_Position = u_ViewProjection * vec4(v_FragPos, 1.0);
             }
         )";
 
@@ -122,64 +133,62 @@ public:
                                  {Leon::EShaderDataType::Float3, "aColor"}});
 
         m_VertexArray->AddVertexBuffer(vertexBuffer);
+
+        // Set initial camera position slightly elevated looking at the cube
+        m_CameraController.GetCamera().SetPosition({2.2f, 1.8f, 3.2f});
+        m_CameraController.GetCamera().SetRotation(-22.0f, -125.0f);
     }
 
     void OnDetach() override { LE_INFO("FCubeLayer detached."); }
 
     void OnUpdate(Leon::FTimestep InTs) override {
-        // Accumulate rotation angle
-        m_RotationAngle += InTs.GetSeconds() * 35.0f;
+        // Update Camera Controller with user input (WASD + Mouse)
+        m_CameraController.OnUpdate(InTs);
+
+        // Accumulate cube rotation angle
+        m_RotationAngle += InTs.GetSeconds() * 20.0f;
 
         // Clear screen and depth buffer
         Leon::FRenderCommand::SetClearColor(0.08f, 0.09f, 0.12f, 1.0f);
         Leon::FRenderCommand::Clear();
 
+        // Begin Scene with Camera View-Projection
+        Leon::FRenderer::BeginScene(m_CameraController.GetCamera());
+
         m_Shader->Bind();
-
-        // Camera setup (orbiting viewpoint looking at the origin)
-        glm::vec3 cameraPos(2.2f, 1.8f, 3.2f);
-        glm::mat4 view = glm::lookAt(cameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-        auto& app = Leon::FApplication::Get();
-        float width = (float)app.GetWindow().GetWidth();
-        float height = (float)app.GetWindow().GetHeight();
-        float aspectRatio = (height > 0.0f) ? (width / height) : (16.0f / 9.0f);
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
 
         // Model transformation: smooth continuous 3D rotation
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::rotate(model, glm::radians(m_RotationAngle), glm::vec3(0.5f, 1.0f, 0.2f));
 
-        // Upload MVP matrices
+        // Upload Model Matrix
         m_Shader->SetMat4("u_Model", glm::value_ptr(model));
-        m_Shader->SetMat4("u_View", glm::value_ptr(view));
-        m_Shader->SetMat4("u_Projection", glm::value_ptr(projection));
-
-        // Upload Camera View Position
-        m_Shader->SetFloat3("u_ViewPos", cameraPos.x, cameraPos.y, cameraPos.z);
 
         // Directional Light Uniforms (Sunlight direction & warm ambient/diffuse)
         glm::vec3 lightDir(-0.6f, -1.0f, -0.4f);
         m_Shader->SetFloat3("u_LightDirection", lightDir.x, lightDir.y, lightDir.z);
         m_Shader->SetFloat3("u_LightColor", 1.0f, 0.98f, 0.92f);
-        m_Shader->SetFloat("u_AmbientIntensity", 0.2f);
+        m_Shader->SetFloat("u_AmbientIntensity", 0.25f);
 
         // Render 3D Cube (36 vertices)
-        Leon::FRenderer::BeginScene();
         Leon::FRenderer::Submit(m_Shader, m_VertexArray, 36);
+
         Leon::FRenderer::EndScene();
     }
+
+    void OnEvent(Leon::FEvent& InEvent) override { m_CameraController.OnEvent(InEvent); }
 
 private:
     Leon::TRef<Leon::FShader> m_Shader;
     Leon::TRef<Leon::FVertexArray> m_VertexArray;
+    Leon::FPerspectiveCameraController m_CameraController;
     float m_RotationAngle = 0.0f;
 };
 
 class FSandboxApp : public Leon::FApplication {
 public:
     FSandboxApp()
-        : Leon::FApplication(Leon::FApplicationProps{"LeonEngine2 - 3D Directional Lighting Scene", 1280, 720}) {
+        : Leon::FApplication(Leon::FApplicationProps{"LeonEngine2 - Interactive 3D Camera Scene", 1280, 720}) {
         PushLayer(new FCubeLayer());
     }
 

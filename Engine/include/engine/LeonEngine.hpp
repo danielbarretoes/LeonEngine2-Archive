@@ -16,9 +16,11 @@
 #include "engine/core/events/KeyEvent.hpp"
 #include "engine/core/events/MouseEvent.hpp"
 
-// Renderer Abstraction (RHI)
+// Renderer Abstraction (RHI) & Camera
 #include "engine/renderer/Buffer.hpp"
 #include "engine/renderer/GraphicsContext.hpp"
+#include "engine/renderer/PerspectiveCamera.hpp"
+#include "engine/renderer/PerspectiveCameraController.hpp"
 #include "engine/renderer/RenderAPI.hpp"
 #include "engine/renderer/RenderCommand.hpp"
 #include "engine/renderer/Renderer.hpp"

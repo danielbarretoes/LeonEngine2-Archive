@@ -1,7 +1,10 @@
 #include "engine/renderer/Renderer.hpp"
 #include "engine/core/Log.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 namespace Leon {
+
+    TScope<FRenderer::FSceneData> FRenderer::s_SceneData = MakeScope<FRenderer::FSceneData>();
 
     void FRenderer::Init() {
         LE_CORE_INFO("Initializing Renderer Subsystem...");
@@ -16,6 +19,14 @@ namespace Leon {
         FRenderCommand::SetViewport(0, 0, InWidth, InHeight);
     }
 
+    void FRenderer::BeginScene(const FPerspectiveCamera& InCamera) {
+        if (!s_SceneData)
+            s_SceneData = MakeScope<FSceneData>();
+
+        s_SceneData->ViewProjectionMatrix = InCamera.GetViewProjectionMatrix();
+        s_SceneData->CameraPosition = InCamera.GetPosition();
+    }
+
     void FRenderer::BeginScene() {}
 
     void FRenderer::EndScene() {}
@@ -23,6 +34,11 @@ namespace Leon {
     void FRenderer::Submit(const TRef<FShader>& InShader, const TRef<FVertexArray>& InVertexArray,
                            unsigned int InVertexCount) {
         InShader->Bind();
+        if (s_SceneData) {
+            InShader->SetMat4("u_ViewProjection", glm::value_ptr(s_SceneData->ViewProjectionMatrix));
+            InShader->SetFloat3("u_ViewPos", s_SceneData->CameraPosition.x, s_SceneData->CameraPosition.y,
+                                s_SceneData->CameraPosition.z);
+        }
         InVertexArray->Bind();
         FRenderCommand::DrawArrays(InVertexArray, InVertexCount);
     }
@@ -30,6 +46,11 @@ namespace Leon {
     void FRenderer::SubmitIndexed(const TRef<FShader>& InShader, const TRef<FVertexArray>& InVertexArray,
                                   unsigned int InIndexCount) {
         InShader->Bind();
+        if (s_SceneData) {
+            InShader->SetMat4("u_ViewProjection", glm::value_ptr(s_SceneData->ViewProjectionMatrix));
+            InShader->SetFloat3("u_ViewPos", s_SceneData->CameraPosition.x, s_SceneData->CameraPosition.y,
+                                s_SceneData->CameraPosition.z);
+        }
         InVertexArray->Bind();
         FRenderCommand::DrawIndexed(InVertexArray, InIndexCount);
     }
