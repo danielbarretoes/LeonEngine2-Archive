@@ -1,0 +1,111 @@
+# ==============================================================================
+# LeonEngine2 - Comprehensive Git Ignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Build & Generation Outputs
+# ------------------------------------------------------------------------------
+build/
+build-*/
+bin/
+bin-int/
+out/
+dist/
+_deps/
+.cache/
+
+# CMake Artifacts (when configuring in-source or stray files)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CMakeScripts/
+CMakeLists.txt.user
+Makefile
+*.ninja
+*.ninja_deps
+*.ninja_log
+compile_commands.json
+
+# Compiled Binaries & Object Files
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+*.idb
+
+# ------------------------------------------------------------------------------
+# Language Server & Linter Caches
+# ------------------------------------------------------------------------------
+# Clangd index directory (preserve root .clangd config file)
+/.clangd/
+!.clangd
+
+# ------------------------------------------------------------------------------
+# IDEs & Text Editors
+# ------------------------------------------------------------------------------
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.vcxproj.filters.user
+*.sln.docstates
+*.suo
+*.user
+
+# CLion / JetBrains
+.idea/
+cmake-build-*/
+
+# Visual Studio Code
+# Ignore editor workspace caches and state, keep version-controlled project settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/c_cpp_properties.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.code-workspace
+
+# ------------------------------------------------------------------------------
+# Python Automation Tooling
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+env/
+venv/
+
+# ------------------------------------------------------------------------------
+# Operating System & Temporary Files
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux / Temporary Editor Backups
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+*.dmp
+*.crash

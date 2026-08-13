@@ -1,0 +1,40 @@
+---
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+
+# Indentation and Whitespace
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+NamespaceIndentation: All
+
+# Line Width and Wrapping
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortBlocksOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Braces and Layout
+BreakBeforeBraces: Attach
+
+# Pointers and References
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Includes Sorting - Disabled to preserve critical header order (e.g. glad.h before glfw3.h)
+SortIncludes: false
+
+# Spaces
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpacesInContainerLiterals: false
+SpacesInAngles: false
+SpacesInSquareBrackets: false
+
+# C++ Features
+FixNamespaceComments: true
+CompactNamespaces: false
+...
