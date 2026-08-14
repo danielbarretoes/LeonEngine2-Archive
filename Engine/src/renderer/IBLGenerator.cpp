@@ -170,6 +170,117 @@ namespace Leon {
         }
     }
 
+    struct FHDREquirectangularMipChain {
+        struct FMipLevel {
+            int Width = 0;
+            int Height = 0;
+            std::vector<float> Data; // RGBA float
+        };
+        std::vector<FMipLevel> Levels;
+
+        void Build(const float* InBaseData, int InWidth, int InHeight) {
+            FMipLevel base;
+            base.Width = InWidth;
+            base.Height = InHeight;
+            base.Data.assign(InBaseData, InBaseData + (static_cast<size_t>(InWidth) * InHeight * 4));
+            Levels.push_back(std::move(base));
+
+            int w = InWidth;
+            int h = InHeight;
+            while (w > 16 && h > 8) {
+                int nextW = std::max(1, w / 2);
+                int nextH = std::max(1, h / 2);
+                const auto& prevData = Levels.back().Data;
+
+                FMipLevel nextMip;
+                nextMip.Width = nextW;
+                nextMip.Height = nextH;
+                nextMip.Data.resize(static_cast<size_t>(nextW) * nextH * 4, 0.0f);
+
+                for (int y = 0; y < nextH; ++y) {
+                    for (int x = 0; x < nextW; ++x) {
+                        int srcX0 = x * 2;
+                        int srcY0 = y * 2;
+                        int srcX1 = std::min(srcX0 + 1, w - 1);
+                        int srcY1 = std::min(srcY0 + 1, h - 1);
+
+                        auto getPrev = [&](int px, int py) -> glm::vec3 {
+                            size_t idx = (static_cast<size_t>(py) * w + px) * 4;
+                            return glm::vec3(prevData[idx], prevData[idx + 1], prevData[idx + 2]);
+                        };
+
+                        glm::vec3 c00 = getPrev(srcX0, srcY0);
+                        glm::vec3 c10 = getPrev(srcX1, srcY0);
+                        glm::vec3 c01 = getPrev(srcX0, srcY1);
+                        glm::vec3 c11 = getPrev(srcX1, srcY1);
+                        glm::vec3 avg = (c00 + c10 + c01 + c11) * 0.25f;
+
+                        size_t dstIdx = (static_cast<size_t>(y) * nextW + x) * 4;
+                        nextMip.Data[dstIdx + 0] = avg.r;
+                        nextMip.Data[dstIdx + 1] = avg.g;
+                        nextMip.Data[dstIdx + 2] = avg.b;
+                        nextMip.Data[dstIdx + 3] = 1.0f;
+                    }
+                }
+
+                Levels.push_back(std::move(nextMip));
+                w = nextW;
+                h = nextH;
+            }
+        }
+
+        glm::vec3 SampleLevel(int inLevel, glm::vec3 inDir) const {
+            if (Levels.empty()) return glm::vec3(0.0f);
+            int lvl = std::clamp(inLevel, 0, static_cast<int>(Levels.size()) - 1);
+            const auto& mip = Levels[lvl];
+
+            glm::vec3 n = glm::normalize(inDir);
+            float u = 0.5f + std::atan2(n.z, n.x) / (2.0f * PI);
+            float v = 0.5f - std::asin(std::clamp(n.y, -1.0f, 1.0f)) / PI;
+            u = std::clamp(u, 0.0f, 1.0f);
+            v = std::clamp(v, 0.0f, 1.0f);
+
+            float fx = u * static_cast<float>(mip.Width - 1);
+            float fy = v * static_cast<float>(mip.Height - 1);
+
+            int x0 = static_cast<int>(fx);
+            int y0 = static_cast<int>(fy);
+            int x1 = std::min(x0 + 1, mip.Width - 1);
+            int y1 = std::min(y0 + 1, mip.Height - 1);
+
+            float tx = fx - static_cast<float>(x0);
+            float ty = fy - static_cast<float>(y0);
+
+            auto getTexel = [&](int x, int y) -> glm::vec3 {
+                size_t idx = (static_cast<size_t>(y) * mip.Width + x) * 4;
+                return glm::vec3(mip.Data[idx], mip.Data[idx + 1], mip.Data[idx + 2]);
+            };
+
+            glm::vec3 c00 = getTexel(x0, y0);
+            glm::vec3 c10 = getTexel(x1, y0);
+            glm::vec3 c01 = getTexel(x0, y1);
+            glm::vec3 c11 = getTexel(x1, y1);
+
+            glm::vec3 top = glm::mix(c00, c10, tx);
+            glm::vec3 bottom = glm::mix(c01, c11, tx);
+
+            return glm::mix(top, bottom, ty);
+        }
+
+        glm::vec3 SampleLod(glm::vec3 inDir, float inLod) const {
+            if (Levels.empty()) return glm::vec3(0.0f);
+            if (inLod <= 0.0f) return SampleLevel(0, inDir);
+
+            int lvl0 = static_cast<int>(std::floor(inLod));
+            int lvl1 = lvl0 + 1;
+            float frac = inLod - static_cast<float>(lvl0);
+
+            glm::vec3 s0 = SampleLevel(lvl0, inDir);
+            glm::vec3 s1 = SampleLevel(lvl1, inDir);
+            return glm::mix(s0, s1, frac);
+        }
+    };
+
     static glm::vec3 SampleEquirectangular(const float* InHDRData, int InWidth, int InHeight, glm::vec3 InDir) {
         if (!InHDRData || InWidth <= 0 || InHeight <= 0)
             return glm::vec3(0.0f);
@@ -223,12 +334,33 @@ namespace Leon {
 
     struct FIBLCacheHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-        uint32_t Version = 1;
+        uint32_t Version = 2; // Version 2: Brian Karis PDF solid angle sampling
+        uint64_t HDRSourceHash = 0;
         uint32_t EnvSize = 128;
         uint32_t IrradSize = 32;
         uint32_t PrefilterBaseSize = 128;
         uint32_t PrefilterMips = 5;
+        uint32_t SampleCountIrradiance = 1580;
+        uint32_t SampleCountPrefilter = 256;
+        uint32_t Reserved[4] = {0, 0, 0, 0};
     };
+
+    static uint64_t ComputeFileHash64(const std::string& InFilePath) {
+        if (!std::filesystem::exists(InFilePath)) return 0;
+        std::ifstream file(InFilePath, std::ios::binary);
+        if (!file.is_open()) return 0;
+
+        uint64_t hash = 14695981039346656037ull; // FNV-1a 64-bit offset basis
+        char buffer[65536];
+        while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
+            std::streamsize bytesRead = file.gcount();
+            for (std::streamsize i = 0; i < bytesRead; ++i) {
+                hash ^= static_cast<uint8_t>(buffer[i]);
+                hash *= 1099511628211ull; // FNV prime
+            }
+        }
+        return hash;
+    }
 
     static std::string GetIBLCachePath(const std::string& InHDRPath) {
         std::filesystem::path p(InHDRPath);
@@ -242,18 +374,14 @@ namespace Leon {
             return false;
         }
 
-        auto hdrTime = std::filesystem::last_write_time(InHDRPath);
-        auto cacheTime = std::filesystem::last_write_time(cachePath);
-        if (cacheTime < hdrTime) {
-            return false;
-        }
+        uint64_t currentHDRHash = ComputeFileHash64(InHDRPath);
 
         std::ifstream file(cachePath, std::ios::binary);
         if (!file.is_open()) return false;
 
         FIBLCacheHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
-        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 1) {
+        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 2 || header.HDRSourceHash != currentHDRHash) {
             return false;
         }
 
@@ -299,6 +427,8 @@ namespace Leon {
         if (!file.is_open()) return;
 
         FIBLCacheHeader header;
+        header.Version = 2;
+        header.HDRSourceHash = ComputeFileHash64(InHDRPath);
         file.write(reinterpret_cast<const char*>(&header), sizeof(FIBLCacheHeader));
 
         // 1. Write Environment Faces
@@ -335,7 +465,7 @@ namespace Leon {
             if (TryLoadIBLCache(hdrPath, env)) {
                 auto totalEndT = std::chrono::high_resolution_clock::now();
                 float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v2) for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
                 return env;
             }
         }
@@ -344,6 +474,7 @@ namespace Leon {
         auto hdrStartT = std::chrono::high_resolution_clock::now();
         float* hdrData = nullptr;
         int hdrWidth = 0, hdrHeight = 0, hdrChannels = 0;
+        FHDREquirectangularMipChain hdrMipChain;
 
         if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
             stbi_set_flip_vertically_on_load(1);
@@ -351,8 +482,9 @@ namespace Leon {
             auto hdrEndT = std::chrono::high_resolution_clock::now();
             float hdrDurMs = std::chrono::duration<float, std::milli>(hdrEndT - hdrStartT).count();
             if (hdrData) {
-                LE_CORE_INFO("  [PROFILE] HDR image load & decode '{0}' ({1}x{2}) in {3:.2f} ms", hdrPath, hdrWidth,
-                             hdrHeight, hdrDurMs);
+                hdrMipChain.Build(hdrData, hdrWidth, hdrHeight);
+                LE_CORE_INFO("  [PROFILE] HDR image load & mip pyramid '{0}' ({1}x{2}, {3} levels) in {4:.2f} ms",
+                             hdrPath, hdrWidth, hdrHeight, hdrMipChain.Levels.size(), hdrDurMs);
             } else {
                 LE_CORE_WARN("FIBLGenerator: Failed to load HDR image for convolution: '{0}'", hdrPath);
             }
@@ -443,7 +575,7 @@ namespace Leon {
         float irradDurMs = std::chrono::duration<float, std::milli>(irradEndT - irradStartT).count();
         LE_CORE_INFO("  [PROFILE] Irradiance Convolution (32x32x6, ~1580 samples/px, ~9.7M samples) generated in {0:.2f} ms", irradDurMs);
 
-        // 5. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8)
+        // 5. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8) with Karis PDF Solid Angle Filtering
         constexpr uint32_t prefilterBaseSize = 128;
         constexpr uint32_t maxMipLevels = 5;
         env.PrefilterMap = FTextureCube::Create(prefilterBaseSize, prefilterBaseSize, true);
@@ -454,6 +586,12 @@ namespace Leon {
                 uint32_t mipSize = prefilterBaseSize >> mip;
                 float roughness = static_cast<float>(mip) / static_cast<float>(maxMipLevels - 1);
                 prefilterMips[mip].resize(6, std::vector<float>(mipSize * mipSize * 4));
+
+                float a = roughness * roughness;
+                float a2 = a * a;
+
+                // Solid angle of 1 texel in 128x128 cubemap face
+                float saTexel = 4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize));
 
                 for (int face = 0; face < 6; ++face) {
                     for (uint32_t y = 0; y < mipSize; ++y) {
@@ -468,9 +606,6 @@ namespace Leon {
                             glm::vec3 prefilteredColor(0.0f);
                             float totalWeight = 0.0f;
 
-                            // Adaptive firefly clamp based on roughness to prevent Monte Carlo under-sampling artifacts
-                            float maxSampleLuminance = (roughness > 0.0f) ? (12.0f + 28.0f * (1.0f - roughness)) : 500.0f;
-
                             for (uint32_t i = 0u; i < SAMPLE_COUNT; ++i) {
                                 glm::vec2 Xi = Hammersley(i, SAMPLE_COUNT);
                                 glm::vec3 H = ImportanceSampleGGX(Xi, N, roughness);
@@ -478,10 +613,24 @@ namespace Leon {
 
                                 float NdotL = std::max(glm::dot(N, L), 0.0f);
                                 if (NdotL > 0.0f) {
-                                    glm::vec3 sampleVal = SampleSky(L);
-                                    if (roughness > 0.0f) {
-                                        sampleVal = glm::min(sampleVal, glm::vec3(maxSampleLuminance));
+                                    // Brian Karis (Epic Games) PDF Solid Angle Filtering formulation
+                                    float NdotH = std::max(glm::dot(N, H), 0.0f);
+                                    float VdotH = std::max(glm::dot(V, H), 0.0f);
+
+                                    float denom = (NdotH * NdotH * (a2 - 1.0f) + 1.0f);
+                                    float D = a2 / (PI * denom * denom + 0.0000001f);
+                                    float pdf = (D * NdotH) / (4.0f * VdotH + 0.0001f) + 0.0001f;
+
+                                    float saSample = 1.0f / (static_cast<float>(SAMPLE_COUNT) * pdf + 0.0001f);
+                                    float sampleLod = (roughness == 0.0f) ? 0.0f : std::max(0.5f * std::log2(saSample / saTexel), 0.0f);
+
+                                    glm::vec3 sampleVal;
+                                    if (hdrData) {
+                                        sampleVal = hdrMipChain.SampleLod(L, sampleLod) * InSkybox.Exposure;
+                                    } else {
+                                        sampleVal = SampleAtmosphericSky(InSkybox, L);
                                     }
+
                                     prefilteredColor += sampleVal * NdotL;
                                     totalWeight += NdotL;
                                 }
@@ -500,14 +649,15 @@ namespace Leon {
                 }
                 auto mipEndT = std::chrono::high_resolution_clock::now();
                 float mipDurMs = std::chrono::duration<float, std::milli>(mipEndT - mipStartT).count();
-                LE_CORE_INFO("  [PROFILE] Prefilter Mip {0} ({1}x{1}x6, 256 samples/px) generated in {2:.2f} ms", mip, mipSize, mipDurMs);
+                LE_CORE_INFO("  [PROFILE] Prefilter Mip {0} ({1}x{1}x6, 256 samples/px, Karis PDF lod) generated in {2:.2f} ms",
+                             mip, mipSize, mipDurMs);
             }
         }
 
         // 6. Save baked IBL result to disk cache for instantaneous future startups
         if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
             SaveIBLCache(hdrPath, envFaces, irradFaces, prefilterMips);
-            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache to '{0}'", GetIBLCachePath(hdrPath));
+            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v2) to '{0}'", GetIBLCachePath(hdrPath));
         }
 
         if (hdrData) {
