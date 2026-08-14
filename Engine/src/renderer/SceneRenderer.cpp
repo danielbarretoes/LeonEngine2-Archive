@@ -405,8 +405,8 @@ namespace Leon {
         glm::vec3 up = (std::abs(spotDir.y) < 0.99f) ? glm::vec3(0.f,1.f,0.f) : glm::vec3(0.f,0.f,1.f);
         glm::mat4 spotView = glm::lookAt(InSpotLightPos, InSpotLightPos + spotDir, up);
 
-        float fov = glm::clamp(InSpotLightComp->Light.OuterCutOff * 2.0f, 10.0f, 160.0f);
-        float farPlane = std::max(InSpotLightComp->Light.Radius * 1.1f, 15.0f);
+        float fov = glm::clamp(InSpotLightComp->Light.OuterCutOff * 2.0f + 2.0f, 10.0f, 160.0f);
+        float farPlane = std::max(InSpotLightComp->Light.Radius * 1.05f, 1.0f);
         glm::mat4 spotProj       = glm::perspective(glm::radians(fov), 1.0f, 0.1f, farPlane);
         glm::mat4 spotLightSpace = spotProj * spotView;
         OutCamData.SpotLightSpaceMatrix = spotLightSpace;

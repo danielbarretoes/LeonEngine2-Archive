@@ -1,8 +1,8 @@
 # RENDER AUDIT & ARQUITECTURA DEL SUBSISTEMA DE RENDERIZADO
 # LeonEngine2 (OpenGL 4.5 Core DSA + PBR Pipeline)
 
-> **Documento maestro de arquitectura, auditoría técnica, catálogo de características y resolución de problemas del subsistema gráfico 3D de LeonEngine2.**  
-> Estado del código consolidado tras las Fases 1 a 12 y la fase de pulido técnico profundo.
+> **Documento maestro de arquitectura, auditoría técnica, catálogo de características, matemáticas de iluminación y resolución de problemas del subsistema gráfico 3D de LeonEngine2.**  
+> Estado del código consolidado tras las Fases 1 a 12, el pulido técnico profundo y la validación matemática/física de Spot Lights y sombras.
 
 ---
 
@@ -69,19 +69,72 @@ graph TD
   - **Visibilidad / Geometría ($G$)**: Smith Schlick-GGX ($G(V, L) = G_1(V) G_1(L)$) con $k = \frac{(Roughness + 1)^2}{8}$.
   - **Fresnel ($F$)**: Aproximación de Schlick ($F(V, H) = F_0 + (1 - F_0)(1 - (V \cdot H))^5$).
   - **Conservación de Energía**: $k_S = F$, $k_D = (1 - k_S)(1 - \text{metallic})$, $\text{BRDF}_{\text{diffuse}} = \frac{k_D \cdot \text{albedo}}{\pi}$.
-- **Atenuación Física por Radio (UE4 / Filament)**:
-  - Las luces puntuales y spots utilizan una atenuación cuadrática inversa acotada a un radio físico:
-    $$\text{attenuation} = \frac{\text{saturate}\left(1 - \left(\frac{d}{\text{Radius}}\right)^4\right)^2}{d^2 + 1}$$
-  - Parámetros unificados en `Color` + `Intensity` (radiancia física pura, sin splits Phong anticuados).
+- **Atenuación Cuadrática Inversa con Ventana de Radio Finito (UE4 / Karis / Filament)**:
+  - Las luces puntuales y spots utilizan una atenuación cuadrática inversa acotada a un radio físico de influencia:
+    $$\text{attenuation} = \frac{\left[\text{saturate}\left(1 - \left(\frac{d}{\text{Radius}}\right)^4\right)\right]^2}{d^2 + 1}$$
+  - Parámetros unificados en `Color` + `Intensity` (radiancia física lineal pura, sin splits Phong anticuados).
 
-### 2.4 Image-Based Lighting (IBL) Basado en Física
+### 2.4 Subsistema de Spot Lights: Matemáticas, Conos, FOV y Sombras
+
+```text
+       Luz (Position)
+         / | \
+        /  |  \
+       /   |   \
+      /    |    \
+     /  θ  |     \
+    /      |      \
+   / Inner | Outer \
+  /  Cone  |  Cone  \
+ / (100%)  |(Smooth)| \ (0%)
+```
+
+#### A. Representación y Unidades de Ángulos
+- **En C++ (`FSpotLight`)**:
+  - `CutOff`: Semi-ángulo del cono interior en **grados sexagesimales** (e.g. $20.0^\circ$).
+  - `OuterCutOff`: Semi-ángulo del cono exterior en **grados sexagesimales** (e.g. $30.0^\circ$).
+- **En GPU UBO (`FLightingBufferData` / `SpotLight` struct en `PBR_Lit.glsl`)**:
+  - `direction.w`: Coseno del semi-ángulo interior ($\cos(\text{CutOff}) = \cos(20^\circ) \approx 0.93969$).
+  - `color.w`: Coseno del semi-ángulo exterior ($\cos(\text{OuterCutOff}) = \cos(30^\circ) \approx 0.86602$).
+
+#### B. Convención de Vectores y Penumbra
+- **Vector de Incidencia ($L$)**: $L = \text{normalize}(P_{\text{light}} - P_{\text{frag}})$ (Apunta desde el fragmento hacia la fuente de luz).
+- **Dirección del Spot ($\mathbf{D}$)**: $\mathbf{D} = \text{normalize}(\text{SpotDirection})$ (Apunta desde la luz hacia la escena, e.g. $(0, -1, 0)$).
+- **Coseno del Ángulo ($\theta$)**: $\theta = \text{dot}(L, -\mathbf{D}) = \cos(\alpha)$.
+- **Caída de Penumbra**:
+  $$t = \text{clamp}\left(\frac{\theta - \text{outerCutOff}}{\text{cutOff} - \text{outerCutOff}}, 0.0, 1.0\right)$$
+  $$\text{spotFactor} = \text{smoothstep}(0.0, 1.0, t) = 3t^2 - 2t^3$$
+  - $\alpha \le \text{CutOff} \implies \text{spotFactor} = 1.0$ (100% iluminación uniforme).
+  - $\text{CutOff} < \alpha < \text{OuterCutOff} \implies \text{spotFactor} \in (0, 1)$ (transición cúbica suave en penumbra).
+  - $\alpha \ge \text{OuterCutOff} \implies \text{spotFactor} = 0.0$ (oscuridad total fuera del cono).
+
+#### C. Proyección de Sombra y FOV
+- **Matriz de Vista de Sombra**: `glm::lookAt(pos, pos + dir, up)` con selección ortonormal robusta:
+  $$\text{up} = (|\mathbf{D}_y| < 0.99) \;?\; (0, 1, 0) : (0, 0, 1)$$
+  (Garantiza base ortonormal para cualquier dirección, incluyendo luces verticales hacia $\pm Y$).
+- **Apertura de la Cámara de Sombra (`fov`)**:
+  $$\text{fov} = 2 \times \text{OuterCutOff} + 2.0^\circ = 2 \times 30^\circ + 2^\circ = 62.0^\circ$$
+  - El semi-ángulo del frustum de sombra es $\frac{62^\circ}{2} = 31^\circ > 30^\circ$ (el cono de luz de $30^\circ$ queda 100% inscrito dentro del mapa de sombras con $1^\circ$ de margen por lado para evitar recortes del kernel PCF $3\times 3$).
+- **Plano Lejano Dinámico**: $\text{farPlane} = \max(\text{Radius} \times 1.05, 1.0)$ (ajustado al radio físico de influencia de la luz para maximizar precisión en Z).
+- **Culling & Bias**:
+  - `ECullMode::Back` en el pase de sombras (renderiza caras frontales, erradicando el peter-panning en superficies de contacto).
+  - Normal-dependent receiver bias: $\text{bias} = \max(0.0012 \times (1 - N \cdot L), 0.0002)$.
+  - Clip guard: `if (fragPosLightSpace.w <= 0.0) return 0.0;` para proteger contra puntos invertidos detrás del plano cercano.
+
+#### D. Resolución del Shadow Map: Precisión Z vs Footprint Espacial XY
+- **Precisión en Z**: Textura `DEPTH32F_SHADOW` ($1024 \times 1024$) con 24 bits de mantisa IEEE 754 ($\Delta Z_{\text{view}} \ll 0.1\text{ mm}$ en todo el rango).
+- **Resolución Espacial XY**:
+  - A $d = 4.2\text{ m}$ (suelo del showcase): ancho del frustum $W = 2 \cdot 4.2 \cdot \tan(31^\circ) \approx 5.04\text{ m}$. Tamaño de texel en el mundo: **$\approx 4.9\text{ mm por texel}$**.
+  - A $d = 15.0\text{ m}$: ancho del frustum $W \approx 18.0\text{ m}$. Tamaño de texel en el mundo: **$\approx 1.7\text{ cm por texel}$**.
+
+### 2.5 Image-Based Lighting (IBL) Basado en Física
 - **Split-Sum Approximation (Karis / Epic Games)**:
   1. **2D BRDF LUT (`RG16F`, 256x256)**: Integra analíticamente la escala y el sesgo de Fresnel ($\int f_r \cos\theta d\omega_i \approx F_0 \cdot \text{Scale} + \text{Bias}$) mediante Importance Sampling GGX y secuencias de Hammersley de baja discrepancia en coma flotante `RG16F` (sin banding de cuantización de 8 bits).
   2. **Diffuse Irradiance Cubemap (32x32 por cara)**: Convolución hemisférica completa del entorno HDR.
   3. **Specular Prefiltered Cubemap (128x128, 5 mip levels)**: Convolución especular con roughnes mapeado a niveles de mipmap ($0.0 \dots 1.0 \to \text{mip } 0 \dots 4$), con interpolación bilineal y clamping de muestras extremas para erradicar fireflies Monte Carlo.
   4. **Fallback Atmosférico Analítico**: Gradiente físico procedural de cielo, horizonte y suelo con disco solar cuando no hay un HDR cargado.
 
-### 2.5 Cascaded Shadow Maps (CSM) Estables en `Texture2DArray`
+### 2.6 Cascaded Shadow Maps (CSM) Estables en `Texture2DArray`
 - **1 FBO + `GL_TEXTURE_2D_ARRAY` de 3 Capas (2048x2048, `DEPTH32F`)**:
   - Elimina la necesidad de múltiples FBOs y múltiples samplers individuales.
   - El fragment shader indexa directamente `layout(binding = 10) uniform sampler2DArrayShadow u_CascadeShadowMap;` con hardware PCF 3x3 integrado.
@@ -90,15 +143,15 @@ graph TD
 - **Texel Snapping Invariante**:
   - Snapping ortográfico estabilizado con tamaño de caja fijo para evitar el *shadow swimming* (centelleo sub-pixel en bordes de sombras al mover/rotar la cámara).
 - **Bias de Sombra Escala-Dependiente**:
-  - Escalamiento del bias de profundidad según el índice de la cascada para prevenir *peter-panning* en cascadas lejanas y *shadow acne* en cercanas.
+  - Escalamiento del bias de profundidad según el índice de la cascada ($1.0 + \text{cascadeIndex} \times 1.5$) para prevenir *peter-panning* en cascadas lejanas y *shadow acne* en cercanas.
 
-### 2.6 Reflejos Planares Desacoplados
+### 2.7 Reflejos Planares Desacoplados
 - **Cámara de Reflejo Simétrica**:
   - Matriz de vista construida mediante $V_{\text{reflect}} = V_{\text{main}} \times \text{scale}(1, -1, 1)$, proyectando reflejos con precisión 1:1 en el punto de contacto de cada objeto.
 - **Controlado 100% por Material**:
   - Eliminación de hacks geométricos condicionales (`N.y > 0.5`). La reflectividad se rige exclusivamente por `FPBRMaterial::bUsePlanarReflection`.
 
-### 2.7 Pipeline de Color Lineal y Post-Procesado HDR
+### 2.8 Pipeline de Color Lineal y Post-Procesado HDR
 - **Espacio de Color Estricto**:
   - Texturas Albedo $\to$ conversión a espacio Lineal ($\gamma = 2.2$).
   - Normal, Metallic, Roughness, AO $\to$ espacio Lineal nativo.
@@ -197,8 +250,10 @@ layout(std140) uniform LightingData {
 | **16. Shadow Bias Uniforme** | Mismo valor de bias de profundidad para cascada 0 (cercana) y cascada 2 (lejana). | *Peter-panning* en cascada lejana y posible *acne* en cascada cercana. | Bias escalado según el índice de cascada ($1.0 + \text{cascadeIndex} \times 1.5$). |
 | **17. Hack `N.y > 0.5` en Reflejos** | Condición hardcodeada que forzaba reflejos solo en caras hacia arriba. | Superficies inclinadas con material reflectante no mostraban reflejos. | Eliminado el hack geométrico. El material gobierna la reflectividad. |
 | **18. Samplers Redundantes en Draw Loop** | Múltiples llamadas `SetInt` por objeto para samplers con `layout(binding = X)` estáticos. | Overhead redundante de llamadas al driver por draw call. | Eliminadas las llamadas redundantes a uniform setters de samplers. |
-| **19. Inversión de Culling en Spot Shadows** | `RenderSpotShadowPass` usaba `ECullMode::Front`, renderizando caras traseras en el shadow map. | En objetos sobre el suelo, la cara trasera coincide con el suelo ($Y=0$); al aplicar bias, la sombra bajo el objeto desaparecía por completo (peter-panning extremo). | Cambio a `ECullMode::Back` con slope-scaled normal bias en `RenderSpotShadowPass`. |
+| **19. Inversión de Culling en Spot Shadows** | `RenderSpotShadowPass` usaba `ECullMode::Front`, renderizando caras traseras en el shadow map. | En objetos sobre el suelo, la cara trasera coincide con el suelo ($Y=0$); al aplicar bias, la sombra bajo el objeto desaparecía por completo (peter-panning extremo). | Cambio a `ECullMode::Back` con normal-dependent receiver bias en `RenderSpotShadowPass`. |
 | **20. Clip Bounds en `SampleShadowMap`** | `SampleShadowMap` no validaba $w_{\text{clip}} \le 0$ ni $z_{\text{proj}} < 0$. | Puntos detrás del plano cercano de la luz invertían sus coordenadas y generaban artefactos de sombra espurios. | Validación de $w_{\text{clip}} > 0$ y límites estrictos $[0, 1]$ en NDC para perspectiva. |
+| **21. Margen de FOV en Spot Shadow Frustum** | Frustum ajustado estrictamente a $2 \times \text{OuterCutOff}$ sin margen de filtrado. | El kernel PCF $3\times 3$ muestreaba texels fuera del rango $[0, 1]$ en el borde extremo del cono. | Añadido margen de seguridad de $+2^\circ$ (`fov = 2 * OuterCutOff + 2.0f`). |
+| **22. Plano Lejano Dinámico de Sombra Spot** | `farPlane` fijado a un valor estático de $35\text{ m}$ o $15\text{ m}$. | Desperdicio de rango de profundidad en luces con radio de influencia pequeño. | Ajuste dinámico a `farPlane = max(Radius * 1.05, 1.0)`. |
 
 ---
 
