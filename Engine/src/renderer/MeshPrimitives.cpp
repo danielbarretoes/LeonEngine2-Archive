@@ -314,7 +314,7 @@ namespace Leon {
 
             glm::vec3 normal(nx, ny, nz);
             glm::vec3 tangent(-sinTheta, 0.0f, cosTheta);
-            glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
+            glm::vec3 bitangent = glm::normalize(glm::cross(tangent, normal));
 
             // Bottom Ring Vertex
             float bx = InBottomRadius * cosTheta;
@@ -359,7 +359,7 @@ namespace Leon {
             vertices.push_back(1.0f);
         }
 
-        // Side Indices
+        // Side Indices (CCW front-facing winding for OpenGL Backface Culling)
         for (unsigned int x = 0; x < InSegments; ++x) {
             uint32_t b0 = sideBaseVertex + x * 2;
             uint32_t t0 = b0 + 1;
@@ -367,12 +367,12 @@ namespace Leon {
             uint32_t t1 = b1 + 1;
 
             indices.push_back(b0);
-            indices.push_back(b1);
+            indices.push_back(t0);
             indices.push_back(t1);
 
             indices.push_back(b0);
             indices.push_back(t1);
-            indices.push_back(t0);
+            indices.push_back(b1);
         }
 
         // 2. Top Cap (if enabled and radius > 0)
