@@ -14,7 +14,9 @@ namespace Leon {
 
         virtual void SetInt(const std::string& InName, int InValue) = 0;
         virtual void SetFloat(const std::string& InName, float InValue) = 0;
+        virtual void SetFloat2(const std::string& InName, float InX, float InY) = 0;
         virtual void SetFloat3(const std::string& InName, float InX, float InY, float InZ) = 0;
+
         virtual void SetFloat4(const std::string& InName, float InX, float InY, float InZ, float InW) = 0;
         virtual void SetMat4(const std::string& InName, const float* InMatrix) = 0;
 

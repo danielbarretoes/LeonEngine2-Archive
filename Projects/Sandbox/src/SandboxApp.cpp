@@ -43,7 +43,9 @@ public:
 
         m_ContainerTexture = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Container_D.png");
         m_MetalPlatesNormalMap = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png");
+        m_MetalPlatesAOMap = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png");
         m_TilesNormalMap = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Tiles_N.png");
+        m_TilesAOMap = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Tiles_AO.png");
 
         // 4. Create Geometric Mesh Primitives (Using Default Standard 1.0 Unit Modular Dimensions)
         m_CubeVA = Leon::FMeshPrimitives::CreateCube();
@@ -69,29 +71,34 @@ public:
             m_SkyboxEntity.AddComponent<Leon::FSkyboxComponent>(skybox);
         }
 
-        // 5.1 Glossy Ground Plane with Tile Normal Map (Reflective Shadow Receiver)
+        // 5.1 Glossy Ground Plane with Tile Normal Map & Ambient Occlusion (Reflective Shadow Receiver)
         {
             m_PlaneEntity = m_Scene->CreateEntity("PBR Ground Plane");
             auto& transform = m_PlaneEntity.GetComponent<Leon::FTransformComponent>();
             transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
 
-            m_PlaneEntity.AddComponent<Leon::FMeshComponent>(m_PlaneVA, m_PBRShader);
+            auto& mesh = m_PlaneEntity.AddComponent<Leon::FMeshComponent>(m_PlaneVA, m_PBRShader);
+            mesh.bCastShadows = false;
+            mesh.bVisibleInReflection = false;
 
             Leon::FPBRMaterial mat;
             mat.AlbedoColor = glm::vec3(0.75f, 0.78f, 0.82f);
             mat.NormalMap = m_TilesNormalMap;
             mat.bUseNormalMap = true;
+            mat.AOMap = m_TilesAOMap;
+            mat.bUseAOMap = true;
             mat.Metallic = 0.08f;
             mat.Roughness = 0.18f; // Glossy reflective floor
+            mat.bUsePlanarReflection = true;
             m_PlaneEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.2 Emerald PBR Ramp with Metal Panel Normal Map (Far Left)
+        // 5.2 Emerald PBR Ramp with Metal Panel Normal Map & AO (Far Left)
         {
             m_RampEntity = m_Scene->CreateEntity("PBR Emerald Ramp");
             auto& transform = m_RampEntity.GetComponent<Leon::FTransformComponent>();
             transform.Translation = glm::vec3(-4.0f, 0.5f, 0.0f);
-            transform.Rotation = glm::vec3(0.0f, -25.0f, 0.0f);
+            transform.Rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 
             m_RampEntity.AddComponent<Leon::FMeshComponent>(m_RampVA, m_PBRShader);
 
@@ -99,12 +106,14 @@ public:
             mat.AlbedoColor = glm::vec3(0.05f, 0.85f, 0.45f);
             mat.NormalMap = m_MetalPlatesNormalMap;
             mat.bUseNormalMap = true;
+            mat.AOMap = m_MetalPlatesAOMap;
+            mat.bUseAOMap = true;
             mat.Metallic = 0.25f;
             mat.Roughness = 0.15f; // Crisp reflections perturbed by normal grooves
             m_RampEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.3 Textured PBR Rotating Cube with Diffuse + Normal Map (Left)
+        // 5.3 Textured PBR Rotating Cube with Diffuse + Normal Map + AO (Left)
         {
             m_CubeEntity = m_Scene->CreateEntity("PBR Textured Cube");
             auto& transform = m_CubeEntity.GetComponent<Leon::FTransformComponent>();
@@ -118,6 +127,8 @@ public:
             mat.bUseAlbedoMap = true;
             mat.NormalMap = m_MetalPlatesNormalMap;
             mat.bUseNormalMap = true;
+            mat.AOMap = m_MetalPlatesAOMap;
+            mat.bUseAOMap = true;
             mat.Metallic = 0.65f;
             mat.Roughness = 0.18f;
             m_CubeEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
@@ -135,6 +146,7 @@ public:
             mat.AlbedoColor = glm::vec3(1.00f, 0.78f, 0.34f); // Pure Gold Base Reflectance
             mat.Metallic = 1.0f;
             mat.Roughness = 0.05f; // Mirror-like sky & horizon reflections
+            mat.AO = 1.0f;
             m_GoldSphereEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
@@ -150,10 +162,11 @@ public:
             mat.AlbedoColor = glm::vec3(0.92f, 0.08f, 0.12f);
             mat.Metallic = 0.0f;
             mat.Roughness = 0.12f; // Glossy dielectric reflection
+            mat.AO = 1.0f;
             m_RedSphereEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.6 Rough Brushed Iron Cylinder (Right)
+        // 5.6 Rough Brushed Iron Cylinder with AO (Right)
         {
             m_CylinderEntity = m_Scene->CreateEntity("PBR Brushed Iron Cylinder");
             auto& transform = m_CylinderEntity.GetComponent<Leon::FTransformComponent>();
@@ -165,17 +178,19 @@ public:
             mat.AlbedoColor = glm::vec3(0.56f, 0.57f, 0.58f); // Iron Base Reflectance
             mat.NormalMap = m_MetalPlatesNormalMap;
             mat.bUseNormalMap = true;
+            mat.AOMap = m_MetalPlatesAOMap;
+            mat.bUseAOMap = true;
             mat.Metallic = 0.95f;
             mat.Roughness = 0.22f;
             m_CylinderEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.7 Cobalt Mirror Metallic PBR Square Pyramid (Far Right)
+        // 5.7 Cobalt Mirror Metallic PBR Square Pyramid with Tile AO (Far Right)
         {
             m_PyramidEntity = m_Scene->CreateEntity("PBR Cobalt Pyramid");
             auto& transform = m_PyramidEntity.GetComponent<Leon::FTransformComponent>();
             transform.Translation = glm::vec3(4.0f, 0.5f, 0.0f);
-            transform.Rotation = glm::vec3(0.0f, 35.0f, 0.0f);
+            transform.Rotation = glm::vec3(0.0f, 0.0f, 0.0f);
 
             m_PyramidEntity.AddComponent<Leon::FMeshComponent>(m_PyramidVA, m_PBRShader);
 
@@ -183,6 +198,8 @@ public:
             mat.AlbedoColor = glm::vec3(0.18f, 0.45f, 0.95f);
             mat.NormalMap = m_TilesNormalMap;
             mat.bUseNormalMap = true;
+            mat.AOMap = m_TilesAOMap;
+            mat.bUseAOMap = true;
             mat.Metallic = 0.90f;
             mat.Roughness = 0.08f; // Crisp geometric reflections with beveled normal tile seams
             m_PyramidEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
@@ -322,19 +339,7 @@ public:
         // Update Entity Animations & Transformations
         m_TimeAccumulator += InTs.GetSeconds();
 
-        // 1. Rotate Cube Entity
-        if (m_CubeEntity) {
-            auto& transform = m_CubeEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Rotation += glm::vec3(18.0f, 30.0f, 12.0f) * InTs.GetSeconds();
-        }
-
-        // 2. Rotate Cylinder Entity
-        if (m_CylinderEntity) {
-            auto& transform = m_CylinderEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Rotation.y += 22.0f * InTs.GetSeconds();
-        }
-
-        // 3. Float Spheres slightly up and down
+        // 1. Float Spheres slightly up and down
         if (m_GoldSphereEntity) {
             auto& transform = m_GoldSphereEntity.GetComponent<Leon::FTransformComponent>();
             transform.Translation.y = 0.7f + std::sin(m_TimeAccumulator * 2.0f) * 0.15f;
@@ -344,12 +349,6 @@ public:
             auto& transform = m_RedSphereEntity.GetComponent<Leon::FTransformComponent>();
             transform.Translation.y = 0.7f + std::cos(m_TimeAccumulator * 2.0f) * 0.15f;
             transform.Rotation.y -= 15.0f * InTs.GetSeconds();
-        }
-
-        // 4. Slowly rotate Pyramid
-        if (m_PyramidEntity) {
-            auto& transform = m_PyramidEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Rotation.y += 18.0f * InTs.GetSeconds();
         }
 
         // 5. Orbit Point Light Entity
@@ -415,10 +414,12 @@ private:
     Leon::TRef<Leon::FShader> m_PBRShader;
     Leon::TRef<Leon::FShader> m_DefaultLitShader;
 
-    // Textures & Normal Maps
+    // Textures, Normal Maps & AO Maps
     Leon::TRef<Leon::FTexture2D> m_ContainerTexture;
     Leon::TRef<Leon::FTexture2D> m_MetalPlatesNormalMap;
+    Leon::TRef<Leon::FTexture2D> m_MetalPlatesAOMap;
     Leon::TRef<Leon::FTexture2D> m_TilesNormalMap;
+    Leon::TRef<Leon::FTexture2D> m_TilesAOMap;
 
     // Primitives
     Leon::TRef<Leon::FVertexArray> m_CubeVA;

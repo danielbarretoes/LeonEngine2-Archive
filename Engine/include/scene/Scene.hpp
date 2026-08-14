@@ -35,9 +35,13 @@ namespace Leon {
         uint32_t m_ViewportHeight = 720;
 
         TRef<class FFramebuffer> m_ShadowMapFramebuffer;
+        TRef<class FFramebuffer> m_PlanarReflectionFramebuffer;
+        TRef<class FFramebuffer> m_HDRSceneFramebuffer;
         TRef<class FShader> m_ShadowDepthShader;
         TRef<class FShader> m_SkyboxShader;
+        TRef<class FShader> m_PostProcessShader;
         TRef<class FVertexArray> m_SkyboxVA;
+        TRef<class FVertexArray> m_FullscreenQuadVA;
 
         friend class FEntity;
     };

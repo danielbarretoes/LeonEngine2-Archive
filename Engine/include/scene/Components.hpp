@@ -50,6 +50,9 @@ namespace Leon {
         glm::vec4 Color{1.0f, 1.0f, 1.0f, 1.0f};
         float Tiling = 1.0f;
         bool bUseTexture = true;
+        bool bCastShadows = true;
+        bool bReceiveShadows = true;
+        bool bVisibleInReflection = true;
 
         FMeshComponent() = default;
         FMeshComponent(const FMeshComponent&) = default;
@@ -76,6 +79,7 @@ namespace Leon {
         bool bUseMetallicMap = false;
         bool bUseRoughnessMap = false;
         bool bUseAOMap = false;
+        bool bUsePlanarReflection = false;
     };
 
     using PBRMaterial = FPBRMaterial;

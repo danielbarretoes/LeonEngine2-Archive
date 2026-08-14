@@ -26,24 +26,10 @@ void main() {
     // Normal matrix for non-uniform scaling
     mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
     vec3 N = normalize(normalMatrix * aNormal);
-    
-    // Gram-Schmidt process for orthogonal TBN basis with fallback
-    vec3 rawT = normalMatrix * aTangent;
-    vec3 T;
-    if (length(rawT) > 0.0001) {
-        T = normalize(rawT);
-        vec3 orthoT = T - dot(T, N) * N;
-        if (length(orthoT) > 0.0001) {
-            T = normalize(orthoT);
-        } else {
-            T = normalize(cross(N, vec3(0.0, 1.0, 0.0)));
-            if (length(T) < 0.0001) T = normalize(cross(N, vec3(1.0, 0.0, 0.0)));
-        }
-    } else {
-        T = normalize(cross(N, vec3(0.0, 1.0, 0.0)));
-        if (length(T) < 0.0001) T = normalize(cross(N, vec3(1.0, 0.0, 0.0)));
-    }
-    vec3 B = cross(N, T);
+    vec3 T = normalize(normalMatrix * aTangent);
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = normalize(normalMatrix * aBitangent);
+    B = normalize(B - dot(B, N) * N - dot(B, T) * T);
     v_TBN = mat3(T, B, N);
     v_Normal = N;
 
@@ -70,25 +56,30 @@ in mat3 v_TBN;
 uniform vec3 u_AlbedoColor;
 uniform float u_Metallic;
 uniform float u_Roughness;
+uniform float u_AO;
 
 uniform sampler2D u_AlbedoMap;
 uniform sampler2D u_NormalMap;
 uniform sampler2D u_MetallicMap;
+uniform sampler2D u_AOMap;
 uniform sampler2D u_RoughnessMap;
 uniform sampler2D u_ShadowMap;
+uniform sampler2D u_PlanarReflectionMap;
 
 uniform int u_UseAlbedoMap;
 uniform int u_UseNormalMap;
 uniform int u_UseMetallicMap;
+uniform int u_UseAOMap;
 uniform int u_UseRoughnessMap;
 uniform int u_UseShadows;
+uniform int u_UsePlanarReflection;
+uniform vec2 u_ScreenSize;
 
 // Environment / IBL Atmosphere Uniforms
 uniform vec3 u_EnvSkyColor;
 uniform vec3 u_EnvHorizonColor;
 uniform vec3 u_EnvGroundColor;
 uniform float u_EnvIntensity;
-uniform float u_Exposure;
 
 // Direct Lighting Subsystem Uniforms
 struct DirectionalLight {
@@ -127,23 +118,18 @@ struct SpotLight {
     float specularIntensity;
 };
 
+#define MAX_POINT_LIGHTS 16
+#define MAX_SPOT_LIGHTS 8
+
 uniform DirectionalLight u_DirLight;
-uniform PointLight u_PointLight;
-uniform SpotLight u_SpotLight;
+uniform int u_PointLightCount;
+uniform PointLight u_PointLights[MAX_POINT_LIGHTS];
+uniform int u_SpotLightCount;
+uniform SpotLight u_SpotLights[MAX_SPOT_LIGHTS];
 
 uniform vec3 u_ViewPos;
 
 const float PI = 3.14159265358979323846;
-
-// 1. ACES Film Tonemapping Curve (Unreal Engine Standard)
-vec3 ACESFilm(vec3 x) {
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
-}
 
 // 2. Normal Distribution Function (Trowbridge-Reitz GGX)
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
@@ -228,17 +214,17 @@ float CalculateShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
-    if (projCoords.z > 1.0)
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.0005);
+    float bias = max(0.003 * (1.0 - dot(normal, lightDir)), 0.0005);
     float shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(u_ShadowMap, 0);
 
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
             float pcfDepth = texture(u_ShadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += projCoords.z - bias > pcfDepth ? 1.0 : 0.0;
+            shadow += (projCoords.z - bias > pcfDepth) ? 1.0 : 0.0;
         }
     }
 
@@ -272,6 +258,13 @@ void main() {
     }
     roughness = clamp(roughness, 0.04, 1.0);
 
+    // Ambient Occlusion (AO Map & Scalar)
+    float ao = u_AO;
+    if (u_UseAOMap == 1) {
+        ao *= texture(u_AOMap, v_TexCoord).r;
+    }
+    ao = clamp(ao, 0.0, 1.0);
+
     vec3 V = normalize(u_ViewPos - v_FragPos);
     vec3 R = reflect(-V, N);
 
@@ -282,7 +275,7 @@ void main() {
     // Direct lighting radiance accumulation (Lo)
     vec3 Lo = vec3(0.0);
 
-    // 1. Directional Sunlight
+    // 1. Directional Sunlight with Shadows
     if (u_DirLight.enabled == 1) {
         vec3 L = normalize(-u_DirLight.direction);
         vec3 H = normalize(V + L);
@@ -304,16 +297,19 @@ void main() {
         float shadow = CalculateShadow(v_FragPosLightSpace, N, L);
 
         Lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow);
-        Lo += u_DirLight.color * u_DirLight.ambientIntensity * albedo;
+        Lo += u_DirLight.color * u_DirLight.ambientIntensity * albedo * ao;
     }
 
-    // 2. Point Light
-    if (u_PointLight.enabled == 1) {
-        vec3 L = normalize(u_PointLight.position - v_FragPos);
+    // 2. Point Lights (Multi-Light Loop)
+    int pointCount = min(u_PointLightCount, MAX_POINT_LIGHTS);
+    for (int i = 0; i < pointCount; ++i) {
+        if (u_PointLights[i].enabled == 0) continue;
+
+        vec3 L = normalize(u_PointLights[i].position - v_FragPos);
         vec3 H = normalize(V + L);
-        float distance = length(u_PointLight.position - v_FragPos);
-        float attenuation = 1.0 / (u_PointLight.constant + u_PointLight.linear * distance + u_PointLight.quadratic * (distance * distance));
-        vec3 radiance = u_PointLight.color * u_PointLight.diffuseIntensity * attenuation;
+        float distance = length(u_PointLights[i].position - v_FragPos);
+        float attenuation = 1.0 / (u_PointLights[i].constant + u_PointLights[i].linear * distance + u_PointLights[i].quadratic * (distance * distance));
+        vec3 radiance = u_PointLights[i].color * u_PointLights[i].diffuseIntensity * attenuation;
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
@@ -321,7 +317,7 @@ void main() {
 
         vec3 numerator = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_PointLight.specularIntensity;
+        vec3 specular = (numerator / denominator) * u_PointLights[i].specularIntensity;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
@@ -329,21 +325,24 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-        Lo += u_PointLight.color * u_PointLight.ambientIntensity * attenuation * albedo;
+        Lo += u_PointLights[i].color * u_PointLights[i].ambientIntensity * attenuation * albedo * ao;
     }
 
-    // 3. Spotlight
-    if (u_SpotLight.enabled == 1) {
-        vec3 L = normalize(u_SpotLight.position - v_FragPos);
+    // 3. Spotlights (Multi-Light Loop)
+    int spotCount = min(u_SpotLightCount, MAX_SPOT_LIGHTS);
+    for (int i = 0; i < spotCount; ++i) {
+        if (u_SpotLights[i].enabled == 0) continue;
+
+        vec3 L = normalize(u_SpotLights[i].position - v_FragPos);
         vec3 H = normalize(V + L);
-        float distance = length(u_SpotLight.position - v_FragPos);
-        float attenuation = 1.0 / (u_SpotLight.constant + u_SpotLight.linear * distance + u_SpotLight.quadratic * (distance * distance));
+        float distance = length(u_SpotLights[i].position - v_FragPos);
+        float attenuation = 1.0 / (u_SpotLights[i].constant + u_SpotLights[i].linear * distance + u_SpotLights[i].quadratic * (distance * distance));
 
-        float theta = dot(L, normalize(-u_SpotLight.direction));
-        float epsilon = u_SpotLight.cutOff - u_SpotLight.outerCutOff;
-        float spotIntensity = clamp((theta - u_SpotLight.outerCutOff) / epsilon, 0.0, 1.0);
+        float theta = dot(L, normalize(-u_SpotLights[i].direction));
+        float epsilon = u_SpotLights[i].cutOff - u_SpotLights[i].outerCutOff;
+        float spotIntensity = clamp((theta - u_SpotLights[i].outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
 
-        vec3 radiance = u_SpotLight.color * u_SpotLight.diffuseIntensity * attenuation * spotIntensity;
+        vec3 radiance = u_SpotLights[i].color * u_SpotLights[i].diffuseIntensity * attenuation * spotIntensity;
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
@@ -351,7 +350,7 @@ void main() {
 
         vec3 numerator = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_SpotLight.specularIntensity;
+        vec3 specular = (numerator / denominator) * u_SpotLights[i].specularIntensity;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
@@ -359,11 +358,11 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-        Lo += u_SpotLight.color * u_SpotLight.ambientIntensity * attenuation * spotIntensity * albedo;
+        Lo += u_SpotLights[i].color * u_SpotLights[i].ambientIntensity * attenuation * spotIntensity * albedo * ao;
     }
 
     // ========================================================
-    // 4. Image-Based Lighting (IBL) Indirect Lighting Pass
+    // 4. Image-Based Lighting (IBL) Indirect Lighting Pass with AO
     // ========================================================
     float NdotV = max(dot(N, V), 0.0);
     vec3 F_IBL = FresnelSchlickRoughness(NdotV, F0, roughness);
@@ -371,7 +370,7 @@ void main() {
     vec3 kS_IBL = F_IBL;
     vec3 kD_IBL = (1.0 - kS_IBL) * (1.0 - metallic);
     
-    // 4.1 Indirect Diffuse (Hemisphere Irradiance)
+    // 4.1 Indirect Diffuse (Hemisphere Irradiance modulated by AO)
     vec3 irradiance = GetHemisphereIrradiance(N);
     vec3 diffuseIBL = irradiance * albedo;
 
@@ -380,14 +379,23 @@ void main() {
     vec2 envBRDF = vec2(1.0 - roughness, roughness * 0.5);
     vec3 specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
 
-    vec3 ambient = (kD_IBL * diffuseIBL + specularIBL);
+    // 4.3 Real-Time Planar Reflections (Reflecting Scene Objects in Floor)
+    if (u_UsePlanarReflection == 1 && N.y > 0.5) {
+        vec2 screenUV = gl_FragCoord.xy / u_ScreenSize;
+        // Perturb reflection screen UV with normal map perturbation in XZ
+        vec2 perturbedUV = screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness);
+        perturbedUV = clamp(perturbedUV, 0.001, 0.999);
+        vec3 planarColor = texture(u_PlanarReflectionMap, perturbedUV).rgb;
+        
+        // Blend planar reflection over IBL environment specular based on roughness & Fresnel
+        float reflectStrength = clamp((1.0 - roughness * 1.1), 0.0, 1.0) * (0.7 + 0.3 * F_IBL.r);
+        specularIBL = mix(specularIBL, planarColor * (F_IBL * envBRDF.x + envBRDF.y), reflectStrength);
+    }
 
-    // Final Radiance
-    vec3 hdrColor = (ambient + Lo) * u_Exposure;
+    // Occlude indirect ambient radiance by AO
+    vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;
 
-    // ACES Filmic Tonemapping & Gamma 2.2 Correction
-    vec3 ldrColor = ACESFilm(hdrColor);
-    ldrColor = pow(ldrColor, vec3(1.0 / 2.2));
-
-    FragColor = vec4(ldrColor, 1.0);
+    // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
+    vec3 hdrColor = ambient + Lo;
+    FragColor = vec4(hdrColor, 1.0);
 }

@@ -188,7 +188,12 @@ namespace Leon {
         glUniform1f(GetUniformLocation(InName), InValue);
     }
 
+    void FOpenGLShader::SetFloat2(const std::string& InName, float InX, float InY) {
+        glUniform2f(GetUniformLocation(InName), InX, InY);
+    }
+
     void FOpenGLShader::SetFloat3(const std::string& InName, float InX, float InY, float InZ) {
+
         glUniform3f(GetUniformLocation(InName), InX, InY, InZ);
     }
 

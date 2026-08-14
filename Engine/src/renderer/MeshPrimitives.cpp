@@ -215,11 +215,11 @@ namespace Leon {
 
         for (unsigned int z = 0; z <= InSubdivisionsZ; ++z) {
             float posZ = -hz + z * dz;
-            float v = static_cast<float>(z) / static_cast<float>(InSubdivisionsZ);
+            float v = (static_cast<float>(z) / static_cast<float>(InSubdivisionsZ)) * (InDepth / 4.0f);
 
             for (unsigned int x = 0; x <= InSubdivisionsX; ++x) {
                 float posX = -hx + x * dx;
-                float u = static_cast<float>(x) / static_cast<float>(InSubdivisionsX);
+                float u = (static_cast<float>(x) / static_cast<float>(InSubdivisionsX)) * (InWidth / 4.0f);
 
                 // Position (3)
                 vertices.push_back(posX);

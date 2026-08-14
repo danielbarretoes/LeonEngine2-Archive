@@ -29,17 +29,6 @@ uniform vec3 u_HorizonColor;
 uniform vec3 u_GroundColor;
 uniform vec3 u_SunColor;
 uniform float u_SunIntensity;
-uniform float u_Exposure;
-
-// ACES Film Tonemapping Curve (Unreal Engine 5 standard)
-vec3 ACESFilm(vec3 x) {
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
-}
 
 void main() {
     vec3 dir = normalize(v_TexCoords);
@@ -62,11 +51,8 @@ void main() {
     float sunHalo = pow(cosTheta, 32.0) * 1.5 + pow(cosTheta, 256.0) * 3.0;
     
     vec3 sunContribution = (u_SunColor * u_SunIntensity) * (sunDisc * 8.0 + sunHalo);
-    vec3 hdrColor = (sky + sunContribution) * u_Exposure;
+    vec3 hdrColor = sky + sunContribution;
 
-    // ACES Tonemapping & Gamma Correction
-    vec3 ldrColor = ACESFilm(hdrColor);
-    ldrColor = pow(ldrColor, vec3(1.0 / 2.2));
-
-    FragColor = vec4(ldrColor, 1.0);
+    // Linear HDR output (Post-Processing Pass handles Tonemapping & Gamma)
+    FragColor = vec4(hdrColor, 1.0);
 }

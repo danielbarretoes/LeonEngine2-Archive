@@ -27,7 +27,8 @@ namespace Leon {
                 glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, InSamples, InInternalFormat, InWidth, InHeight,
                                         GL_FALSE);
             } else {
-                glTexImage2D(GL_TEXTURE_2D, 0, InInternalFormat, InWidth, InHeight, 0, InFormat, GL_UNSIGNED_BYTE,
+                GLenum dataType = (InInternalFormat == GL_RGBA16F) ? GL_HALF_FLOAT : GL_UNSIGNED_BYTE;
+                glTexImage2D(GL_TEXTURE_2D, 0, InInternalFormat, InWidth, InHeight, 0, InFormat, dataType,
                              nullptr);
 
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -74,6 +75,8 @@ namespace Leon {
             switch (InFormat) {
             case EFramebufferTextureFormat::RGBA8:
                 return GL_RGBA8;
+            case EFramebufferTextureFormat::RGBA16F:
+                return GL_RGBA16F;
             case EFramebufferTextureFormat::RED_INTEGER:
                 return GL_RED_INTEGER;
             default:
@@ -85,6 +88,8 @@ namespace Leon {
             switch (InFormat) {
             case EFramebufferTextureFormat::RGBA8:
                 return 4;
+            case EFramebufferTextureFormat::RGBA16F:
+                return 8;
             case EFramebufferTextureFormat::RED_INTEGER:
                 return 4;
             case EFramebufferTextureFormat::DEPTH24STENCIL8:
@@ -150,6 +155,11 @@ namespace Leon {
                     Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA8, GL_RGBA,
                                               m_Specification.Width, m_Specification.Height, static_cast<int>(i));
                     totalBytes += m_Specification.Width * m_Specification.Height * 4 * m_Specification.Samples;
+                    break;
+                case EFramebufferTextureFormat::RGBA16F:
+                    Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA16F, GL_RGBA,
+                                              m_Specification.Width, m_Specification.Height, static_cast<int>(i));
+                    totalBytes += m_Specification.Width * m_Specification.Height * 8 * m_Specification.Samples;
                     break;
                 case EFramebufferTextureFormat::RED_INTEGER:
                     Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_R32I, GL_RED_INTEGER,

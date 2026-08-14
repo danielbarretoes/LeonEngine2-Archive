@@ -151,4 +151,16 @@ namespace Leon {
 
     using IndexBuffer = FIndexBuffer;
 
+    class FUniformBuffer {
+    public:
+        virtual ~FUniformBuffer() = default;
+
+        virtual void SetData(const void* InData, unsigned int InSize, unsigned int InOffset = 0) = 0;
+        virtual unsigned int GetBinding() const = 0;
+
+        static TRef<FUniformBuffer> Create(unsigned int InSize, unsigned int InBinding);
+    };
+
+    using UniformBuffer = FUniformBuffer;
+
 } // namespace Leon

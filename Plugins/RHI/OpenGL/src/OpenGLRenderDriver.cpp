@@ -5,6 +5,7 @@
 #include "OpenGLFramebuffer.hpp"
 #include "OpenGLShader.hpp"
 #include "OpenGLTexture2D.hpp"
+#include "OpenGLUniformBuffer.hpp"
 #include "OpenGLVertexArray.hpp"
 
 #include <GLFW/glfw3.h>
@@ -54,6 +55,10 @@ namespace Leon {
 
     TRef<FFramebuffer> FOpenGLRenderDriver::CreateFramebuffer(const FFramebufferSpecification& InSpec) {
         return MakeRef<FOpenGLFramebuffer>(InSpec);
+    }
+
+    TRef<FUniformBuffer> FOpenGLRenderDriver::CreateUniformBuffer(unsigned int InSize, unsigned int InBinding) {
+        return MakeRef<FOpenGLUniformBuffer>(InSize, InBinding);
     }
 
     void FOpenGLRenderDriver::Register() {

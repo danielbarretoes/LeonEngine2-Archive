@@ -10,6 +10,7 @@ namespace Leon {
 
         // Color Formats
         RGBA8,
+        RGBA16F,
         RED_INTEGER,
 
         // Depth / Stencil Formats

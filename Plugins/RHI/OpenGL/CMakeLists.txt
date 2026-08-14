@@ -7,6 +7,7 @@ add_library(LeonEngine_OpenGL STATIC
     src/OpenGLTexture2D.cpp
     src/OpenGLVertexArray.cpp
     src/OpenGLRenderDriver.cpp
+    src/OpenGLUniformBuffer.cpp
 )
 
 

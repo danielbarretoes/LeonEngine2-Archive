@@ -30,6 +30,40 @@ namespace Leon {
                 s_RenderAPI->Clear();
         }
 
+        static void SetDepthTesting(bool InEnabled) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetDepthTesting(InEnabled);
+        }
+
+        static void SetDepthMask(bool InEnabled) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetDepthMask(InEnabled);
+        }
+
+        static void SetDepthFunc(EDepthFunc InFunc) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetDepthFunc(InFunc);
+        }
+
+        static void SetCulling(bool InEnabled, ECullMode InMode = ECullMode::Back) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetCulling(InEnabled, InMode);
+        }
+
+        static void SetBlendState(bool InEnabled) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetBlendState(InEnabled);
+        }
+
+        static uint32_t GetFramebufferBinding() {
+            return s_RenderAPI ? s_RenderAPI->GetFramebufferBinding() : 0;
+        }
+
+        static void BindFramebuffer(uint32_t InRendererID) {
+            if (s_RenderAPI)
+                s_RenderAPI->BindFramebuffer(InRendererID);
+        }
+
         static void DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
             if (s_RenderAPI)
                 s_RenderAPI->DrawArrays(InVertexArray, InVertexCount);
