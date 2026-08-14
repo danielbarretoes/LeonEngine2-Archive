@@ -186,11 +186,8 @@ public:
 Leon::FApplication* Leon::CreateApplication() {
     Leon::FOpenGLRenderDriver::Register();
 
-    // 1. Load Engine / Project Configuration from INI file
-    Leon::FConfigFile engineConfig;
-    if (!engineConfig.Load("Projects/Sandbox/Config/DefaultEngine.ini")) {
-        engineConfig.Load("Config/DefaultEngine.ini");
-    }
+    // 1. Load Project Configuration from INI file
+    Leon::FConfigFile engineConfig("Projects/Sandbox/Config/DefaultEngine.ini");
 
     std::string windowTitle =
         engineConfig.GetString("/Script/Engine.DisplaySettings", "WindowTitle", "LeonEngine2 - Next-Gen Engine");
