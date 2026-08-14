@@ -1,0 +1,140 @@
+#include "renderer/MaterialInstance.hpp"
+#include "renderer/AssetManager.hpp"
+
+namespace Leon {
+
+    FMaterialInstance::FMaterialInstance(const TRef<FMaterial>& InParent,
+                                         const std::string& InName)
+        : m_ParentMaterial(InParent), m_Name(InName) {}
+
+    TRef<FMaterialInstance> FMaterialInstance::Create(const TRef<FMaterial>& InParent,
+                                                      const std::string& InName) {
+        return MakeRef<FMaterialInstance>(InParent, InName);
+    }
+
+    glm::vec3 FMaterialInstance::GetAlbedoColor() const {
+        if (m_AlbedoColorOverride.has_value())
+            return m_AlbedoColorOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetAlbedoColor() : glm::vec3(1.0f);
+    }
+
+    float FMaterialInstance::GetMetallic() const {
+        if (m_MetallicOverride.has_value())
+            return m_MetallicOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetMetallic() : 0.0f;
+    }
+
+    float FMaterialInstance::GetRoughness() const {
+        if (m_RoughnessOverride.has_value())
+            return m_RoughnessOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetRoughness() : 0.5f;
+    }
+
+    float FMaterialInstance::GetAO() const {
+        if (m_AOOverride.has_value())
+            return m_AOOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetAO() : 1.0f;
+    }
+
+    glm::vec3 FMaterialInstance::GetEmissiveColor() const {
+        if (m_EmissiveColorOverride.has_value())
+            return m_EmissiveColorOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetEmissiveColor() : glm::vec3(0.0f);
+    }
+
+    float FMaterialInstance::GetEmissiveIntensity() const {
+        if (m_EmissiveIntensityOverride.has_value())
+            return m_EmissiveIntensityOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetEmissiveIntensity() : 0.0f;
+    }
+
+    bool FMaterialInstance::GetUsePlanarReflection() const {
+        if (m_bUsePlanarReflectionOverride.has_value())
+            return m_bUsePlanarReflectionOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetUsePlanarReflection() : false;
+    }
+
+    TRef<FTexture2D> FMaterialInstance::GetTexture(uint32_t InSlot) const {
+        auto it = m_TextureOverrides.find(InSlot);
+        if (it != m_TextureOverrides.end() && it->second)
+            return it->second;
+        return m_ParentMaterial ? m_ParentMaterial->GetTexture(InSlot) : nullptr;
+    }
+
+    bool FMaterialInstance::HasTexture(uint32_t InSlot) const {
+        return GetTexture(InSlot) != nullptr;
+    }
+
+    void FMaterialInstance::SetTexture(uint32_t InSlot, const TRef<FTexture2D>& InTexture) {
+        if (InTexture)
+            m_TextureOverrides[InSlot] = InTexture;
+        else
+            m_TextureOverrides.erase(InSlot);
+    }
+
+    void FMaterialInstance::ClearTextureOverride(uint32_t InSlot) {
+        m_TextureOverrides.erase(InSlot);
+    }
+
+    void FMaterialInstance::Bind(const TRef<FShader>& InShader) const {
+        if (!InShader) return;
+
+        // 1. Resolve Scalar / Vector Parameters
+        glm::vec3 albedoColor       = GetAlbedoColor();
+        float metallic              = GetMetallic();
+        float roughness             = GetRoughness();
+        float ao                    = GetAO();
+        glm::vec3 emissiveColor     = GetEmissiveColor();
+        float emissiveIntensity     = GetEmissiveIntensity();
+
+        InShader->SetFloat3("u_AlbedoColor", albedoColor.r, albedoColor.g, albedoColor.b);
+        InShader->SetFloat("u_Metallic", metallic);
+        InShader->SetFloat("u_Roughness", roughness);
+        InShader->SetFloat("u_AO", ao);
+        InShader->SetFloat3("u_EmissiveColor", emissiveColor.r, emissiveColor.g, emissiveColor.b);
+        InShader->SetFloat("u_EmissiveIntensity", emissiveIntensity);
+
+        // 2. Resolve Textures & Bind to Units 0..4
+        TRef<FTexture2D> albedoMap    = GetTexture(0);
+        TRef<FTexture2D> normalMap    = GetTexture(1);
+        TRef<FTexture2D> metallicMap  = GetTexture(2);
+        TRef<FTexture2D> aoMap        = GetTexture(3);
+        TRef<FTexture2D> roughnessMap = GetTexture(4);
+
+        if (albedoMap && albedoMap->IsLoaded()) {
+            albedoMap->Bind(0);
+            InShader->SetInt("u_UseAlbedoMap", 1);
+        } else {
+            InShader->SetInt("u_UseAlbedoMap", 0);
+        }
+
+        if (normalMap && normalMap->IsLoaded()) {
+            normalMap->Bind(1);
+            InShader->SetInt("u_UseNormalMap", 1);
+        } else {
+            InShader->SetInt("u_UseNormalMap", 0);
+        }
+
+        if (metallicMap && metallicMap->IsLoaded()) {
+            metallicMap->Bind(2);
+            InShader->SetInt("u_UseMetallicMap", 1);
+        } else {
+            InShader->SetInt("u_UseMetallicMap", 0);
+        }
+
+        if (aoMap && aoMap->IsLoaded()) {
+            aoMap->Bind(3);
+            InShader->SetInt("u_UseAOMap", 1);
+        } else {
+            InShader->SetInt("u_UseAOMap", 0);
+        }
+
+        if (roughnessMap && roughnessMap->IsLoaded()) {
+            roughnessMap->Bind(4);
+            InShader->SetInt("u_UseRoughnessMap", 1);
+        } else {
+            InShader->SetInt("u_UseRoughnessMap", 0);
+        }
+    }
+
+} // namespace Leon

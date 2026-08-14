@@ -70,7 +70,7 @@ namespace Leon {
 
     } // namespace MaterialUtils
 
-    bool FMaterialSerializer::Serialize(const std::string& InFilePath, const FPBRMaterial& InMaterial) {
+    bool FMaterialSerializer::Serialize(const std::string& InFilePath, const FMaterial& InMaterial) {
         std::string text;
         if (!SerializeText(text, InMaterial))
             return false;
@@ -86,35 +86,42 @@ namespace Leon {
         return true;
     }
 
-    bool FMaterialSerializer::SerializeText(std::string& OutText, const FPBRMaterial& InMaterial) {
+    bool FMaterialSerializer::SerializeText(std::string& OutText, const FMaterial& InMaterial) {
         std::stringstream ss;
         ss << "# LeonEngine2 Material Asset File (.lmat)\n";
         ss << "Material:\n";
         ss << "  Type: \"PBR_Lit\"\n";
-        ss << "  AlbedoColor: [" << InMaterial.AlbedoColor.r << ", " << InMaterial.AlbedoColor.g << ", "
-           << InMaterial.AlbedoColor.b << "]\n";
-        ss << "  Metallic: " << InMaterial.Metallic << "\n";
-        ss << "  Roughness: " << InMaterial.Roughness << "\n";
-        ss << "  AO: " << InMaterial.AO << "\n";
+        ss << "  AlbedoColor: [" << InMaterial.GetAlbedoColor().r << ", " << InMaterial.GetAlbedoColor().g << ", "
+           << InMaterial.GetAlbedoColor().b << "]\n";
+        ss << "  Metallic: " << InMaterial.GetMetallic() << "\n";
+        ss << "  Roughness: " << InMaterial.GetRoughness() << "\n";
+        ss << "  AO: " << InMaterial.GetAO() << "\n";
+        if (InMaterial.GetEmissiveIntensity() > 0.0f) {
+            ss << "  EmissiveColor: [" << InMaterial.GetEmissiveColor().r << ", " << InMaterial.GetEmissiveColor().g << ", "
+               << InMaterial.GetEmissiveColor().b << "]\n";
+            ss << "  EmissiveIntensity: " << InMaterial.GetEmissiveIntensity() << "\n";
+        }
 
-        if (InMaterial.AlbedoMap)
-            ss << "  AlbedoMap: \"" << InMaterial.AlbedoMap->GetPath() << "\"\n";
-        if (InMaterial.NormalMap)
-            ss << "  NormalMap: \"" << InMaterial.NormalMap->GetPath() << "\"\n";
-        if (InMaterial.MetallicMap)
-            ss << "  MetallicMap: \"" << InMaterial.MetallicMap->GetPath() << "\"\n";
-        if (InMaterial.RoughnessMap)
-            ss << "  RoughnessMap: \"" << InMaterial.RoughnessMap->GetPath() << "\"\n";
-        if (InMaterial.AOMap)
-            ss << "  AOMap: \"" << InMaterial.AOMap->GetPath() << "\"\n";
+        if (InMaterial.GetAlbedoMap())
+            ss << "  AlbedoMap: \"" << InMaterial.GetAlbedoMap()->GetPath() << "\"\n";
+        if (InMaterial.GetNormalMap())
+            ss << "  NormalMap: \"" << InMaterial.GetNormalMap()->GetPath() << "\"\n";
+        if (InMaterial.GetMetallicMap())
+            ss << "  MetallicMap: \"" << InMaterial.GetMetallicMap()->GetPath() << "\"\n";
+        if (InMaterial.GetRoughnessMap())
+            ss << "  RoughnessMap: \"" << InMaterial.GetRoughnessMap()->GetPath() << "\"\n";
+        if (InMaterial.GetAOMap())
+            ss << "  AOMap: \"" << InMaterial.GetAOMap()->GetPath() << "\"\n";
+        if (InMaterial.GetEmissiveMap())
+            ss << "  EmissiveMap: \"" << InMaterial.GetEmissiveMap()->GetPath() << "\"\n";
 
-        ss << "  UsePlanarReflection: " << (InMaterial.bUsePlanarReflection ? "true" : "false") << "\n";
+        ss << "  UsePlanarReflection: " << (InMaterial.GetUsePlanarReflection() ? "true" : "false") << "\n";
 
         OutText = ss.str();
         return true;
     }
 
-    bool FMaterialSerializer::Deserialize(const std::string& InFilePath, FPBRMaterial& OutMaterial) {
+    bool FMaterialSerializer::Deserialize(const std::string& InFilePath, FMaterial& OutMaterial) {
         std::ifstream file(InFilePath);
         if (!file.is_open()) {
             LE_CORE_ERROR("FMaterialSerializer: Could not open material file '{0}' for loading!", InFilePath);
@@ -126,7 +133,7 @@ namespace Leon {
         return DeserializeText(ss.str(), OutMaterial);
     }
 
-    bool FMaterialSerializer::DeserializeText(const std::string& InText, FPBRMaterial& OutMaterial) {
+    bool FMaterialSerializer::DeserializeText(const std::string& InText, FMaterial& OutMaterial) {
         std::stringstream ss(InText);
         std::string line;
 
@@ -151,35 +158,37 @@ namespace Leon {
                 continue;
 
             if (key == "AlbedoColor")
-                OutMaterial.AlbedoColor = MaterialUtils::ParseVec3(value, OutMaterial.AlbedoColor);
+                OutMaterial.SetAlbedoColor(MaterialUtils::ParseVec3(value, OutMaterial.GetAlbedoColor()));
             else if (key == "Metallic")
-                OutMaterial.Metallic = MaterialUtils::ParseFloat(value, 0.0f);
+                OutMaterial.SetMetallic(MaterialUtils::ParseFloat(value, 0.0f));
             else if (key == "Roughness")
-                OutMaterial.Roughness = MaterialUtils::ParseFloat(value, 0.5f);
+                OutMaterial.SetRoughness(MaterialUtils::ParseFloat(value, 0.5f));
             else if (key == "AO")
-                OutMaterial.AO = MaterialUtils::ParseFloat(value, 1.0f);
+                OutMaterial.SetAO(MaterialUtils::ParseFloat(value, 1.0f));
+            else if (key == "EmissiveColor")
+                OutMaterial.SetEmissiveColor(MaterialUtils::ParseVec3(value, OutMaterial.GetEmissiveColor()));
+            else if (key == "EmissiveIntensity")
+                OutMaterial.SetEmissiveIntensity(MaterialUtils::ParseFloat(value, 0.0f));
             else if (key == "AlbedoMap") {
                 std::string path = MaterialUtils::CleanValue(value);
-                OutMaterial.AlbedoMap = FAssetManager::GetTexture2D(path);
-                OutMaterial.bUseAlbedoMap = (OutMaterial.AlbedoMap != nullptr);
+                OutMaterial.SetAlbedoMap(FAssetManager::GetTexture2D(path));
             } else if (key == "NormalMap") {
                 std::string path = MaterialUtils::CleanValue(value);
-                OutMaterial.NormalMap = FAssetManager::GetTexture2D(path);
-                OutMaterial.bUseNormalMap = (OutMaterial.NormalMap != nullptr);
+                OutMaterial.SetNormalMap(FAssetManager::GetTexture2D(path));
             } else if (key == "MetallicMap") {
                 std::string path = MaterialUtils::CleanValue(value);
-                OutMaterial.MetallicMap = FAssetManager::GetTexture2D(path);
-                OutMaterial.bUseMetallicMap = (OutMaterial.MetallicMap != nullptr);
+                OutMaterial.SetMetallicMap(FAssetManager::GetTexture2D(path));
             } else if (key == "RoughnessMap") {
                 std::string path = MaterialUtils::CleanValue(value);
-                OutMaterial.RoughnessMap = FAssetManager::GetTexture2D(path);
-                OutMaterial.bUseRoughnessMap = (OutMaterial.RoughnessMap != nullptr);
+                OutMaterial.SetRoughnessMap(FAssetManager::GetTexture2D(path));
             } else if (key == "AOMap") {
                 std::string path = MaterialUtils::CleanValue(value);
-                OutMaterial.AOMap = FAssetManager::GetTexture2D(path);
-                OutMaterial.bUseAOMap = (OutMaterial.AOMap != nullptr);
+                OutMaterial.SetAOMap(FAssetManager::GetTexture2D(path));
+            } else if (key == "EmissiveMap") {
+                std::string path = MaterialUtils::CleanValue(value);
+                OutMaterial.SetEmissiveMap(FAssetManager::GetTexture2D(path));
             } else if (key == "UsePlanarReflection") {
-                OutMaterial.bUsePlanarReflection = MaterialUtils::ParseBool(value, false);
+                OutMaterial.SetUsePlanarReflection(MaterialUtils::ParseBool(value, false));
             }
         }
 

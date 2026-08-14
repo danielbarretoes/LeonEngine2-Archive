@@ -3,6 +3,8 @@
 #include "core/Base.hpp"
 #include "renderer/Buffer.hpp"
 #include "renderer/Light.hpp"
+#include "renderer/Material.hpp"
+#include "renderer/MaterialInstance.hpp"
 #include "renderer/PerspectiveCamera.hpp"
 #include "renderer/Shader.hpp"
 #include "renderer/Texture.hpp"
@@ -63,35 +65,24 @@ namespace Leon {
             : VertexArray(InVertexArray), Shader(InShader) {}
     };
 
-    struct FPBRMaterial {
-        glm::vec3 AlbedoColor{1.0f, 1.0f, 1.0f};
-        float Metallic = 0.0f;
-        float Roughness = 0.5f;
-        float AO = 1.0f;
-
-        TRef<FTexture2D> AlbedoMap;
-        TRef<FTexture2D> NormalMap;
-        TRef<FTexture2D> MetallicMap;
-        TRef<FTexture2D> RoughnessMap;
-        TRef<FTexture2D> AOMap;
-
-        bool bUseAlbedoMap = false;
-        bool bUseNormalMap = false;
-        bool bUseMetallicMap = false;
-        bool bUseRoughnessMap = false;
-        bool bUseAOMap = false;
-        bool bUsePlanarReflection = false;
-    };
-
-    struct FPBRMaterialComponent {
-        FPBRMaterial Material;
+    /**
+     * @brief Render Material Component.
+     *
+     * Holds a shared reference to an FMaterialInstance. The entity does not copy
+     * material data; all properties and textures are resolved through the instance hierarchy.
+     */
+    struct FMaterialComponent {
+        TRef<FMaterialInstance> MaterialInstance;
         std::string AssetPath; // Track source .lmat file if loaded from asset
 
-        FPBRMaterialComponent() = default;
-        FPBRMaterialComponent(const FPBRMaterialComponent&) = default;
-        FPBRMaterialComponent(const FPBRMaterial& InMaterial, const std::string& InAssetPath = "")
-            : Material(InMaterial), AssetPath(InAssetPath) {}
+        FMaterialComponent() = default;
+        FMaterialComponent(const FMaterialComponent&) = default;
+        explicit FMaterialComponent(const TRef<FMaterialInstance>& InInstance, const std::string& InAssetPath = "")
+            : MaterialInstance(InInstance), AssetPath(InAssetPath) {}
     };
+
+    // Backwards-compatible alias for existing layers/serializers
+    using FPBRMaterialComponent = FMaterialComponent;
 
     struct FDirectionalLightComponent {
         FDirectionalLight Light;

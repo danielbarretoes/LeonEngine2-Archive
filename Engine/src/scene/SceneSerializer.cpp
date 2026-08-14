@@ -274,30 +274,37 @@ namespace Leon {
                 ss << "      VisibleInReflection: " << (mesh.bVisibleInReflection ? "true" : "false") << "\n";
             }
 
-            // PBR Material Component
-            if (m_Scene->GetRegistry().all_of<FPBRMaterialComponent>(entity)) {
-                const auto& matComp = m_Scene->GetRegistry().get<FPBRMaterialComponent>(entity);
-                const auto& pbr = matComp.Material;
+            // Material Component
+            if (m_Scene->GetRegistry().all_of<FMaterialComponent>(entity)) {
+                const auto& matComp = m_Scene->GetRegistry().get<FMaterialComponent>(entity);
                 ss << "    Material:\n";
                 if (!matComp.AssetPath.empty()) {
                     ss << "      Asset: \"" << matComp.AssetPath << "\"\n";
-                } else {
-                    ss << "      AlbedoColor: [" << pbr.AlbedoColor.r << ", " << pbr.AlbedoColor.g << ", "
-                       << pbr.AlbedoColor.b << "]\n";
-                    ss << "      Metallic: " << pbr.Metallic << "\n";
-                    ss << "      Roughness: " << pbr.Roughness << "\n";
-                    ss << "      AO: " << pbr.AO << "\n";
-                    if (pbr.AlbedoMap)
-                        ss << "      AlbedoMap: \"" << pbr.AlbedoMap->GetPath() << "\"\n";
-                    if (pbr.NormalMap)
-                        ss << "      NormalMap: \"" << pbr.NormalMap->GetPath() << "\"\n";
-                    if (pbr.MetallicMap)
-                        ss << "      MetallicMap: \"" << pbr.MetallicMap->GetPath() << "\"\n";
-                    if (pbr.RoughnessMap)
-                        ss << "      RoughnessMap: \"" << pbr.RoughnessMap->GetPath() << "\"\n";
-                    if (pbr.AOMap)
-                        ss << "      AOMap: \"" << pbr.AOMap->GetPath() << "\"\n";
-                    ss << "      UsePlanarReflection: " << (pbr.bUsePlanarReflection ? "true" : "false") << "\n";
+                } else if (matComp.MaterialInstance) {
+                    const auto& inst = matComp.MaterialInstance;
+                    glm::vec3 col = inst->GetAlbedoColor();
+                    ss << "      AlbedoColor: [" << col.r << ", " << col.g << ", " << col.b << "]\n";
+                    ss << "      Metallic: " << inst->GetMetallic() << "\n";
+                    ss << "      Roughness: " << inst->GetRoughness() << "\n";
+                    ss << "      AO: " << inst->GetAO() << "\n";
+                    if (inst->GetEmissiveIntensity() > 0.0f) {
+                        glm::vec3 em = inst->GetEmissiveColor();
+                        ss << "      EmissiveColor: [" << em.r << ", " << em.g << ", " << em.b << "]\n";
+                        ss << "      EmissiveIntensity: " << inst->GetEmissiveIntensity() << "\n";
+                    }
+                    if (inst->GetTexture(0))
+                        ss << "      AlbedoMap: \"" << inst->GetTexture(0)->GetPath() << "\"\n";
+                    if (inst->GetTexture(1))
+                        ss << "      NormalMap: \"" << inst->GetTexture(1)->GetPath() << "\"\n";
+                    if (inst->GetTexture(2))
+                        ss << "      MetallicMap: \"" << inst->GetTexture(2)->GetPath() << "\"\n";
+                    if (inst->GetTexture(3))
+                        ss << "      AOMap: \"" << inst->GetTexture(3)->GetPath() << "\"\n";
+                    if (inst->GetTexture(4))
+                        ss << "      RoughnessMap: \"" << inst->GetTexture(4)->GetPath() << "\"\n";
+                    if (inst->GetTexture(5))
+                        ss << "      EmissiveMap: \"" << inst->GetTexture(5)->GetPath() << "\"\n";
+                    ss << "      UsePlanarReflection: " << (inst->GetUsePlanarReflection() ? "true" : "false") << "\n";
                 }
             }
 
@@ -405,8 +412,8 @@ namespace Leon {
             bool bReceiveShadows = true;
             bool bVisibleInReflection = true;
 
-            bool bHasPBRMaterial = false;
-            FPBRMaterial Material;
+            bool bHasMaterial = false;
+            TRef<FMaterialInstance> MaterialInstance;
             std::string MaterialAssetPath;
 
             bool bHasDirLight = false;
@@ -555,47 +562,45 @@ namespace Leon {
                     else if (key == "VisibleInReflection")
                         currentActor.bVisibleInReflection = Utils::ParseBool(value, true);
                 } else if (currentSubBlock == "Material") {
-                    currentActor.bHasPBRMaterial = true;
+                    currentActor.bHasMaterial = true;
                     if (key == "Asset" || key == "Path" || key == "File") {
                         std::string matPath = Utils::CleanValue(value);
                         currentActor.MaterialAssetPath = matPath;
-                        auto cachedMat = FAssetManager::GetMaterial(matPath);
-                        if (cachedMat) {
-                            currentActor.Material = *cachedMat;
+                        currentActor.MaterialInstance = FAssetManager::CreateMaterialInstance(matPath);
+                    } else {
+                        if (!currentActor.MaterialInstance) {
+                            currentActor.MaterialInstance = FAssetManager::GetDefaultMaterial()->CreateInstance();
                         }
-                    } else if (key == "Shader")
-                        currentActor.ShaderPath = Utils::CleanValue(value);
-                    else if (key == "AlbedoColor")
-                        currentActor.Material.AlbedoColor = Utils::ParseVec3(value, currentActor.Material.AlbedoColor);
-                    else if (key == "Metallic")
-                        currentActor.Material.Metallic = Utils::ParseFloat(value, 0.0f);
-                    else if (key == "Roughness")
-                        currentActor.Material.Roughness = Utils::ParseFloat(value, 0.5f);
-                    else if (key == "AO")
-                        currentActor.Material.AO = Utils::ParseFloat(value, 1.0f);
-                    else if (key == "AlbedoMap") {
-                        currentActor.Material.AlbedoMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
-                        currentActor.Material.bUseAlbedoMap = (currentActor.Material.AlbedoMap != nullptr);
-                    } else if (key == "NormalMap") {
-                        currentActor.Material.NormalMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
-                        currentActor.Material.bUseNormalMap = (currentActor.Material.NormalMap != nullptr);
-                    } else if (key == "MetallicMap") {
-                        currentActor.Material.MetallicMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
-                        currentActor.Material.bUseMetallicMap = (currentActor.Material.MetallicMap != nullptr);
-                    } else if (key == "RoughnessMap") {
-                        currentActor.Material.RoughnessMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
-                        currentActor.Material.bUseRoughnessMap = (currentActor.Material.RoughnessMap != nullptr);
-                    } else if (key == "AOMap") {
-                        currentActor.Material.AOMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
-                        currentActor.Material.bUseAOMap = (currentActor.Material.AOMap != nullptr);
-                    } else if (key == "UseAlbedoMap")
-                        currentActor.Material.bUseAlbedoMap = Utils::ParseBool(value, false);
-                    else if (key == "UseNormalMap")
-                        currentActor.Material.bUseNormalMap = Utils::ParseBool(value, false);
-                    else if (key == "UseAOMap")
-                        currentActor.Material.bUseAOMap = Utils::ParseBool(value, false);
-                    else if (key == "UsePlanarReflection")
-                        currentActor.Material.bUsePlanarReflection = Utils::ParseBool(value, false);
+                        if (key == "Shader") {
+                            currentActor.ShaderPath = Utils::CleanValue(value);
+                        } else if (key == "AlbedoColor") {
+                            currentActor.MaterialInstance->SetAlbedoColor(Utils::ParseVec3(value, currentActor.MaterialInstance->GetAlbedoColor()));
+                        } else if (key == "Metallic") {
+                            currentActor.MaterialInstance->SetMetallic(Utils::ParseFloat(value, 0.0f));
+                        } else if (key == "Roughness") {
+                            currentActor.MaterialInstance->SetRoughness(Utils::ParseFloat(value, 0.5f));
+                        } else if (key == "AO") {
+                            currentActor.MaterialInstance->SetAO(Utils::ParseFloat(value, 1.0f));
+                        } else if (key == "EmissiveColor") {
+                            currentActor.MaterialInstance->SetEmissiveColor(Utils::ParseVec3(value, currentActor.MaterialInstance->GetEmissiveColor()));
+                        } else if (key == "EmissiveIntensity") {
+                            currentActor.MaterialInstance->SetEmissiveIntensity(Utils::ParseFloat(value, 0.0f));
+                        } else if (key == "AlbedoMap") {
+                            currentActor.MaterialInstance->SetTexture(0, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        } else if (key == "NormalMap") {
+                            currentActor.MaterialInstance->SetTexture(1, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        } else if (key == "MetallicMap") {
+                            currentActor.MaterialInstance->SetTexture(2, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        } else if (key == "AOMap") {
+                            currentActor.MaterialInstance->SetTexture(3, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        } else if (key == "RoughnessMap") {
+                            currentActor.MaterialInstance->SetTexture(4, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        } else if (key == "EmissiveMap") {
+                            currentActor.MaterialInstance->SetTexture(5, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        } else if (key == "UsePlanarReflection") {
+                            currentActor.MaterialInstance->SetUsePlanarReflection(Utils::ParseBool(value, false));
+                        }
+                    }
                 } else if (currentSubBlock == "DirectionalLight") {
                     currentActor.bHasDirLight = true;
                     if (key == "Enabled")
@@ -717,9 +722,9 @@ namespace Leon {
                 meshComp.bVisibleInReflection = actorData.bVisibleInReflection;
             }
 
-            // PBR Material
-            if (actorData.bHasPBRMaterial) {
-                entity.AddComponent<FPBRMaterialComponent>(actorData.Material, actorData.MaterialAssetPath);
+            // Material Component
+            if (actorData.bHasMaterial && actorData.MaterialInstance) {
+                entity.AddComponent<FMaterialComponent>(actorData.MaterialInstance, actorData.MaterialAssetPath);
             }
 
             // Directional Light

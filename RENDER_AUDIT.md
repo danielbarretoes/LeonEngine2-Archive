@@ -255,6 +255,7 @@ layout(std140) uniform LightingData {
 | **21. Margen de FOV en Spot Shadow Frustum** | Frustum ajustado estrictamente a $2 \times \text{OuterCutOff}$ sin margen de filtrado. | El kernel PCF $3\times 3$ muestreaba texels fuera del rango $[0, 1]$ en el borde extremo del cono. | Añadido margen de seguridad de $+2^\circ$ (`fov = 2 * OuterCutOff + 2.0f`). |
 | **22. Plano Lejano Dinámico de Sombra Spot** | `farPlane` fijado a un valor estático de $35\text{ m}$ o $15\text{ m}$. | Desperdicio de rango de profundidad en luces con radio de influencia pequeño. | Ajuste dinámico a `farPlane = max(Radius * 1.05, 1.0)`. |
 | **23. Doble Multiplicación de Exposición en Skybox** | `Skybox.glsl` multiplicaba por `u_Exposure` internamente antes de escribir en el HDR FBO, y luego `PostProcess.glsl` multiplicaba de nuevo por `u_Exposure`. | El cielo y el sol recibían $\text{Exposure}^2$ mientras que la geometría recibía $\text{Exposure}^1$. | Eliminado el multiplicador redundante de `Skybox.glsl`; `PostProcess.glsl` es la única fuente de verdad para la exposición de toda la escena. |
+| **24. Acoplamiento de Materiales en ECS y Draw Loop** | Cada entidad almacenaba una copia completa de `FPBRMaterial` en su componente ECS y el render loop ejecutaba más de 10 uniform setters con string lookups por draw call. | Duplicación masiva de datos en memoria y overhead continuo en el driver de OpenGL. | Implementado el **Sistema de Materiales de Primer Orden (`FMaterial` / `FMaterialInstance`)**. Las entidades almacenan únicamente `TRef<FMaterialInstance>` y `matInst->Bind()` centraliza la resolución de parámetros con soporte de emisivo. |
 
 ---
 
@@ -262,17 +263,17 @@ layout(std140) uniform LightingData {
 
 ```mermaid
 graph LR
-    subgraph Paso_1["Paso 1: Sistema de Materiales"]
+    subgraph Paso_1["Fase 13: Sistema de Materiales (COMPLETADO)"]
         FMat["FMaterial & FMaterialInstance"]
-        MatCache["Uniform & Texture Descriptor Caching"]
+        MatCache["Resolución y Enlace Centralizado de Parámetros"]
     end
 
-    subgraph Paso_2["Paso 2: Instancing & Batching"]
+    subgraph Paso_2["Fase 14: Instancing & Batching"]
         SSBO_Inst["Transforms SSBO (u_Model & u_NormalMatrix)"]
         DrawInst["glDrawElementsInstanced"]
     end
 
-    subgraph Paso_3["Paso 3: Clustered Lighting"]
+    subgraph Paso_3["Fase 15: Clustered Lighting"]
         LightCluster["3D Frustum Grid SSBO"]
         ClusteredPass["Compute / Forward+ Light Culling"]
     end
@@ -280,9 +281,9 @@ graph LR
     Paso_1 --> Paso_2 --> Paso_3
 ```
 
-1. **Fase 1: Sistema de Materiales de Primer Orden (`FMaterial` / `FMaterialInstance`)**:
-   - Desacoplar propiedades de material y texturas de los componentes ECS individuales hacia recursos compartidos con identificadores únicos y caching de uniforms.
-2. **Fase 2: Instancing y Batching (`DrawElementsInstanced` / SSBOs)**:
+1. **Fase 13: Sistema de Materiales de Primer Orden (`FMaterial` / `FMaterialInstance`) [COMPLETADO]**:
+   - Desacopladas las propiedades de material y texturas de los componentes ECS individuales hacia recursos compartidos (`FMaterial` maestro y `FMaterialInstance` ligera con sparse overrides) y soporte de radiancia emisiva.
+2. **Fase 14: Instancing y Batching (`DrawElementsInstanced` / SSBOs)**:
    - Agrupar mallas que compartan material y emitir draw calls instanciados pasando matrices `u_Model` y `u_NormalMatrix` mediante un SSBO, reduciendo el número de draw calls de $O(N)$ a $O(\text{batches})$.
-3. **Fase 3: Clustered Forward+ Lighting**:
+3. **Fase 15: Clustered Forward+ Lighting**:
    - Implementar particionado espacial del frustum en celdas 3D mediante Compute Shader para dar soporte a cientos de luces dinámicas con sombras omnidireccionales sin degradar la tasa de frames.

@@ -1,9 +1,10 @@
 #pragma once
 
 #include "core/Base.hpp"
+#include "renderer/Material.hpp"
+#include "renderer/MaterialInstance.hpp"
 #include "renderer/Shader.hpp"
 #include "renderer/Texture.hpp"
-#include "scene/Components.hpp"
 
 #include <memory>
 #include <string>
@@ -30,17 +31,22 @@ namespace Leon {
         static void AddShader(const std::string& InName, const TRef<FShader>& InShader);
         static bool HasShader(const std::string& InPath);
 
-        // Materials
-        static TRef<FPBRMaterial> GetMaterial(const std::string& InPath);
-        static void AddMaterial(const std::string& InName, const TRef<FPBRMaterial>& InMaterial);
+        // Materials & Instances
+        static TRef<FMaterial> GetMaterial(const std::string& InPath);
+        static void AddMaterial(const std::string& InName, const TRef<FMaterial>& InMaterial);
         static bool HasMaterial(const std::string& InPath);
+
+        static TRef<FMaterial> GetDefaultMaterial();
+        static TRef<FMaterialInstance> CreateMaterialInstance(const std::string& InMaterialPath);
+        static TRef<FMaterialInstance> CreateMaterialInstance(const TRef<FMaterial>& InParent);
 
         static void Clear();
 
     private:
         static std::unordered_map<std::string, TRef<FTexture2D>> s_TextureCache;
         static std::unordered_map<std::string, TRef<FShader>> s_ShaderCache;
-        static std::unordered_map<std::string, TRef<FPBRMaterial>> s_MaterialCache;
+        static std::unordered_map<std::string, TRef<FMaterial>> s_MaterialCache;
+        static TRef<FMaterial> s_DefaultMaterial;
     };
 
     using AssetManager = FAssetManager;

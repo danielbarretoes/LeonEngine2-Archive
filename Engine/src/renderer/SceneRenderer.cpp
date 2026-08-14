@@ -527,22 +527,10 @@ namespace Leon {
             mesh.Shader->SetInt("u_UseShadows", 0);
             mesh.Shader->SetInt("u_UseSpotShadows", 0);
 
-            if (reg.all_of<FPBRMaterialComponent>(entity)) {
-                const auto& pbrMat = reg.get<FPBRMaterialComponent>(entity).Material;
-                if (pbrMat.bUseAlbedoMap && pbrMat.AlbedoMap && pbrMat.AlbedoMap->IsLoaded()) {
-                    pbrMat.AlbedoMap->Bind(0);
-                    mesh.Shader->SetInt("u_UseAlbedoMap", 1);
-                } else {
-                    mesh.Shader->SetInt("u_UseAlbedoMap", 0);
-                }
-                mesh.Shader->SetFloat3("u_AlbedoColor", pbrMat.AlbedoColor.r, pbrMat.AlbedoColor.g, pbrMat.AlbedoColor.b);
-                mesh.Shader->SetFloat("u_Metallic", pbrMat.Metallic);
-                mesh.Shader->SetFloat("u_Roughness", pbrMat.Roughness);
-                mesh.Shader->SetFloat("u_AO", pbrMat.AO);
-                mesh.Shader->SetInt("u_UseNormalMap", 0);
-                mesh.Shader->SetInt("u_UseMetallicMap", 0);
-                mesh.Shader->SetInt("u_UseRoughnessMap", 0);
-                mesh.Shader->SetInt("u_UseAOMap", 0);
+            if (reg.all_of<FMaterialComponent>(entity)) {
+                const auto& matInst = reg.get<FMaterialComponent>(entity).MaterialInstance;
+                if (matInst)
+                    matInst->Bind(mesh.Shader);
             }
 
             glm::mat4 model = transform.GetTransform();
@@ -607,13 +595,17 @@ namespace Leon {
             mesh.Shader->SetInt("u_UseShadows", (bShadowsAvailable && mesh.bReceiveShadows) ? 1 : 0);
             mesh.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && mesh.bReceiveShadows) ? 1 : 0);
 
-            // Planar reflection (slot 5, per-material)
-            bool bApplyPlanarReflection = false;
-            if (reg.all_of<FPBRMaterialComponent>(entity)) {
-                const auto& pbrMat = reg.get<FPBRMaterialComponent>(entity).Material;
-                if (pbrMat.bUsePlanarReflection && m_PlanarReflectionFramebuffer)
-                    bApplyPlanarReflection = true;
+            // Material Instance resolution
+            TRef<FMaterialInstance> matInst = nullptr;
+            if (reg.all_of<FMaterialComponent>(entity)) {
+                matInst = reg.get<FMaterialComponent>(entity).MaterialInstance;
             }
+            if (!matInst) {
+                matInst = FAssetManager::GetDefaultMaterial()->CreateInstance();
+            }
+
+            // Planar reflection (slot 5, per-material)
+            bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && m_PlanarReflectionFramebuffer;
             if (bApplyPlanarReflection) {
                 m_PlanarReflectionFramebuffer->BindTexture(0, 5);
                 mesh.Shader->SetInt("u_UsePlanarReflection", 1);
@@ -623,62 +615,11 @@ namespace Leon {
                 mesh.Shader->SetInt("u_UsePlanarReflection", 0);
             }
 
-            // PBR Material
-            if (reg.all_of<FPBRMaterialComponent>(entity)) {
-                const auto& pbrMat = reg.get<FPBRMaterialComponent>(entity).Material;
+            // Bind resolved material parameters and textures (slots 0..4)
+            matInst->Bind(mesh.Shader);
 
-                // Slot 0: Albedo Map
-                if (pbrMat.bUseAlbedoMap && pbrMat.AlbedoMap && pbrMat.AlbedoMap->IsLoaded()) {
-                    pbrMat.AlbedoMap->Bind(0);
-                    mesh.Shader->SetInt("u_UseAlbedoMap", 1);
-                } else {
-                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(0);
-                    mesh.Shader->SetInt("u_UseAlbedoMap", 0);
-                }
-                mesh.Shader->SetFloat3("u_AlbedoColor", pbrMat.AlbedoColor.r, pbrMat.AlbedoColor.g, pbrMat.AlbedoColor.b);
-
-                // Slot 1: Normal Map
-                if (pbrMat.bUseNormalMap && pbrMat.NormalMap && pbrMat.NormalMap->IsLoaded()) {
-                    pbrMat.NormalMap->Bind(1);
-                    mesh.Shader->SetInt("u_UseNormalMap", 1);
-                } else {
-                    if (m_DefaultFlatNormalTexture) m_DefaultFlatNormalTexture->Bind(1);
-                    mesh.Shader->SetInt("u_UseNormalMap", 0);
-                }
-
-                // Slot 2: Metallic Map
-                if (pbrMat.bUseMetallicMap && pbrMat.MetallicMap && pbrMat.MetallicMap->IsLoaded()) {
-                    pbrMat.MetallicMap->Bind(2);
-                    mesh.Shader->SetInt("u_UseMetallicMap", 1);
-                } else {
-                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(2);
-                    mesh.Shader->SetInt("u_UseMetallicMap", 0);
-                }
-                mesh.Shader->SetFloat("u_Metallic", pbrMat.Metallic);
-
-                // Slot 3: AO Map
-                if (pbrMat.bUseAOMap && pbrMat.AOMap && pbrMat.AOMap->IsLoaded()) {
-                    pbrMat.AOMap->Bind(3);
-                    mesh.Shader->SetInt("u_UseAOMap", 1);
-                } else {
-                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(3);
-                    mesh.Shader->SetInt("u_UseAOMap", 0);
-                }
-                mesh.Shader->SetFloat("u_AO", pbrMat.AO);
-
-                // Slot 4: Roughness Map
-                if (pbrMat.bUseRoughnessMap && pbrMat.RoughnessMap && pbrMat.RoughnessMap->IsLoaded()) {
-                    pbrMat.RoughnessMap->Bind(4);
-                    mesh.Shader->SetInt("u_UseRoughnessMap", 1);
-                } else {
-                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(4);
-                    mesh.Shader->SetInt("u_UseRoughnessMap", 0);
-                }
-                mesh.Shader->SetFloat("u_Roughness", pbrMat.Roughness);
-
-                // IBL enablement (samplers are statically bound to slots 6-8)
-                mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
-            }
+            // IBL enablement (samplers are statically bound to slots 6-8)
+            mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
 
             glm::mat4 model = transform.GetTransform();
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));

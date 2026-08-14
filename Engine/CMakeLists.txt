@@ -17,6 +17,8 @@ add_library(LeonEngineCore STATIC
     src/renderer/DebugRenderer.cpp
     src/renderer/DebugOverlay.cpp
     src/renderer/IBLGenerator.cpp
+    src/renderer/Material.cpp
+    src/renderer/MaterialInstance.cpp
     src/renderer/MeshPrimitives.cpp
     src/renderer/SceneRenderer.cpp
     src/renderer/Shader.cpp

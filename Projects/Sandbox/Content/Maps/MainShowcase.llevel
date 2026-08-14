@@ -180,6 +180,85 @@ Actors:
     Material:
       Asset: "Projects/Sandbox/Content/Materials/M_CobaltPyramid.lmat"
 
+  # Phase 13 Showcase Actors
+  - Name: "PBR White Plastic Sphere"
+    Transform:
+      Translation: [-3.2, 0.5, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Sphere"
+      Radius: 0.45
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      Asset: "Projects/Sandbox/Content/Materials/M_WhitePlastic.lmat"
+
+  - Name: "PBR Red Plastic Cube"
+    Transform:
+      Translation: [-1.6, 0.5, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Cube"
+      Size: 0.9
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      Asset: "Projects/Sandbox/Content/Materials/M_RedPlastic.lmat"
+
+  - Name: "PBR Gold Metal Cylinder"
+    Transform:
+      Translation: [0.0, 0.5, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Cylinder"
+      Radius: 0.45
+      Height: 0.9
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      Asset: "Projects/Sandbox/Content/Materials/M_GoldMetal.lmat"
+
+  - Name: "PBR Rough Metal Pyramid"
+    Transform:
+      Translation: [1.6, 0.5, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Pyramid"
+      Width: 0.9
+      Height: 0.9
+      Depth: 0.9
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      Asset: "Projects/Sandbox/Content/Materials/M_RoughMetal.lmat"
+
+  - Name: "PBR Emissive Cyan Cube"
+    Transform:
+      Translation: [3.2, 0.5, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Cube"
+      Size: 0.9
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      Asset: "Projects/Sandbox/Content/Materials/M_Emissive.lmat"
+
   # ==========================================
   # 3D In-World Text Actors
   # ==========================================
@@ -275,6 +354,66 @@ Actors:
     Text:
       Content: "COBALT PYRAMID\n(Square Base)"
       Color: [0.40, 0.75, 1.0, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - White Plastic"
+    Transform:
+      Translation: [-3.2, 1.25, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "WHITE PLASTIC\n(Smooth 0.25)"
+      Color: [0.95, 0.95, 0.95, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Red Plastic"
+    Transform:
+      Translation: [-1.6, 1.25, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "RED PLASTIC\n(Dielectric R0.3)"
+      Color: [1.0, 0.2, 0.2, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Gold Metal"
+    Transform:
+      Translation: [0.0, 1.25, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "GOLD METAL\n(Metallic 1.0)"
+      Color: [1.0, 0.82, 0.35, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Rough Metal"
+    Transform:
+      Translation: [1.6, 1.25, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "ROUGH METAL\n(Rough 0.7)"
+      Color: [0.8, 0.8, 0.85, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Emissive Cyan"
+    Transform:
+      Translation: [3.2, 1.25, 2.2]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "EMISSIVE CYAN\n(Radiance 4.0)"
+      Color: [0.0, 0.95, 1.0, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true

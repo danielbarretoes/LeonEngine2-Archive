@@ -6,7 +6,8 @@ namespace Leon {
 
     std::unordered_map<std::string, TRef<FTexture2D>> FAssetManager::s_TextureCache;
     std::unordered_map<std::string, TRef<FShader>> FAssetManager::s_ShaderCache;
-    std::unordered_map<std::string, TRef<FPBRMaterial>> FAssetManager::s_MaterialCache;
+    std::unordered_map<std::string, TRef<FMaterial>> FAssetManager::s_MaterialCache;
+    TRef<FMaterial> FAssetManager::s_DefaultMaterial = nullptr;
 
     void FAssetManager::Init() {
         LE_CORE_INFO("Initializing FAssetManager Subsystem...");
@@ -76,26 +77,27 @@ namespace Leon {
         return s_ShaderCache.find(InPath) != s_ShaderCache.end();
     }
 
-    TRef<FPBRMaterial> FAssetManager::GetMaterial(const std::string& InPath) {
+    TRef<FMaterial> FAssetManager::GetMaterial(const std::string& InPath) {
         if (InPath.empty())
-            return nullptr;
+            return GetDefaultMaterial();
 
         auto it = s_MaterialCache.find(InPath);
         if (it != s_MaterialCache.end() && it->second) {
             return it->second;
         }
 
-        auto material = MakeRef<FPBRMaterial>();
+        auto material = MakeRef<FMaterial>(InPath);
+        material->SetAssetPath(InPath);
         if (FMaterialSerializer::Deserialize(InPath, *material)) {
             s_MaterialCache[InPath] = material;
             return material;
         }
 
         LE_CORE_WARN("FAssetManager: Failed to load material from \"{0}\"", InPath);
-        return nullptr;
+        return GetDefaultMaterial();
     }
 
-    void FAssetManager::AddMaterial(const std::string& InName, const TRef<FPBRMaterial>& InMaterial) {
+    void FAssetManager::AddMaterial(const std::string& InName, const TRef<FMaterial>& InMaterial) {
         if (!InName.empty() && InMaterial) {
             s_MaterialCache[InName] = InMaterial;
         }
@@ -105,10 +107,35 @@ namespace Leon {
         return s_MaterialCache.find(InPath) != s_MaterialCache.end();
     }
 
+    TRef<FMaterial> FAssetManager::GetDefaultMaterial() {
+        if (!s_DefaultMaterial) {
+            s_DefaultMaterial = FMaterial::Create("M_DefaultPBR");
+            s_DefaultMaterial->SetAlbedoColor(glm::vec3(1.0f));
+            s_DefaultMaterial->SetMetallic(0.0f);
+            s_DefaultMaterial->SetRoughness(0.5f);
+            s_DefaultMaterial->SetAO(1.0f);
+        }
+        return s_DefaultMaterial;
+    }
+
+    TRef<FMaterialInstance> FAssetManager::CreateMaterialInstance(const std::string& InMaterialPath) {
+        TRef<FMaterial> parentMat = GetMaterial(InMaterialPath);
+        if (!parentMat)
+            parentMat = GetDefaultMaterial();
+        return parentMat->CreateInstance();
+    }
+
+    TRef<FMaterialInstance> FAssetManager::CreateMaterialInstance(const TRef<FMaterial>& InParent) {
+        if (InParent)
+            return InParent->CreateInstance();
+        return GetDefaultMaterial()->CreateInstance();
+    }
+
     void FAssetManager::Clear() {
         s_TextureCache.clear();
         s_ShaderCache.clear();
         s_MaterialCache.clear();
+        s_DefaultMaterial = nullptr;
     }
 
 } // namespace Leon

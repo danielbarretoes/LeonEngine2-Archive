@@ -107,6 +107,8 @@ uniform vec3 u_AlbedoColor;
 uniform float u_Metallic;
 uniform float u_Roughness;
 uniform float u_AO;
+uniform vec3 u_EmissiveColor;
+uniform float u_EmissiveIntensity;
 
 // Material Textures
 layout(binding = 0) uniform sampler2D u_AlbedoMap;
@@ -471,7 +473,10 @@ void main() {
     // Occlude indirect ambient radiance by AO
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;
 
+    // Emissive Radiance
+    vec3 emissive = u_EmissiveColor * u_EmissiveIntensity;
+
     // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
-    vec3 hdrColor = ambient + Lo;
+    vec3 hdrColor = ambient + Lo + emissive;
     FragColor = vec4(hdrColor, 1.0);
 }
