@@ -15,9 +15,14 @@ out vec4 v_FragPosLightSpace;
 out vec3 v_Color;
 out mat3 v_TBN;
 
-uniform mat4 u_ViewProjection;
+// UBO Binding 0: Camera Data (std140)
+layout(std140) uniform CameraData {
+    mat4 u_ViewProjection;
+    mat4 u_LightSpaceMatrix;
+    vec4 u_ViewPos;
+};
+
 uniform mat4 u_Model;
-uniform mat4 u_LightSpaceMatrix;
 
 void main() {
     vec4 worldPos = u_Model * vec4(aPos, 1.0);
@@ -52,6 +57,49 @@ in vec4 v_FragPosLightSpace;
 in vec3 v_Color;
 in mat3 v_TBN;
 
+// UBO Binding 0: Camera Data (std140)
+layout(std140) uniform CameraData {
+    mat4 u_ViewProjection;
+    mat4 u_LightSpaceMatrix;
+    vec4 u_ViewPos;
+};
+
+// Direct Lighting & Environment Subsystem (std140)
+struct DirectionalLight {
+    vec4 direction;        // xyz = dir, w = enabled (1.0 or 0.0)
+    vec4 color;            // xyz = color, w = ambientIntensity
+    vec4 intensities;      // x = diffuseIntensity, y = specularIntensity, zw = padding
+};
+
+struct PointLight {
+    vec4 position;         // xyz = pos, w = enabled
+    vec4 color;            // xyz = color, w = ambientIntensity
+    vec4 attenuation;      // x = constant, y = linear, z = quadratic, w = diffuseIntensity
+    vec4 params;           // x = specularIntensity, yzw = padding
+};
+
+struct SpotLight {
+    vec4 position;         // xyz = pos, w = enabled
+    vec4 direction;        // xyz = dir, w = cutOff (cos)
+    vec4 color;            // xyz = color, w = outerCutOff (cos)
+    vec4 attenuation;      // x = constant, y = linear, z = quadratic, w = diffuseIntensity
+    vec4 params;           // x = ambientIntensity, y = specularIntensity, zw = padding
+};
+
+#define MAX_POINT_LIGHTS 16
+#define MAX_SPOT_LIGHTS 8
+
+// UBO Binding 1: Lighting Data (std140)
+layout(std140) uniform LightingData {
+    DirectionalLight u_DirLight;
+    PointLight u_PointLights[MAX_POINT_LIGHTS];
+    SpotLight u_SpotLights[MAX_SPOT_LIGHTS];
+    ivec4 u_LightCounts;        // x = pointCount, y = spotCount
+    vec4 u_EnvSkyColor;         // xyz = skyZenithColor, w = envIntensity
+    vec4 u_EnvHorizonColor;     // xyz = horizonColor
+    vec4 u_EnvGroundColor;      // xyz = groundColor
+};
+
 // PBR Material Properties
 uniform vec3 u_AlbedoColor;
 uniform float u_Metallic;
@@ -63,7 +111,7 @@ uniform sampler2D u_NormalMap;
 uniform sampler2D u_MetallicMap;
 uniform sampler2D u_AOMap;
 uniform sampler2D u_RoughnessMap;
-uniform sampler2D u_ShadowMap;
+uniform sampler2DShadow u_ShadowMap;
 uniform sampler2D u_PlanarReflectionMap;
 
 uniform int u_UseAlbedoMap;
@@ -74,60 +122,6 @@ uniform int u_UseRoughnessMap;
 uniform int u_UseShadows;
 uniform int u_UsePlanarReflection;
 uniform vec2 u_ScreenSize;
-
-// Environment / IBL Atmosphere Uniforms
-uniform vec3 u_EnvSkyColor;
-uniform vec3 u_EnvHorizonColor;
-uniform vec3 u_EnvGroundColor;
-uniform float u_EnvIntensity;
-
-// Direct Lighting Subsystem Uniforms
-struct DirectionalLight {
-    int enabled;
-    vec3 direction;
-    vec3 color;
-    float ambientIntensity;
-    float diffuseIntensity;
-    float specularIntensity;
-};
-
-struct PointLight {
-    int enabled;
-    vec3 position;
-    vec3 color;
-    float constant;
-    float linear;
-    float quadratic;
-    float ambientIntensity;
-    float diffuseIntensity;
-    float specularIntensity;
-};
-
-struct SpotLight {
-    int enabled;
-    vec3 position;
-    vec3 direction;
-    vec3 color;
-    float cutOff;
-    float outerCutOff;
-    float constant;
-    float linear;
-    float quadratic;
-    float ambientIntensity;
-    float diffuseIntensity;
-    float specularIntensity;
-};
-
-#define MAX_POINT_LIGHTS 16
-#define MAX_SPOT_LIGHTS 8
-
-uniform DirectionalLight u_DirLight;
-uniform int u_PointLightCount;
-uniform PointLight u_PointLights[MAX_POINT_LIGHTS];
-uniform int u_SpotLightCount;
-uniform SpotLight u_SpotLights[MAX_SPOT_LIGHTS];
-
-uniform vec3 u_ViewPos;
 
 const float PI = 3.14159265358979323846;
 
@@ -180,34 +174,33 @@ vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
     vec3 sky;
     if (height >= 0.0) {
         float horizonFactor = pow(1.0 - height, 4.0);
-        sky = mix(u_EnvSkyColor, u_EnvHorizonColor, horizonFactor);
+        sky = mix(u_EnvSkyColor.rgb, u_EnvHorizonColor.rgb, horizonFactor);
     } else {
         float groundFactor = clamp(-height * 2.5, 0.0, 1.0);
-        sky = mix(u_EnvHorizonColor, u_EnvGroundColor, groundFactor);
+        sky = mix(u_EnvHorizonColor.rgb, u_EnvGroundColor.rgb, groundFactor);
     }
 
     // Solar specular reflection in sky
-    if (u_DirLight.enabled == 1) {
-        vec3 sunDir = normalize(-u_DirLight.direction);
+    if (u_DirLight.direction.w > 0.5) {
+        vec3 sunDir = normalize(-u_DirLight.direction.xyz);
         float cosTheta = max(dot(dir, sunDir), 0.0);
         float sunExponent = mix(256.0, 8.0, roughness);
         float sunHalo = pow(cosTheta, sunExponent) * (1.0 - roughness * 0.5) * 3.5;
-        sky += u_DirLight.color * sunHalo;
+        sky += u_DirLight.color.rgb * sunHalo;
     }
 
     // Roughness blur effect on specular environment reflection
-    vec3 averageEnv = mix(u_EnvSkyColor, u_EnvHorizonColor, 0.5);
-    return mix(sky, averageEnv, clamp(roughness * 0.7, 0.0, 1.0)) * u_EnvIntensity;
+    vec3 averageEnv = mix(u_EnvSkyColor.rgb, u_EnvHorizonColor.rgb, 0.5);
+    return mix(sky, averageEnv, clamp(roughness * 0.7, 0.0, 1.0)) * u_EnvSkyColor.w;
 }
 
 vec3 GetHemisphereIrradiance(vec3 N) {
-    // Ambient diffuse irradiance from atmospheric hemisphere
     float upFactor = N.y * 0.5 + 0.5;
-    vec3 irradiance = mix(u_EnvGroundColor, u_EnvSkyColor, upFactor) * u_EnvIntensity;
+    vec3 irradiance = mix(u_EnvGroundColor.rgb, u_EnvSkyColor.rgb, upFactor) * u_EnvSkyColor.w;
     return irradiance;
 }
 
-// 6. Shadow Calculation with 3x3 PCF Kernel
+// 6. Hardware PCF Shadow Calculation
 float CalculateShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
     if (u_UseShadows == 0) return 0.0;
 
@@ -217,18 +210,20 @@ float CalculateShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = max(0.003 * (1.0 - dot(normal, lightDir)), 0.0005);
-    float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(u_ShadowMap, 0);
+    float bias = max(0.0015 * (1.0 - dot(normal, lightDir)), 0.0003);
+    float currentDepth = projCoords.z - bias;
 
+    // Hardware PCF with 3x3 multi-tap bilinear percentage-closer filtering
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(u_ShadowMap, 0));
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
-            float pcfDepth = texture(u_ShadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += (projCoords.z - bias > pcfDepth) ? 1.0 : 0.0;
+            shadow += texture(u_ShadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, currentDepth));
         }
     }
 
-    return shadow / 9.0;
+    // texture(sampler2DShadow, ...) returns 1.0 for illuminated, 0.0 for shadow
+    return 1.0 - (shadow / 9.0);
 }
 
 void main() {
@@ -265,7 +260,7 @@ void main() {
     }
     ao = clamp(ao, 0.0, 1.0);
 
-    vec3 V = normalize(u_ViewPos - v_FragPos);
+    vec3 V = normalize(u_ViewPos.xyz - v_FragPos);
     vec3 R = reflect(-V, N);
 
     // Base Reflectance (Dielectric 0.04 vs Metallic)
@@ -276,10 +271,10 @@ void main() {
     vec3 Lo = vec3(0.0);
 
     // 1. Directional Sunlight with Shadows
-    if (u_DirLight.enabled == 1) {
-        vec3 L = normalize(-u_DirLight.direction);
+    if (u_DirLight.direction.w > 0.5) {
+        vec3 L = normalize(-u_DirLight.direction.xyz);
         vec3 H = normalize(V + L);
-        vec3 radiance = u_DirLight.color * u_DirLight.diffuseIntensity;
+        vec3 radiance = u_DirLight.color.rgb * u_DirLight.intensities.x;
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
@@ -287,7 +282,7 @@ void main() {
 
         vec3 numerator = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_DirLight.specularIntensity;
+        vec3 specular = (numerator / denominator) * u_DirLight.intensities.y;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
@@ -297,19 +292,18 @@ void main() {
         float shadow = CalculateShadow(v_FragPosLightSpace, N, L);
 
         Lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow);
-        Lo += u_DirLight.color * u_DirLight.ambientIntensity * albedo * ao;
     }
 
     // 2. Point Lights (Multi-Light Loop)
-    int pointCount = min(u_PointLightCount, MAX_POINT_LIGHTS);
+    int pointCount = min(u_LightCounts.x, MAX_POINT_LIGHTS);
     for (int i = 0; i < pointCount; ++i) {
-        if (u_PointLights[i].enabled == 0) continue;
+        if (u_PointLights[i].position.w < 0.5) continue;
 
-        vec3 L = normalize(u_PointLights[i].position - v_FragPos);
+        vec3 L = normalize(u_PointLights[i].position.xyz - v_FragPos);
         vec3 H = normalize(V + L);
-        float distance = length(u_PointLights[i].position - v_FragPos);
-        float attenuation = 1.0 / (u_PointLights[i].constant + u_PointLights[i].linear * distance + u_PointLights[i].quadratic * (distance * distance));
-        vec3 radiance = u_PointLights[i].color * u_PointLights[i].diffuseIntensity * attenuation;
+        float distance = length(u_PointLights[i].position.xyz - v_FragPos);
+        float attenuation = 1.0 / (u_PointLights[i].attenuation.x + u_PointLights[i].attenuation.y * distance + u_PointLights[i].attenuation.z * (distance * distance));
+        vec3 radiance = u_PointLights[i].color.rgb * u_PointLights[i].attenuation.w * attenuation;
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
@@ -317,7 +311,7 @@ void main() {
 
         vec3 numerator = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_PointLights[i].specularIntensity;
+        vec3 specular = (numerator / denominator) * u_PointLights[i].params.x;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
@@ -325,24 +319,25 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-        Lo += u_PointLights[i].color * u_PointLights[i].ambientIntensity * attenuation * albedo * ao;
     }
 
     // 3. Spotlights (Multi-Light Loop)
-    int spotCount = min(u_SpotLightCount, MAX_SPOT_LIGHTS);
+    int spotCount = min(u_LightCounts.y, MAX_SPOT_LIGHTS);
     for (int i = 0; i < spotCount; ++i) {
-        if (u_SpotLights[i].enabled == 0) continue;
+        if (u_SpotLights[i].position.w < 0.5) continue;
 
-        vec3 L = normalize(u_SpotLights[i].position - v_FragPos);
+        vec3 L = normalize(u_SpotLights[i].position.xyz - v_FragPos);
         vec3 H = normalize(V + L);
-        float distance = length(u_SpotLights[i].position - v_FragPos);
-        float attenuation = 1.0 / (u_SpotLights[i].constant + u_SpotLights[i].linear * distance + u_SpotLights[i].quadratic * (distance * distance));
+        float distance = length(u_SpotLights[i].position.xyz - v_FragPos);
+        float attenuation = 1.0 / (u_SpotLights[i].attenuation.x + u_SpotLights[i].attenuation.y * distance + u_SpotLights[i].attenuation.z * (distance * distance));
 
-        float theta = dot(L, normalize(-u_SpotLights[i].direction));
-        float epsilon = u_SpotLights[i].cutOff - u_SpotLights[i].outerCutOff;
-        float spotIntensity = clamp((theta - u_SpotLights[i].outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
+        float theta = dot(L, normalize(-u_SpotLights[i].direction.xyz));
+        float cutOff = u_SpotLights[i].direction.w;
+        float outerCutOff = u_SpotLights[i].color.w;
+        float epsilon = cutOff - outerCutOff;
+        float spotIntensity = clamp((theta - outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
 
-        vec3 radiance = u_SpotLights[i].color * u_SpotLights[i].diffuseIntensity * attenuation * spotIntensity;
+        vec3 radiance = u_SpotLights[i].color.rgb * u_SpotLights[i].attenuation.w * attenuation * spotIntensity;
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
@@ -350,7 +345,7 @@ void main() {
 
         vec3 numerator = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_SpotLights[i].specularIntensity;
+        vec3 specular = (numerator / denominator) * u_SpotLights[i].params.y;
 
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
@@ -358,7 +353,6 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-        Lo += u_SpotLights[i].color * u_SpotLights[i].ambientIntensity * attenuation * spotIntensity * albedo * ao;
     }
 
     // ========================================================

@@ -132,6 +132,15 @@ namespace Leon {
             glDeleteShader(id);
         }
 
+        GLuint cameraBlockIndex = glGetUniformBlockIndex(program, "CameraData");
+        if (cameraBlockIndex != GL_INVALID_INDEX) {
+            glUniformBlockBinding(program, cameraBlockIndex, 0);
+        }
+        GLuint lightingBlockIndex = glGetUniformBlockIndex(program, "LightingData");
+        if (lightingBlockIndex != GL_INVALID_INDEX) {
+            glUniformBlockBinding(program, lightingBlockIndex, 1);
+        }
+
         m_RendererID = program;
     }
 

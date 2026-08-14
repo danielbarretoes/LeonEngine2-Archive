@@ -35,7 +35,13 @@ namespace Leon {
         hdrSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
         m_HDRSceneFramebuffer = FFramebuffer::Create(hdrSpec);
 
-        // 4. Load Shaders, Skybox & Fullscreen Composite Quad
+        // 4. Initialize std140 Uniform Buffer Objects (UBOs)
+        // Binding 0: Camera Data (144 bytes)
+        m_CameraUBO = FUniformBuffer::Create(sizeof(FCameraBufferData), 0);
+        // Binding 1: Lighting Data (1776 bytes)
+        m_LightingUBO = FUniformBuffer::Create(sizeof(FLightingBufferData), 1);
+
+        // 5. Load Shaders, Skybox & Fullscreen Composite Quad
         m_ShadowDepthShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth.glsl");
         m_SkyboxShader = FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
         m_PostProcessShader = FShader::Create("Engine/Assets/Shaders/PostProcess.glsl");
@@ -154,16 +160,85 @@ namespace Leon {
             }
         }
 
+        // ========================================================
+        // 2. Upload Scene Lighting Data into std140 Lighting UBO (Binding 1)
+        // ========================================================
+        FLightingBufferData lightingData;
+
+        // 2.1 Directional Light
+        if (bHasDirLight) {
+            lightingData.DirLight.Direction = glm::vec4(dirLight.Direction, 1.0f);
+            lightingData.DirLight.Color = glm::vec4(dirLight.Color, dirLight.AmbientIntensity);
+            lightingData.DirLight.Intensities =
+                glm::vec4(dirLight.DiffuseIntensity, dirLight.SpecularIntensity, 0.0f, 0.0f);
+        } else {
+            lightingData.DirLight.Direction = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+        }
+
+        // 2.2 Point Lights
+        for (size_t i = 0; i < pointLights.size(); ++i) {
+            lightingData.PointLights[i].Position = glm::vec4(pointLights[i].Position, 1.0f);
+            lightingData.PointLights[i].Color = glm::vec4(pointLights[i].Color, pointLights[i].AmbientIntensity);
+            lightingData.PointLights[i].Attenuation =
+                glm::vec4(pointLights[i].Constant, pointLights[i].Linear, pointLights[i].Quadratic,
+                          pointLights[i].DiffuseIntensity);
+            lightingData.PointLights[i].Params = glm::vec4(pointLights[i].SpecularIntensity, 0.0f, 0.0f, 0.0f);
+        }
+
+        // 2.3 Spotlights
+        for (size_t i = 0; i < spotLights.size(); ++i) {
+            lightingData.SpotLights[i].Position = glm::vec4(spotLights[i].Position, 1.0f);
+            lightingData.SpotLights[i].Direction =
+                glm::vec4(spotLights[i].Direction, std::cos(glm::radians(spotLights[i].CutOff)));
+            lightingData.SpotLights[i].Color =
+                glm::vec4(spotLights[i].Color, std::cos(glm::radians(spotLights[i].OuterCutOff)));
+            lightingData.SpotLights[i].Attenuation =
+                glm::vec4(spotLights[i].Constant, spotLights[i].Linear, spotLights[i].Quadratic,
+                          spotLights[i].DiffuseIntensity);
+            lightingData.SpotLights[i].Params =
+                glm::vec4(spotLights[i].AmbientIntensity, spotLights[i].SpecularIntensity, 0.0f, 0.0f);
+        }
+
+        lightingData.LightCounts =
+            glm::ivec4(static_cast<int>(pointLights.size()), static_cast<int>(spotLights.size()), 0, 0);
+        lightingData.EnvSkyColor = glm::vec4(skybox.SkyZenithColor, skybox.EnvironmentIntensity);
+        lightingData.EnvHorizonColor = glm::vec4(skybox.HorizonColor, 0.0f);
+        lightingData.EnvGroundColor = glm::vec4(skybox.GroundColor, 0.0f);
+
+        if (m_LightingUBO) {
+            m_LightingUBO->SetData(&lightingData, sizeof(FLightingBufferData), 0);
+        }
+
         // ==========================================
-        // PASS 1: Dynamic Directional Shadow Depth Pre-Pass
+        // PASS 1: Dynamic Frustum-Tracking Directional Shadow Depth Pre-Pass
         // ==========================================
         glm::mat4 lightSpaceMatrix = glm::mat4(1.0f);
 
         if (bHasDirLight && m_ShadowMapFramebuffer && m_ShadowDepthShader) {
-            glm::mat4 lightProjection = glm::ortho(-16.0f, 16.0f, -16.0f, 16.0f, 0.1f, 45.0f);
+            // Track active camera position and focus on ground plane
+            glm::vec3 camPos = InCamera.GetPosition();
+            glm::vec3 camForward = InCamera.GetForwardDirection();
+            glm::vec3 focusPoint = camPos + camForward * 5.0f;
+            focusPoint.y = 0.0f; // Focus on floor level
+
             glm::vec3 lightDirNorm = glm::normalize(dirLight.Direction);
-            glm::vec3 lightPos = -lightDirNorm * 22.0f;
-            glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::vec3 lightPos = focusPoint - lightDirNorm * 28.0f;
+            glm::mat4 lightView = glm::lookAt(lightPos, focusPoint, glm::vec3(0.0f, 1.0f, 0.0f));
+
+            float shadowExtents = 20.0f;
+            glm::mat4 lightProjection =
+                glm::ortho(-shadowExtents, shadowExtents, -shadowExtents, shadowExtents, 0.1f, 65.0f);
+
+            // Texel snapping to eliminate shadow edge shimmering/jitter during camera movement
+            glm::mat4 shadowMatrix = lightProjection * lightView;
+            glm::vec4 shadowOrigin = shadowMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+            shadowOrigin *= (2048.0f / 2.0f);
+            glm::vec4 roundedOrigin = glm::round(shadowOrigin);
+            glm::vec4 roundOffset = (roundedOrigin - shadowOrigin) * (2.0f / 2048.0f);
+            roundOffset.z = 0.0f;
+            roundOffset.w = 0.0f;
+
+            lightProjection[3] += roundOffset;
             lightSpaceMatrix = lightProjection * lightView;
 
             m_ShadowMapFramebuffer->Bind();
@@ -204,6 +279,15 @@ namespace Leon {
             FPerspectiveCamera mirroredCamera = InCamera;
             mirroredCamera.SetPosition(glm::vec3(camPos.x, -camPos.y, camPos.z));
             mirroredCamera.SetRotation(-pitch, yaw);
+
+            // Upload mirrored camera to std140 Camera UBO (Binding 0)
+            if (m_CameraUBO) {
+                FCameraBufferData mirrorCamData;
+                mirrorCamData.ViewProjection = mirroredCamera.GetViewProjectionMatrix();
+                mirrorCamData.LightSpaceMatrix = lightSpaceMatrix;
+                mirrorCamData.CameraPosition = glm::vec4(mirroredCamera.GetPosition(), 1.0f);
+                m_CameraUBO->SetData(&mirrorCamData, sizeof(FCameraBufferData), 0);
+            }
 
             m_PlanarReflectionFramebuffer->Bind();
             FRenderCommand::SetViewport(0, 0, vpWidth, vpHeight);
@@ -247,9 +331,6 @@ namespace Leon {
                     continue;
 
                 mesh.Shader->Bind();
-                mesh.Shader->SetMat4("u_ViewProjection", glm::value_ptr(mirroredCamera.GetViewProjectionMatrix()));
-                mesh.Shader->SetFloat3("u_ViewPos", mirroredCamera.GetPosition().x, mirroredCamera.GetPosition().y,
-                                       mirroredCamera.GetPosition().z);
                 mesh.Shader->SetInt("u_UsePlanarReflection", 0);
                 mesh.Shader->SetInt("u_UseShadows", 0);
 
@@ -272,41 +353,6 @@ namespace Leon {
                     mesh.Shader->SetInt("u_UseRoughnessMap", 0);
                     mesh.Shader->SetInt("u_UseAOMap", 0);
                 }
-
-                // Upload Lights to Reflection Buffer
-                if (bHasDirLight) {
-                    mesh.Shader->SetInt("u_DirLight.enabled", 1);
-                    mesh.Shader->SetFloat3("u_DirLight.direction", dirLight.Direction.x, dirLight.Direction.y,
-                                           dirLight.Direction.z);
-                    mesh.Shader->SetFloat3("u_DirLight.color", dirLight.Color.x, dirLight.Color.y, dirLight.Color.z);
-                    mesh.Shader->SetFloat("u_DirLight.ambientIntensity", dirLight.AmbientIntensity);
-                    mesh.Shader->SetFloat("u_DirLight.diffuseIntensity", dirLight.DiffuseIntensity);
-                    mesh.Shader->SetFloat("u_DirLight.specularIntensity", dirLight.SpecularIntensity);
-                }
-
-                mesh.Shader->SetInt("u_PointLightCount", static_cast<int>(pointLights.size()));
-                for (size_t i = 0; i < pointLights.size(); ++i) {
-                    std::string base = "u_PointLights[" + std::to_string(i) + "].";
-                    mesh.Shader->SetInt(base + "enabled", 1);
-                    mesh.Shader->SetFloat3(base + "position", pointLights[i].Position.x, pointLights[i].Position.y,
-                                           pointLights[i].Position.z);
-                    mesh.Shader->SetFloat3(base + "color", pointLights[i].Color.x, pointLights[i].Color.y,
-                                           pointLights[i].Color.z);
-                    mesh.Shader->SetFloat(base + "constant", pointLights[i].Constant);
-                    mesh.Shader->SetFloat(base + "linear", pointLights[i].Linear);
-                    mesh.Shader->SetFloat(base + "quadratic", pointLights[i].Quadratic);
-                    mesh.Shader->SetFloat(base + "ambientIntensity", pointLights[i].AmbientIntensity);
-                    mesh.Shader->SetFloat(base + "diffuseIntensity", pointLights[i].DiffuseIntensity);
-                    mesh.Shader->SetFloat(base + "specularIntensity", pointLights[i].SpecularIntensity);
-                }
-
-                mesh.Shader->SetFloat3("u_EnvSkyColor", skybox.SkyZenithColor.r, skybox.SkyZenithColor.g,
-                                       skybox.SkyZenithColor.b);
-                mesh.Shader->SetFloat3("u_EnvHorizonColor", skybox.HorizonColor.r, skybox.HorizonColor.g,
-                                       skybox.HorizonColor.b);
-                mesh.Shader->SetFloat3("u_EnvGroundColor", skybox.GroundColor.r, skybox.GroundColor.g,
-                                       skybox.GroundColor.b);
-                mesh.Shader->SetFloat("u_EnvIntensity", skybox.EnvironmentIntensity);
 
                 glm::mat4 model = transform.GetTransform();
                 mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
@@ -349,6 +395,15 @@ namespace Leon {
 
         FRenderer::BeginScene(InCamera);
 
+        // Upload main camera to std140 Camera UBO (Binding 0)
+        if (m_CameraUBO) {
+            FCameraBufferData mainCamData;
+            mainCamData.ViewProjection = InCamera.GetViewProjectionMatrix();
+            mainCamData.LightSpaceMatrix = lightSpaceMatrix;
+            mainCamData.CameraPosition = glm::vec4(InCamera.GetPosition(), 1.0f);
+            m_CameraUBO->SetData(&mainCamData, sizeof(FCameraBufferData), 0);
+        }
+
         auto meshView = m_Registry.view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
@@ -359,13 +414,7 @@ namespace Leon {
 
             mesh.Shader->Bind();
 
-            // Camera ViewProjection & Position
-            mesh.Shader->SetMat4("u_ViewProjection", glm::value_ptr(InCamera.GetViewProjectionMatrix()));
-            mesh.Shader->SetFloat3("u_ViewPos", InCamera.GetPosition().x, InCamera.GetPosition().y,
-                                   InCamera.GetPosition().z);
-
             // Dynamic Directional Shadow Map (Slot 5)
-            mesh.Shader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(lightSpaceMatrix));
             if (m_ShadowMapFramebuffer && bHasDirLight && mesh.bReceiveShadows) {
                 m_ShadowMapFramebuffer->BindDepthTexture(5);
                 mesh.Shader->SetInt("u_ShadowMap", 5);
@@ -390,66 +439,6 @@ namespace Leon {
                 mesh.Shader->SetFloat2("u_ScreenSize", static_cast<float>(vpWidth), static_cast<float>(vpHeight));
             } else {
                 mesh.Shader->SetInt("u_UsePlanarReflection", 0);
-            }
-
-            // Environment / IBL Atmosphere Parameters
-            mesh.Shader->SetFloat3("u_EnvSkyColor", skybox.SkyZenithColor.r, skybox.SkyZenithColor.g,
-                                   skybox.SkyZenithColor.b);
-            mesh.Shader->SetFloat3("u_EnvHorizonColor", skybox.HorizonColor.r, skybox.HorizonColor.g,
-                                   skybox.HorizonColor.b);
-            mesh.Shader->SetFloat3("u_EnvGroundColor", skybox.GroundColor.r, skybox.GroundColor.g,
-                                   skybox.GroundColor.b);
-            mesh.Shader->SetFloat("u_EnvIntensity", skybox.EnvironmentIntensity);
-
-            // Directional Light Uniforms
-            if (bHasDirLight) {
-                mesh.Shader->SetInt("u_DirLight.enabled", 1);
-                mesh.Shader->SetFloat3("u_DirLight.direction", dirLight.Direction.x, dirLight.Direction.y,
-                                       dirLight.Direction.z);
-                mesh.Shader->SetFloat3("u_DirLight.color", dirLight.Color.x, dirLight.Color.y, dirLight.Color.z);
-                mesh.Shader->SetFloat("u_DirLight.ambientIntensity", dirLight.AmbientIntensity);
-                mesh.Shader->SetFloat("u_DirLight.diffuseIntensity", dirLight.DiffuseIntensity);
-                mesh.Shader->SetFloat("u_DirLight.specularIntensity", dirLight.SpecularIntensity);
-            } else {
-                mesh.Shader->SetInt("u_DirLight.enabled", 0);
-            }
-
-            // Multi Point Light Uniforms
-            mesh.Shader->SetInt("u_PointLightCount", static_cast<int>(pointLights.size()));
-            for (size_t i = 0; i < pointLights.size(); ++i) {
-                std::string base = "u_PointLights[" + std::to_string(i) + "].";
-                mesh.Shader->SetInt(base + "enabled", 1);
-                mesh.Shader->SetFloat3(base + "position", pointLights[i].Position.x, pointLights[i].Position.y,
-                                       pointLights[i].Position.z);
-                mesh.Shader->SetFloat3(base + "color", pointLights[i].Color.x, pointLights[i].Color.y,
-                                       pointLights[i].Color.z);
-                mesh.Shader->SetFloat(base + "constant", pointLights[i].Constant);
-                mesh.Shader->SetFloat(base + "linear", pointLights[i].Linear);
-                mesh.Shader->SetFloat(base + "quadratic", pointLights[i].Quadratic);
-                mesh.Shader->SetFloat(base + "ambientIntensity", pointLights[i].AmbientIntensity);
-                mesh.Shader->SetFloat(base + "diffuseIntensity", pointLights[i].DiffuseIntensity);
-                mesh.Shader->SetFloat(base + "specularIntensity", pointLights[i].SpecularIntensity);
-            }
-
-            // Multi Spot Light Uniforms
-            mesh.Shader->SetInt("u_SpotLightCount", static_cast<int>(spotLights.size()));
-            for (size_t i = 0; i < spotLights.size(); ++i) {
-                std::string base = "u_SpotLights[" + std::to_string(i) + "].";
-                mesh.Shader->SetInt(base + "enabled", 1);
-                mesh.Shader->SetFloat3(base + "position", spotLights[i].Position.x, spotLights[i].Position.y,
-                                       spotLights[i].Position.z);
-                mesh.Shader->SetFloat3(base + "direction", spotLights[i].Direction.x, spotLights[i].Direction.y,
-                                       spotLights[i].Direction.z);
-                mesh.Shader->SetFloat3(base + "color", spotLights[i].Color.x, spotLights[i].Color.y,
-                                       spotLights[i].Color.z);
-                mesh.Shader->SetFloat(base + "cutOff", std::cos(glm::radians(spotLights[i].CutOff)));
-                mesh.Shader->SetFloat(base + "outerCutOff", std::cos(glm::radians(spotLights[i].OuterCutOff)));
-                mesh.Shader->SetFloat(base + "constant", spotLights[i].Constant);
-                mesh.Shader->SetFloat(base + "linear", spotLights[i].Linear);
-                mesh.Shader->SetFloat(base + "quadratic", spotLights[i].Quadratic);
-                mesh.Shader->SetFloat(base + "ambientIntensity", spotLights[i].AmbientIntensity);
-                mesh.Shader->SetFloat(base + "diffuseIntensity", spotLights[i].DiffuseIntensity);
-                mesh.Shader->SetFloat(base + "specularIntensity", spotLights[i].SpecularIntensity);
             }
 
             // PBR Material Component Configuration
