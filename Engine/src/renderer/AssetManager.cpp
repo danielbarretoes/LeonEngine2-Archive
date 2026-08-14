@@ -8,15 +8,58 @@ namespace Leon {
     std::unordered_map<std::string, TRef<FShader>> FAssetManager::s_ShaderCache;
     std::unordered_map<std::string, TRef<FMaterial>> FAssetManager::s_MaterialCache;
     TRef<FMaterial> FAssetManager::s_DefaultMaterial = nullptr;
+    TRef<FTexture2D> FAssetManager::s_DefaultWhiteTexture = nullptr;
+    TRef<FTexture2D> FAssetManager::s_DefaultBlackTexture = nullptr;
+    TRef<FTexture2D> FAssetManager::s_DefaultFlatNormalTexture = nullptr;
 
     void FAssetManager::Init() {
         LE_CORE_INFO("Initializing FAssetManager Subsystem...");
         Clear();
+
+        // Initialize 1x1 default fallback textures
+        s_DefaultWhiteTexture = FTexture2D::Create(1, 1);
+        uint32_t whitePixel = 0xFFFFFFFF;
+        s_DefaultWhiteTexture->SetData(&whitePixel, sizeof(uint32_t));
+
+        s_DefaultBlackTexture = FTexture2D::Create(1, 1);
+        uint32_t blackPixel = 0xFF000000;
+        s_DefaultBlackTexture->SetData(&blackPixel, sizeof(uint32_t));
+
+        s_DefaultFlatNormalTexture = FTexture2D::Create(1, 1);
+        uint32_t flatNormalPixel = 0xFFFF8080; // RGBA: (128, 128, 255, 255) in memory
+        s_DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
     }
 
     void FAssetManager::Shutdown() {
         LE_CORE_INFO("Shutting down FAssetManager Subsystem...");
         Clear();
+    }
+
+    TRef<FTexture2D> FAssetManager::GetDefaultWhiteTexture() {
+        if (!s_DefaultWhiteTexture) {
+            s_DefaultWhiteTexture = FTexture2D::Create(1, 1);
+            uint32_t whitePixel = 0xFFFFFFFF;
+            s_DefaultWhiteTexture->SetData(&whitePixel, sizeof(uint32_t));
+        }
+        return s_DefaultWhiteTexture;
+    }
+
+    TRef<FTexture2D> FAssetManager::GetDefaultBlackTexture() {
+        if (!s_DefaultBlackTexture) {
+            s_DefaultBlackTexture = FTexture2D::Create(1, 1);
+            uint32_t blackPixel = 0xFF000000;
+            s_DefaultBlackTexture->SetData(&blackPixel, sizeof(uint32_t));
+        }
+        return s_DefaultBlackTexture;
+    }
+
+    TRef<FTexture2D> FAssetManager::GetDefaultFlatNormalTexture() {
+        if (!s_DefaultFlatNormalTexture) {
+            s_DefaultFlatNormalTexture = FTexture2D::Create(1, 1);
+            uint32_t flatNormalPixel = 0xFFFF8080;
+            s_DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
+        }
+        return s_DefaultFlatNormalTexture;
     }
 
     TRef<FTexture2D> FAssetManager::GetTexture2D(const std::string& InPath) {
@@ -136,6 +179,9 @@ namespace Leon {
         s_ShaderCache.clear();
         s_MaterialCache.clear();
         s_DefaultMaterial = nullptr;
+        s_DefaultWhiteTexture = nullptr;
+        s_DefaultBlackTexture = nullptr;
+        s_DefaultFlatNormalTexture = nullptr;
     }
 
 } // namespace Leon

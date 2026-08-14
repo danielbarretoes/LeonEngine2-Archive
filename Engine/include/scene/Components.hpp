@@ -150,7 +150,7 @@ namespace Leon {
      */
     struct FTextComponent {
         std::string Text = "Text";
-        glm::vec4 Color{1.0f, 1.0f, 1.0f, 1.0f};
+        glm::vec4 Color{0.72f, 0.72f, 0.72f, 1.0f};
         float Size = 1.0f;        // Height in world space units
         float LineSpacing = 1.2f; // Line height multiplier
         ETextAlignment Alignment = ETextAlignment::Center;
@@ -158,8 +158,8 @@ namespace Leon {
 
         FTextComponent() = default;
         FTextComponent(const FTextComponent&) = default;
-        FTextComponent(const std::string& InText, const glm::vec4& InColor = glm::vec4(1.0f), float InSize = 1.0f,
-                       ETextAlignment InAlignment = ETextAlignment::Center)
+        FTextComponent(const std::string& InText, const glm::vec4& InColor = glm::vec4(0.72f, 0.72f, 0.72f, 1.0f),
+                       float InSize = 1.0f, ETextAlignment InAlignment = ETextAlignment::Center)
             : Text(InText), Color(InColor), Size(InSize), Alignment(InAlignment) {}
     };
 

@@ -12,7 +12,7 @@ namespace Leon {
     using RenderAPIEnum = ERenderAPI;
 
     enum class EDepthFunc { Less = 0, LessEqual = 1, Equal = 2, Always = 3 };
-    enum class ECullMode { Back = 0, Front = 1, FrontAndBack = 2 };
+    enum class ECullMode { Back = 0, Front = 1, FrontAndBack = 2, None = 3 };
     enum class EBlendFactor {
         Zero = 0,
         One = 1,

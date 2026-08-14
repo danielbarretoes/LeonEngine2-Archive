@@ -123,6 +123,9 @@ layout(binding = 6) uniform sampler2D u_BRDFLUT;
 layout(binding = 7) uniform samplerCube u_IrradianceMap;
 layout(binding = 8) uniform samplerCube u_PrefilterMap;
 
+// Emissive Texture Map
+layout(binding = 9) uniform sampler2D u_EmissiveMap;
+
 // Cascaded Shadow Map (Texture2DArray Hardware PCF) & Spot Shadow Map
 layout(binding = 10) uniform sampler2DArrayShadow u_CascadeShadowMap;
 layout(binding = 11) uniform sampler2DShadow u_SpotShadowMap;
@@ -133,6 +136,7 @@ uniform int u_UseNormalMap;
 uniform int u_UseMetallicMap;
 uniform int u_UseAOMap;
 uniform int u_UseRoughnessMap;
+uniform int u_UseEmissiveMap;
 uniform int u_UseShadows;
 uniform int u_UseSpotShadows;
 uniform int u_UsePlanarReflection;
@@ -474,7 +478,8 @@ void main() {
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;
 
     // Emissive Radiance
-    vec3 emissive = u_EmissiveColor * u_EmissiveIntensity;
+    vec3 emissiveMapSample = (u_UseEmissiveMap == 1) ? texture(u_EmissiveMap, v_TexCoords).rgb : vec3(1.0);
+    vec3 emissive = u_EmissiveColor * u_EmissiveIntensity * emissiveMapSample;
 
     // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
     vec3 hdrColor = ambient + Lo + emissive;

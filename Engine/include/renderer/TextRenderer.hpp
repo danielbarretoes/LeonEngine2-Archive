@@ -57,7 +57,7 @@ namespace Leon {
          * @param InbDoubleSided Whether the text is visible and readable from both sides.
          */
         static void DrawString(const std::string& InText, const glm::mat4& InTransform,
-                               const glm::vec4& InColor = glm::vec4(1.0f), float InSize = 1.0f,
+                               const glm::vec4& InColor = glm::vec4(0.72f, 0.72f, 0.72f, 1.0f), float InSize = 1.0f,
                                ETextAlignment InAlignment = ETextAlignment::Center, bool InbDoubleSided = true);
 
         /**

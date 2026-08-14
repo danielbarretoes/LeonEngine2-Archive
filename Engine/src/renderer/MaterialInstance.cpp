@@ -94,17 +94,19 @@ namespace Leon {
         InShader->SetFloat3("u_EmissiveColor", emissiveColor.r, emissiveColor.g, emissiveColor.b);
         InShader->SetFloat("u_EmissiveIntensity", emissiveIntensity);
 
-        // 2. Resolve Textures & Bind to Units 0..4
+        // 2. Resolve Textures & Bind to Units (0: Albedo, 1: Normal, 2: Metallic, 3: AO, 4: Roughness, 9: Emissive)
         TRef<FTexture2D> albedoMap    = GetTexture(0);
         TRef<FTexture2D> normalMap    = GetTexture(1);
         TRef<FTexture2D> metallicMap  = GetTexture(2);
         TRef<FTexture2D> aoMap        = GetTexture(3);
         TRef<FTexture2D> roughnessMap = GetTexture(4);
+        TRef<FTexture2D> emissiveMap  = GetTexture(5);
 
         if (albedoMap && albedoMap->IsLoaded()) {
             albedoMap->Bind(0);
             InShader->SetInt("u_UseAlbedoMap", 1);
         } else {
+            FAssetManager::GetDefaultWhiteTexture()->Bind(0);
             InShader->SetInt("u_UseAlbedoMap", 0);
         }
 
@@ -112,6 +114,7 @@ namespace Leon {
             normalMap->Bind(1);
             InShader->SetInt("u_UseNormalMap", 1);
         } else {
+            FAssetManager::GetDefaultFlatNormalTexture()->Bind(1);
             InShader->SetInt("u_UseNormalMap", 0);
         }
 
@@ -119,6 +122,7 @@ namespace Leon {
             metallicMap->Bind(2);
             InShader->SetInt("u_UseMetallicMap", 1);
         } else {
+            FAssetManager::GetDefaultWhiteTexture()->Bind(2);
             InShader->SetInt("u_UseMetallicMap", 0);
         }
 
@@ -126,6 +130,7 @@ namespace Leon {
             aoMap->Bind(3);
             InShader->SetInt("u_UseAOMap", 1);
         } else {
+            FAssetManager::GetDefaultWhiteTexture()->Bind(3);
             InShader->SetInt("u_UseAOMap", 0);
         }
 
@@ -133,7 +138,16 @@ namespace Leon {
             roughnessMap->Bind(4);
             InShader->SetInt("u_UseRoughnessMap", 1);
         } else {
+            FAssetManager::GetDefaultWhiteTexture()->Bind(4);
             InShader->SetInt("u_UseRoughnessMap", 0);
+        }
+
+        if (emissiveMap && emissiveMap->IsLoaded()) {
+            emissiveMap->Bind(9);
+            InShader->SetInt("u_UseEmissiveMap", 1);
+        } else {
+            FAssetManager::GetDefaultBlackTexture()->Bind(9);
+            InShader->SetInt("u_UseEmissiveMap", 0);
         }
     }
 

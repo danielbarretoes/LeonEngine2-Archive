@@ -269,7 +269,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "LEON ENGINE 2 - PHYSICAL PBR"
-      Color: [0.35, 0.88, 1.0, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.32
       Alignment: "Center"
       DoubleSided: true
@@ -281,7 +281,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "Cook-Torrance Specular | Atmospheric IBL | Dynamic Shadows | Tangent Normal Maps"
-      Color: [0.85, 0.88, 0.92, 0.9]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.13
       Alignment: "Center"
       DoubleSided: true
@@ -293,7 +293,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "EMERALD RAMP\n(Modular Wedge)"
-      Color: [0.15, 1.0, 0.55, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -305,7 +305,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "TEXTURED CUBE\n(Metal Panel NMap)"
-      Color: [1.0, 0.85, 0.30, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -317,7 +317,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "POLISHED GOLD\n(Metallic 1.0)"
-      Color: [1.0, 0.92, 0.45, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -329,7 +329,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "RUBY DIELECTRIC\n(Dielectric F0)"
-      Color: [1.0, 0.35, 0.45, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -341,7 +341,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "BRUSHED IRON\n(Brushed Roughness)"
-      Color: [0.78, 0.85, 0.95, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -353,7 +353,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "COBALT PYRAMID\n(Square Base)"
-      Color: [0.40, 0.75, 1.0, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -365,7 +365,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "WHITE PLASTIC\n(Smooth 0.25)"
-      Color: [0.95, 0.95, 0.95, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -377,7 +377,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "RED PLASTIC\n(Dielectric R0.3)"
-      Color: [1.0, 0.2, 0.2, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -389,7 +389,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "GOLD METAL\n(Metallic 1.0)"
-      Color: [1.0, 0.82, 0.35, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -401,7 +401,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "ROUGH METAL\n(Rough 0.7)"
-      Color: [0.8, 0.8, 0.85, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true
@@ -413,7 +413,7 @@ Actors:
       Scale: [1.0, 1.0, 1.0]
     Text:
       Content: "EMISSIVE CYAN\n(Radiance 4.0)"
-      Color: [0.0, 0.95, 1.0, 1.0]
+      Color: [0.72, 0.72, 0.72, 1.0]
       Size: 0.11
       Alignment: "Center"
       DoubleSided: true

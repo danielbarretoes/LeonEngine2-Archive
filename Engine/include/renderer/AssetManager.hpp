@@ -26,6 +26,10 @@ namespace Leon {
         static void AddTexture2D(const std::string& InName, const TRef<FTexture2D>& InTexture);
         static bool HasTexture2D(const std::string& InPath);
 
+        static TRef<FTexture2D> GetDefaultWhiteTexture();
+        static TRef<FTexture2D> GetDefaultBlackTexture();
+        static TRef<FTexture2D> GetDefaultFlatNormalTexture();
+
         // Shaders
         static TRef<FShader> GetShader(const std::string& InPath);
         static void AddShader(const std::string& InName, const TRef<FShader>& InShader);
@@ -47,6 +51,9 @@ namespace Leon {
         static std::unordered_map<std::string, TRef<FShader>> s_ShaderCache;
         static std::unordered_map<std::string, TRef<FMaterial>> s_MaterialCache;
         static TRef<FMaterial> s_DefaultMaterial;
+        static TRef<FTexture2D> s_DefaultWhiteTexture;
+        static TRef<FTexture2D> s_DefaultBlackTexture;
+        static TRef<FTexture2D> s_DefaultFlatNormalTexture;
     };
 
     using AssetManager = FAssetManager;

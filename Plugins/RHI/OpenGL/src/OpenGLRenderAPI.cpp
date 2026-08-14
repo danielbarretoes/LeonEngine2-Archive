@@ -82,15 +82,16 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetCulling(bool InEnabled, ECullMode InMode) {
-        if (m_CullEnabled != InEnabled) {
-            m_CullEnabled = InEnabled;
-            if (InEnabled)
+        bool bEffectiveEnable = InEnabled && (InMode != ECullMode::None);
+        if (m_CullEnabled != bEffectiveEnable) {
+            m_CullEnabled = bEffectiveEnable;
+            if (bEffectiveEnable)
                 glEnable(GL_CULL_FACE);
             else
                 glDisable(GL_CULL_FACE);
         }
 
-        if (InEnabled && m_CullMode != InMode) {
+        if (bEffectiveEnable && m_CullMode != InMode) {
             m_CullMode = InMode;
             switch (InMode) {
             case ECullMode::Back:
@@ -101,6 +102,8 @@ namespace Leon {
                 break;
             case ECullMode::FrontAndBack:
                 glCullFace(GL_FRONT_AND_BACK);
+                break;
+            case ECullMode::None:
                 break;
             }
         }

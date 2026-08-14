@@ -30,8 +30,11 @@ namespace Leon {
 
         std::vector<unsigned char> tempBitmap(AtlasDimension * AtlasDimension, 0);
 
-        // Load Inter TrueType Font from Engine Assets
-        std::ifstream file("Engine/Assets/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
+        // Load Inter-Bold TrueType Font from Engine Assets (with fallback to Inter-Regular)
+        std::ifstream file("Engine/Assets/Fonts/Inter-Bold.ttf", std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            file.open("Engine/Assets/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
+        }
         if (file.is_open()) {
             std::streamsize size = file.tellg();
             file.seekg(0, std::ios::beg);
@@ -41,7 +44,7 @@ namespace Leon {
                                                AtlasDimension, 32, 96, s_WorldBakedChars);
                 if (res > 0) {
                     s_bFontLoaded = true;
-                    LE_CORE_INFO("Baked High-Res 3D Font Atlas (1024x1024, Inter 48px)");
+                    LE_CORE_INFO("Baked High-Res 3D Bold Font Atlas (1024x1024, Inter-Bold 48px)");
                 }
             }
         }

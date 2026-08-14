@@ -615,7 +615,18 @@ namespace Leon {
                 mesh.Shader->SetInt("u_UsePlanarReflection", 0);
             }
 
-            // Bind resolved material parameters and textures (slots 0..4)
+            // Apply Material Pipeline State (Culling, Depth, Blend)
+            const auto& pso = matInst->GetPipelineState();
+            FRenderCommand::SetCulling(pso.CullMode != ECullMode::None, pso.CullMode);
+            FRenderCommand::SetDepthTesting(pso.bDepthTest);
+            FRenderCommand::SetDepthMask(pso.bDepthWrite);
+            FRenderCommand::SetDepthFunc(pso.DepthFunc);
+            FRenderCommand::SetBlendState(pso.bBlend);
+            if (pso.bBlend) {
+                FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
+            }
+
+            // Bind resolved material parameters and textures (slots 0..5)
             matInst->Bind(mesh.Shader);
 
             // IBL enablement (samplers are statically bound to slots 6-8)
@@ -631,6 +642,12 @@ namespace Leon {
             mesh.VertexArray->Bind();
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
+
+        // Restore pass-level default rasterizer state
+        FRenderCommand::SetCulling(false);
+        FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetDepthFunc(EDepthFunc::Less);
     }
 
     // =========================================================================
