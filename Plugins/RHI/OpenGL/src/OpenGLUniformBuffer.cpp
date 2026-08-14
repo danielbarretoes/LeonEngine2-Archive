@@ -5,9 +5,8 @@ namespace Leon {
 
     FOpenGLUniformBuffer::FOpenGLUniformBuffer(uint32_t InSize, uint32_t InBinding)
         : m_Binding(InBinding), m_AllocatedBytes(InSize) {
-        glGenBuffers(1, &m_RendererID);
-        glBindBuffer(GL_UNIFORM_BUFFER, m_RendererID);
-        glBufferData(GL_UNIFORM_BUFFER, InSize, nullptr, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &m_RendererID);
+        glNamedBufferData(m_RendererID, InSize, nullptr, GL_DYNAMIC_DRAW);
         glBindBufferBase(GL_UNIFORM_BUFFER, InBinding, m_RendererID);
 
         FRenderer::OnGPUAlloc(m_AllocatedBytes);
@@ -21,8 +20,7 @@ namespace Leon {
     }
 
     void FOpenGLUniformBuffer::SetData(const void* InData, uint32_t InSize, uint32_t InOffset) {
-        glBindBuffer(GL_UNIFORM_BUFFER, m_RendererID);
-        glBufferSubData(GL_UNIFORM_BUFFER, InOffset, InSize, InData);
+        glNamedBufferSubData(m_RendererID, InOffset, InSize, InData);
     }
 
 } // namespace Leon

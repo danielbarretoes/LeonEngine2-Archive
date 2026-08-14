@@ -31,6 +31,7 @@ namespace Leon {
 
         void BindTexture(uint32_t InAttachmentIndex = 0, uint32_t InSlot = 0) const override;
         void BindDepthTexture(uint32_t InSlot = 0) const override;
+        void AttachDepthTextureLayer(uint32_t InLayer) override;
 
         void BlitToDefault(uint32_t InTargetWidth, uint32_t InTargetHeight) override;
 

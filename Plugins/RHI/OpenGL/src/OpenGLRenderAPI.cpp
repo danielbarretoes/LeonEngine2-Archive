@@ -6,14 +6,36 @@
 namespace Leon {
 
     void FOpenGLRenderAPI::Init() {
-        // Default blend: SrcAlpha / OneMinusSrcAlpha — set once at init
+        // Default blend: SrcAlpha / OneMinusSrcAlpha
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        m_SrcBlend = EBlendFactor::SrcAlpha;
+        m_DstBlend = EBlendFactor::OneMinusSrcAlpha;
+
         glEnable(GL_BLEND);
+        m_BlendEnabled = true;
+
         glEnable(GL_DEPTH_TEST);
+        m_DepthTestEnabled = true;
+
+        glDepthFunc(GL_LESS);
+        m_DepthFunc = EDepthFunc::Less;
+
+        glDepthMask(GL_TRUE);
+        m_DepthMaskEnabled = true;
+
+        // Enable seamless cubemap filtering for artifacts-free IBL filtering
+        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
     }
 
     void FOpenGLRenderAPI::SetViewport(unsigned int InX, unsigned int InY, unsigned int InWidth,
                                        unsigned int InHeight) {
+        if (m_ViewportX == InX && m_ViewportY == InY && m_ViewportW == InWidth && m_ViewportH == InHeight)
+            return;
+
+        m_ViewportX = InX;
+        m_ViewportY = InY;
+        m_ViewportW = InWidth;
+        m_ViewportH = InHeight;
         glViewport((GLint)InX, (GLint)InY, (GLsizei)InWidth, (GLsizei)InHeight);
     }
 
@@ -26,6 +48,8 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthTesting(bool InEnabled) {
+        if (m_DepthTestEnabled == InEnabled) return;
+        m_DepthTestEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_DEPTH_TEST);
         else
@@ -33,10 +57,14 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthMask(bool InEnabled) {
+        if (m_DepthMaskEnabled == InEnabled) return;
+        m_DepthMaskEnabled = InEnabled;
         glDepthMask(InEnabled ? GL_TRUE : GL_FALSE);
     }
 
     void FOpenGLRenderAPI::SetDepthFunc(EDepthFunc InFunc) {
+        if (m_DepthFunc == InFunc) return;
+        m_DepthFunc = InFunc;
         switch (InFunc) {
         case EDepthFunc::Less:
             glDepthFunc(GL_LESS);
@@ -54,8 +82,16 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetCulling(bool InEnabled, ECullMode InMode) {
-        if (InEnabled) {
-            glEnable(GL_CULL_FACE);
+        if (m_CullEnabled != InEnabled) {
+            m_CullEnabled = InEnabled;
+            if (InEnabled)
+                glEnable(GL_CULL_FACE);
+            else
+                glDisable(GL_CULL_FACE);
+        }
+
+        if (InEnabled && m_CullMode != InMode) {
+            m_CullMode = InMode;
             switch (InMode) {
             case ECullMode::Back:
                 glCullFace(GL_BACK);
@@ -67,13 +103,12 @@ namespace Leon {
                 glCullFace(GL_FRONT_AND_BACK);
                 break;
             }
-        } else {
-            glDisable(GL_CULL_FACE);
         }
     }
 
     void FOpenGLRenderAPI::SetBlendState(bool InEnabled) {
-        // Only toggle blend enable/disable — blend function is set separately via SetBlendFunc()
+        if (m_BlendEnabled == InEnabled) return;
+        m_BlendEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_BLEND);
         else
@@ -107,6 +142,9 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) {
+        if (m_SrcBlend == InSrc && m_DstBlend == InDst) return;
+        m_SrcBlend = InSrc;
+        m_DstBlend = InDst;
         glBlendFunc(BlendFactorToGL(InSrc), BlendFactorToGL(InDst));
     }
 
@@ -147,12 +185,12 @@ namespace Leon {
     }
 
     uint32_t FOpenGLRenderAPI::GetFramebufferBinding() {
-        GLint fbo = 0;
-        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
-        return static_cast<uint32_t>(fbo);
+        return m_CurrentFBO;
     }
 
     void FOpenGLRenderAPI::BindFramebuffer(uint32_t InRendererID) {
+        if (m_CurrentFBO == InRendererID) return;
+        m_CurrentFBO = InRendererID;
         glBindFramebuffer(GL_FRAMEBUFFER, InRendererID);
     }
 

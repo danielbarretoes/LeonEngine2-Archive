@@ -2,8 +2,14 @@
 #include "core/Log.hpp"
 #include "renderer/Renderer.hpp"
 #include <stb_image.h>
+#include <cmath>
+#include <algorithm>
 
 namespace Leon {
+
+    static uint32_t CalculateMipLevels(uint32_t InWidth, uint32_t InHeight) {
+        return static_cast<uint32_t>(std::floor(std::log2(std::max(InWidth, InHeight)))) + 1;
+    }
 
     // -------------------------------------------------------------------------
     // Blank RGBA8 texture (used for render target / manual SetData uploads)
@@ -14,21 +20,20 @@ namespace Leon {
         m_DataFormat     = GL_RGBA;
         m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4);
 
-        glGenTextures(1, &m_RendererID);
-        glBindTexture(GL_TEXTURE_2D, m_RendererID);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0,
-                     m_DataFormat, GL_UNSIGNED_BYTE, nullptr);
+        glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+        glTextureStorage2D(m_RendererID, 1, m_InternalFormat, m_Width, m_Height);
+
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_REPEAT);
         m_IsLoaded = true;
 
         FRenderer::OnGPUAlloc(m_AllocatedBytes);
     }
 
     // -------------------------------------------------------------------------
-    // RG16F float texture (used for BRDF LUT — needs half-float precision)
+    // RG16F / RGBA16F / RGBA32F float texture (used for BRDF LUT & HDR)
     // -------------------------------------------------------------------------
     FOpenGLTexture2D::FOpenGLTexture2D(uint32_t InWidth, uint32_t InHeight, ETextureFormat InFormat) {
         m_Width  = InWidth;
@@ -57,14 +62,13 @@ namespace Leon {
                 break;
         }
 
-        glGenTextures(1, &m_RendererID);
-        glBindTexture(GL_TEXTURE_2D, m_RendererID);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0,
-                     m_DataFormat, GL_FLOAT, nullptr);
+        glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+        glTextureStorage2D(m_RendererID, 1, m_InternalFormat, m_Width, m_Height);
+
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         m_IsLoaded = true;
 
         FRenderer::OnGPUAlloc(m_AllocatedBytes);
@@ -92,15 +96,18 @@ namespace Leon {
             m_DataFormat     = GL_RGBA;
             m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4 * sizeof(float));
 
-            glGenTextures(1, &m_RendererID);
-            glBindTexture(GL_TEXTURE_2D, m_RendererID);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0,
-                         m_DataFormat, GL_FLOAT, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
+            uint32_t levels = CalculateMipLevels(m_Width, m_Height);
+
+            glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+            glTextureStorage2D(m_RendererID, levels, m_InternalFormat, m_Width, m_Height);
+
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_FLOAT, data);
+            glGenerateTextureMipmap(m_RendererID);
 
             stbi_image_free(data);
             FRenderer::OnGPUAlloc(m_AllocatedBytes);
@@ -141,20 +148,21 @@ namespace Leon {
         }
 
         m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * bpp);
+        uint32_t levels = CalculateMipLevels(m_Width, m_Height);
 
-        glGenTextures(1, &m_RendererID);
-        glBindTexture(GL_TEXTURE_2D, m_RendererID);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+        glTextureStorage2D(m_RendererID, levels, m_InternalFormat, m_Width, m_Height);
+
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
         if (bpp != 4)
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0,
-                     m_DataFormat, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
+        glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_UNSIGNED_BYTE, data);
+        glGenerateTextureMipmap(m_RendererID);
 
         if (bpp != 4)
             glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
@@ -172,22 +180,21 @@ namespace Leon {
 
     void FOpenGLTexture2D::SetData(void* InData, uint32_t InSize) {
         uint32_t bpp = (m_DataFormat == GL_RGBA) ? 4 : (m_DataFormat == GL_RGB ? 3 : (m_DataFormat == GL_RG ? 2 : 1));
-        glBindTexture(GL_TEXTURE_2D, m_RendererID);
         if (bpp != 4)
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_UNSIGNED_BYTE, InData);
+
+        glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_UNSIGNED_BYTE, InData);
+
         if (bpp != 4)
             glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     }
 
     void FOpenGLTexture2D::SetDataFloat(const void* InData, uint32_t /*InSize*/) {
-        glBindTexture(GL_TEXTURE_2D, m_RendererID);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_FLOAT, InData);
+        glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_FLOAT, InData);
     }
 
     void FOpenGLTexture2D::Bind(uint32_t InSlot) const {
-        glActiveTexture(GL_TEXTURE0 + InSlot);
-        glBindTexture(GL_TEXTURE_2D, m_RendererID);
+        glBindTextureUnit(InSlot, m_RendererID);
     }
 
 } // namespace Leon

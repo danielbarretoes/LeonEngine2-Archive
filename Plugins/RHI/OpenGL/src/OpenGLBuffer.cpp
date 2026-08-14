@@ -6,16 +6,14 @@ namespace Leon {
 
     // VertexBuffer
     FOpenGLVertexBuffer::FOpenGLVertexBuffer(unsigned int InSize) : m_AllocatedBytes(InSize) {
-        glGenBuffers(1, &m_RendererID);
-        glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
-        glBufferData(GL_ARRAY_BUFFER, InSize, nullptr, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &m_RendererID);
+        glNamedBufferData(m_RendererID, InSize, nullptr, GL_DYNAMIC_DRAW);
         FRenderer::OnGPUAlloc(m_AllocatedBytes);
     }
 
     FOpenGLVertexBuffer::FOpenGLVertexBuffer(const float* InVertices, unsigned int InSize) : m_AllocatedBytes(InSize) {
-        glGenBuffers(1, &m_RendererID);
-        glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
-        glBufferData(GL_ARRAY_BUFFER, InSize, InVertices, GL_STATIC_DRAW);
+        glCreateBuffers(1, &m_RendererID);
+        glNamedBufferStorage(m_RendererID, InSize, InVertices, 0);
         FRenderer::OnGPUAlloc(m_AllocatedBytes);
     }
 
@@ -33,16 +31,14 @@ namespace Leon {
     }
 
     void FOpenGLVertexBuffer::SetData(const void* InData, unsigned int InSize) {
-        glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, InSize, InData);
+        glNamedBufferSubData(m_RendererID, 0, InSize, InData);
     }
 
     // IndexBuffer
     FOpenGLIndexBuffer::FOpenGLIndexBuffer(const uint32_t* InIndices, unsigned int InCount)
         : m_Count(InCount), m_AllocatedBytes(InCount * sizeof(uint32_t)) {
-        glGenBuffers(1, &m_RendererID);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_AllocatedBytes, InIndices, GL_STATIC_DRAW);
+        glCreateBuffers(1, &m_RendererID);
+        glNamedBufferStorage(m_RendererID, m_AllocatedBytes, InIndices, 0);
         FRenderer::OnGPUAlloc(m_AllocatedBytes);
     }
 

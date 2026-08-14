@@ -28,6 +28,19 @@ namespace Leon {
 
         FGPUInfo GetGPUInfo() override;
         FGPUVRAMStats GetGPUVRAMStats() override;
+
+    private:
+        // CPU State Cache to prevent redundant OpenGL driver state switches
+        bool m_DepthTestEnabled = false;
+        bool m_DepthMaskEnabled = true;
+        EDepthFunc m_DepthFunc = EDepthFunc::Less;
+        bool m_CullEnabled = false;
+        ECullMode m_CullMode = ECullMode::Back;
+        bool m_BlendEnabled = false;
+        EBlendFactor m_SrcBlend = EBlendFactor::SrcAlpha;
+        EBlendFactor m_DstBlend = EBlendFactor::OneMinusSrcAlpha;
+        uint32_t m_CurrentFBO = 0;
+        uint32_t m_ViewportX = 0, m_ViewportY = 0, m_ViewportW = 0, m_ViewportH = 0;
     };
 
     using OpenGLRenderAPI = FOpenGLRenderAPI;

@@ -4,7 +4,7 @@
 
 ---
 
-## Estado actual: ✅ Completado (Fases 1 a 8)
+## Estado actual: ✅ Completado (Fases 1 a 12)
 
 | Fase | Descripción | Estado |
 |------|-------------|--------|
@@ -16,6 +16,10 @@
 | 6 | Eliminar HDR Solar Spike hack en texturas | ✅ Completado |
 | 7 | Correcciones de estado OpenGL (SetBlendState, ODR, NormalMatrix, SetMat3) | ✅ Completado |
 | 8 | FBO tracking CPU-side | ✅ Completado |
+| 9 | Modern OpenGL 4.5 Core DSA (Direct State Access) en RHI | ✅ Completado |
+| 10 | CPU State Caching en FOpenGLRenderAPI | ✅ Completado |
+| 11 | CSM en Texture2DArray (1 FBO + sampler2DArrayShadow) | ✅ Completado |
+| 12 | Desacoplamiento de Planar Reflection & Limpieza PBR Shader | ✅ Completado |
 
 ---
 
@@ -36,12 +40,7 @@
 ### Fase 2 — FSceneRenderer (Pipeline Orchestrator)
 - Creados `Engine/include/renderer/SceneRenderer.hpp` y `Engine/src/renderer/SceneRenderer.cpp`.
 - `FScene` reducido a puro contenedor de datos ECS (de ~822 líneas a ~55 líneas).
-- `FSceneRenderer` asume la propiedad completa de Framebuffers, UBOs, shaders internos del pipeline, IBL y los 5 render passes:
-  1. *Cascaded Shadow Pass* (CSM, 3 splits)
-  2. *Spot Light Shadow Pass*
-  3. *Planar Reflection Pass* (oblique near-plane clipping)
-  4. *Main HDR Geometry Pass*
-  5. *Post-Processing Pass* (ACES Tonemapping & Gamma Correction)
+- `FSceneRenderer` asume la propiedad completa de Framebuffers, UBOs, shaders internos del pipeline, IBL y los render passes.
 
 ### Fase 3 — Limpieza de FRenderer & Stats
 - `FRenderer` despojado de métodos no implementados / legacy (`Submit`, `BeginScene`, `EndScene`), transformándose en un tracker de estadísticas de GPU puro (`ResetStats`, `RecordDrawIndexed`, etc.).
@@ -75,6 +74,32 @@
 ### Fase 8 — FBO State Tracking en CPU
 - `FSceneRenderer`: `m_PreviousFBO` rastreado a nivel de miembro en el renderer para restaurar el destino de framebuffer anterior tras el pase de post-procesado.
 
+### Fase 9 — Modern OpenGL 4.5 Core DSA (Direct State Access) en RHI
+- **Buffers** (`OpenGLBuffer.cpp` & `OpenGLUniformBuffer.cpp`):
+  - Migrados a `glCreateBuffers`, `glNamedBufferStorage` (almacenamiento inmutable para static index/vertex buffers), `glNamedBufferData` y `glNamedBufferSubData`.
+- **Vertex Arrays** (`OpenGLVertexArray.cpp`):
+  - Migrado a `glCreateVertexArrays`, `glVertexArrayVertexBuffer`, `glVertexArrayAttribFormat`, `glVertexArrayAttribIFormat`, `glVertexArrayAttribBinding`, `glEnableVertexArrayAttrib` y `glVertexArrayElementBuffer`.
+- **Texturas 2D y Cubemaps** (`OpenGLTexture2D.cpp` & `OpenGLTextureCube.cpp`):
+  - Migrados a `glCreateTextures`, `glTextureStorage2D`, `glTextureSubImage2D` / `glTextureSubImage3D`, `glTextureParameteri`, `glGenerateTextureMipmap` y `glBindTextureUnit(slot, id)`.
+- **Framebuffers** (`OpenGLFramebuffer.cpp`):
+  - Migrado a `glCreateFramebuffers`, `glNamedFramebufferTexture`, `glNamedFramebufferTextureLayer`, `glNamedFramebufferDrawBuffers`, `glCheckNamedFramebufferStatus` y `glBlitNamedFramebuffer`.
+
+### Fase 10 — CPU State Caching en `FOpenGLRenderAPI`
+- Añadido caché en CPU para descartar llamadas redundantes de driver en `SetDepthTesting`, `SetDepthMask`, `SetDepthFunc`, `SetCulling`, `SetBlendState`, `SetBlendFunc`, `SetViewport` y `BindFramebuffer`.
+- Activado `glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS)` en `Init()` para muestreo perfecto en bordes de cubemaps de IBL.
+
+### Fase 11 — CSM en Texture2DArray (1 FBO + sampler2DArrayShadow)
+- `EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW` implementado en `FFramebufferSpecification` con soporte de `ArrayLayers`.
+- `FSceneRenderer`: Reducidos los 3 FBOs de 2048x2048 a un **único FBO con 2D Texture Array de 3 capas** (`DEPTH32F`).
+- `SceneRenderer.cpp`: Renderizado de cascadas indexando capas mediante `AttachDepthTextureLayer(cascade)`.
+- Corrección matemática de `nearPlane = -maxZ` y `farPlane = -minZ` en `glm::ortho` para capturar la profundidad de la escena sin recortar el frustum de sombra.
+- `PBR_Lit.glsl`: Unificado en un único `layout(binding = 10) uniform sampler2DArrayShadow u_CascadeShadowMap` con indexación por capa de textura array.
+
+### Fase 12 — Desacoplamiento de Planar Reflection, IBL Bilinear & Limpieza PBR Shader
+- Matriz de cámara reflejada construida simétricamente mediante $V_{\text{reflect}} = V_{\text{main}} \times \text{scale}(1, -1, 1)$, proyectando el reflejo exactamente debajo del punto de contacto de cada objeto.
+- Filtrado bilineal en `SampleEquirectangular` y clamping de muestras individuales en la integración Monte Carlo de `PrefilterMap` (`IBLGenerator.cpp`), eliminando fireflies y bloques pixelados en materiales dieléctricos lisos.
+- Samplers no utilizados vinculados de forma segura a texturas 1x1 por defecto para evitar warnings del driver KHR_debug.
+
 ---
 
 ## Log de commits
@@ -82,4 +107,5 @@
 | Commit | Fase | Descripción |
 |--------|------|-------------|
 | `5bad7f5` | — | Pre-refactor snapshot (AUDIT.md) |
-| *(Actual)* | 1-8 | Implementación integral de las 8 fases del refactor de arquitectura gráfica |
+| *(Completado)* | 1-8 | Fases 1 a 8: Extracción de SceneRenderer, UBO std140, luces PBR, RG16F BRDF LUT |
+| *(Completado)* | 9-12 | Fases 9 a 12: Modern OpenGL 4.5 DSA, CPU State Cache, Texture2DArray CSM, PBR Cleanup |

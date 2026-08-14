@@ -119,11 +119,9 @@ layout(binding = 6) uniform sampler2D u_BRDFLUT;
 layout(binding = 7) uniform samplerCube u_IrradianceMap;
 layout(binding = 8) uniform samplerCube u_PrefilterMap;
 
-// Cascaded & Spot Shadow Maps (Hardware PCF Depth Samplers)
-layout(binding = 10) uniform sampler2DShadow u_ShadowMap0;
-layout(binding = 11) uniform sampler2DShadow u_ShadowMap1;
-layout(binding = 12) uniform sampler2DShadow u_ShadowMap2;
-layout(binding = 13) uniform sampler2DShadow u_SpotShadowMap;
+// Cascaded Shadow Map (Texture2DArray Hardware PCF) & Spot Shadow Map
+layout(binding = 10) uniform sampler2DArrayShadow u_CascadeShadowMap;
+layout(binding = 11) uniform sampler2DShadow u_SpotShadowMap;
 
 uniform int u_UseIBL;
 uniform int u_UseAlbedoMap;
@@ -210,7 +208,27 @@ vec3 GetHemisphereIrradiance(vec3 N) {
     return mix(u_EnvGroundColor.rgb, u_EnvSkyColor.rgb, upFactor) * u_EnvSkyColor.w;
 }
 
-// 6. Hardware PCF Shadow Calculation per Shadow Map
+// 6. Hardware PCF Shadow Calculation with Texture2DArray for Cascades
+float SampleCascadeShadowMap(sampler2DArrayShadow shadowMap, int cascadeIndex, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+        return 0.0;
+
+    float bias = max(0.0012 * (1.0 - dot(normal, lightDir)), 0.0002);
+    float currentDepth = projCoords.z - bias;
+
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0).xy);
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            shadow += texture(shadowMap, vec4(projCoords.xy + vec2(x, y) * texelSize, float(cascadeIndex), currentDepth));
+        }
+    }
+    return 1.0 - (shadow / 9.0);
+}
+
 float SampleShadowMap(sampler2DShadow shadowMap, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
@@ -243,14 +261,7 @@ float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDi
     }
 
     vec4 fragPosLightSpace = u_LightSpaceMatrices[cascadeIndex] * vec4(fragPos, 1.0);
-    float shadow = 0.0;
-    if (cascadeIndex == 0) {
-        shadow = SampleShadowMap(u_ShadowMap0, fragPosLightSpace, normal, lightDir);
-    } else if (cascadeIndex == 1) {
-        shadow = SampleShadowMap(u_ShadowMap1, fragPosLightSpace, normal, lightDir);
-    } else {
-        shadow = SampleShadowMap(u_ShadowMap2, fragPosLightSpace, normal, lightDir);
-    }
+    float shadow = SampleCascadeShadowMap(u_CascadeShadowMap, cascadeIndex, fragPosLightSpace, normal, lightDir);
 
     // Soft fadeout at far shadow distance
     if (dist > u_CascadeSplits.z) {
@@ -440,11 +451,10 @@ void main() {
         specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
     }
 
-    // 4.3 Real-Time Planar Reflections (Reflecting Scene Objects in Floor)
+    // 4.3 Real-Time Planar Reflections (Reflecting Scene Objects onto Floor Plane)
     if (u_UsePlanarReflection == 1 && N.y > 0.5) {
         vec2 screenUV = gl_FragCoord.xy / u_ScreenSize;
-        vec2 perturbedUV = screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness);
-        perturbedUV = clamp(perturbedUV, 0.001, 0.999);
+        vec2 perturbedUV = clamp(screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness), 0.001, 0.999);
         vec3 planarColor = texture(u_PlanarReflectionMap, perturbedUV).rgb;
         
         float reflectStrength = clamp((1.0 - roughness * 1.1), 0.0, 1.0) * (0.7 + 0.3 * F_IBL.r);

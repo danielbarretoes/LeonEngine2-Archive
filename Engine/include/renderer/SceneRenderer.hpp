@@ -132,8 +132,8 @@ namespace Leon {
         // Tracks the FBO active before Render() was called, restored after PostProcess
         uint32_t m_PreviousFBO = 0;
 
-        // Shadow framebuffers
-        TRef<FFramebuffer> m_CascadeShadowFramebuffers[3];
+        // Shadow framebuffers (CSM uses Texture2DArray, Spot uses 2D depth)
+        TRef<FFramebuffer> m_CascadeShadowFramebuffer;
         TRef<FFramebuffer> m_SpotShadowFramebuffer;
 
         // Offscreen targets

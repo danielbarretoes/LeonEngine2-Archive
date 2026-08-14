@@ -150,11 +150,31 @@ namespace Leon {
         u = std::clamp(u, 0.0f, 1.0f);
         v = std::clamp(v, 0.0f, 1.0f);
 
-        int x = std::clamp(static_cast<int>(u * (InWidth - 1)), 0, InWidth - 1);
-        int y = std::clamp(static_cast<int>(v * (InHeight - 1)), 0, InHeight - 1);
-        size_t index = (static_cast<size_t>(y) * InWidth + x) * 4;
+        float fx = u * static_cast<float>(InWidth - 1);
+        float fy = v * static_cast<float>(InHeight - 1);
 
-        return glm::vec3(InHDRData[index], InHDRData[index + 1], InHDRData[index + 2]);
+        int x0 = static_cast<int>(fx);
+        int y0 = static_cast<int>(fy);
+        int x1 = std::min(x0 + 1, InWidth - 1);
+        int y1 = std::min(y0 + 1, InHeight - 1);
+
+        float tx = fx - static_cast<float>(x0);
+        float ty = fy - static_cast<float>(y0);
+
+        auto getTexel = [&](int x, int y) -> glm::vec3 {
+            size_t idx = (static_cast<size_t>(y) * InWidth + x) * 4;
+            return glm::vec3(InHDRData[idx], InHDRData[idx + 1], InHDRData[idx + 2]);
+        };
+
+        glm::vec3 c00 = getTexel(x0, y0);
+        glm::vec3 c10 = getTexel(x1, y0);
+        glm::vec3 c01 = getTexel(x0, y1);
+        glm::vec3 c11 = getTexel(x1, y1);
+
+        glm::vec3 top = glm::mix(c00, c10, tx);
+        glm::vec3 bottom = glm::mix(c01, c11, tx);
+
+        return glm::mix(top, bottom, ty);
     }
 
     static glm::vec3 SampleAtmosphericSky(const FSkyboxComponent& InSkybox, glm::vec3 InDir) {
@@ -290,7 +310,7 @@ namespace Leon {
                             glm::vec3 N = R;
                             glm::vec3 V = R;
 
-                            const uint32_t SAMPLE_COUNT = 128u;
+                            const uint32_t SAMPLE_COUNT = 256u;
                             glm::vec3 prefilteredColor(0.0f);
                             float totalWeight = 0.0f;
 
@@ -301,7 +321,12 @@ namespace Leon {
 
                                 float NdotL = std::max(glm::dot(N, L), 0.0f);
                                 if (NdotL > 0.0f) {
-                                    prefilteredColor += SampleSky(L) * NdotL;
+                                    glm::vec3 sampleVal = SampleSky(L);
+                                    if (roughness > 0.0f) {
+                                        // Clamp extreme single-sample spikes to prevent Monte Carlo fireflies
+                                        sampleVal = glm::min(sampleVal, glm::vec3(20.0f));
+                                    }
+                                    prefilteredColor += sampleVal * NdotL;
                                     totalWeight += NdotL;
                                 }
                             }

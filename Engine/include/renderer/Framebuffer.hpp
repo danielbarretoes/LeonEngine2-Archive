@@ -16,6 +16,9 @@ namespace Leon {
         // Depth / Stencil Formats
         DEPTH24STENCIL8,
         DEPTH24STENCIL8_SHADOW,
+        DEPTH32F,
+        DEPTH32F_SHADOW,
+        DEPTH32F_ARRAY_SHADOW,
 
         // Defaults
         Depth = DEPTH24STENCIL8
@@ -47,6 +50,7 @@ namespace Leon {
         uint32_t Height = 0;
         FFramebufferAttachmentSpecification Attachments;
         uint32_t Samples = 1;
+        uint32_t ArrayLayers = 1;
         bool bSwapChainTarget = false;
     };
 
@@ -68,6 +72,7 @@ namespace Leon {
         virtual uint32_t GetDepthAttachmentRendererID() const = 0;
         virtual void BindTexture(uint32_t InAttachmentIndex = 0, uint32_t InSlot = 0) const = 0;
         virtual void BindDepthTexture(uint32_t InSlot = 0) const = 0;
+        virtual void AttachDepthTextureLayer(uint32_t InLayer) = 0;
         virtual void BlitToDefault(uint32_t InTargetWidth, uint32_t InTargetHeight) = 0;
         virtual const FFramebufferSpecification& GetSpecification() const = 0;
 

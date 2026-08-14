@@ -17,6 +17,8 @@ namespace Leon {
         const FBufferLayout& GetLayout() const override { return m_Layout; }
         void SetLayout(const FBufferLayout& InLayout) override { m_Layout = InLayout; }
 
+        uint32_t GetRendererID() const { return m_RendererID; }
+
     private:
         unsigned int m_RendererID = 0;
         size_t m_AllocatedBytes = 0;
@@ -34,6 +36,7 @@ namespace Leon {
         void Unbind() const override;
 
         unsigned int GetCount() const override { return m_Count; }
+        uint32_t GetRendererID() const { return m_RendererID; }
 
     private:
         unsigned int m_RendererID = 0;

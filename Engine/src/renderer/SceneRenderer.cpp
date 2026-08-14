@@ -22,21 +22,19 @@ namespace Leon {
 
     FSceneRenderer::FSceneRenderer(FScene* InScene) : m_Scene(InScene) {
         // -----------------------------------------------------------------------
-        // 1. Shadow framebuffers — DEPTH32F (no stencil waste, higher precision)
-        //    Audit fix MEDIO-02: usar DEPTH32F en lugar de DEPTH24STENCIL8
+        // 1. Shadow framebuffers — DEPTH32F (Texture2DArray for CSM, 2D for Spot)
         // -----------------------------------------------------------------------
-        for (int i = 0; i < 3; ++i) {
-            FFramebufferSpecification csmSpec;
-            csmSpec.Width  = 2048;
-            csmSpec.Height = 2048;
-            csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW};
-            m_CascadeShadowFramebuffers[i] = FFramebuffer::Create(csmSpec);
-        }
+        FFramebufferSpecification csmSpec;
+        csmSpec.Width  = 2048;
+        csmSpec.Height = 2048;
+        csmSpec.ArrayLayers = 3;
+        csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
+        m_CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
 
         FFramebufferSpecification spotSpec;
         spotSpec.Width  = 1024;
         spotSpec.Height = 1024;
-        spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW};
+        spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_SHADOW};
         m_SpotShadowFramebuffer = FFramebuffer::Create(spotSpec);
 
         // -----------------------------------------------------------------------
@@ -120,8 +118,6 @@ namespace Leon {
         auto& reg = m_Scene->GetRegistry();
 
         // Audit fix FASE-8: track FBO in CPU instead of querying with glGetIntegerv per frame
-        // m_PreviousFBO is set externally by the application layer before calling Render().
-        // Here we just save it at the start of the frame using the API query (once per frame is OK).
         m_PreviousFBO = FRenderCommand::GetFramebufferBinding();
 
         uint32_t vpWidth  = m_ViewportWidth  > 0 ? m_ViewportWidth  : 1280;
@@ -186,25 +182,20 @@ namespace Leon {
         if (bHasSkybox) UpdateIBL(skybox);
 
         // ------------------------------------------------------------------
-        // Upload Lighting UBO (Binding 1) — PBR-correct: single Intensity + Radius
-        // Audit fix ALTO-05, ALTO-06: eliminar Phong split, usar modelo físico
+        // Upload Lighting UBO (Binding 1)
         // ------------------------------------------------------------------
         FLightingBufferData lightingData;
         if (bHasDirLight) {
-            // Directional: xyz = direction, w = enabled(1). Color: xyz = color, w = intensity
             lightingData.DirLight.Direction = glm::vec4(glm::normalize(dirLightComp.Light.Direction), 1.0f);
             lightingData.DirLight.Color     = glm::vec4(dirLightComp.Light.Color, dirLightComp.Light.Intensity);
         } else {
-            lightingData.DirLight.Direction = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f); // w=0 disabled
+            lightingData.DirLight.Direction = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
             lightingData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
         }
 
         for (size_t i = 0; i < pointLights.size(); ++i) {
-            // Position: xyz = pos, w = enabled(1)
             lightingData.PointLights[i].Position = glm::vec4(pointLights[i].Position, 1.0f);
-            // Color: xyz = color, w = intensity
             lightingData.PointLights[i].Color    = glm::vec4(pointLights[i].Color, pointLights[i].Intensity);
-            // Params: x = radius (used by UE4 attenuation in shader), yzw = 0
             lightingData.PointLights[i].Params   = glm::vec4(pointLights[i].Radius, 0.0f, 0.0f, 0.0f);
         }
 
@@ -214,7 +205,6 @@ namespace Leon {
                 glm::vec4(glm::normalize(spotLights[i].Direction), std::cos(glm::radians(spotLights[i].CutOff)));
             lightingData.SpotLights[i].Color     =
                 glm::vec4(spotLights[i].Color, std::cos(glm::radians(spotLights[i].OuterCutOff)));
-            // Params: x = radius, y = intensity
             lightingData.SpotLights[i].Params    =
                 glm::vec4(spotLights[i].Radius, spotLights[i].Intensity, 0.0f, 0.0f);
         }
@@ -229,7 +219,7 @@ namespace Leon {
             m_LightingUBO->SetData(&lightingData, sizeof(FLightingBufferData), 0);
 
         // ------------------------------------------------------------------
-        // Camera UBO base (shadows fill in LightSpaceMatrices below)
+        // Camera UBO base
         // ------------------------------------------------------------------
         FCameraBufferData mainCamData;
         mainCamData.ViewProjection  = InCamera.GetViewProjectionMatrix();
@@ -294,12 +284,12 @@ namespace Leon {
     }
 
     // =========================================================================
-    // PASS 1: Cascaded Shadow Pass
+    // PASS 1: Cascaded Shadow Pass (OpenGL 4.5 Texture2DArray)
     // =========================================================================
     void FSceneRenderer::RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
                                                    const FDirectionalLightComponent* InDirLightComp,
                                                    FCameraBufferData& OutCamData) {
-        if (!InDirLightComp || !InDirLightComp->bEnabled || !m_ShadowDepthShader)
+        if (!InDirLightComp || !InDirLightComp->bEnabled || !m_ShadowDepthShader || !m_CascadeShadowFramebuffer)
             return;
 
         float nearClip = InCamera.GetNearClip();
@@ -315,8 +305,17 @@ namespace Leon {
 
         glm::vec3 lightDirNorm = glm::normalize(InDirLightComp->Light.Direction);
 
+        m_CascadeShadowFramebuffer->Bind();
+        FRenderCommand::SetViewport(0, 0, 2048, 2048);
+        FRenderCommand::SetDepthTesting(true);
+        FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetCulling(true, ECullMode::Front);
+
+        m_ShadowDepthShader->Bind();
+
         for (int cascade = 0; cascade < 3; ++cascade) {
-            if (!m_CascadeShadowFramebuffers[cascade]) continue;
+            m_CascadeShadowFramebuffer->AttachDepthTextureLayer(cascade);
+            FRenderCommand::Clear();
 
             float fov    = InCamera.GetFOV();
             float aspect = InCamera.GetAspectRatio();
@@ -352,7 +351,8 @@ namespace Leon {
             }
 
             float zMargin = 30.0f;
-            minZ -= zMargin; maxZ += zMargin;
+            minZ -= zMargin;
+            maxZ += zMargin;
 
             float texelSizeX = (maxX - minX) / 2048.0f;
             float texelSizeY = (maxY - minY) / 2048.0f;
@@ -361,18 +361,18 @@ namespace Leon {
             minY = std::floor(minY / texelSizeY) * texelSizeY;
             maxY = std::floor(maxY / texelSizeY) * texelSizeY;
 
-            glm::mat4 lightProj     = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+            // In OpenGL view space, camera looks along -Z.
+            // Points in front of the light have negative Z in lightView.
+            // zNear is distance to near plane (-maxZ), zFar is distance to far plane (-minZ).
+            float nearPlane = -maxZ;
+            float farPlane  = -minZ;
+            if (nearPlane > farPlane) std::swap(nearPlane, farPlane);
+            if (nearPlane < 0.1f) nearPlane = 0.1f;
+
+            glm::mat4 lightProj     = glm::ortho(minX, maxX, minY, maxY, nearPlane, farPlane);
             glm::mat4 cascadeMatrix = lightProj * lightView;
             OutCamData.LightSpaceMatrices[cascade] = cascadeMatrix;
 
-            m_CascadeShadowFramebuffers[cascade]->Bind();
-            FRenderCommand::SetViewport(0, 0, 2048, 2048);
-            FRenderCommand::Clear();
-            FRenderCommand::SetDepthTesting(true);
-            FRenderCommand::SetDepthMask(true);
-            FRenderCommand::SetCulling(true, ECullMode::Front);
-
-            m_ShadowDepthShader->Bind();
             m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
 
             auto meshView = m_Scene->GetRegistry().view<FTransformComponent, FMeshComponent>();
@@ -384,10 +384,10 @@ namespace Leon {
                 mesh.VertexArray->Bind();
                 FRenderCommand::DrawIndexed(mesh.VertexArray);
             }
-
-            FRenderCommand::SetCulling(false);
-            m_CascadeShadowFramebuffers[cascade]->Unbind();
         }
+
+        FRenderCommand::SetCulling(false);
+        m_CascadeShadowFramebuffer->Unbind();
     }
 
     // =========================================================================
@@ -445,29 +445,21 @@ namespace Leon {
         uint32_t vpH = m_ViewportHeight > 0 ? m_ViewportHeight : 720;
 
         glm::vec3 camPos = InCamera.GetPosition();
-        FPerspectiveCamera mirroredCamera = InCamera;
-        mirroredCamera.SetPosition(glm::vec3(camPos.x, -camPos.y, camPos.z));
-        mirroredCamera.SetRotation(-InCamera.GetPitch(), InCamera.GetYaw());
+        glm::vec3 mirrorPos = glm::vec3(camPos.x, -camPos.y, camPos.z);
 
-        // Lengyel oblique near-plane clipping
-        glm::vec4 clipPlaneWorld(0.f, 1.f, 0.f, 0.f);
-        glm::mat4 mirrorView = mirroredCamera.GetViewMatrix();
-        glm::mat4 mirrorProj = mirroredCamera.GetProjectionMatrix();
-        glm::vec4 clipCam = glm::transpose(glm::inverse(mirrorView)) * clipPlaneWorld;
-        glm::vec4 q((clipCam.x>0.f?1.f:-1.f),(clipCam.y>0.f?1.f:-1.f),1.f,1.f);
-        q = glm::inverse(mirrorProj) * q;
-        glm::vec4 c = clipCam * (2.0f / glm::dot(clipCam, q));
-        mirrorProj[0][2] = c.x - mirrorProj[0][3];
-        mirrorProj[1][2] = c.y - mirrorProj[1][3];
-        mirrorProj[2][2] = c.z - mirrorProj[2][3];
-        mirrorProj[3][2] = c.w - mirrorProj[3][3];
-
+        glm::mat4 reflectMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, -1.0f, 1.0f));
+        glm::mat4 mirrorView = InCamera.GetViewMatrix() * reflectMatrix;
+        glm::mat4 mirrorProj = InCamera.GetProjectionMatrix();
         glm::mat4 mirroredVP = mirrorProj * mirrorView;
+
+        FPerspectiveCamera mirroredCamera = InCamera;
+        mirroredCamera.SetPosition(mirrorPos);
+        mirroredCamera.SetRotation(-InCamera.GetPitch(), InCamera.GetYaw());
 
         if (m_CameraUBO) {
             FCameraBufferData mirrorCamData;
             mirrorCamData.ViewProjection  = mirroredVP;
-            mirrorCamData.CameraPosition  = glm::vec4(mirroredCamera.GetPosition(), 1.0f);
+            mirrorCamData.CameraPosition  = glm::vec4(mirrorPos, 1.0f);
             m_CameraUBO->SetData(&mirrorCamData, sizeof(FCameraBufferData), 0);
         }
 
@@ -483,8 +475,8 @@ namespace Leon {
             FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
             FRenderCommand::SetDepthMask(false);
             m_SkyboxShader->Bind();
-            m_SkyboxShader->SetMat4("u_View", glm::value_ptr(mirroredCamera.GetViewMatrix()));
-            m_SkyboxShader->SetMat4("u_Projection", glm::value_ptr(mirroredCamera.GetProjectionMatrix()));
+            m_SkyboxShader->SetMat4("u_View", glm::value_ptr(mirrorView));
+            m_SkyboxShader->SetMat4("u_Projection", glm::value_ptr(mirrorProj));
             if (InSkybox->bUseHDREnvironmentMap && InSkybox->HDREnvironmentMap) {
                 InSkybox->HDREnvironmentMap->Bind(0);
                 m_SkyboxShader->SetInt("u_UseHDREnvironmentMap", 1);
@@ -506,11 +498,9 @@ namespace Leon {
             FRenderCommand::SetDepthFunc(EDepthFunc::Less);
         }
 
-        // Bind shadow maps to slots 10-13 so sampler2DShadow samplers always reference valid depth textures
-        if (m_CascadeShadowFramebuffers[0]) m_CascadeShadowFramebuffers[0]->BindDepthTexture(10);
-        if (m_CascadeShadowFramebuffers[1]) m_CascadeShadowFramebuffers[1]->BindDepthTexture(11);
-        if (m_CascadeShadowFramebuffers[2]) m_CascadeShadowFramebuffers[2]->BindDepthTexture(12);
-        if (m_SpotShadowFramebuffer)        m_SpotShadowFramebuffer->BindDepthTexture(13);
+        // Bind shadow maps to slots 10-11 so depth samplers always reference valid depth textures
+        if (m_CascadeShadowFramebuffer) m_CascadeShadowFramebuffer->BindDepthTexture(10);
+        if (m_SpotShadowFramebuffer)    m_SpotShadowFramebuffer->BindDepthTexture(11);
 
         // Bind fallback 1x1 textures on material slots
         if (m_DefaultWhiteTexture) {
@@ -588,13 +578,11 @@ namespace Leon {
         auto& reg = m_Scene->GetRegistry();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
-        // Bind shadow depth maps to slots 10-13 so sampler2DShadow samplers always reference valid depth textures
-        if (m_CascadeShadowFramebuffers[0]) m_CascadeShadowFramebuffers[0]->BindDepthTexture(10);
-        if (m_CascadeShadowFramebuffers[1]) m_CascadeShadowFramebuffers[1]->BindDepthTexture(11);
-        if (m_CascadeShadowFramebuffers[2]) m_CascadeShadowFramebuffers[2]->BindDepthTexture(12);
-        if (m_SpotShadowFramebuffer)        m_SpotShadowFramebuffer->BindDepthTexture(13);
+        // Bind shadow depth maps to slots 10-11
+        if (m_CascadeShadowFramebuffer) m_CascadeShadowFramebuffer->BindDepthTexture(10);
+        if (m_SpotShadowFramebuffer)    m_SpotShadowFramebuffer->BindDepthTexture(11);
 
-        bool bShadowsAvailable    = bHasDirLight  && m_CascadeShadowFramebuffers[0];
+        bool bShadowsAvailable    = bHasDirLight  && m_CascadeShadowFramebuffer;
         bool bSpotShadowAvailable = bHasSpotLight && m_SpotShadowFramebuffer;
 
         // IBL maps (slots 6-8) — same for all objects
@@ -614,16 +602,14 @@ namespace Leon {
 
             // Shadow map uniform bindings (per-object flag only)
             if (bShadowsAvailable && mesh.bReceiveShadows) {
-                mesh.Shader->SetInt("u_ShadowMap0", 10);
-                mesh.Shader->SetInt("u_ShadowMap1", 11);
-                mesh.Shader->SetInt("u_ShadowMap2", 12);
+                mesh.Shader->SetInt("u_CascadeShadowMap", 10);
                 mesh.Shader->SetInt("u_UseShadows", 1);
             } else {
                 mesh.Shader->SetInt("u_UseShadows", 0);
             }
 
             if (bSpotShadowAvailable && mesh.bReceiveShadows) {
-                mesh.Shader->SetInt("u_SpotShadowMap", 13);
+                mesh.Shader->SetInt("u_SpotShadowMap", 11);
                 mesh.Shader->SetInt("u_UseSpotShadows", 1);
             } else {
                 mesh.Shader->SetInt("u_UseSpotShadows", 0);
