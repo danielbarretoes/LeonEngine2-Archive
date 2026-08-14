@@ -406,7 +406,8 @@ namespace Leon {
         glm::mat4 spotView = glm::lookAt(InSpotLightPos, InSpotLightPos + spotDir, up);
 
         float fov = glm::clamp(InSpotLightComp->Light.OuterCutOff * 2.0f, 10.0f, 160.0f);
-        glm::mat4 spotProj       = glm::perspective(glm::radians(fov), 1.0f, 0.1f, 35.0f);
+        float farPlane = std::max(InSpotLightComp->Light.Radius * 1.1f, 15.0f);
+        glm::mat4 spotProj       = glm::perspective(glm::radians(fov), 1.0f, 0.1f, farPlane);
         glm::mat4 spotLightSpace = spotProj * spotView;
         OutCamData.SpotLightSpaceMatrix = spotLightSpace;
 
@@ -415,7 +416,7 @@ namespace Leon {
         FRenderCommand::Clear();
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
-        FRenderCommand::SetCulling(true, ECullMode::Front);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
 
         m_ShadowDepthShader->Bind();
         m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));

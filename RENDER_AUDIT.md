@@ -197,6 +197,8 @@ layout(std140) uniform LightingData {
 | **16. Shadow Bias Uniforme** | Mismo valor de bias de profundidad para cascada 0 (cercana) y cascada 2 (lejana). | *Peter-panning* en cascada lejana y posible *acne* en cascada cercana. | Bias escalado según el índice de cascada ($1.0 + \text{cascadeIndex} \times 1.5$). |
 | **17. Hack `N.y > 0.5` en Reflejos** | Condición hardcodeada que forzaba reflejos solo en caras hacia arriba. | Superficies inclinadas con material reflectante no mostraban reflejos. | Eliminado el hack geométrico. El material gobierna la reflectividad. |
 | **18. Samplers Redundantes en Draw Loop** | Múltiples llamadas `SetInt` por objeto para samplers con `layout(binding = X)` estáticos. | Overhead redundante de llamadas al driver por draw call. | Eliminadas las llamadas redundantes a uniform setters de samplers. |
+| **19. Inversión de Culling en Spot Shadows** | `RenderSpotShadowPass` usaba `ECullMode::Front`, renderizando caras traseras en el shadow map. | En objetos sobre el suelo, la cara trasera coincide con el suelo ($Y=0$); al aplicar bias, la sombra bajo el objeto desaparecía por completo (peter-panning extremo). | Cambio a `ECullMode::Back` con slope-scaled normal bias en `RenderSpotShadowPass`. |
+| **20. Clip Bounds en `SampleShadowMap`** | `SampleShadowMap` no validaba $w_{\text{clip}} \le 0$ ni $z_{\text{proj}} < 0$. | Puntos detrás del plano cercano de la luz invertían sus coordenadas y generaban artefactos de sombra espurios. | Validación de $w_{\text{clip}} > 0$ y límites estrictos $[0, 1]$ en NDC para perspectiva. |
 
 ---
 

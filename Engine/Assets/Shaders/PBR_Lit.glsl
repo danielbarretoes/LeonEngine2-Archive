@@ -234,10 +234,12 @@ float SampleCascadeShadowMap(sampler2DArrayShadow shadowMap, int cascadeIndex, v
 }
 
 float SampleShadowMap(sampler2DShadow shadowMap, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
+    if (fragPosLightSpace.w <= 0.0) return 0.0;
+
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+    if (projCoords.z > 1.0 || projCoords.z < 0.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
     float bias = max(0.0012 * (1.0 - dot(normal, lightDir)), 0.0002);
@@ -403,7 +405,7 @@ void main() {
         float cutOff      = u_SpotLights[i].direction.w;
         float outerCutOff = u_SpotLights[i].color.w;
         float epsilon     = cutOff - outerCutOff;
-        float spotFactor  = clamp((theta - outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
+        float spotFactor  = smoothstep(0.0, 1.0, clamp((theta - outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0));
 
         float spotShadow = (i == 0) ? CalculateSpotShadow(v_FragPos, N, L) : 0.0;
         vec3 radiance = u_SpotLights[i].color.rgb * u_SpotLights[i].params.y

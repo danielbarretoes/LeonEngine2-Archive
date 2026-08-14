@@ -58,15 +58,11 @@ Actors:
     SpotLight:
       Enabled: true
       Direction: [0.0, -1.0, 0.0]
-      Color: [0.2, 0.85, 1.0]
-      CutOff: 18.0
-      OuterCutOff: 26.0
-      Constant: 1.0
-      Linear: 0.09
-      Quadratic: 0.032
-      AmbientIntensity: 0.0
-      DiffuseIntensity: 4.5
-      SpecularIntensity: 1.0
+      Color: [0.0, 0.95, 1.0]
+      Intensity: 50.0
+      Radius: 20.0
+      CutOff: 20.0
+      OuterCutOff: 30.0
 
   # ==========================================
   # Static Mesh Geometry & PBR Material Actors
