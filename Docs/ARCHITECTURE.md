@@ -62,7 +62,10 @@ LeonEngine2/
 │   │   └── Shaders/                       # Core engine multi-stage shaders
 │   │       ├── DebugFont.glsl             # 2D orthographic font & HUD panel shader
 │   │       ├── DebugLine.glsl             # 3D line & wireframe gizmo shader
-│   │       └── DefaultLit.glsl            # Multi-light Blinn-Phong default lit shader (Unreal standard)
+│   │       ├── DefaultLit.glsl            # Multi-light Blinn-Phong shader with shadows
+│   │       ├── PBR_Lit.glsl               # Cook-Torrance PBR multi-light shader with IBL & ACES Tonemapping
+│   │       ├── ShadowDepth.glsl           # High-speed depth pre-pass shader for directional shadow maps
+│   │       └── Skybox.glsl                # Atmospheric physical HDR skybox shader (Rayleigh/Mie)
 │   ├── include/                           # Public exported headers
 │   │   └── engine/
 │   │       ├── LeonEngine.hpp             # Master include header
@@ -82,23 +85,30 @@ LeonEngine2/
 │   │       │       ├── Event.hpp
 │   │       │       ├── KeyEvent.hpp
 │   │       │       └── MouseEvent.hpp
-│   │       └── renderer/                  # Hardware abstraction interfaces
-│   │           ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout
-│   │           ├── DebugOverlay.hpp       # FDebugOverlay (F1 Performance & Stats HUD)
-│   │           ├── DebugRenderer.hpp      # FDebugRenderer (F2 3D Light Gizmos & Lines)
-│   │           ├── GraphicsContext.hpp    # IGraphicsContext
-│   │           ├── Light.hpp              # FDirectionalLight, FPointLight, FSpotLight
-│   │           ├── MeshPrimitives.hpp     # FMeshPrimitives (Cube, Cylinder, Quad, Sphere, Plane)
-│   │           ├── PerspectiveCamera.hpp  # FPerspectiveCamera
-│   │           ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
-│   │           ├── RenderAPI.hpp          # IRenderAPI & ERenderAPI
-│   │           ├── RenderCommand.hpp      # FRenderCommand
-│   │           ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
-│   │           ├── RenderStats.hpp        # FRenderStats (DrawCalls, Tris, Vertices)
-│   │           ├── Renderer.hpp           # FRenderer
-│   │           ├── Shader.hpp             # FShader
-│   │           ├── Texture.hpp            # FTexture & FTexture2D
-│   │           └── VertexArray.hpp        # FVertexArray
+│   │       ├── renderer/                  # Hardware abstraction interfaces
+│   │       │   ├── Buffer.hpp             # FVertexBuffer, FIndexBuffer, FBufferLayout
+│   │       │   ├── DebugOverlay.hpp       # FDebugOverlay (F1 Performance & Stats HUD)
+│   │       │   ├── DebugRenderer.hpp      # FDebugRenderer (F2 3D Light Gizmos & Lines)
+│   │       │   ├── Framebuffer.hpp        # FFramebuffer RHI & offscreen render targets
+│   │       │   ├── GraphicsContext.hpp    # IGraphicsContext
+│   │       │   ├── Light.hpp              # FDirectionalLight, FPointLight, FSpotLight
+│   │       │   ├── MeshPrimitives.hpp     # FMeshPrimitives (Cube, Cylinder, Quad, Sphere, Plane with Tangents)
+│   │       │   ├── PerspectiveCamera.hpp  # FPerspectiveCamera
+│   │       │   ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
+│   │       │   ├── RenderAPI.hpp          # IRenderAPI & ERenderAPI
+│   │       │   ├── RenderCommand.hpp      # FRenderCommand
+│   │       │   ├── RenderDriver.hpp       # IRenderDriver & FRenderDriverRegistry
+│   │       │   ├── RenderStats.hpp        # FRenderStats (DrawCalls, Tris, Vertices)
+│   │       │   ├── Renderer.hpp           # FRenderer
+│   │       │   ├── Shader.hpp             # FShader
+│   │       │   ├── Texture.hpp            # FTexture & FTexture2D
+│   │       │   └── VertexArray.hpp        # FVertexArray
+│   │       └── scene/                     # Scene & Entity Component System (ECS)
+│   │           ├── Components.hpp         # FTag, FTransform, FMesh, FPBRMaterial, FSkybox, FLight, FCamera components
+│   │           ├── Entity.hpp             # FEntity wrapper around EnTT handles
+│   │           └── Scene.hpp              # FScene world container, shadow pass, skybox & render dispatcher
+
+
 │   └── src/                               # Internal engine implementations
 │       ├── core/                          # Core subsystem implementations
 │       │   ├── Application.cpp            # FApplication (F1/F2 key handlers & auto-render)
@@ -107,21 +117,25 @@ LeonEngine2/
 │       │   ├── Log.cpp                    # FLog
 │       │   ├── PlatformMemory.cpp         # FPlatformMemory (Win32 & OpenGL queries)
 │       │   └── Window.cpp                 # FWindow
-│       └── renderer/                      # Renderer & RHI implementations
-│           ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer
-│           ├── DebugOverlay.cpp           # FDebugOverlay HUD batcher & 8x8 font
-│           ├── DebugRenderer.cpp          # FDebugRenderer 3D line & gizmo batcher
-│           ├── GraphicsContext.cpp        # IGraphicsContext
-│           ├── MeshPrimitives.cpp         # FMeshPrimitives procedural generation
-│           ├── PerspectiveCamera.cpp      # FPerspectiveCamera
-│           ├── PerspectiveCameraController.cpp # FPerspectiveCameraController
-│           ├── RenderAPI.cpp              # IRenderAPI
-│           ├── RenderCommand.cpp          # FRenderCommand
-│           ├── RenderDriver.cpp           # FRenderDriverRegistry
-│           ├── Renderer.cpp               # FRenderer
-│           ├── Shader.cpp                 # FShader
-│           ├── Texture.cpp                # FTexture2D
-│           └── VertexArray.cpp            # FVertexArray
+│       ├── renderer/                      # Renderer & RHI implementations
+│       │   ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer
+│       │   ├── DebugOverlay.cpp           # FDebugOverlay HUD batcher & 8x8 font
+│       │   ├── DebugRenderer.cpp          # FDebugRenderer 3D line & gizmo batcher
+│       │   ├── Framebuffer.cpp            # FFramebuffer
+│       │   ├── GraphicsContext.cpp        # IGraphicsContext
+│       │   ├── MeshPrimitives.cpp         # FMeshPrimitives procedural generation
+│       │   ├── PerspectiveCamera.cpp      # FPerspectiveCamera
+│       │   ├── PerspectiveCameraController.cpp # FPerspectiveCameraController
+│       │   ├── RenderAPI.cpp              # IRenderAPI
+│       │   ├── RenderCommand.cpp          # FRenderCommand
+│       │   ├── RenderDriver.cpp           # FRenderDriverRegistry
+│       │   ├── Renderer.cpp               # FRenderer
+│       │   ├── Shader.cpp                 # FShader
+│       │   ├── Texture.cpp                # FTexture2D
+│       │   └── VertexArray.cpp            # FVertexArray
+│       └── scene/                         # Scene & ECS implementations
+│           ├── Entity.cpp                 # FEntity
+│           └── Scene.cpp                  # FScene
 │
 ├── Plugins/                               # Hardware Backends and Extensions
 │   └── RHI/
@@ -131,6 +145,7 @@ LeonEngine2/
 │           │   └── opengl/                # Exported OpenGL backend headers
 │           │       ├── OpenGLBuffer.hpp   # FOpenGLVertexBuffer, FOpenGLIndexBuffer
 │           │       ├── OpenGLContext.hpp  # FOpenGLContext
+│           │       ├── OpenGLFramebuffer.hpp # FOpenGLFramebuffer
 │           │       ├── OpenGLRenderAPI.hpp # FOpenGLRenderAPI
 │           │       ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
 │           │       ├── OpenGLShader.hpp   # FOpenGLShader
@@ -139,11 +154,13 @@ LeonEngine2/
 │           └── src/                       # Internal OpenGL implementations
 │               ├── OpenGLBuffer.cpp
 │               ├── OpenGLContext.cpp
+│               ├── OpenGLFramebuffer.cpp
 │               ├── OpenGLRenderAPI.cpp
 │               ├── OpenGLRenderDriver.cpp
 │               ├── OpenGLShader.cpp
 │               ├── OpenGLTexture2D.cpp
 │               └── OpenGLVertexArray.cpp
+
 │
 ├── ThirdParty/                            # External Dependencies
 │   ├── glad/                              # OpenGL loader (Leon::Glad)

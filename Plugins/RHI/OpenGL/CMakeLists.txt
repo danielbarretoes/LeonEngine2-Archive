@@ -2,11 +2,13 @@ add_library(LeonEngine_OpenGL STATIC
     src/OpenGLContext.cpp
     src/OpenGLRenderAPI.cpp
     src/OpenGLBuffer.cpp
+    src/OpenGLFramebuffer.cpp
     src/OpenGLShader.cpp
     src/OpenGLTexture2D.cpp
     src/OpenGLVertexArray.cpp
     src/OpenGLRenderDriver.cpp
 )
+
 
 add_library(Leon::OpenGL ALIAS LeonEngine_OpenGL)
 

@@ -2,6 +2,7 @@
 #include "engine/renderer/Buffer.hpp"
 
 #include <cmath>
+#include <glm/glm.hpp>
 #include <vector>
 
 namespace Leon {
@@ -9,37 +10,44 @@ namespace Leon {
     TRef<FVertexArray> FMeshPrimitives::CreateCube(float InSize) {
         float h = InSize * 0.5f;
 
-        // 24 vertices (4 per face x 6 faces) for crisp per-face normals & UVs
-        // Format: Position (x,y,z), Normal (nx,ny,nz), TexCoord (u,v), Color (r,g,b)
-        float vertices[] = {// Front Face (+Z)
-                            -h, -h, h, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, h, 0.0f, 0.0f, 1.0f, 1.0f,
-                            0.0f, 1.0f, 1.0f, 1.0f, h, h, h, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h, h, h,
-                            0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        // 24 vertices (4 per face x 6 faces) for crisp per-face normals, UVs, tangents & bitangents
+        // Format: Pos (3), Normal (3), TexCoord (2), Tangent (3), Bitangent (3), Color (3) = 17 floats per vertex
+        float vertices[] = {
+            // Front Face (+Z) - Normal (0,0,1), Tangent (1,0,0), Bitangent (0,1,0)
+            -h, -h, h, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, h,
+            0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, h, h, 0.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, h, 0.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
 
-                            // Back Face (-Z)
-                            h, -h, -h, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, -h, -h, 0.0f, 0.0f, -1.0f,
-                            1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, -h, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, h,
-                            h, -h, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            // Back Face (-Z) - Normal (0,0,-1), Tangent (-1,0,0), Bitangent (0,1,0)
+            h, -h, -h, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, -h, -h,
+            0.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, -h, 0.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 0.0f, 0.0f, -1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
 
-                            // Top Face (+Y)
-                            -h, h, h, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, h, h, 0.0f, 1.0f, 0.0f, 1.0f,
-                            0.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h, h, -h,
-                            0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            // Top Face (+Y) - Normal (0,1,0), Tangent (1,0,0), Bitangent (0,0,-1)
+            -h, h, h, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 1.0f, h, h, h,
+            0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 0.0f, 1.0f,
+            0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 1.0f, -h, h, -h, 0.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 1.0f,
 
-                            // Bottom Face (-Y)
-                            -h, -h, -h, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, -h, 0.0f, -1.0f, 0.0f,
-                            1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, h, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h,
-                            -h, h, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            // Bottom Face (-Y) - Normal (0,-1,0), Tangent (1,0,0), Bitangent (0,0,1)
+            -h, -h, -h, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, h, -h, -h,
+            0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, h, -h, h, 0.0f, -1.0f,
+            0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h, -h, h, 0.0f, -1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                            // Left Face (-X)
-                            -h, -h, -h, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, -h, h, -1.0f, 0.0f, 0.0f,
-                            1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, h, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -h,
-                            h, -h, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            // Left Face (-X) - Normal (-1,0,0), Tangent (0,0,1), Bitangent (0,1,0)
+            -h, -h, -h, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, -h, h,
+            -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, h, -1.0f, 0.0f,
+            0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -h, h, -h, -1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
 
-                            // Right Face (+X)
-                            h, -h, h, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, -h, 1.0f, 0.0f, 0.0f, 1.0f,
-                            0.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, h, h, h,
-                            1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+            // Right Face (+X) - Normal (1,0,0), Tangent (0,0,-1), Bitangent (0,1,0)
+            h, -h, h, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, -h, -h,
+            1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, h, -h, 1.0f, 0.0f,
+            0.0f, 1.0f, 1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, h, h, h, 1.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f};
 
         uint32_t indices[] = {
             0,  1,  2,  2,  3,  0,  // Front
@@ -56,6 +64,8 @@ namespace Leon {
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
                                  {EShaderDataType::Float3, "aColor"}});
         vertexArray->AddVertexBuffer(vertexBuffer);
 
@@ -69,9 +79,11 @@ namespace Leon {
         float hx = InWidth * 0.5f;
         float hy = InHeight * 0.5f;
 
-        float vertices[] = {-hx,  -hy,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, hx,   -hy,  0.0f, 0.0f,
-                            0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, hx,   hy,   0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-                            1.0f, 1.0f, 1.0f, -hx,  hy,   0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+        float vertices[] = {-hx,  -hy,  0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                            1.0f, 1.0f, 1.0f, hx,   -hy,  0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                            0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, hx,   hy,   0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                            1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -hx,  hy,   0.0f, 0.0f, 0.0f,
+                            1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f};
 
         uint32_t indices[] = {0, 1, 2, 2, 3, 0};
 
@@ -81,6 +93,8 @@ namespace Leon {
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
                                  {EShaderDataType::Float3, "aColor"}});
         vertexArray->AddVertexBuffer(vertexBuffer);
 
@@ -112,6 +126,15 @@ namespace Leon {
                 float py = InRadius * ny;
                 float pz = InRadius * nz;
 
+                glm::vec3 normal(nx, ny, nz);
+                glm::vec3 tangent(-std::sin(theta), 0.0f, std::cos(theta));
+                if (glm::length(tangent) < 0.0001f) {
+                    tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+                } else {
+                    tangent = glm::normalize(tangent);
+                }
+                glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
+
                 // Position (3)
                 vertices.push_back(px);
                 vertices.push_back(py);
@@ -125,6 +148,16 @@ namespace Leon {
                 // TexCoord (2)
                 vertices.push_back(u);
                 vertices.push_back(v);
+
+                // Tangent (3)
+                vertices.push_back(tangent.x);
+                vertices.push_back(tangent.y);
+                vertices.push_back(tangent.z);
+
+                // Bitangent (3)
+                vertices.push_back(bitangent.x);
+                vertices.push_back(bitangent.y);
+                vertices.push_back(bitangent.z);
 
                 // Color (3)
                 vertices.push_back(1.0f);
@@ -157,6 +190,8 @@ namespace Leon {
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
                                  {EShaderDataType::Float3, "aColor"}});
         vertexArray->AddVertexBuffer(vertexBuffer);
 
@@ -186,21 +221,31 @@ namespace Leon {
                 float posX = -hx + x * dx;
                 float u = static_cast<float>(x) / static_cast<float>(InSubdivisionsX);
 
-                // Position
+                // Position (3)
                 vertices.push_back(posX);
                 vertices.push_back(0.0f);
                 vertices.push_back(posZ);
 
-                // Normal (pointing +Y)
+                // Normal (pointing +Y) (3)
                 vertices.push_back(0.0f);
                 vertices.push_back(1.0f);
                 vertices.push_back(0.0f);
 
-                // TexCoord
+                // TexCoord (2)
                 vertices.push_back(u);
                 vertices.push_back(v);
 
-                // Color
+                // Tangent (pointing +X) (3)
+                vertices.push_back(1.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+
+                // Bitangent (pointing +Z) (3)
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(1.0f);
+
+                // Color (3)
                 vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
@@ -231,6 +276,8 @@ namespace Leon {
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
                                  {EShaderDataType::Float3, "aColor"}});
         vertexArray->AddVertexBuffer(vertexBuffer);
 
@@ -265,6 +312,10 @@ namespace Leon {
             float nx = nr * cosTheta;
             float nz = nr * sinTheta;
 
+            glm::vec3 normal(nx, ny, nz);
+            glm::vec3 tangent(-sinTheta, 0.0f, cosTheta);
+            glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
+
             // Bottom Ring Vertex
             float bx = InBottomRadius * cosTheta;
             float bz = InBottomRadius * sinTheta;
@@ -276,6 +327,12 @@ namespace Leon {
             vertices.push_back(nz);
             vertices.push_back(u);
             vertices.push_back(0.0f);
+            vertices.push_back(tangent.x);
+            vertices.push_back(tangent.y);
+            vertices.push_back(tangent.z);
+            vertices.push_back(bitangent.x);
+            vertices.push_back(bitangent.y);
+            vertices.push_back(bitangent.z);
             vertices.push_back(1.0f);
             vertices.push_back(1.0f);
             vertices.push_back(1.0f);
@@ -291,6 +348,12 @@ namespace Leon {
             vertices.push_back(nz);
             vertices.push_back(u);
             vertices.push_back(1.0f);
+            vertices.push_back(tangent.x);
+            vertices.push_back(tangent.y);
+            vertices.push_back(tangent.z);
+            vertices.push_back(bitangent.x);
+            vertices.push_back(bitangent.y);
+            vertices.push_back(bitangent.z);
             vertices.push_back(1.0f);
             vertices.push_back(1.0f);
             vertices.push_back(1.0f);
@@ -314,7 +377,7 @@ namespace Leon {
 
         // 2. Top Cap (if enabled and radius > 0)
         if (InbCaps && InTopRadius > 0.0001f) {
-            uint32_t topCenterIndex = static_cast<uint32_t>(vertices.size() / 11);
+            uint32_t topCenterIndex = static_cast<uint32_t>(vertices.size() / 17);
             // Center vertex
             vertices.push_back(0.0f);
             vertices.push_back(h);
@@ -325,10 +388,16 @@ namespace Leon {
             vertices.push_back(0.5f);
             vertices.push_back(0.5f);
             vertices.push_back(1.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(-1.0f);
+            vertices.push_back(1.0f);
             vertices.push_back(1.0f);
             vertices.push_back(1.0f);
 
-            uint32_t ringStart = static_cast<uint32_t>(vertices.size() / 11);
+            uint32_t ringStart = static_cast<uint32_t>(vertices.size() / 17);
             for (unsigned int x = 0; x <= InSegments; ++x) {
                 float u = static_cast<float>(x) / static_cast<float>(InSegments);
                 float theta = u * (PI * 2.0f);
@@ -344,6 +413,12 @@ namespace Leon {
                 vertices.push_back(0.5f + 0.5f * cosTheta);
                 vertices.push_back(0.5f + 0.5f * sinTheta);
                 vertices.push_back(1.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(-1.0f);
+                vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
             }
@@ -357,7 +432,7 @@ namespace Leon {
 
         // 3. Bottom Cap (if enabled and radius > 0)
         if (InbCaps && InBottomRadius > 0.0001f) {
-            uint32_t botCenterIndex = static_cast<uint32_t>(vertices.size() / 11);
+            uint32_t botCenterIndex = static_cast<uint32_t>(vertices.size() / 17);
             // Center vertex
             vertices.push_back(0.0f);
             vertices.push_back(-h);
@@ -368,10 +443,16 @@ namespace Leon {
             vertices.push_back(0.5f);
             vertices.push_back(0.5f);
             vertices.push_back(1.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(1.0f);
             vertices.push_back(1.0f);
             vertices.push_back(1.0f);
 
-            uint32_t ringStart = static_cast<uint32_t>(vertices.size() / 11);
+            uint32_t ringStart = static_cast<uint32_t>(vertices.size() / 17);
             for (unsigned int x = 0; x <= InSegments; ++x) {
                 float u = static_cast<float>(x) / static_cast<float>(InSegments);
                 float theta = u * (PI * 2.0f);
@@ -386,6 +467,12 @@ namespace Leon {
                 vertices.push_back(0.0f);
                 vertices.push_back(0.5f + 0.5f * cosTheta);
                 vertices.push_back(0.5f - 0.5f * sinTheta);
+                vertices.push_back(1.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(0.0f);
+                vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
                 vertices.push_back(1.0f);
@@ -405,6 +492,8 @@ namespace Leon {
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
                                  {EShaderDataType::Float3, "aColor"}});
         vertexArray->AddVertexBuffer(vertexBuffer);
 

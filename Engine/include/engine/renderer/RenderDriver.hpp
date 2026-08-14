@@ -2,6 +2,7 @@
 
 #include "engine/core/Base.hpp"
 #include "engine/renderer/Buffer.hpp"
+#include "engine/renderer/Framebuffer.hpp"
 #include "engine/renderer/GraphicsContext.hpp"
 #include "engine/renderer/RenderAPI.hpp"
 #include "engine/renderer/Shader.hpp"
@@ -26,6 +27,7 @@ namespace Leon {
                                            const std::string& InFragmentSrc) = 0;
         virtual TRef<FTexture2D> CreateTexture2D(uint32_t InWidth, uint32_t InHeight) = 0;
         virtual TRef<FTexture2D> CreateTexture2D(const std::string& InPath) = 0;
+        virtual TRef<FFramebuffer> CreateFramebuffer(const FFramebufferSpecification& InSpec) = 0;
     };
 
     using RenderDriver = IRenderDriver;

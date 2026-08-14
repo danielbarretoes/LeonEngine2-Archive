@@ -12,7 +12,7 @@ public:
         : FLayer("LightingShowcaseLayer"), m_CameraController(45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f) {}
 
     void OnAttach() override {
-        LE_INFO("FLightingShowcaseLayer attached! Initializing multi-primitive scene and 3-light setup.");
+        LE_INFO("FLightingShowcaseLayer attached! Initializing Cook-Torrance PBR & Atmospheric Skybox Pipeline.");
         LE_INFO("Controls (Keyboard & Mouse):");
         LE_INFO("  - W, A, S, D: Move Forward / Left / Backward / Right");
         LE_INFO("  - Space / LeftControl (or E / Q): Move Up / Down");
@@ -27,170 +27,281 @@ public:
         LE_INFO("  - F1: Toggle Real-time Performance HUD Stats (FPS, RAM, GPU, Tris, Draw Calls)");
         LE_INFO("  - F2: Toggle 3D Light Debug Gizmos (Spot Cones, Point Attenuation Sphere, Sun Vector)");
 
-        // 1. Load Multi-Stage Multi-Light Shader (DefaultLit)
-        m_Shader = Leon::FShader::Create("Engine/Assets/Shaders/DefaultLit.glsl");
+        // 1. Initialize Offscreen Render Target (FFramebuffer)
+        Leon::FFramebufferSpecification fbSpec;
+        fbSpec.Width = 1280;
+        fbSpec.Height = 720;
+        fbSpec.Attachments = {Leon::EFramebufferTextureFormat::RGBA8, Leon::EFramebufferTextureFormat::Depth};
+        m_Framebuffer = Leon::FFramebuffer::Create(fbSpec);
 
-        // 2. Load 2D Texture from Project Assets
+        // 2. Initialize Scene (ECS)
+        m_Scene = Leon::FScene::Create();
+
+        // 3. Load Shaders & Textures
+        m_PBRShader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
+        m_DefaultLitShader = Leon::FShader::Create("Engine/Assets/Shaders/DefaultLit.glsl");
         m_Texture = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Container_D.png");
 
-        // 3. Create Geometric Mesh Primitives
+        // 4. Create Geometric Mesh Primitives
         m_CubeVA = Leon::FMeshPrimitives::CreateCube(1.0f);
-        m_CylinderVA = Leon::FMeshPrimitives::CreateCylinder(0.5f, 0.5f, 1.2f, 32, true);
-        m_SphereVA = Leon::FMeshPrimitives::CreateSphere(0.6f, 32, 16);
-        m_PlaneVA = Leon::FMeshPrimitives::CreatePlane(12.0f, 12.0f, 16, 16);
+        m_CylinderVA = Leon::FMeshPrimitives::CreateCylinder(0.5f, 0.5f, 1.2f, 48, true);
+        m_SphereVA = Leon::FMeshPrimitives::CreateSphere(0.6f, 48, 24);
+        m_PlaneVA = Leon::FMeshPrimitives::CreatePlane(24.0f, 24.0f, 24, 24);
 
-        // 4. Configure Light Sources
-        // Directional Sunlight
-        m_DirLight.Direction = glm::vec3(-0.4f, -1.0f, -0.3f);
-        m_DirLight.Color = glm::vec3(0.9f, 0.95f, 1.0f);
-        m_DirLight.AmbientIntensity = 0.12f;
-        m_DirLight.DiffuseIntensity = 0.5f;
-        m_DirLight.SpecularIntensity = 0.3f;
+        // 5. Populate PBR & Environment Entities
+        // 5.0 Atmospheric HDR Skybox Environment
+        {
+            m_SkyboxEntity = m_Scene->CreateEntity("Atmospheric Skybox");
+            Leon::FSkyboxComponent skybox;
+            skybox.bEnabled = true;
+            skybox.Exposure = 1.0f;
+            skybox.SunIntensity = 3.5f;
+            skybox.EnvironmentIntensity = 1.2f;
+            skybox.SkyZenithColor = glm::vec3(0.18f, 0.44f, 0.88f);
+            skybox.HorizonColor = glm::vec3(0.78f, 0.84f, 0.95f);
+            skybox.GroundColor = glm::vec3(0.22f, 0.24f, 0.28f);
+            skybox.SunColor = glm::vec3(1.0f, 0.98f, 0.92f);
+            m_SkyboxEntity.AddComponent<Leon::FSkyboxComponent>(skybox);
+        }
 
-        // Orbiting Point Light (Warm Amber)
-        m_PointLight.Color = glm::vec3(1.0f, 0.55f, 0.15f);
-        m_PointLight.Constant = 1.0f;
-        m_PointLight.Linear = 0.14f;
-        m_PointLight.Quadratic = 0.07f;
-        m_PointLight.AmbientIntensity = 0.05f;
-        m_PointLight.DiffuseIntensity = 1.2f;
-        m_PointLight.SpecularIntensity = 1.0f;
+        // 5.1 Ground Plane (Shadow Receiver)
+        {
+            m_PlaneEntity = m_Scene->CreateEntity("PBR Ground Plane");
+            auto& transform = m_PlaneEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(0.0f, 0.0f, 0.0f);
 
-        // Dramatic Spot Light (Cyan)
-        m_SpotLight.Position = glm::vec3(0.0f, 3.5f, 0.0f);
-        m_SpotLight.Direction = glm::vec3(0.0f, -1.0f, 0.0f);
-        m_SpotLight.Color = glm::vec3(0.2f, 0.85f, 1.0f);
-        m_SpotLight.CutOff = 15.0f;
-        m_SpotLight.OuterCutOff = 22.5f;
-        m_SpotLight.Constant = 1.0f;
-        m_SpotLight.Linear = 0.09f;
-        m_SpotLight.Quadratic = 0.032f;
-        m_SpotLight.AmbientIntensity = 0.0f;
-        m_SpotLight.DiffuseIntensity = 2.0f;
-        m_SpotLight.SpecularIntensity = 2.0f;
+            m_PlaneEntity.AddComponent<Leon::FMeshComponent>(m_PlaneVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(0.72f, 0.75f, 0.80f);
+            mat.Metallic = 0.05f;
+            mat.Roughness = 0.50f;
+            m_PlaneEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 5.2 Textured PBR Rotating Cube (Left)
+        {
+            m_CubeEntity = m_Scene->CreateEntity("PBR Textured Cube");
+            auto& transform = m_CubeEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(-2.7f, 0.6f, 0.0f);
+
+            m_CubeEntity.AddComponent<Leon::FMeshComponent>(m_CubeVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(1.0f);
+            mat.AlbedoMap = m_Texture;
+            mat.bUseAlbedoMap = true;
+            mat.Metallic = 0.20f;
+            mat.Roughness = 0.25f;
+            m_CubeEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 5.3 Polished Gold PBR Sphere (Center-Left)
+        {
+            m_GoldSphereEntity = m_Scene->CreateEntity("PBR Polished Gold Sphere");
+            auto& transform = m_GoldSphereEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(-0.9f, 0.7f, 0.0f);
+
+            m_GoldSphereEntity.AddComponent<Leon::FMeshComponent>(m_SphereVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(1.00f, 0.78f, 0.34f); // Pure Gold Base Reflectance
+            mat.Metallic = 1.0f;
+            mat.Roughness = 0.08f; // Ultra-crisp sky reflection
+            m_GoldSphereEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 5.4 Matte Red Plastic PBR Sphere (Center-Right)
+        {
+            m_RedSphereEntity = m_Scene->CreateEntity("PBR Matte Red Sphere");
+            auto& transform = m_RedSphereEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(0.9f, 0.7f, 0.0f);
+
+            m_RedSphereEntity.AddComponent<Leon::FMeshComponent>(m_SphereVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(0.92f, 0.12f, 0.12f);
+            mat.Metallic = 0.0f;
+            mat.Roughness = 0.50f;
+            m_RedSphereEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 5.5 Rough Brushed Iron Cylinder (Right)
+        {
+            m_CylinderEntity = m_Scene->CreateEntity("PBR Brushed Iron Cylinder");
+            auto& transform = m_CylinderEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(2.7f, 0.7f, 0.0f);
+
+            m_CylinderEntity.AddComponent<Leon::FMeshComponent>(m_CylinderVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(0.56f, 0.57f, 0.58f); // Iron Base Reflectance
+            mat.Metallic = 0.95f;
+            mat.Roughness = 0.28f;
+            m_CylinderEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 6. Configure Light Source Entities
+        // 6.1 Directional Sunlight (Shadow Caster)
+        {
+            Leon::FDirectionalLight dirLight;
+            dirLight.Direction = glm::vec3(-0.45f, -1.0f, -0.35f);
+            dirLight.Color = glm::vec3(1.0f, 0.98f, 0.92f);
+            dirLight.AmbientIntensity = 0.10f;
+            dirLight.DiffuseIntensity = 3.5f;
+            dirLight.SpecularIntensity = 1.0f;
+
+            m_DirLightEntity = m_Scene->CreateEntity("Directional Sunlight");
+            m_DirLightEntity.AddComponent<Leon::FDirectionalLightComponent>(dirLight);
+        }
+
+        // 6.2 Orbiting Point Light (Warm Amber)
+        {
+            Leon::FPointLight pointLight;
+            pointLight.Color = glm::vec3(1.0f, 0.55f, 0.15f);
+            pointLight.Constant = 1.0f;
+            pointLight.Linear = 0.14f;
+            pointLight.Quadratic = 0.07f;
+            pointLight.AmbientIntensity = 0.05f;
+            pointLight.DiffuseIntensity = 4.0f;
+            pointLight.SpecularIntensity = 1.0f;
+
+            m_PointLightEntity = m_Scene->CreateEntity("Orbiting Point Light");
+            m_PointLightEntity.GetComponent<Leon::FTransformComponent>().Translation = glm::vec3(3.2f, 1.4f, 0.0f);
+            m_PointLightEntity.AddComponent<Leon::FPointLightComponent>(pointLight);
+        }
+
+        // 6.3 Dramatic Spotlight (Cyan Stage Light)
+        {
+            Leon::FSpotLight spotLight;
+            spotLight.Position = glm::vec3(0.0f, 4.2f, 0.0f);
+            spotLight.Direction = glm::vec3(0.0f, -1.0f, 0.0f);
+            spotLight.Color = glm::vec3(0.2f, 0.85f, 1.0f);
+            spotLight.CutOff = 18.0f;
+            spotLight.OuterCutOff = 26.0f;
+            spotLight.Constant = 1.0f;
+            spotLight.Linear = 0.09f;
+            spotLight.Quadratic = 0.032f;
+            spotLight.AmbientIntensity = 0.0f;
+            spotLight.DiffuseIntensity = 4.5f;
+            spotLight.SpecularIntensity = 1.0f;
+
+            m_SpotLightEntity = m_Scene->CreateEntity("Dramatic Spotlight");
+            m_SpotLightEntity.GetComponent<Leon::FTransformComponent>().Translation = spotLight.Position;
+            m_SpotLightEntity.AddComponent<Leon::FSpotLightComponent>(spotLight);
+        }
 
         // Set initial camera position looking down at the stage
-        m_CameraController.GetCamera().SetPosition({0.0f, 3.2f, 5.0f});
-        m_CameraController.GetCamera().SetRotation(-25.0f, -90.0f);
+        m_CameraController.GetCamera().SetPosition({0.0f, 3.5f, 6.2f});
+        m_CameraController.GetCamera().SetRotation(-22.0f, -90.0f);
     }
 
     void OnDetach() override { LE_INFO("FLightingShowcaseLayer detached."); }
 
     void OnUpdate(Leon::FTimestep InTs) override {
+        // Synchronize viewport and framebuffer on window resize
+        uint32_t winWidth = Leon::FApplication::Get().GetWindow().GetWidth();
+        uint32_t winHeight = Leon::FApplication::Get().GetWindow().GetHeight();
+        if (winWidth > 0 && winHeight > 0 &&
+            (m_Framebuffer->GetSpecification().Width != winWidth ||
+             m_Framebuffer->GetSpecification().Height != winHeight)) {
+            m_Framebuffer->Resize(winWidth, winHeight);
+            m_CameraController.GetCamera().SetViewportSize(winWidth, winHeight);
+            m_Scene->OnViewportResize(winWidth, winHeight);
+        }
+
         // Update Camera Controller with user input (WASD + Mouse + Gamepad)
         m_CameraController.OnUpdate(InTs);
 
-        // Update Animations
+        // Update Entity Animations & Transformations
         m_TimeAccumulator += InTs.GetSeconds();
-        m_RotationAngle += InTs.GetSeconds() * 25.0f;
 
-        // Orbit the point light in a circle
-        float orbitRadius = 2.8f;
-        m_PointLight.Position = glm::vec3(std::cos(m_TimeAccumulator * 1.5f) * orbitRadius, 1.2f,
-                                          std::sin(m_TimeAccumulator * 1.5f) * orbitRadius);
+        // 1. Rotate Cube Entity
+        if (m_CubeEntity) {
+            auto& transform = m_CubeEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Rotation += glm::vec3(18.0f, 30.0f, 12.0f) * InTs.GetSeconds();
+        }
 
-        // Clear screen and depth buffer
-        Leon::FRenderCommand::SetClearColor(0.05f, 0.06f, 0.09f, 1.0f);
+        // 2. Rotate Cylinder Entity
+        if (m_CylinderEntity) {
+            auto& transform = m_CylinderEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Rotation.y += 22.0f * InTs.GetSeconds();
+        }
+
+        // 3. Float Spheres slightly up and down
+        if (m_GoldSphereEntity) {
+            auto& transform = m_GoldSphereEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation.y = 0.7f + std::sin(m_TimeAccumulator * 2.0f) * 0.15f;
+            transform.Rotation.y += 15.0f * InTs.GetSeconds();
+        }
+        if (m_RedSphereEntity) {
+            auto& transform = m_RedSphereEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation.y = 0.7f + std::cos(m_TimeAccumulator * 2.0f) * 0.15f;
+            transform.Rotation.y -= 15.0f * InTs.GetSeconds();
+        }
+
+        // 4. Orbit Point Light Entity
+        if (m_PointLightEntity) {
+            float orbitRadius = 3.4f;
+            glm::vec3 newPos = glm::vec3(std::cos(m_TimeAccumulator * 1.4f) * orbitRadius, 1.5f,
+                                         std::sin(m_TimeAccumulator * 1.4f) * orbitRadius);
+
+            auto& transform = m_PointLightEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = newPos;
+
+            auto& pointLightComp = m_PointLightEntity.GetComponent<Leon::FPointLightComponent>();
+            pointLightComp.Light.Position = newPos;
+        }
+
+        // ==========================================
+        // Offscreen Framebuffer Render Pass
+        // ==========================================
+        m_Framebuffer->Bind();
+
+        Leon::FRenderCommand::SetClearColor(0.04f, 0.05f, 0.07f, 1.0f);
         Leon::FRenderCommand::Clear();
 
-        // Begin Scene with Camera View-Projection
-        Leon::FRenderer::BeginScene(m_CameraController.GetCamera());
+        // Render entire ECS Scene (Depth Shadow Pre-Pass + PBR Main Pass + Atmospheric Skybox)
+        m_Scene->OnRender(m_CameraController.GetCamera());
 
-        m_Shader->Bind();
-
-        // Upload Directional Light Uniforms
-        m_Shader->SetInt("u_DirLight.enabled", 1);
-        m_Shader->SetFloat3("u_DirLight.direction", m_DirLight.Direction.x, m_DirLight.Direction.y,
-                            m_DirLight.Direction.z);
-        m_Shader->SetFloat3("u_DirLight.color", m_DirLight.Color.x, m_DirLight.Color.y, m_DirLight.Color.z);
-        m_Shader->SetFloat("u_DirLight.ambientIntensity", m_DirLight.AmbientIntensity);
-        m_Shader->SetFloat("u_DirLight.diffuseIntensity", m_DirLight.DiffuseIntensity);
-        m_Shader->SetFloat("u_DirLight.specularIntensity", m_DirLight.SpecularIntensity);
-
-        // Upload Point Light Uniforms
-        m_Shader->SetInt("u_PointLight.enabled", 1);
-        m_Shader->SetFloat3("u_PointLight.position", m_PointLight.Position.x, m_PointLight.Position.y,
-                            m_PointLight.Position.z);
-        m_Shader->SetFloat3("u_PointLight.color", m_PointLight.Color.x, m_PointLight.Color.y, m_PointLight.Color.z);
-        m_Shader->SetFloat("u_PointLight.constant", m_PointLight.Constant);
-        m_Shader->SetFloat("u_PointLight.linear", m_PointLight.Linear);
-        m_Shader->SetFloat("u_PointLight.quadratic", m_PointLight.Quadratic);
-        m_Shader->SetFloat("u_PointLight.ambientIntensity", m_PointLight.AmbientIntensity);
-        m_Shader->SetFloat("u_PointLight.diffuseIntensity", m_PointLight.DiffuseIntensity);
-        m_Shader->SetFloat("u_PointLight.specularIntensity", m_PointLight.SpecularIntensity);
-
-        // Upload Spot Light Uniforms
-        m_Shader->SetInt("u_SpotLight.enabled", 1);
-        m_Shader->SetFloat3("u_SpotLight.position", m_SpotLight.Position.x, m_SpotLight.Position.y,
-                            m_SpotLight.Position.z);
-        m_Shader->SetFloat3("u_SpotLight.direction", m_SpotLight.Direction.x, m_SpotLight.Direction.y,
-                            m_SpotLight.Direction.z);
-        m_Shader->SetFloat3("u_SpotLight.color", m_SpotLight.Color.x, m_SpotLight.Color.y, m_SpotLight.Color.z);
-        m_Shader->SetFloat("u_SpotLight.cutOff", std::cos(glm::radians(m_SpotLight.CutOff)));
-        m_Shader->SetFloat("u_SpotLight.outerCutOff", std::cos(glm::radians(m_SpotLight.OuterCutOff)));
-        m_Shader->SetFloat("u_SpotLight.constant", m_SpotLight.Constant);
-        m_Shader->SetFloat("u_SpotLight.linear", m_SpotLight.Linear);
-        m_Shader->SetFloat("u_SpotLight.quadratic", m_SpotLight.Quadratic);
-        m_Shader->SetFloat("u_SpotLight.ambientIntensity", m_SpotLight.AmbientIntensity);
-        m_Shader->SetFloat("u_SpotLight.diffuseIntensity", m_SpotLight.DiffuseIntensity);
-        m_Shader->SetFloat("u_SpotLight.specularIntensity", m_SpotLight.SpecularIntensity);
-
-        // 1. Draw Textured Rotating 3D Cube (Left)
-        {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(-2.2f, 0.5f, 0.0f));
-            model = glm::rotate(model, glm::radians(m_RotationAngle), glm::vec3(0.5f, 1.0f, 0.2f));
-            m_Shader->SetMat4("u_Model", glm::value_ptr(model));
-
-            if (m_Texture && m_Texture->IsLoaded()) {
-                m_Texture->Bind(0);
-                m_Shader->SetInt("u_DiffuseMap", 0);
-                m_Shader->SetInt("u_UseTexture", 1);
-            }
-            Leon::FRenderer::SubmitIndexed(m_Shader, m_CubeVA);
-        }
-
-        // 2. Draw Smooth 3D Cylinder (Center - under Spotlight)
-        {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.6f, 0.0f));
-            model = glm::rotate(model, glm::radians(m_RotationAngle * 0.7f), glm::vec3(0.0f, 1.0f, 0.0f));
-            m_Shader->SetMat4("u_Model", glm::value_ptr(model));
-            m_Shader->SetInt("u_UseTexture", 0);
-            Leon::FRenderer::SubmitIndexed(m_Shader, m_CylinderVA);
-        }
-
-        // 3. Draw Smooth 3D Sphere (Right)
-        {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(2.2f, 0.6f, 0.0f));
-            model = glm::rotate(model, glm::radians(m_RotationAngle * 0.5f), glm::vec3(1.0f, 0.5f, 0.0f));
-            m_Shader->SetMat4("u_Model", glm::value_ptr(model));
-            m_Shader->SetInt("u_UseTexture", 0);
-            Leon::FRenderer::SubmitIndexed(m_Shader, m_SphereVA);
-        }
-
-        // 4. Draw Ground Plane Grid
-        {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-            m_Shader->SetMat4("u_Model", glm::value_ptr(model));
-            m_Shader->SetInt("u_UseTexture", 0);
-            Leon::FRenderer::SubmitIndexed(m_Shader, m_PlaneVA);
-        }
-
-        Leon::FRenderer::EndScene();
-
-        // 5. Render 3D Light Debug Gizmos (F2 Toggle)
+        // Render 3D Light Debug Gizmos (F2 Toggle) inside the Framebuffer
         if (Leon::FApplication::Get().IsLightGizmosEnabled()) {
             Leon::FDebugRenderer::BeginScene(m_CameraController.GetCamera());
-            Leon::FDebugRenderer::DrawPointLightGizmo(m_PointLight);
-            Leon::FDebugRenderer::DrawSpotLightGizmo(m_SpotLight);
-            Leon::FDebugRenderer::DrawDirectionalLightGizmo(m_DirLight, glm::vec3(0.0f, 3.0f, 0.0f));
+
+            if (m_PointLightEntity) {
+                const auto& pointComp = m_PointLightEntity.GetComponent<Leon::FPointLightComponent>();
+                Leon::FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
+            }
+
+            if (m_SpotLightEntity) {
+                const auto& spotComp = m_SpotLightEntity.GetComponent<Leon::FSpotLightComponent>();
+                Leon::FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
+            }
+
+            if (m_DirLightEntity) {
+                const auto& dirComp = m_DirLightEntity.GetComponent<Leon::FDirectionalLightComponent>();
+                Leon::FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, glm::vec3(0.0f, 3.5f, 0.0f));
+            }
+
             Leon::FDebugRenderer::EndScene();
         }
+
+        m_Framebuffer->Unbind();
+
+        // ==========================================
+        // Present Offscreen Framebuffer to Window
+        // ==========================================
+        m_Framebuffer->BlitToDefault(winWidth, winHeight);
     }
 
     void OnEvent(Leon::FEvent& InEvent) override { m_CameraController.OnEvent(InEvent); }
 
 private:
-    Leon::TRef<Leon::FShader> m_Shader;
+    Leon::TRef<Leon::FFramebuffer> m_Framebuffer;
+    Leon::TRef<Leon::FScene> m_Scene;
+
+    Leon::TRef<Leon::FShader> m_PBRShader;
+    Leon::TRef<Leon::FShader> m_DefaultLitShader;
     Leon::TRef<Leon::FTexture2D> m_Texture;
 
     // Primitives
@@ -199,19 +310,27 @@ private:
     Leon::TRef<Leon::FVertexArray> m_SphereVA;
     Leon::TRef<Leon::FVertexArray> m_PlaneVA;
 
-    // Camera & Lights
+    // Entities
+    Leon::FEntity m_SkyboxEntity;
+    Leon::FEntity m_CubeEntity;
+    Leon::FEntity m_CylinderEntity;
+    Leon::FEntity m_GoldSphereEntity;
+    Leon::FEntity m_RedSphereEntity;
+    Leon::FEntity m_PlaneEntity;
+    Leon::FEntity m_DirLightEntity;
+    Leon::FEntity m_PointLightEntity;
+    Leon::FEntity m_SpotLightEntity;
+
+    // Camera
     Leon::FPerspectiveCameraController m_CameraController;
-    Leon::FDirectionalLight m_DirLight;
-    Leon::FPointLight m_PointLight;
-    Leon::FSpotLight m_SpotLight;
 
     float m_TimeAccumulator = 0.0f;
-    float m_RotationAngle = 0.0f;
 };
 
 class FSandboxApp : public Leon::FApplication {
 public:
-    FSandboxApp() : Leon::FApplication(Leon::FApplicationProps{"LeonEngine2 - Multi-Light 3D Scene", 1280, 720}) {
+    FSandboxApp()
+        : Leon::FApplication(Leon::FApplicationProps{"LeonEngine2 - PBR, Atmospheric Skybox & Shadows", 1280, 720}) {
         PushLayer(new FLightingShowcaseLayer());
     }
 

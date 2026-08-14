@@ -21,6 +21,7 @@
 #include "engine/renderer/Buffer.hpp"
 #include "engine/renderer/DebugOverlay.hpp"
 #include "engine/renderer/DebugRenderer.hpp"
+#include "engine/renderer/Framebuffer.hpp"
 #include "engine/renderer/GraphicsContext.hpp"
 #include "engine/renderer/Light.hpp"
 #include "engine/renderer/MeshPrimitives.hpp"
@@ -33,6 +34,11 @@
 #include "engine/renderer/Shader.hpp"
 #include "engine/renderer/Texture.hpp"
 #include "engine/renderer/VertexArray.hpp"
+
+// Scene & Entity Component System (ECS)
+#include "engine/scene/Components.hpp"
+#include "engine/scene/Entity.hpp"
+#include "engine/scene/Scene.hpp"
 
 // Entry Point
 #include "engine/core/EntryPoint.hpp"

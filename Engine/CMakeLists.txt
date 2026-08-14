@@ -11,6 +11,7 @@ add_library(LeonEngineCore STATIC
     src/renderer/Renderer.cpp
     src/renderer/RenderAPI.cpp
     src/renderer/Buffer.cpp
+    src/renderer/Framebuffer.cpp
     src/renderer/DebugRenderer.cpp
     src/renderer/DebugOverlay.cpp
     src/renderer/MeshPrimitives.cpp
@@ -19,6 +20,8 @@ add_library(LeonEngineCore STATIC
     src/renderer/VertexArray.cpp
     src/renderer/PerspectiveCamera.cpp
     src/renderer/PerspectiveCameraController.cpp
+    src/scene/Entity.cpp
+    src/scene/Scene.cpp
 )
 
 add_library(Leon::Core ALIAS LeonEngineCore)
@@ -32,7 +35,9 @@ target_link_libraries(LeonEngineCore PUBLIC
     glfw
     glm::glm
     glad
+    EnTT::EnTT
 )
+
 
 if (WIN32)
     target_link_libraries(LeonEngineCore PRIVATE psapi dxgi)

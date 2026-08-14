@@ -11,12 +11,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 - Dear ImGui debug and editor overlay layer (`FImGuiLayer`).
-- Transform component and multi-object 3D scene rendering.
 - 3D Model loading pipeline with Assimp (glTF / OBJ).
+- Post-processing stack (ACES Tonemapping, HDR, Bloom).
 
 ---
 
-## [0.3.0] - 2026-08-14
+## [0.5.0] - 2026-08-14
+
+### Added
+- **Equirectangular 360° HDR Environment Texture Pipeline (`AutumnField1k.hdr`)**:
+  - Added native 32-bit floating-point HDR image loading (`stbi_loadf`, `GL_RGB16F`, `GL_FLOAT`) in `FOpenGLTexture2D`.
+  - Spherical UV sampling mapping (`SampleSphericalMap`) in `Skybox.glsl` and `PBR_Lit.glsl`.
+  - Image-Based Lighting (IBL) with automatic mip-level sampling (`textureLod`) corresponding to material roughness for prefiltered specular reflections and blurred hemisphere diffuse irradiance.
+- **Ambient Occlusion (AO) Pipeline (`FPBRMaterialComponent` & `PBR_Lit.glsl`)**:
+  - Per-material scalar `AO` (0.0 to 1.0) and 2D texture `AOMap` support in `FPBRMaterial` and `FPBRMaterialComponent`.
+  - Ambient occlusion modulation on indirect ambient lighting in `PBR_Lit.glsl` to add realistic contact shadows and depth in crevices.
+- **Atmospheric HDR Skybox & Image-Based Lighting (IBL) Pipeline (`Skybox.glsl` & `FSkyboxComponent`)**:
+  - Infinite depth Skybox rendering pass (`GL_LEQUAL`, `glDepthMask(GL_FALSE)`) on cube geometry with stripped camera translation.
+  - Physical atmospheric scattering model with Rayleigh sky-to-horizon gradients, solar disc, and Mie scattering halo.
+  - **Indirect Diffuse (Hemisphere Irradiance)** in `PBR_Lit.glsl` illuminating shadow regions naturally with sky/ground color bounce.
+  - **Indirect Specular (Roughness-Filtered Environment Reflection)** providing metallic reflections (gold, iron, chrome) that reflect the sky and horizon without darkening unlit angles.
+  - **Fresnel-Schlick with Roughness** attenuation on glancing angles.
+  - Industry-standard **ACES Film Tonemapping** (Unreal Engine 5 curve) and gamma 2.2 color correction for rich contrast, deep blacks, and vibrant specular highlights.
+  - ECS `FSkyboxComponent` for declarative sky, sun, horizon, ground colors, exposure, and intensity control.
+
+- **Dynamic Shadow Mapping Subsystem (`ShadowDepth.glsl` & `FScene`)**:
+  - Dedicated 2048x2048 high-resolution Depth Framebuffer in `FScene` using `DEPTH24STENCIL8` with border clamping (`GL_CLAMP_TO_BORDER`).
+  - Orthographic Light Space Matrix generation for Directional sunlight (`u_LightSpaceMatrix`).
+  - Shadow Depth Pre-pass with front-face culling (`GL_FRONT`) eliminating Peter Panning and self-shadow artifacts.
+  - Multi-stage `ShadowDepth.glsl` shader for ultra-fast depth capture.
+  - Anti-aliased 3x3 Percentage-Closer Filtering (PCF) with slope-scale bias in both `DefaultLit.glsl` and `PBR_Lit.glsl`.
+- **Cook-Torrance PBR Material Pipeline (`PBR_Lit.glsl` & `FPBRMaterialComponent`)**:
+  - Complete physically based rendering shader adhering to modern game engine standards:
+    - **NDF**: Trowbridge-Reitz GGX distribution.
+    - **Geometry**: Smith's Schlick-GGX attenuation.
+    - **Fresnel**: Fresnel-Schlick with dielectric base reflectance ($F_0 = 0.04$) and metallic color interpolation.
+  - Metallic, Roughness, Albedo, and Tangent-Space Normal Mapping support.
+  - ECS `FPBRMaterial` and `FPBRMaterialComponent` enabling per-entity PBR material setup.
+- **Mesh Primitives Tangent Space Generation (`FMeshPrimitives`)**:
+  - Upgraded Cube, Quad, Plane, Cylinder, and Sphere generators with Tangents (`aTangent`) and Bitangents (`aBitangent`) (17 floats per vertex layout).
+- **RHI Framebuffer Texture Binding Extensions**:
+  - Added `GetDepthAttachmentRendererID()`, `BindDepthTexture(slot)`, and `BindTexture(index, slot)` to `FFramebuffer` and `FOpenGLFramebuffer`.
+- **Upgraded Sandbox App**:
+  - Live side-by-side PBR showcase with polished gold, brushed iron, matte dielectric, textured metallic objects, and ground receiving dynamic shadows under a luminous HDR sky.
+
+
+---
+
+## [0.4.0] - 2026-08-14
+
+
+### Added
+- **RHI Framebuffer & Offscreen Render Target Subsystem (`FFramebuffer`)**:
+  - Abstract `FFramebuffer` interface with `EFramebufferTextureFormat` (`RGBA8`, `RED_INTEGER`, `DEPTH24STENCIL8`).
+  - `FFramebufferSpecification` and `FFramebufferAttachmentSpecification` supporting multi-target attachments and sample counts.
+  - Offscreen color and depth rendering, `Resize(width, height)`, `ReadPixel`, `ClearAttachment`, and swapchain presentation (`BlitToDefault`).
+  - Integrated `CreateFramebuffer` factory in `IRenderDriver` and `FRenderDriverRegistry`.
+- **OpenGL Framebuffer Backend Plugin (`FOpenGLFramebuffer`)**:
+  - Vendor-isolated implementation in `Plugins/RHI/OpenGL/` managing multi-color textures and depth attachments.
+  - Framebuffer validation via `glCheckFramebufferStatus` and multi-target drawing via `glDrawBuffers`.
+  - Real-time VRAM allocation tracking via `FRenderer::OnGPUAlloc` and `FRenderer::OnGPUFree`.
+- **Scene & Entity Component System (`FScene`, `FEntity`, EnTT)**:
+  - Integrated header-only **EnTT (v3.14.0)** for fast, cache-coherent ECS entity querying.
+  - Ergonomic `FEntity` handle wrapper supporting `AddComponent`, `GetComponent`, `HasComponent`, and `RemoveComponent`.
+  - UE-style components:
+    - `FTagComponent`: Entity naming and identification.
+    - `FTransformComponent`: Translation, Euler rotation, scale, and `GetTransform()` matrix synthesis.
+    - `FMeshComponent`: VertexArray, Shader, Texture, color tint, and texturing flags.
+    - `FDirectionalLightComponent`, `FPointLightComponent`, `FSpotLightComponent`: Unified lighting ECS integration.
+    - `FCameraComponent`: Camera binding and viewport synchronization.
+  - Automated `FScene::OnRender(InCamera)` pipeline traversing lighting components, uploading uniforms, and dispatching all entity mesh draws.
+- **Client Sandbox App Refactoring**:
+  - `Sandbox` migrated from manual render submissions to full ECS `FScene` and offscreen `FFramebuffer` render pipeline.
+
 
 ### Added
 - **Multi-Stage Shader File Loading Pipeline (`.glsl`)**:

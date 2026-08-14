@@ -34,6 +34,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+# EnTT (Entity Component System) Configuration and Download
+FetchContent_Declare(
+    entt
+    GIT_REPOSITORY https://github.com/skypjack/entt.git
+    GIT_TAG v3.14.0
+)
+FetchContent_MakeAvailable(entt)
+
+
 # Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Projects)
 add_subdirectory(ThirdParty/glad)
 add_subdirectory(ThirdParty/stb)
