@@ -478,7 +478,7 @@ void main() {
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;
 
     // Emissive Radiance
-    vec3 emissiveMapSample = (u_UseEmissiveMap == 1) ? texture(u_EmissiveMap, v_TexCoords).rgb : vec3(1.0);
+    vec3 emissiveMapSample = (u_UseEmissiveMap == 1) ? texture(u_EmissiveMap, v_TexCoord).rgb : vec3(1.0);
     vec3 emissive = u_EmissiveColor * u_EmissiveIntensity * emissiveMapSample;
 
     // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
