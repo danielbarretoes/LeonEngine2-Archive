@@ -153,6 +153,11 @@ namespace Leon {
         TRef<FVertexArray> m_SkyboxVA;
         TRef<FVertexArray> m_FullscreenQuadVA;
 
+        // Fallback default 1x1 textures (keeps all texture units valid)
+        TRef<FTexture2D> m_DefaultWhiteTexture;
+        TRef<FTexture2D> m_DefaultBlackTexture;
+        TRef<FTexture2D> m_DefaultFlatNormalTexture;
+
         // IBL environment
         FIBLEnvironment m_IBLEnvironment;
         bool   m_bUseIBL              = true;

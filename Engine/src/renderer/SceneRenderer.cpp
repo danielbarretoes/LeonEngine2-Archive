@@ -71,7 +71,22 @@ namespace Leon {
         m_FullscreenQuadVA  = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
 
         // -----------------------------------------------------------------------
-        // 5. Initial IBL generation (default atmospheric skybox)
+        // 5. Fallback 1x1 textures (keeps all shader texture units valid & defined)
+        // -----------------------------------------------------------------------
+        m_DefaultWhiteTexture = FTexture2D::Create(1, 1);
+        uint32_t whitePixel = 0xFFFFFFFF;
+        m_DefaultWhiteTexture->SetData(&whitePixel, sizeof(uint32_t));
+
+        m_DefaultBlackTexture = FTexture2D::Create(1, 1);
+        uint32_t blackPixel = 0xFF000000;
+        m_DefaultBlackTexture->SetData(&blackPixel, sizeof(uint32_t));
+
+        m_DefaultFlatNormalTexture = FTexture2D::Create(1, 1);
+        uint32_t flatNormalPixel = 0xFFFF8080; // RGBA: (128, 128, 255, 255)
+        m_DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
+
+        // -----------------------------------------------------------------------
+        // 6. Initial IBL generation (default atmospheric skybox)
         // -----------------------------------------------------------------------
         m_IBLEnvironment       = FIBLGenerator::CreateEnvironmentFromSkybox(FSkyboxComponent{});
         m_bEnvironmentGenerated = true;
@@ -497,6 +512,16 @@ namespace Leon {
         if (m_CascadeShadowFramebuffers[2]) m_CascadeShadowFramebuffers[2]->BindDepthTexture(12);
         if (m_SpotShadowFramebuffer)        m_SpotShadowFramebuffer->BindDepthTexture(13);
 
+        // Bind fallback 1x1 textures on material slots
+        if (m_DefaultWhiteTexture) {
+            m_DefaultWhiteTexture->Bind(0);
+            m_DefaultWhiteTexture->Bind(2);
+            m_DefaultWhiteTexture->Bind(3);
+            m_DefaultWhiteTexture->Bind(4);
+        }
+        if (m_DefaultFlatNormalTexture) m_DefaultFlatNormalTexture->Bind(1);
+        if (m_DefaultBlackTexture)      m_DefaultBlackTexture->Bind(5);
+
         // Visible meshes in reflection (minimal material binding, no shadows)
         auto& reg = m_Scene->GetRegistry();
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
@@ -625,38 +650,53 @@ namespace Leon {
             if (reg.all_of<FPBRMaterialComponent>(entity)) {
                 const auto& pbrMat = reg.get<FPBRMaterialComponent>(entity).Material;
 
+                // Slot 0: Albedo Map
                 if (pbrMat.bUseAlbedoMap && pbrMat.AlbedoMap && pbrMat.AlbedoMap->IsLoaded()) {
                     pbrMat.AlbedoMap->Bind(0);
-                    mesh.Shader->SetInt("u_AlbedoMap", 0);
                     mesh.Shader->SetInt("u_UseAlbedoMap", 1);
-                } else { mesh.Shader->SetInt("u_UseAlbedoMap", 0); }
+                } else {
+                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(0);
+                    mesh.Shader->SetInt("u_UseAlbedoMap", 0);
+                }
                 mesh.Shader->SetFloat3("u_AlbedoColor", pbrMat.AlbedoColor.r, pbrMat.AlbedoColor.g, pbrMat.AlbedoColor.b);
 
+                // Slot 1: Normal Map
                 if (pbrMat.bUseNormalMap && pbrMat.NormalMap && pbrMat.NormalMap->IsLoaded()) {
                     pbrMat.NormalMap->Bind(1);
-                    mesh.Shader->SetInt("u_NormalMap", 1);
                     mesh.Shader->SetInt("u_UseNormalMap", 1);
-                } else { mesh.Shader->SetInt("u_UseNormalMap", 0); }
+                } else {
+                    if (m_DefaultFlatNormalTexture) m_DefaultFlatNormalTexture->Bind(1);
+                    mesh.Shader->SetInt("u_UseNormalMap", 0);
+                }
 
+                // Slot 2: Metallic Map
                 if (pbrMat.bUseMetallicMap && pbrMat.MetallicMap && pbrMat.MetallicMap->IsLoaded()) {
                     pbrMat.MetallicMap->Bind(2);
-                    mesh.Shader->SetInt("u_MetallicMap", 2);
                     mesh.Shader->SetInt("u_UseMetallicMap", 1);
-                } else { mesh.Shader->SetInt("u_UseMetallicMap", 0); }
+                } else {
+                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(2);
+                    mesh.Shader->SetInt("u_UseMetallicMap", 0);
+                }
                 mesh.Shader->SetFloat("u_Metallic", pbrMat.Metallic);
 
+                // Slot 3: AO Map
                 if (pbrMat.bUseAOMap && pbrMat.AOMap && pbrMat.AOMap->IsLoaded()) {
                     pbrMat.AOMap->Bind(3);
-                    mesh.Shader->SetInt("u_AOMap", 3);
                     mesh.Shader->SetInt("u_UseAOMap", 1);
-                } else { mesh.Shader->SetInt("u_UseAOMap", 0); }
+                } else {
+                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(3);
+                    mesh.Shader->SetInt("u_UseAOMap", 0);
+                }
                 mesh.Shader->SetFloat("u_AO", pbrMat.AO);
 
+                // Slot 4: Roughness Map
                 if (pbrMat.bUseRoughnessMap && pbrMat.RoughnessMap && pbrMat.RoughnessMap->IsLoaded()) {
                     pbrMat.RoughnessMap->Bind(4);
-                    mesh.Shader->SetInt("u_RoughnessMap", 4);
                     mesh.Shader->SetInt("u_UseRoughnessMap", 1);
-                } else { mesh.Shader->SetInt("u_UseRoughnessMap", 0); }
+                } else {
+                    if (m_DefaultWhiteTexture) m_DefaultWhiteTexture->Bind(4);
+                    mesh.Shader->SetInt("u_UseRoughnessMap", 0);
+                }
                 mesh.Shader->SetFloat("u_Roughness", pbrMat.Roughness);
 
                 // IBL uniforms (slot indices only — textures already bound above)

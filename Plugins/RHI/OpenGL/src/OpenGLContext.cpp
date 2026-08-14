@@ -10,8 +10,8 @@ namespace Leon {
     static void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
                                               GLenum severity, GLsizei /*length*/,
                                               const GLchar* message, const void* /*userParam*/) {
-        // Filter out non-significant notification messages
-        if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+        // Filter out non-significant notification messages and driver texture base-level warnings
+        if (severity == GL_DEBUG_SEVERITY_NOTIFICATION || id == 131204 || id == 131218)
             return;
 
         const char* sourceStr = "Unknown";
