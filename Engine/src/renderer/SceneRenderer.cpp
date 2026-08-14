@@ -495,7 +495,6 @@ namespace Leon {
                 m_SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g, InSkybox->SunColor.b);
                 m_SkyboxShader->SetFloat("u_SunIntensity", InSkybox->SunIntensity);
             }
-            m_SkyboxShader->SetFloat("u_Exposure", InSkybox->Exposure);
             m_SkyboxVA->Bind();
             FRenderCommand::DrawIndexed(m_SkyboxVA);
             FRenderCommand::SetDepthMask(true);
@@ -723,7 +722,6 @@ namespace Leon {
             m_SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g, InSkybox->SunColor.b);
             m_SkyboxShader->SetFloat("u_SunIntensity", InSkybox->SunIntensity);
         }
-        m_SkyboxShader->SetFloat("u_Exposure", InSkybox->Exposure);
 
         m_SkyboxVA->Bind();
         FRenderCommand::DrawIndexed(m_SkyboxVA);

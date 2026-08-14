@@ -254,6 +254,7 @@ layout(std140) uniform LightingData {
 | **20. Clip Bounds en `SampleShadowMap`** | `SampleShadowMap` no validaba $w_{\text{clip}} \le 0$ ni $z_{\text{proj}} < 0$. | Puntos detrás del plano cercano de la luz invertían sus coordenadas y generaban artefactos de sombra espurios. | Validación de $w_{\text{clip}} > 0$ y límites estrictos $[0, 1]$ en NDC para perspectiva. |
 | **21. Margen de FOV en Spot Shadow Frustum** | Frustum ajustado estrictamente a $2 \times \text{OuterCutOff}$ sin margen de filtrado. | El kernel PCF $3\times 3$ muestreaba texels fuera del rango $[0, 1]$ en el borde extremo del cono. | Añadido margen de seguridad de $+2^\circ$ (`fov = 2 * OuterCutOff + 2.0f`). |
 | **22. Plano Lejano Dinámico de Sombra Spot** | `farPlane` fijado a un valor estático de $35\text{ m}$ o $15\text{ m}$. | Desperdicio de rango de profundidad en luces con radio de influencia pequeño. | Ajuste dinámico a `farPlane = max(Radius * 1.05, 1.0)`. |
+| **23. Doble Multiplicación de Exposición en Skybox** | `Skybox.glsl` multiplicaba por `u_Exposure` internamente antes de escribir en el HDR FBO, y luego `PostProcess.glsl` multiplicaba de nuevo por `u_Exposure`. | El cielo y el sol recibían $\text{Exposure}^2$ mientras que la geometría recibía $\text{Exposure}^1$. | Eliminado el multiplicador redundante de `Skybox.glsl`; `PostProcess.glsl` es la única fuente de verdad para la exposición de toda la escena. |
 
 ---
 
