@@ -3,6 +3,7 @@
 #include "renderer/MeshPrimitives.hpp"
 #include "renderer/Renderer.hpp"
 #include "renderer/Shader.hpp"
+#include "renderer/TextRenderer.hpp"
 #include "scene/Components.hpp"
 #include "scene/Entity.hpp"
 
@@ -367,6 +368,24 @@ namespace Leon {
             glDepthMask(GL_TRUE);
             glDepthFunc(GL_LESS);
         }
+
+        // ==========================================
+        // 5. 3D In-World Text Actors Pass (Unreal Engine ATextRenderActor style)
+        // ==========================================
+        auto textView = m_Registry.view<FTransformComponent, FTextComponent>();
+        FTextRenderer::BeginScene(InCamera);
+
+        for (auto entity : textView) {
+            auto [transform, textComp] = textView.get<FTransformComponent, FTextComponent>(entity);
+            if (textComp.Text.empty())
+                continue;
+
+            glm::mat4 model = transform.GetTransform();
+            FTextRenderer::DrawString(textComp.Text, model, textComp.Color, textComp.Size, textComp.Alignment,
+                                      textComp.bDoubleSided);
+        }
+
+        FTextRenderer::EndScene();
     }
 
 } // namespace Leon

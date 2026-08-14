@@ -238,6 +238,65 @@ public:
             m_SpotLightEntity.AddComponent<Leon::FSpotLightComponent>(spotLight);
         }
 
+        // ==========================================
+        // 7. 3D In-World Text Actors (Unreal Engine ATextRenderActor style)
+        // ==========================================
+        // 7.1 Floating Scene Banner Title
+        {
+            auto titleText = m_Scene->CreateEntity("Text Actor - Scene Title");
+            auto& transform = titleText.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(0.0f, 2.8f, -1.8f);
+
+            Leon::FTextComponent textComp;
+            textComp.Text = "LEON ENGINE 2 - PHYSICAL PBR";
+            textComp.Color = glm::vec4(0.35f, 0.88f, 1.0f, 1.0f);
+            textComp.Size = 0.32f;
+            textComp.Alignment = Leon::ETextAlignment::Center;
+            titleText.AddComponent<Leon::FTextComponent>(textComp);
+        }
+
+        // 7.2 Sub-Header Concept Description
+        {
+            auto subtitleText = m_Scene->CreateEntity("Text Actor - Subtitle");
+            auto& transform = subtitleText.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(0.0f, 2.35f, -1.8f);
+
+            Leon::FTextComponent textComp;
+            textComp.Text = "Cook-Torrance Specular | Atmospheric IBL | Dynamic Shadows | Tangent Normal Maps";
+            textComp.Color = glm::vec4(0.85f, 0.88f, 0.92f, 0.9f);
+            textComp.Size = 0.13f;
+            textComp.Alignment = Leon::ETextAlignment::Center;
+            subtitleText.AddComponent<Leon::FTextComponent>(textComp);
+        }
+
+        // 7.3 3D Spatial Primitive Labels floating directly above each actor in world space
+        struct FPrimitiveLabel {
+            glm::vec3 Pos;
+            std::string Name;
+            glm::vec4 Color;
+        };
+
+        std::vector<FPrimitiveLabel> labels = {
+            {glm::vec3(-4.0f, 1.25f, 0.0f), "EMERALD RAMP\n(Modular Wedge)", glm::vec4(0.15f, 1.0f, 0.55f, 1.0f)},
+            {glm::vec3(-2.4f, 1.25f, 0.0f), "TEXTURED CUBE\n(Metal Panel NMap)", glm::vec4(1.0f, 0.85f, 0.30f, 1.0f)},
+            {glm::vec3(-0.8f, 1.25f, 0.0f), "POLISHED GOLD\n(Metallic 1.0)", glm::vec4(1.0f, 0.92f, 0.45f, 1.0f)},
+            {glm::vec3(0.8f, 1.25f, 0.0f), "RUBY DIELECTRIC\n(Dielectric F0)", glm::vec4(1.0f, 0.35f, 0.45f, 1.0f)},
+            {glm::vec3(2.4f, 1.25f, 0.0f), "BRUSHED IRON\n(Brushed Roughness)", glm::vec4(0.78f, 0.85f, 0.95f, 1.0f)},
+            {glm::vec3(4.0f, 1.25f, 0.0f), "COBALT PYRAMID\n(Square Base)", glm::vec4(0.40f, 0.75f, 1.0f, 1.0f)}};
+
+        for (const auto& lbl : labels) {
+            auto labelEntity = m_Scene->CreateEntity("Label - " + lbl.Name);
+            auto& transform = labelEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = lbl.Pos;
+
+            Leon::FTextComponent textComp;
+            textComp.Text = lbl.Name;
+            textComp.Color = lbl.Color;
+            textComp.Size = 0.11f;
+            textComp.Alignment = Leon::ETextAlignment::Center;
+            labelEntity.AddComponent<Leon::FTextComponent>(textComp);
+        }
+
         // Set initial camera position looking down at the stage
         m_CameraController.GetCamera().SetPosition({0.0f, 4.0f, 7.5f});
         m_CameraController.GetCamera().SetRotation(-22.0f, -90.0f);

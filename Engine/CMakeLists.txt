@@ -17,8 +17,10 @@ add_library(LeonEngineCore STATIC
     src/renderer/MeshPrimitives.cpp
     src/renderer/Shader.cpp
     src/renderer/Texture.cpp
+    src/renderer/TextRenderer.cpp
     src/renderer/VertexArray.cpp
     src/renderer/PerspectiveCamera.cpp
+
     src/renderer/PerspectiveCameraController.cpp
     src/scene/Entity.cpp
     src/scene/Scene.cpp

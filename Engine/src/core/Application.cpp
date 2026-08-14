@@ -5,6 +5,7 @@
 #include "renderer/DebugOverlay.hpp"
 #include "renderer/DebugRenderer.hpp"
 #include "renderer/Renderer.hpp"
+#include "renderer/TextRenderer.hpp"
 
 #include <GLFW/glfw3.h>
 
@@ -27,11 +28,13 @@ namespace Leon {
 
         FRenderer::Init();
         FDebugRenderer::Init();
+        FTextRenderer::Init();
         FDebugOverlay::Init();
     }
 
     FApplication::~FApplication() {
         FDebugOverlay::Shutdown();
+        FTextRenderer::Shutdown();
         FDebugRenderer::Shutdown();
         FRenderer::Shutdown();
         s_Instance = nullptr;

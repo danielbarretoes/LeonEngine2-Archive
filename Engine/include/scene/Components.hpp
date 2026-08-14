@@ -154,4 +154,30 @@ namespace Leon {
 
     using SkyboxComponent = FSkyboxComponent;
 
+    /**
+     * @brief Horizontal text justification for 3D In-World Text Actors.
+     */
+    enum class ETextAlignment : uint8_t { Left = 0, Center = 1, Right = 2 };
+
+    /**
+     * @brief 3D In-World Text Mesh Component (analogous to Unreal Engine UTextRenderComponent).
+     * Placed with an FTransformComponent to live in 3D world space at fixed coordinates.
+     */
+    struct FTextComponent {
+        std::string Text = "Text";
+        glm::vec4 Color{1.0f, 1.0f, 1.0f, 1.0f};
+        float Size = 1.0f;        // Height in world space units
+        float LineSpacing = 1.2f; // Line height multiplier
+        ETextAlignment Alignment = ETextAlignment::Center;
+        bool bDoubleSided = true; // Whether text is readable from both sides
+
+        FTextComponent() = default;
+        FTextComponent(const FTextComponent&) = default;
+        FTextComponent(const std::string& InText, const glm::vec4& InColor = glm::vec4(1.0f), float InSize = 1.0f,
+                       ETextAlignment InAlignment = ETextAlignment::Center)
+            : Text(InText), Color(InColor), Size(InSize), Alignment(InAlignment) {}
+    };
+
+    using TextComponent = FTextComponent;
+
 } // namespace Leon
