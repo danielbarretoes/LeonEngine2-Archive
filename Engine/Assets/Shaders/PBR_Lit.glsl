@@ -11,15 +11,16 @@ layout(location = 5) in vec3 aColor;
 out vec3 v_FragPos;
 out vec3 v_Normal;
 out vec2 v_TexCoord;
-out vec4 v_FragPosLightSpace;
 out vec3 v_Color;
 out mat3 v_TBN;
 
 // UBO Binding 0: Camera Data (std140)
 layout(std140) uniform CameraData {
     mat4 u_ViewProjection;
-    mat4 u_LightSpaceMatrix;
+    mat4 u_LightSpaceMatrices[4];
+    mat4 u_SpotLightSpaceMatrix;
     vec4 u_ViewPos;
+    vec4 u_CascadeSplits;
 };
 
 uniform mat4 u_Model;
@@ -40,7 +41,6 @@ void main() {
 
     v_TexCoord = aTexCoord;
     v_Color = aColor;
-    v_FragPosLightSpace = u_LightSpaceMatrix * worldPos;
 
     gl_Position = u_ViewProjection * worldPos;
 }
@@ -53,15 +53,16 @@ layout(location = 0) out vec4 FragColor;
 in vec3 v_FragPos;
 in vec3 v_Normal;
 in vec2 v_TexCoord;
-in vec4 v_FragPosLightSpace;
 in vec3 v_Color;
 in mat3 v_TBN;
 
 // UBO Binding 0: Camera Data (std140)
 layout(std140) uniform CameraData {
     mat4 u_ViewProjection;
-    mat4 u_LightSpaceMatrix;
+    mat4 u_LightSpaceMatrices[4];
+    mat4 u_SpotLightSpaceMatrix;
     vec4 u_ViewPos;
+    vec4 u_CascadeSplits;
 };
 
 // Direct Lighting & Environment Subsystem (std140)
@@ -111,7 +112,12 @@ uniform sampler2D u_NormalMap;
 uniform sampler2D u_MetallicMap;
 uniform sampler2D u_AOMap;
 uniform sampler2D u_RoughnessMap;
-uniform sampler2DShadow u_ShadowMap;
+
+// Cascaded Shadow Maps (CSM) Samplers
+uniform sampler2DShadow u_ShadowMap0;
+uniform sampler2DShadow u_ShadowMap1;
+uniform sampler2DShadow u_ShadowMap2;
+uniform sampler2DShadow u_SpotShadowMap;
 uniform sampler2D u_PlanarReflectionMap;
 
 // Real IBL Maps
@@ -126,6 +132,7 @@ uniform int u_UseMetallicMap;
 uniform int u_UseAOMap;
 uniform int u_UseRoughnessMap;
 uniform int u_UseShadows;
+uniform int u_UseSpotShadows;
 uniform int u_UsePlanarReflection;
 uniform vec2 u_ScreenSize;
 
@@ -174,7 +181,7 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-// 5. Image-Based Lighting (IBL) Atmospheric Environment Functions
+// 5. Image-Based Lighting (IBL) Atmospheric Environment Fallback
 vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
     float height = dir.y;
     vec3 sky;
@@ -186,7 +193,6 @@ vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
         sky = mix(u_EnvHorizonColor.rgb, u_EnvGroundColor.rgb, groundFactor);
     }
 
-    // Solar specular reflection in sky
     if (u_DirLight.direction.w > 0.5) {
         vec3 sunDir = normalize(-u_DirLight.direction.xyz);
         float cosTheta = max(dot(dir, sunDir), 0.0);
@@ -195,41 +201,70 @@ vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
         sky += u_DirLight.color.rgb * sunHalo;
     }
 
-    // Roughness blur effect on specular environment reflection
     vec3 averageEnv = mix(u_EnvSkyColor.rgb, u_EnvHorizonColor.rgb, 0.5);
     return mix(sky, averageEnv, clamp(roughness * 0.7, 0.0, 1.0)) * u_EnvSkyColor.w;
 }
 
 vec3 GetHemisphereIrradiance(vec3 N) {
     float upFactor = N.y * 0.5 + 0.5;
-    vec3 irradiance = mix(u_EnvGroundColor.rgb, u_EnvSkyColor.rgb, upFactor) * u_EnvSkyColor.w;
-    return irradiance;
+    return mix(u_EnvGroundColor.rgb, u_EnvSkyColor.rgb, upFactor) * u_EnvSkyColor.w;
 }
 
-// 6. Hardware PCF Shadow Calculation
-float CalculateShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
-    if (u_UseShadows == 0) return 0.0;
-
+// 6. Hardware PCF Shadow Calculation per Shadow Map
+float SampleShadowMap(sampler2DShadow shadowMap, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = max(0.0015 * (1.0 - dot(normal, lightDir)), 0.0003);
+    float bias = max(0.0012 * (1.0 - dot(normal, lightDir)), 0.0002);
     float currentDepth = projCoords.z - bias;
 
-    // Hardware PCF with 3x3 multi-tap bilinear percentage-closer filtering
     float shadow = 0.0;
-    vec2 texelSize = vec2(1.0) / vec2(textureSize(u_ShadowMap, 0));
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0));
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
-            shadow += texture(u_ShadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, currentDepth));
+            shadow += texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, currentDepth));
         }
     }
-
-    // texture(sampler2DShadow, ...) returns 1.0 for illuminated, 0.0 for shadow
     return 1.0 - (shadow / 9.0);
+}
+
+float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
+    if (u_UseShadows == 0) return 0.0;
+
+    float dist = length(u_ViewPos.xyz - fragPos);
+    int cascadeIndex = 2;
+    if (dist < u_CascadeSplits.x) {
+        cascadeIndex = 0;
+    } else if (dist < u_CascadeSplits.y) {
+        cascadeIndex = 1;
+    }
+
+    vec4 fragPosLightSpace = u_LightSpaceMatrices[cascadeIndex] * vec4(fragPos, 1.0);
+    float shadow = 0.0;
+    if (cascadeIndex == 0) {
+        shadow = SampleShadowMap(u_ShadowMap0, fragPosLightSpace, normal, lightDir);
+    } else if (cascadeIndex == 1) {
+        shadow = SampleShadowMap(u_ShadowMap1, fragPosLightSpace, normal, lightDir);
+    } else {
+        shadow = SampleShadowMap(u_ShadowMap2, fragPosLightSpace, normal, lightDir);
+    }
+
+    // Soft fadeout at far shadow distance
+    if (dist > u_CascadeSplits.z) {
+        float fade = clamp((dist - u_CascadeSplits.z) / 15.0, 0.0, 1.0);
+        shadow = mix(shadow, 0.0, fade);
+    }
+
+    return shadow;
+}
+
+float CalculateSpotShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
+    if (u_UseSpotShadows == 0) return 0.0;
+    vec4 fragPosSpotLightSpace = u_SpotLightSpaceMatrix * vec4(fragPos, 1.0);
+    return SampleShadowMap(u_SpotShadowMap, fragPosSpotLightSpace, normal, lightDir);
 }
 
 void main() {
@@ -276,7 +311,7 @@ void main() {
     // Direct lighting radiance accumulation (Lo)
     vec3 Lo = vec3(0.0);
 
-    // 1. Directional Sunlight with Shadows
+    // 1. Directional Sunlight with Cascaded Shadow Maps (CSM)
     if (u_DirLight.direction.w > 0.5) {
         vec3 L = normalize(-u_DirLight.direction.xyz);
         vec3 H = normalize(V + L);
@@ -295,7 +330,7 @@ void main() {
         kD *= 1.0 - metallic;
 
         float NdotL = max(dot(N, L), 0.0);
-        float shadow = CalculateShadow(v_FragPosLightSpace, N, L);
+        float shadow = CalculateCascadedDirectionalShadow(v_FragPos, N, L);
 
         Lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow);
     }
@@ -333,7 +368,7 @@ void main() {
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
 
-    // 3. Spotlights (Multi-Light Loop)
+    // 3. Spotlights (Multi-Light Loop with Shadow support)
     int spotCount = min(u_LightCounts.y, MAX_SPOT_LIGHTS);
     for (int i = 0; i < spotCount; ++i) {
         if (u_SpotLights[i].position.w < 0.5) continue;
@@ -353,7 +388,8 @@ void main() {
         float epsilon = cutOff - outerCutOff;
         float spotIntensity = clamp((theta - outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
 
-        vec3 radiance = u_SpotLights[i].color.rgb * u_SpotLights[i].attenuation.w * attenuation * spotIntensity;
+        float spotShadow = (i == 0) ? CalculateSpotShadow(v_FragPos, N, L) : 0.0;
+        vec3 radiance = u_SpotLights[i].color.rgb * u_SpotLights[i].attenuation.w * attenuation * spotIntensity * (1.0 - spotShadow);
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
@@ -406,12 +442,10 @@ void main() {
     // 4.3 Real-Time Planar Reflections (Reflecting Scene Objects in Floor)
     if (u_UsePlanarReflection == 1 && N.y > 0.5) {
         vec2 screenUV = gl_FragCoord.xy / u_ScreenSize;
-        // Perturb reflection screen UV with normal map perturbation in XZ
         vec2 perturbedUV = screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness);
         perturbedUV = clamp(perturbedUV, 0.001, 0.999);
         vec3 planarColor = texture(u_PlanarReflectionMap, perturbedUV).rgb;
         
-        // Blend planar reflection over IBL environment specular based on roughness & Fresnel
         float reflectStrength = clamp((1.0 - roughness * 1.1), 0.0, 1.0) * (0.7 + 0.3 * F_IBL.r);
         specularIBL = mix(specularIBL, planarColor * (F_IBL * envBRDF.x + envBRDF.y), reflectStrength);
     }

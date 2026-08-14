@@ -5,6 +5,6 @@ Material:
   Metallic: 0.25
   Roughness: 0.15
   AO: 1.0
-  NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
-  AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
+  NormalMap: "Projects/Sandbox/Content/Assets/Textures/T_MetalPlates_N.png"
+  AOMap: "Projects/Sandbox/Content/Assets/Textures/T_MetalPlates_AO.png"
   UsePlanarReflection: false

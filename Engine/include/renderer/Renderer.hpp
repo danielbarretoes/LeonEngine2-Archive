@@ -30,6 +30,24 @@ namespace Leon {
         static const FRenderStats& GetStats() { return s_Stats; }
         static void ResetStats() { s_Stats.Reset(); }
 
+        static void RecordDrawIndexed(unsigned int InIndexCount, unsigned int InVertexCount) {
+            s_Stats.DrawCalls++;
+            s_Stats.IndexCount += InIndexCount;
+            s_Stats.TriangleCount += InIndexCount / 3;
+            s_Stats.VertexCount += InVertexCount ? InVertexCount : InIndexCount;
+        }
+
+        static void RecordDrawArrays(unsigned int InVertexCount) {
+            s_Stats.DrawCalls++;
+            s_Stats.VertexCount += InVertexCount;
+            s_Stats.TriangleCount += InVertexCount / 3;
+        }
+
+        static void RecordDrawLines(unsigned int InVertexCount) {
+            s_Stats.DrawCalls++;
+            s_Stats.VertexCount += InVertexCount;
+        }
+
         static void OnGPUAlloc(size_t InBytes) { s_Stats.AllocatedGPUMemoryBytes += InBytes; }
         static void OnGPUFree(size_t InBytes) {
             if (s_Stats.AllocatedGPUMemoryBytes >= InBytes)
@@ -50,7 +68,5 @@ namespace Leon {
         static TScope<FSceneData> s_SceneData;
         static FRenderStats s_Stats;
     };
-
-    using Renderer = FRenderer;
 
 } // namespace Leon

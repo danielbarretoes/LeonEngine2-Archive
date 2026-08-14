@@ -23,6 +23,4 @@ namespace Leon {
         static TRef<FVertexArray> Create();
     };
 
-    using VertexArray = FVertexArray;
-
 } // namespace Leon

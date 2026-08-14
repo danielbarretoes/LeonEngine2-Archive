@@ -154,8 +154,16 @@ namespace Leon {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
+        if (bpp != 4) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        }
+
         glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat, m_Width, m_Height, 0, m_DataFormat, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
+
+        if (bpp != 4) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        }
 
         stbi_image_free(data);
 
@@ -173,7 +181,13 @@ namespace Leon {
         uint32_t bpp = (m_DataFormat == GL_RGBA) ? 4 : (m_DataFormat == GL_RGB ? 3 : 1);
         LE_CORE_ASSERT(InSize == m_Width * m_Height * bpp, "Data must be entire texture!");
         glBindTexture(GL_TEXTURE_2D, m_RendererID);
+        if (bpp != 4) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        }
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_UNSIGNED_BYTE, InData);
+        if (bpp != 4) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        }
     }
 
     void FOpenGLTexture2D::Bind(uint32_t InSlot) const {

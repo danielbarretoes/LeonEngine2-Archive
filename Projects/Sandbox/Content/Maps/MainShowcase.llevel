@@ -11,6 +11,8 @@ Environment:
     Exposure: 1.0
     SunIntensity: 3.5
     EnvironmentIntensity: 1.2
+    HDREnvironmentMap: "Projects/Sandbox/Content/Assets/Hdr/AutumnField1k.hdr"
+    UseHDREnvironmentMap: true
     SkyZenithColor: [0.18, 0.44, 0.88]
     HorizonColor: [0.78, 0.84, 0.95]
     GroundColor: [0.22, 0.24, 0.28]

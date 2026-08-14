@@ -95,4 +95,20 @@ namespace Leon {
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
 
+    void FOpenGLTextureCube::SetFaceData(uint32_t InFaceIndex, const void* InData, uint32_t InWidth,
+                                         uint32_t InHeight, uint32_t InMipLevel, bool InbHDR) {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, m_RendererID);
+        GLenum internalFormat = InbHDR ? GL_RGBA16F : GL_RGBA8;
+        GLenum dataFormat = GL_RGBA;
+        GLenum dataType = InbHDR ? GL_FLOAT : GL_UNSIGNED_BYTE;
+
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + InFaceIndex, static_cast<GLint>(InMipLevel), internalFormat,
+                     static_cast<GLsizei>(InWidth), static_cast<GLsizei>(InHeight), 0, dataFormat, dataType, InData);
+    }
+
+    void FOpenGLTextureCube::GenerateMipmaps() {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, m_RendererID);
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    }
+
 } // namespace Leon

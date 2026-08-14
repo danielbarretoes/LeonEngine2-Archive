@@ -5,6 +5,6 @@ Material:
   Metallic: 0.90
   Roughness: 0.08
   AO: 1.0
-  NormalMap: "Projects/Sandbox/Assets/Textures/T_Tiles_N.png"
-  AOMap: "Projects/Sandbox/Assets/Textures/T_Tiles_AO.png"
+  NormalMap: "Projects/Sandbox/Content/Assets/Textures/T_Tiles_N.png"
+  AOMap: "Projects/Sandbox/Content/Assets/Textures/T_Tiles_AO.png"
   UsePlanarReflection: false

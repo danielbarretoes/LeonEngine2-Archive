@@ -26,6 +26,4 @@ namespace Leon {
         TRef<FScene> m_Scene;
     };
 
-    using SceneSerializer = FSceneSerializer;
-
 } // namespace Leon

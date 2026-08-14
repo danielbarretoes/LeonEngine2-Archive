@@ -17,10 +17,12 @@ namespace Leon {
 
     // std140 Camera Buffer (Binding 0)
     struct FCameraBufferData {
-        glm::mat4 ViewProjection{1.0f};    // 64 bytes
-        glm::mat4 LightSpaceMatrix{1.0f};  // 64 bytes
-        glm::vec4 CameraPosition{0.0f};    // 16 bytes (xyz = position, w = padding)
-    }; // Total: 144 bytes
+        glm::mat4 ViewProjection{1.0f};          // 64 bytes
+        glm::mat4 LightSpaceMatrices[4]{1.0f};    // 4 * 64 = 256 bytes
+        glm::mat4 SpotLightSpaceMatrix{1.0f};     // 64 bytes
+        glm::vec4 CameraPosition{0.0f};          // 16 bytes (xyz = position, w = 0)
+        glm::vec4 CascadeSplits{0.0f};           // 16 bytes (x = split0, y = split1, z = split2, w = split3)
+    }; // Total: 416 bytes
 
     // std140 GPU Light Substructures
     struct FGpuDirectionalLight {
@@ -74,11 +76,20 @@ namespace Leon {
         static TRef<FScene> Create();
 
     private:
+        void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera, const FDirectionalLightComponent* InDirLightComp, FCameraBufferData& OutCamData);
+        void RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp, const glm::vec3& InSpotLightPos, FCameraBufferData& OutCamData);
+        void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox, bool bHasDirLight, const FDirectionalLight& InDirLight);
+        void RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight, uint32_t InVpWidth, uint32_t InVpHeight);
+        void RenderSkyboxPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox, bool bHasDirLight, const FDirectionalLight& InDirLight);
+        void RenderPostProcessPass(float InExposure, uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight);
+        void UpdateIBL(const FSkyboxComponent& InSkybox);
+
         entt::registry m_Registry;
         uint32_t m_ViewportWidth = 1280;
         uint32_t m_ViewportHeight = 720;
 
-        TRef<class FFramebuffer> m_ShadowMapFramebuffer;
+        TRef<class FFramebuffer> m_CascadeShadowFramebuffers[3];
+        TRef<class FFramebuffer> m_SpotShadowFramebuffer;
         TRef<class FFramebuffer> m_PlanarReflectionFramebuffer;
         TRef<class FFramebuffer> m_HDRSceneFramebuffer;
         TRef<class FUniformBuffer> m_CameraUBO;
@@ -90,10 +101,10 @@ namespace Leon {
         TRef<class FVertexArray> m_FullscreenQuadVA;
         FIBLEnvironment m_IBLEnvironment;
         bool m_bUseIBL = true;
+        std::string m_LoadedHDRPath;
+        bool m_bEnvironmentGenerated = false;
 
         friend class FEntity;
     };
-
-    using Scene = FScene;
 
 } // namespace Leon

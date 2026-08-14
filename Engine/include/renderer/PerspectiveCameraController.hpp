@@ -47,6 +47,4 @@ namespace Leon {
         bool bFirstMouse = true;
     };
 
-    using PerspectiveCameraController = FPerspectiveCameraController;
-
 } // namespace Leon

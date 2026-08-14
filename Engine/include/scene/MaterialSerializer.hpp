@@ -19,6 +19,4 @@ namespace Leon {
         static bool DeserializeText(const std::string& InText, FPBRMaterial& OutMaterial);
     };
 
-    using MaterialSerializer = FMaterialSerializer;
-
 } // namespace Leon

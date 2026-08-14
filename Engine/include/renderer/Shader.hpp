@@ -27,6 +27,4 @@ namespace Leon {
                                     const std::string& InFragmentSrc);
     };
 
-    using Shader = FShader;
-
 } // namespace Leon

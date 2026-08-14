@@ -24,6 +24,4 @@ namespace Leon {
         static FIBLEnvironment CreateEnvironmentFromSkybox(const FSkyboxComponent& InSkybox);
     };
 
-    using IBLGenerator = FIBLGenerator;
-
 } // namespace Leon

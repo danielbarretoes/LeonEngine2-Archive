@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stb_image.h>
 #include <vector>
 
 namespace Leon {
@@ -123,12 +124,203 @@ namespace Leon {
         return lutTexture;
     }
 
+    static glm::vec3 GetCubeDirection(int face, float u, float v) {
+        switch (face) {
+        case 0: return glm::normalize(glm::vec3( 1.0f,   -v,   -u)); // +X
+        case 1: return glm::normalize(glm::vec3(-1.0f,   -v,    u)); // -X
+        case 2: return glm::normalize(glm::vec3(    u, 1.0f,    v)); // +Y
+        case 3: return glm::normalize(glm::vec3(    u,-1.0f,   -v)); // -Y
+        case 4: return glm::normalize(glm::vec3(    u,   -v, 1.0f)); // +Z
+        case 5: return glm::normalize(glm::vec3(   -u,   -v,-1.0f)); // -Z
+        default: return glm::vec3(0.0f, 1.0f, 0.0f);
+        }
+    }
+
+    static glm::vec3 SampleEquirectangular(const float* InHDRData, int InWidth, int InHeight, glm::vec3 InDir) {
+        if (!InHDRData || InWidth <= 0 || InHeight <= 0)
+            return glm::vec3(0.0f);
+
+        glm::vec3 n = glm::normalize(InDir);
+        float u = 0.5f + std::atan2(n.z, n.x) / (2.0f * PI);
+        float v = 0.5f - std::asin(std::clamp(n.y, -1.0f, 1.0f)) / PI;
+        u = std::clamp(u, 0.0f, 1.0f);
+        v = std::clamp(v, 0.0f, 1.0f);
+
+        int x = std::clamp(static_cast<int>(u * (InWidth - 1)), 0, InWidth - 1);
+        int y = std::clamp(static_cast<int>(v * (InHeight - 1)), 0, InHeight - 1);
+        size_t index = (static_cast<size_t>(y) * InWidth + x) * 4;
+
+        return glm::vec3(InHDRData[index], InHDRData[index + 1], InHDRData[index + 2]);
+    }
+
+    static glm::vec3 SampleAtmosphericSky(const FSkyboxComponent& InSkybox, glm::vec3 InDir) {
+        glm::vec3 n = glm::normalize(InDir);
+        float height = n.y;
+        glm::vec3 sky;
+        if (height >= 0.0f) {
+            float horizonFactor = std::pow(1.0f - height, 4.0f);
+            sky = glm::mix(InSkybox.SkyZenithColor, InSkybox.HorizonColor, horizonFactor);
+        } else {
+            float groundFactor = std::clamp(-height * 3.0f, 0.0f, 1.0f);
+            sky = glm::mix(InSkybox.HorizonColor, InSkybox.GroundColor, groundFactor);
+        }
+        return sky * InSkybox.EnvironmentIntensity;
+    }
+
     FIBLEnvironment FIBLGenerator::CreateEnvironmentFromSkybox(const FSkyboxComponent& InSkybox) {
         FIBLEnvironment env;
         env.BRDFLUT = GenerateBRDFLUT(256);
-        env.EnvironmentCubemap = FTextureCube::Create(256, 256, true);
-        env.IrradianceMap = FTextureCube::Create(64, 64, true);
-        env.PrefilterMap = FTextureCube::Create(128, 128, true);
+
+        // 1. Check if an HDR map is available to load
+        float* hdrData = nullptr;
+        int hdrWidth = 0, hdrHeight = 0, hdrChannels = 0;
+        std::string hdrPath = InSkybox.HDREnvironmentMapPath;
+        if (hdrPath.empty() && InSkybox.HDREnvironmentMap) {
+            hdrPath = InSkybox.HDREnvironmentMap->GetPath();
+        }
+
+        if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
+            stbi_set_flip_vertically_on_load(1);
+            hdrData = stbi_loadf(hdrPath.c_str(), &hdrWidth, &hdrHeight, &hdrChannels, 4);
+            if (hdrData) {
+                LE_CORE_INFO("FIBLGenerator: Convolving HDR Environment Map from '{0}' ({1}x{2})", hdrPath, hdrWidth,
+                             hdrHeight);
+            } else {
+                LE_CORE_WARN("FIBLGenerator: Failed to load HDR image for convolution: '{0}'", hdrPath);
+            }
+        }
+
+        auto SampleSky = [&](glm::vec3 InDir) -> glm::vec3 {
+            if (hdrData) {
+                return SampleEquirectangular(hdrData, hdrWidth, hdrHeight, InDir) * InSkybox.Exposure;
+            }
+            return SampleAtmosphericSky(InSkybox, InDir);
+        };
+
+        // 2. Generate Environment Cubemap (128x128 per face)
+        constexpr uint32_t envSize = 128;
+        env.EnvironmentCubemap = FTextureCube::Create(envSize, envSize, true);
+        {
+            std::vector<float> faceBuffer(envSize * envSize * 4);
+            for (int face = 0; face < 6; ++face) {
+                for (uint32_t y = 0; y < envSize; ++y) {
+                    float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(envSize) - 1.0f;
+                    for (uint32_t x = 0; x < envSize; ++x) {
+                        float u = 2.0f * (static_cast<float>(x) + 0.5f) / static_cast<float>(envSize) - 1.0f;
+                        glm::vec3 dir = GetCubeDirection(face, u, v);
+                        glm::vec3 color = SampleSky(dir);
+
+                        size_t idx = (y * envSize + x) * 4;
+                        faceBuffer[idx + 0] = color.r;
+                        faceBuffer[idx + 1] = color.g;
+                        faceBuffer[idx + 2] = color.b;
+                        faceBuffer[idx + 3] = 1.0f;
+                    }
+                }
+                env.EnvironmentCubemap->SetFaceData(face, faceBuffer.data(), envSize, envSize, 0, true);
+            }
+            env.EnvironmentCubemap->GenerateMipmaps();
+        }
+
+        // 3. Generate Diffuse Irradiance Map (32x32 per face)
+        constexpr uint32_t irradSize = 32;
+        env.IrradianceMap = FTextureCube::Create(irradSize, irradSize, true);
+        {
+            std::vector<float> faceBuffer(irradSize * irradSize * 4);
+            for (int face = 0; face < 6; ++face) {
+                for (uint32_t y = 0; y < irradSize; ++y) {
+                    float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(irradSize) - 1.0f;
+                    for (uint32_t x = 0; x < irradSize; ++x) {
+                        float u = 2.0f * (static_cast<float>(x) + 0.5f) / static_cast<float>(irradSize) - 1.0f;
+                        glm::vec3 N = GetCubeDirection(face, u, v);
+
+                        glm::vec3 up = (std::abs(N.z) < 0.999f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+                        glm::vec3 tangent = glm::normalize(glm::cross(up, N));
+                        glm::vec3 bitangent = glm::cross(N, tangent);
+
+                        glm::vec3 irradiance(0.0f);
+                        float sampleDelta = 0.08f;
+                        float numSamples = 0.0f;
+
+                        for (float phi = 0.0f; phi < 2.0f * PI; phi += sampleDelta) {
+                            for (float theta = 0.0f; theta < 0.5f * PI; theta += sampleDelta) {
+                                glm::vec3 tangentSample = glm::vec3(std::sin(theta) * std::cos(phi),
+                                                                    std::sin(theta) * std::sin(phi),
+                                                                    std::cos(theta));
+                                glm::vec3 sampleVec = tangent * tangentSample.x + bitangent * tangentSample.y + N * tangentSample.z;
+
+                                irradiance += SampleSky(sampleVec) * std::cos(theta) * std::sin(theta);
+                                numSamples += 1.0f;
+                            }
+                        }
+
+                        irradiance = PI * irradiance * (1.0f / numSamples);
+
+                        size_t idx = (y * irradSize + x) * 4;
+                        faceBuffer[idx + 0] = irradiance.r;
+                        faceBuffer[idx + 1] = irradiance.g;
+                        faceBuffer[idx + 2] = irradiance.b;
+                        faceBuffer[idx + 3] = 1.0f;
+                    }
+                }
+                env.IrradianceMap->SetFaceData(face, faceBuffer.data(), irradSize, irradSize, 0, true);
+            }
+        }
+
+        // 4. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8)
+        constexpr uint32_t prefilterBaseSize = 128;
+        constexpr uint32_t maxMipLevels = 5;
+        env.PrefilterMap = FTextureCube::Create(prefilterBaseSize, prefilterBaseSize, true);
+        {
+            for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
+                uint32_t mipSize = prefilterBaseSize >> mip;
+                float roughness = static_cast<float>(mip) / static_cast<float>(maxMipLevels - 1);
+                std::vector<float> faceBuffer(mipSize * mipSize * 4);
+
+                for (int face = 0; face < 6; ++face) {
+                    for (uint32_t y = 0; y < mipSize; ++y) {
+                        float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(mipSize) - 1.0f;
+                        for (uint32_t x = 0; x < mipSize; ++x) {
+                            float u = 2.0f * (static_cast<float>(x) + 0.5f) / static_cast<float>(mipSize) - 1.0f;
+                            glm::vec3 R = GetCubeDirection(face, u, v);
+                            glm::vec3 N = R;
+                            glm::vec3 V = R;
+
+                            const uint32_t SAMPLE_COUNT = 128u;
+                            glm::vec3 prefilteredColor(0.0f);
+                            float totalWeight = 0.0f;
+
+                            for (uint32_t i = 0u; i < SAMPLE_COUNT; ++i) {
+                                glm::vec2 Xi = Hammersley(i, SAMPLE_COUNT);
+                                glm::vec3 H = ImportanceSampleGGX(Xi, N, roughness);
+                                glm::vec3 L = glm::normalize(2.0f * glm::dot(V, H) * H - V);
+
+                                float NdotL = std::max(glm::dot(N, L), 0.0f);
+                                if (NdotL > 0.0f) {
+                                    prefilteredColor += SampleSky(L) * NdotL;
+                                    totalWeight += NdotL;
+                                }
+                            }
+
+                            prefilteredColor = totalWeight > 0.0f ? prefilteredColor / totalWeight : SampleSky(R);
+
+                            size_t idx = (y * mipSize + x) * 4;
+                            faceBuffer[idx + 0] = prefilteredColor.r;
+                            faceBuffer[idx + 1] = prefilteredColor.g;
+                            faceBuffer[idx + 2] = prefilteredColor.b;
+                            faceBuffer[idx + 3] = 1.0f;
+                        }
+                    }
+                    env.PrefilterMap->SetFaceData(face, faceBuffer.data(), mipSize, mipSize, mip, true);
+                }
+            }
+        }
+
+        if (hdrData) {
+            stbi_image_free(hdrData);
+        }
+
+        LE_CORE_INFO("FIBLGenerator: Real Cook-Torrance IBL Environment generated successfully (Cubemap, Irradiance, Prefilter 5 mips, BRDF LUT).");
         return env;
     }
 

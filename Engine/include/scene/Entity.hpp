@@ -59,6 +59,4 @@ namespace Leon {
         FScene* m_Scene = nullptr;
     };
 
-    using Entity = FEntity;
-
 } // namespace Leon

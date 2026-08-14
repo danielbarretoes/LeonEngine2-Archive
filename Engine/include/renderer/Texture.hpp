@@ -23,14 +23,10 @@ namespace Leon {
         virtual bool operator==(const FTexture& InOther) const = 0;
     };
 
-    using Texture = FTexture;
-
     class FTexture2D : public FTexture {
     public:
         static TRef<FTexture2D> Create(uint32_t InWidth, uint32_t InHeight);
         static TRef<FTexture2D> Create(const std::string& InPath);
     };
-
-    using Texture2D = FTexture2D;
 
 } // namespace Leon

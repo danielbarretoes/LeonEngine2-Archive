@@ -33,15 +33,11 @@ namespace Leon {
         virtual TRef<FUniformBuffer> CreateUniformBuffer(unsigned int InSize, unsigned int InBinding) = 0;
     };
 
-    using RenderDriver = IRenderDriver;
-
     class FRenderDriverRegistry {
     public:
         static void RegisterDriver(ERenderAPI InAPI, TScope<IRenderDriver> InDriver);
         static IRenderDriver* GetDriver(ERenderAPI InAPI);
         static IRenderDriver* GetActiveDriver();
     };
-
-    using RenderDriverRegistry = FRenderDriverRegistry;
 
 } // namespace Leon

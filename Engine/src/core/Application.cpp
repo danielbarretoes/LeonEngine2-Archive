@@ -2,6 +2,7 @@
 #include "core/Input.hpp"
 #include "core/Log.hpp"
 #include "core/events/KeyEvent.hpp"
+#include "renderer/AssetManager.hpp"
 #include "renderer/DebugOverlay.hpp"
 #include "renderer/DebugRenderer.hpp"
 #include "renderer/Renderer.hpp"
@@ -27,6 +28,7 @@ namespace Leon {
         m_Window->SetEventCallback(LE_BIND_EVENT_FN(FApplication::OnEvent));
 
         FRenderer::Init();
+        FAssetManager::Init();
         FDebugRenderer::Init();
         FTextRenderer::Init();
         FDebugOverlay::Init();
@@ -36,6 +38,7 @@ namespace Leon {
         FDebugOverlay::Shutdown();
         FTextRenderer::Shutdown();
         FDebugRenderer::Shutdown();
+        FAssetManager::Shutdown();
         FRenderer::Shutdown();
         s_Instance = nullptr;
     }

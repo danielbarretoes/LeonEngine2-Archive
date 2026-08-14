@@ -206,6 +206,13 @@ namespace Leon {
             ss << "    Exposure: " << skybox.Exposure << "\n";
             ss << "    SunIntensity: " << skybox.SunIntensity << "\n";
             ss << "    EnvironmentIntensity: " << skybox.EnvironmentIntensity << "\n";
+            if (skybox.HDREnvironmentMap && !skybox.HDREnvironmentMap->GetPath().empty()) {
+                ss << "    HDREnvironmentMap: \"" << skybox.HDREnvironmentMap->GetPath() << "\"\n";
+                ss << "    UseHDREnvironmentMap: " << (skybox.bUseHDREnvironmentMap ? "true" : "false") << "\n";
+            } else if (!skybox.HDREnvironmentMapPath.empty()) {
+                ss << "    HDREnvironmentMap: \"" << skybox.HDREnvironmentMapPath << "\"\n";
+                ss << "    UseHDREnvironmentMap: " << (skybox.bUseHDREnvironmentMap ? "true" : "false") << "\n";
+            }
             ss << "    SkyZenithColor: [" << skybox.SkyZenithColor.r << ", " << skybox.SkyZenithColor.g << ", "
                << skybox.SkyZenithColor.b << "]\n";
             ss << "    HorizonColor: [" << skybox.HorizonColor.r << ", " << skybox.HorizonColor.g << ", "
@@ -241,6 +248,27 @@ namespace Leon {
             if (m_Scene->GetRegistry().all_of<FMeshComponent>(entity)) {
                 const auto& mesh = m_Scene->GetRegistry().get<FMeshComponent>(entity);
                 ss << "    StaticMesh:\n";
+                ss << "      Type: \"" << mesh.MeshType << "\"\n";
+                if (mesh.MeshType == "Plane") {
+                    ss << "      Width: " << mesh.MeshWidth << "\n";
+                    ss << "      Depth: " << mesh.MeshDepth << "\n";
+                    ss << "      SubdivisionsX: " << mesh.MeshSubdivX << "\n";
+                    ss << "      SubdivisionsZ: " << mesh.MeshSubdivZ << "\n";
+                } else if (mesh.MeshType == "Sphere") {
+                    ss << "      Radius: " << mesh.MeshRadius << "\n";
+                } else if (mesh.MeshType == "Cylinder") {
+                    ss << "      Radius: " << mesh.MeshRadius << "\n";
+                    ss << "      Height: " << mesh.MeshHeight << "\n";
+                } else if (mesh.MeshType == "Ramp" || mesh.MeshType == "Pyramid") {
+                    ss << "      Width: " << mesh.MeshWidth << "\n";
+                    ss << "      Height: " << mesh.MeshHeight << "\n";
+                    ss << "      Depth: " << mesh.MeshDepth << "\n";
+                } else {
+                    ss << "      Size: " << mesh.MeshSize << "\n";
+                }
+                if (!mesh.ShaderPath.empty()) {
+                    ss << "      Shader: \"" << mesh.ShaderPath << "\"\n";
+                }
                 ss << "      CastShadows: " << (mesh.bCastShadows ? "true" : "false") << "\n";
                 ss << "      ReceiveShadows: " << (mesh.bReceiveShadows ? "true" : "false") << "\n";
                 ss << "      VisibleInReflection: " << (mesh.bVisibleInReflection ? "true" : "false") << "\n";
@@ -248,24 +276,29 @@ namespace Leon {
 
             // PBR Material Component
             if (m_Scene->GetRegistry().all_of<FPBRMaterialComponent>(entity)) {
-                const auto& pbr = m_Scene->GetRegistry().get<FPBRMaterialComponent>(entity).Material;
+                const auto& matComp = m_Scene->GetRegistry().get<FPBRMaterialComponent>(entity);
+                const auto& pbr = matComp.Material;
                 ss << "    Material:\n";
-                ss << "      AlbedoColor: [" << pbr.AlbedoColor.r << ", " << pbr.AlbedoColor.g << ", "
-                   << pbr.AlbedoColor.b << "]\n";
-                ss << "      Metallic: " << pbr.Metallic << "\n";
-                ss << "      Roughness: " << pbr.Roughness << "\n";
-                ss << "      AO: " << pbr.AO << "\n";
-                if (pbr.AlbedoMap)
-                    ss << "      AlbedoMap: \"" << pbr.AlbedoMap->GetPath() << "\"\n";
-                if (pbr.NormalMap)
-                    ss << "      NormalMap: \"" << pbr.NormalMap->GetPath() << "\"\n";
-                if (pbr.MetallicMap)
-                    ss << "      MetallicMap: \"" << pbr.MetallicMap->GetPath() << "\"\n";
-                if (pbr.RoughnessMap)
-                    ss << "      RoughnessMap: \"" << pbr.RoughnessMap->GetPath() << "\"\n";
-                if (pbr.AOMap)
-                    ss << "      AOMap: \"" << pbr.AOMap->GetPath() << "\"\n";
-                ss << "      UsePlanarReflection: " << (pbr.bUsePlanarReflection ? "true" : "false") << "\n";
+                if (!matComp.AssetPath.empty()) {
+                    ss << "      Asset: \"" << matComp.AssetPath << "\"\n";
+                } else {
+                    ss << "      AlbedoColor: [" << pbr.AlbedoColor.r << ", " << pbr.AlbedoColor.g << ", "
+                       << pbr.AlbedoColor.b << "]\n";
+                    ss << "      Metallic: " << pbr.Metallic << "\n";
+                    ss << "      Roughness: " << pbr.Roughness << "\n";
+                    ss << "      AO: " << pbr.AO << "\n";
+                    if (pbr.AlbedoMap)
+                        ss << "      AlbedoMap: \"" << pbr.AlbedoMap->GetPath() << "\"\n";
+                    if (pbr.NormalMap)
+                        ss << "      NormalMap: \"" << pbr.NormalMap->GetPath() << "\"\n";
+                    if (pbr.MetallicMap)
+                        ss << "      MetallicMap: \"" << pbr.MetallicMap->GetPath() << "\"\n";
+                    if (pbr.RoughnessMap)
+                        ss << "      RoughnessMap: \"" << pbr.RoughnessMap->GetPath() << "\"\n";
+                    if (pbr.AOMap)
+                        ss << "      AOMap: \"" << pbr.AOMap->GetPath() << "\"\n";
+                    ss << "      UsePlanarReflection: " << (pbr.bUsePlanarReflection ? "true" : "false") << "\n";
+                }
             }
 
             // Directional Light Component
@@ -362,9 +395,6 @@ namespace Leon {
         std::stringstream ss(InText);
         std::string line;
 
-        // Texture and Shader Cache during deserialization
-        static TRef<FShader> defaultPBRShader = FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
-
         struct FActorData {
             std::string Name = "Entity";
             glm::vec3 Translation{0.0f};
@@ -387,6 +417,7 @@ namespace Leon {
 
             bool bHasPBRMaterial = false;
             FPBRMaterial Material;
+            std::string MaterialAssetPath;
 
             bool bHasDirLight = false;
             FDirectionalLight DirLight;
@@ -481,6 +512,12 @@ namespace Leon {
                     skybox.SunIntensity = Utils::ParseFloat(value, 3.5f);
                 else if (key == "EnvironmentIntensity")
                     skybox.EnvironmentIntensity = Utils::ParseFloat(value, 1.2f);
+                else if (key == "HDREnvironmentMap" || key == "HDRMap" || key == "HDR") {
+                    skybox.HDREnvironmentMapPath = Utils::CleanValue(value);
+                    skybox.HDREnvironmentMap = FAssetManager::GetTexture2D(skybox.HDREnvironmentMapPath);
+                    skybox.bUseHDREnvironmentMap = (skybox.HDREnvironmentMap != nullptr);
+                } else if (key == "UseHDREnvironmentMap")
+                    skybox.bUseHDREnvironmentMap = Utils::ParseBool(value, false);
                 else if (key == "SkyZenithColor")
                     skybox.SkyZenithColor = Utils::ParseVec3(value, skybox.SkyZenithColor);
                 else if (key == "HorizonColor")
@@ -531,6 +568,7 @@ namespace Leon {
                     currentActor.bHasPBRMaterial = true;
                     if (key == "Asset" || key == "Path" || key == "File") {
                         std::string matPath = Utils::CleanValue(value);
+                        currentActor.MaterialAssetPath = matPath;
                         auto cachedMat = FAssetManager::GetMaterial(matPath);
                         if (cachedMat) {
                             currentActor.Material = *cachedMat;
@@ -695,6 +733,15 @@ namespace Leon {
                                            ? FAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl")
                                            : FAssetManager::GetShader(actorData.ShaderPath);
                 auto& meshComp = entity.AddComponent<FMeshComponent>(va, shader);
+                meshComp.MeshType = actorData.MeshType;
+                meshComp.MeshSize = actorData.MeshSize;
+                meshComp.MeshWidth = actorData.MeshWidth;
+                meshComp.MeshHeight = actorData.MeshHeight;
+                meshComp.MeshDepth = actorData.MeshDepth;
+                meshComp.MeshRadius = actorData.MeshRadius;
+                meshComp.MeshSubdivX = actorData.MeshSubdivX;
+                meshComp.MeshSubdivZ = actorData.MeshSubdivZ;
+                meshComp.ShaderPath = actorData.ShaderPath;
                 meshComp.bCastShadows = actorData.bCastShadows;
                 meshComp.bReceiveShadows = actorData.bReceiveShadows;
                 meshComp.bVisibleInReflection = actorData.bVisibleInReflection;
@@ -702,7 +749,7 @@ namespace Leon {
 
             // PBR Material
             if (actorData.bHasPBRMaterial) {
-                entity.AddComponent<FPBRMaterialComponent>(actorData.Material);
+                entity.AddComponent<FPBRMaterialComponent>(actorData.Material, actorData.MaterialAssetPath);
             }
 
             // Directional Light

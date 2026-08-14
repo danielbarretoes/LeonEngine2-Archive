@@ -29,21 +29,14 @@ public:
         LE_INFO("  - F1: Toggle Real-time Performance HUD Stats (FPS, RAM, GPU, Tris, Draw Calls)");
         LE_INFO("  - F2: Toggle 3D Light Debug Gizmos (Spot Cones, Point Attenuation Sphere, Sun Vector)");
 
-        // 1. Initialize Offscreen Render Target (FFramebuffer)
-        Leon::FFramebufferSpecification fbSpec;
-        fbSpec.Width = 1280;
-        fbSpec.Height = 720;
-        fbSpec.Attachments = {Leon::EFramebufferTextureFormat::RGBA8, Leon::EFramebufferTextureFormat::Depth};
-        m_Framebuffer = Leon::FFramebuffer::Create(fbSpec);
-
-        // 2. Initialize Scene (ECS) and Deserialize Level from .llevel asset file
+        // 1. Initialize Scene (ECS) and Deserialize Level from .llevel asset file
         m_Scene = Leon::FScene::Create();
         Leon::FSceneSerializer serializer(m_Scene);
         if (!serializer.Deserialize(m_LevelPath)) {
             LE_ERROR("Failed to load startup level: {0}", m_LevelPath);
         }
 
-        // 3. Cache references to dynamic animated entities in the scene
+        // 2. Cache references to dynamic animated entities in the scene
         auto view = m_Scene->GetRegistry().view<Leon::FTagComponent>();
         for (auto entityHandle : view) {
             const auto& tag = view.get<Leon::FTagComponent>(entityHandle);
@@ -68,13 +61,10 @@ public:
     void OnDetach() override { LE_INFO("FLightingShowcaseLayer detached."); }
 
     void OnUpdate(Leon::FTimestep InTs) override {
-        // Synchronize viewport and framebuffer on window resize
+        // Synchronize viewport on window resize
         uint32_t winWidth = Leon::FApplication::Get().GetWindow().GetWidth();
         uint32_t winHeight = Leon::FApplication::Get().GetWindow().GetHeight();
-        if (winWidth > 0 && winHeight > 0 &&
-            (m_Framebuffer->GetSpecification().Width != winWidth ||
-             m_Framebuffer->GetSpecification().Height != winHeight)) {
-            m_Framebuffer->Resize(winWidth, winHeight);
+        if (winWidth > 0 && winHeight > 0) {
             m_CameraController.GetCamera().SetViewportSize(winWidth, winHeight);
             m_Scene->OnViewportResize(winWidth, winHeight);
         }
@@ -113,17 +103,11 @@ public:
         }
 
         // ==========================================
-        // Offscreen Framebuffer Render Pass
+        // Render Scene Pipeline (CSM + Spot + Reflection + PBR + Skybox + Post-Process)
         // ==========================================
-        m_Framebuffer->Bind();
-
-        Leon::FRenderCommand::SetClearColor(0.04f, 0.05f, 0.07f, 1.0f);
-        Leon::FRenderCommand::Clear();
-
-        // Render entire ECS Scene (Depth Shadow Pre-Pass + PBR Main Pass + Atmospheric Skybox)
         m_Scene->OnRender(m_CameraController.GetCamera());
 
-        // Render 3D Light Debug Gizmos (F2 Toggle) inside the Framebuffer
+        // Render 3D Light Debug Gizmos (F2 Toggle)
         if (Leon::FApplication::Get().IsLightGizmosEnabled()) {
             Leon::FDebugRenderer::BeginScene(m_CameraController.GetCamera());
 
@@ -144,20 +128,12 @@ public:
 
             Leon::FDebugRenderer::EndScene();
         }
-
-        m_Framebuffer->Unbind();
-
-        // ==========================================
-        // Present Offscreen Framebuffer to Window
-        // ==========================================
-        m_Framebuffer->BlitToDefault(winWidth, winHeight);
     }
 
     void OnEvent(Leon::FEvent& InEvent) override { m_CameraController.OnEvent(InEvent); }
 
 private:
     std::string m_LevelPath;
-    Leon::TRef<Leon::FFramebuffer> m_Framebuffer;
     Leon::TRef<Leon::FScene> m_Scene;
 
     // Entity References

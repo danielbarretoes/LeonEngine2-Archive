@@ -22,6 +22,10 @@ namespace Leon {
 
         bool IsLoaded() const override { return m_IsLoaded; }
 
+        void SetFaceData(uint32_t InFaceIndex, const void* InData, uint32_t InWidth, uint32_t InHeight,
+                         uint32_t InMipLevel = 0, bool InbHDR = false) override;
+        void GenerateMipmaps() override;
+
     private:
         uint32_t m_Width = 0;
         uint32_t m_Height = 0;
@@ -29,7 +33,5 @@ namespace Leon {
         bool m_IsLoaded = false;
         size_t m_AllocatedBytes = 0;
     };
-
-    using OpenGLTextureCube = FOpenGLTextureCube;
 
 } // namespace Leon

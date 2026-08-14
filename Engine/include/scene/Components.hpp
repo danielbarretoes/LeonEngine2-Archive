@@ -24,8 +24,6 @@ namespace Leon {
         FTagComponent(const std::string& InTag) : Tag(InTag) {}
     };
 
-    using TagComponent = FTagComponent;
-
     struct FTransformComponent {
         glm::vec3 Translation{0.0f, 0.0f, 0.0f};
         glm::vec3 Rotation{0.0f, 0.0f, 0.0f}; // Euler angles in degrees
@@ -41,8 +39,6 @@ namespace Leon {
         }
     };
 
-    using TransformComponent = FTransformComponent;
-
     struct FMeshComponent {
         TRef<FVertexArray> VertexArray;
         TRef<FShader> Shader;
@@ -50,13 +46,22 @@ namespace Leon {
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
 
+        // Mesh geometry metadata for lossless scene serialization
+        std::string MeshType = "Cube";
+        float MeshSize = 1.0f;
+        float MeshWidth = 1.0f;
+        float MeshHeight = 1.0f;
+        float MeshDepth = 1.0f;
+        float MeshRadius = 0.5f;
+        unsigned int MeshSubdivX = 24;
+        unsigned int MeshSubdivZ = 24;
+        std::string ShaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
+
         FMeshComponent() = default;
         FMeshComponent(const FMeshComponent&) = default;
         FMeshComponent(const TRef<FVertexArray>& InVertexArray, const TRef<FShader>& InShader)
             : VertexArray(InVertexArray), Shader(InShader) {}
     };
-
-    using MeshComponent = FMeshComponent;
 
     struct FPBRMaterial {
         glm::vec3 AlbedoColor{1.0f, 1.0f, 1.0f};
@@ -78,17 +83,15 @@ namespace Leon {
         bool bUsePlanarReflection = false;
     };
 
-    using PBRMaterial = FPBRMaterial;
-
     struct FPBRMaterialComponent {
         FPBRMaterial Material;
+        std::string AssetPath; // Track source .lmat file if loaded from asset
 
         FPBRMaterialComponent() = default;
         FPBRMaterialComponent(const FPBRMaterialComponent&) = default;
-        FPBRMaterialComponent(const FPBRMaterial& InMaterial) : Material(InMaterial) {}
+        FPBRMaterialComponent(const FPBRMaterial& InMaterial, const std::string& InAssetPath = "")
+            : Material(InMaterial), AssetPath(InAssetPath) {}
     };
-
-    using PBRMaterialComponent = FPBRMaterialComponent;
 
     struct FDirectionalLightComponent {
         FDirectionalLight Light;
@@ -99,8 +102,6 @@ namespace Leon {
         FDirectionalLightComponent(const FDirectionalLight& InLight) : Light(InLight) {}
     };
 
-    using DirectionalLightComponent = FDirectionalLightComponent;
-
     struct FPointLightComponent {
         FPointLight Light;
         bool bEnabled = true;
@@ -109,8 +110,6 @@ namespace Leon {
         FPointLightComponent(const FPointLightComponent&) = default;
         FPointLightComponent(const FPointLight& InLight) : Light(InLight) {}
     };
-
-    using PointLightComponent = FPointLightComponent;
 
     struct FSpotLightComponent {
         FSpotLight Light;
@@ -121,8 +120,6 @@ namespace Leon {
         FSpotLightComponent(const FSpotLight& InLight) : Light(InLight) {}
     };
 
-    using SpotLightComponent = FSpotLightComponent;
-
     struct FCameraComponent {
         FPerspectiveCamera Camera{45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f};
         bool bPrimary = true;
@@ -132,8 +129,6 @@ namespace Leon {
         FCameraComponent(const FPerspectiveCamera& InCamera) : Camera(InCamera) {}
     };
 
-    using CameraComponent = FCameraComponent;
-
     struct FSkyboxComponent {
         bool bEnabled = true;
         float Exposure = 1.0f;
@@ -141,6 +136,7 @@ namespace Leon {
         float EnvironmentIntensity = 1.2f;
 
         TRef<FTexture2D> HDREnvironmentMap;
+        std::string HDREnvironmentMapPath;
         bool bUseHDREnvironmentMap = false;
 
         glm::vec3 SkyZenithColor{0.18f, 0.44f, 0.88f}; // Deep Atmospheric Sky Blue
@@ -151,8 +147,6 @@ namespace Leon {
         FSkyboxComponent() = default;
         FSkyboxComponent(const FSkyboxComponent&) = default;
     };
-
-    using SkyboxComponent = FSkyboxComponent;
 
     /**
      * @brief Horizontal text justification for 3D In-World Text Actors.
@@ -177,7 +171,5 @@ namespace Leon {
                        ETextAlignment InAlignment = ETextAlignment::Center)
             : Text(InText), Color(InColor), Size(InSize), Alignment(InAlignment) {}
     };
-
-    using TextComponent = FTextComponent;
 
 } // namespace Leon

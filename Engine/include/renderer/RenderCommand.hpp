@@ -69,20 +69,9 @@ namespace Leon {
                 s_RenderAPI->BindFramebuffer(InRendererID);
         }
 
-        static void DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
-            if (s_RenderAPI)
-                s_RenderAPI->DrawArrays(InVertexArray, InVertexCount);
-        }
-
-        static void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0) {
-            if (s_RenderAPI)
-                s_RenderAPI->DrawIndexed(InVertexArray, InIndexCount);
-        }
-
-        static void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
-            if (s_RenderAPI)
-                s_RenderAPI->DrawLines(InVertexArray, InVertexCount);
-        }
+        static void DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount);
+        static void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0);
+        static void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount);
 
         static void SetLineWidth(float InWidth) {
             if (s_RenderAPI)
@@ -100,7 +89,5 @@ namespace Leon {
     private:
         static TScope<IRenderAPI> s_RenderAPI;
     };
-
-    using RenderCommand = FRenderCommand;
 
 } // namespace Leon
