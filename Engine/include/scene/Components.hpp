@@ -46,10 +46,6 @@ namespace Leon {
     struct FMeshComponent {
         TRef<FVertexArray> VertexArray;
         TRef<FShader> Shader;
-        TRef<FTexture2D> Texture;
-        glm::vec4 Color{1.0f, 1.0f, 1.0f, 1.0f};
-        float Tiling = 1.0f;
-        bool bUseTexture = true;
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;

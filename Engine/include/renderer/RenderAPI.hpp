@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Base.hpp"
+#include <string>
 
 namespace Leon {
 
@@ -12,6 +13,30 @@ namespace Leon {
 
     enum class EDepthFunc { Less = 0, LessEqual = 1, Equal = 2, Always = 3 };
     enum class ECullMode { Back = 0, Front = 1, FrontAndBack = 2 };
+    enum class EBlendFactor {
+        Zero = 0,
+        One = 1,
+        SrcColor = 2,
+        OneMinusSrcColor = 3,
+        SrcAlpha = 4,
+        OneMinusSrcAlpha = 5,
+        DstAlpha = 6,
+        OneMinusDstAlpha = 7,
+        DstColor = 8,
+        OneMinusDstColor = 9
+    };
+
+    struct FGPUInfo {
+        std::string Vendor;
+        std::string Renderer;
+        std::string Version;
+        std::string ShadingLanguageVersion;
+    };
+
+    struct FGPUVRAMStats {
+        size_t TotalVRAMBytes = 0;
+        size_t UsedVRAMBytes = 0;
+    };
 
     class IRenderAPI {
     public:
@@ -29,6 +54,7 @@ namespace Leon {
         virtual void SetDepthFunc(EDepthFunc InFunc) = 0;
         virtual void SetCulling(bool InEnabled, ECullMode InMode = ECullMode::Back) = 0;
         virtual void SetBlendState(bool InEnabled) = 0;
+        virtual void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) = 0;
 
         virtual uint32_t GetFramebufferBinding() = 0;
         virtual void BindFramebuffer(uint32_t InRendererID) = 0;
@@ -37,6 +63,9 @@ namespace Leon {
         virtual void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0) = 0;
         virtual void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) = 0;
         virtual void SetLineWidth(float InWidth) = 0;
+
+        virtual FGPUInfo GetGPUInfo() = 0;
+        virtual FGPUVRAMStats GetGPUVRAMStats() = 0;
 
         static ERenderAPI GetAPI() { return s_API; }
         static void SetAPI(ERenderAPI InAPI) { s_API = InAPI; }
@@ -50,3 +79,4 @@ namespace Leon {
     using RenderAPI = IRenderAPI;
 
 } // namespace Leon
+

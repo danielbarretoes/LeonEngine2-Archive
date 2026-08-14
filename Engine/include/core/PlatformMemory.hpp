@@ -1,5 +1,8 @@
 #pragma once
 
+#include "renderer/RenderAPI.hpp"
+
+#include <cstddef>
 #include <string>
 
 namespace Leon {
@@ -11,13 +14,6 @@ namespace Leon {
         size_t AvailablePhysicalBytes = 0;
         size_t DedicatedVideoMemoryBytes = 0; // Total dedicated VRAM
         size_t UsedVideoMemoryBytes = 0;      // VRAM currently in use
-    };
-
-    struct FGPUInfo {
-        std::string Vendor;
-        std::string Renderer;
-        std::string Version;
-        std::string ShadingLanguageVersion;
     };
 
     class FPlatformMemory {

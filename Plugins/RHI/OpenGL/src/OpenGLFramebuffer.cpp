@@ -43,7 +43,7 @@ namespace Leon {
         }
 
         static void AttachDepthTexture(uint32_t InRendererID, int InSamples, GLenum InFormat, GLenum InAttachmentType,
-                                       uint32_t InWidth, uint32_t InHeight) {
+                                       uint32_t InWidth, uint32_t InHeight, bool InbShadowComparison = false) {
             bool isMultisampled = InSamples > 1;
             if (isMultisampled) {
                 glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, InSamples, InFormat, InWidth, InHeight, GL_FALSE);
@@ -53,12 +53,18 @@ namespace Leon {
 
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-                float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-                glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+                if (InbShadowComparison) {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+                    float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
+                    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+                } else {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                }
             }
 
             glFramebufferTexture2D(GL_FRAMEBUFFER, InAttachmentType, TextureTarget(isMultisampled), InRendererID, 0);
@@ -67,6 +73,7 @@ namespace Leon {
         static bool IsDepthFormat(EFramebufferTextureFormat InFormat) {
             switch (InFormat) {
             case EFramebufferTextureFormat::DEPTH24STENCIL8:
+            case EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW:
                 return true;
             default:
                 return false;
@@ -95,6 +102,7 @@ namespace Leon {
             case EFramebufferTextureFormat::RED_INTEGER:
                 return 4;
             case EFramebufferTextureFormat::DEPTH24STENCIL8:
+            case EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW:
                 return 4;
             default:
                 return 0;
@@ -180,7 +188,14 @@ namespace Leon {
             switch (m_DepthAttachmentSpec.TextureFormat) {
             case EFramebufferTextureFormat::DEPTH24STENCIL8:
                 Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH24_STENCIL8,
-                                          GL_DEPTH_STENCIL_ATTACHMENT, m_Specification.Width, m_Specification.Height);
+                                          GL_DEPTH_STENCIL_ATTACHMENT, m_Specification.Width, m_Specification.Height,
+                                          false);
+                totalBytes += m_Specification.Width * m_Specification.Height * 4 * m_Specification.Samples;
+                break;
+            case EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW:
+                Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH24_STENCIL8,
+                                          GL_DEPTH_STENCIL_ATTACHMENT, m_Specification.Width, m_Specification.Height,
+                                          true);
                 totalBytes += m_Specification.Width * m_Specification.Height * 4 * m_Specification.Samples;
                 break;
             default:

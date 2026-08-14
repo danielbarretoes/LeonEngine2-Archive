@@ -55,6 +55,11 @@ namespace Leon {
                 s_RenderAPI->SetBlendState(InEnabled);
         }
 
+        static void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetBlendFunc(InSrc, InDst);
+        }
+
         static uint32_t GetFramebufferBinding() {
             return s_RenderAPI ? s_RenderAPI->GetFramebufferBinding() : 0;
         }
@@ -82,6 +87,14 @@ namespace Leon {
         static void SetLineWidth(float InWidth) {
             if (s_RenderAPI)
                 s_RenderAPI->SetLineWidth(InWidth);
+        }
+
+        static FGPUInfo GetGPUInfo() {
+            return s_RenderAPI ? s_RenderAPI->GetGPUInfo() : FGPUInfo{};
+        }
+
+        static FGPUVRAMStats GetGPUVRAMStats() {
+            return s_RenderAPI ? s_RenderAPI->GetGPUVRAMStats() : FGPUVRAMStats{};
         }
 
     private:

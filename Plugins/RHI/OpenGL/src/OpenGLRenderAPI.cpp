@@ -80,6 +80,72 @@ namespace Leon {
         }
     }
 
+    static GLenum BlendFactorToGL(EBlendFactor InFactor) {
+        switch (InFactor) {
+        case EBlendFactor::Zero:
+            return GL_ZERO;
+        case EBlendFactor::One:
+            return GL_ONE;
+        case EBlendFactor::SrcColor:
+            return GL_SRC_COLOR;
+        case EBlendFactor::OneMinusSrcColor:
+            return GL_ONE_MINUS_SRC_COLOR;
+        case EBlendFactor::SrcAlpha:
+            return GL_SRC_ALPHA;
+        case EBlendFactor::OneMinusSrcAlpha:
+            return GL_ONE_MINUS_SRC_ALPHA;
+        case EBlendFactor::DstAlpha:
+            return GL_DST_ALPHA;
+        case EBlendFactor::OneMinusDstAlpha:
+            return GL_ONE_MINUS_DST_ALPHA;
+        case EBlendFactor::DstColor:
+            return GL_DST_COLOR;
+        case EBlendFactor::OneMinusDstColor:
+            return GL_ONE_MINUS_DST_COLOR;
+        }
+        return GL_ONE;
+    }
+
+    void FOpenGLRenderAPI::SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) {
+        glBlendFunc(BlendFactorToGL(InSrc), BlendFactorToGL(InDst));
+    }
+
+    FGPUInfo FOpenGLRenderAPI::GetGPUInfo() {
+        FGPUInfo info;
+        const char* vendor = (const char*)glGetString(GL_VENDOR);
+        const char* renderer = (const char*)glGetString(GL_RENDERER);
+        const char* version = (const char*)glGetString(GL_VERSION);
+        const char* slVersion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+
+        info.Vendor = vendor ? vendor : "Unknown Vendor";
+        info.Renderer = renderer ? renderer : "Unknown GPU";
+        info.Version = version ? version : "Unknown Version";
+        info.ShadingLanguageVersion = slVersion ? slVersion : "Unknown GLSL";
+        return info;
+    }
+
+    FGPUVRAMStats FOpenGLRenderAPI::GetGPUVRAMStats() {
+        FGPUVRAMStats stats;
+#ifndef GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX
+#define GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX 0x9047
+#endif
+#ifndef GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX
+#define GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX 0x9049
+#endif
+        GLint totalMemKb = 0;
+        GLint curAvailKb = 0;
+        glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, &totalMemKb);
+        glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &curAvailKb);
+
+        if (totalMemKb > 0) {
+            stats.TotalVRAMBytes = static_cast<size_t>(totalMemKb) * 1024;
+            if (curAvailKb > 0 && totalMemKb >= curAvailKb) {
+                stats.UsedVRAMBytes = static_cast<size_t>(totalMemKb - curAvailKb) * 1024;
+            }
+        }
+        return stats;
+    }
+
     uint32_t FOpenGLRenderAPI::GetFramebufferBinding() {
         GLint fbo = 0;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);

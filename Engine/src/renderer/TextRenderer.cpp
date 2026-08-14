@@ -4,7 +4,6 @@
 
 #include <cmath>
 #include <fstream>
-#include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <sstream>
 #include <stb_truetype.h>
@@ -96,10 +95,10 @@ namespace Leon {
             return;
 
         // Enable Alpha Blending with depth testing
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable(GL_DEPTH_TEST);
-        glDepthMask(GL_TRUE);
+        FRenderCommand::SetBlendState(true);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
+        FRenderCommand::SetDepthTesting(true);
+        FRenderCommand::SetDepthMask(true);
 
         s_Shader->Bind();
         s_Shader->SetMat4("u_ViewProjection", glm::value_ptr(s_ViewProjection));
@@ -111,7 +110,7 @@ namespace Leon {
         s_VertexBuffer->SetData(s_Vertices.data(), static_cast<unsigned int>(s_Vertices.size() * sizeof(FTextVertex)));
 
         s_VertexArray->Bind();
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(s_Vertices.size()));
+        FRenderCommand::DrawArrays(s_VertexArray, static_cast<unsigned int>(s_Vertices.size()));
 
         s_Vertices.clear();
     }

@@ -56,13 +56,49 @@ namespace Leon {
         InVertexBuffer->Bind();
 
         const auto& layout = InVertexBuffer->GetLayout();
-        unsigned int index = 0;
         for (const auto& element : layout) {
-            glEnableVertexAttribArray(index);
-            glVertexAttribPointer(index, element.GetComponentCount(), ShaderDataTypeToOpenGLBaseType(element.Type),
-                                  element.bNormalized ? GL_TRUE : GL_FALSE, layout.GetStride(),
-                                  (const void*)element.Offset);
-            index++;
+            switch (element.Type) {
+            case EShaderDataType::Float:
+            case EShaderDataType::Float2:
+            case EShaderDataType::Float3:
+            case EShaderDataType::Float4: {
+                glEnableVertexAttribArray(m_VertexBufferIndex);
+                glVertexAttribPointer(m_VertexBufferIndex, element.GetComponentCount(),
+                                      ShaderDataTypeToOpenGLBaseType(element.Type),
+                                      element.bNormalized ? GL_TRUE : GL_FALSE, layout.GetStride(),
+                                      reinterpret_cast<const void*>(static_cast<uintptr_t>(element.Offset)));
+                m_VertexBufferIndex++;
+                break;
+            }
+            case EShaderDataType::Int:
+            case EShaderDataType::Int2:
+            case EShaderDataType::Int3:
+            case EShaderDataType::Int4:
+            case EShaderDataType::Bool: {
+                glEnableVertexAttribArray(m_VertexBufferIndex);
+                glVertexAttribIPointer(m_VertexBufferIndex, element.GetComponentCount(),
+                                       ShaderDataTypeToOpenGLBaseType(element.Type), layout.GetStride(),
+                                       reinterpret_cast<const void*>(static_cast<uintptr_t>(element.Offset)));
+                m_VertexBufferIndex++;
+                break;
+            }
+            case EShaderDataType::Mat3:
+            case EShaderDataType::Mat4: {
+                uint8_t count = element.GetComponentCount();
+                for (uint8_t i = 0; i < count; i++) {
+                    glEnableVertexAttribArray(m_VertexBufferIndex);
+                    glVertexAttribPointer(m_VertexBufferIndex, count, ShaderDataTypeToOpenGLBaseType(element.Type),
+                                          element.bNormalized ? GL_TRUE : GL_FALSE, layout.GetStride(),
+                                          reinterpret_cast<const void*>(static_cast<uintptr_t>(
+                                              element.Offset + sizeof(float) * count * i)));
+                    glVertexAttribDivisor(m_VertexBufferIndex, 1);
+                    m_VertexBufferIndex++;
+                }
+                break;
+            }
+            case EShaderDataType::None:
+                break;
+            }
         }
 
         m_VertexBuffers.push_back(InVertexBuffer);

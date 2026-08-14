@@ -5,7 +5,6 @@
 #include <cmath>
 #include <format>
 #include <fstream>
-#include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -181,9 +180,9 @@ namespace Leon {
                                      0.0f, -1.0f, 1.0f);
 
         // Disable depth testing and enable standard alpha blending for HUD overlay
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        FRenderCommand::SetDepthTesting(false);
+        FRenderCommand::SetBlendState(true);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
 
         s_Vertices.clear();
 
@@ -262,7 +261,7 @@ namespace Leon {
         Flush(ortho);
 
         // Restore depth testing for subsequent frames / 3D passes
-        glEnable(GL_DEPTH_TEST);
+        FRenderCommand::SetDepthTesting(true);
     }
 
 } // namespace Leon

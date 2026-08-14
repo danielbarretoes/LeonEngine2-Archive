@@ -5,6 +5,7 @@
 #include "OpenGLFramebuffer.hpp"
 #include "OpenGLShader.hpp"
 #include "OpenGLTexture2D.hpp"
+#include "OpenGLTextureCube.hpp"
 #include "OpenGLUniformBuffer.hpp"
 #include "OpenGLVertexArray.hpp"
 
@@ -51,6 +52,14 @@ namespace Leon {
 
     TRef<FTexture2D> FOpenGLRenderDriver::CreateTexture2D(const std::string& InPath) {
         return MakeRef<FOpenGLTexture2D>(InPath);
+    }
+
+    TRef<FTextureCube> FOpenGLRenderDriver::CreateTextureCube(uint32_t InWidth, uint32_t InHeight, bool InbHDR) {
+        return MakeRef<FOpenGLTextureCube>(InWidth, InHeight, InbHDR);
+    }
+
+    TRef<FTextureCube> FOpenGLRenderDriver::CreateTextureCube(const std::vector<std::string>& InFacePaths) {
+        return MakeRef<FOpenGLTextureCube>(InFacePaths);
     }
 
     TRef<FFramebuffer> FOpenGLRenderDriver::CreateFramebuffer(const FFramebufferSpecification& InSpec) {

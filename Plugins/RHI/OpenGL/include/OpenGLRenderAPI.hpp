@@ -16,6 +16,7 @@ namespace Leon {
         void SetDepthFunc(EDepthFunc InFunc) override;
         void SetCulling(bool InEnabled, ECullMode InMode = ECullMode::Back) override;
         void SetBlendState(bool InEnabled) override;
+        void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) override;
 
         uint32_t GetFramebufferBinding() override;
         void BindFramebuffer(uint32_t InRendererID) override;
@@ -24,6 +25,9 @@ namespace Leon {
         void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0) override;
         void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) override;
         void SetLineWidth(float InWidth) override;
+
+        FGPUInfo GetGPUInfo() override;
+        FGPUVRAMStats GetGPUVRAMStats() override;
     };
 
     using OpenGLRenderAPI = FOpenGLRenderAPI;

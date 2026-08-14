@@ -15,6 +15,7 @@ namespace Leon {
 
         // Depth / Stencil Formats
         DEPTH24STENCIL8,
+        DEPTH24STENCIL8_SHADOW,
 
         // Defaults
         Depth = DEPTH24STENCIL8

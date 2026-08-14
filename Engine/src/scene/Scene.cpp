@@ -18,7 +18,7 @@ namespace Leon {
         FFramebufferSpecification shadowSpec;
         shadowSpec.Width = 2048;
         shadowSpec.Height = 2048;
-        shadowSpec.Attachments = {EFramebufferTextureFormat::DEPTH24STENCIL8};
+        shadowSpec.Attachments = {EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW};
         m_ShadowMapFramebuffer = FFramebuffer::Create(shadowSpec);
 
         // 2. Initialize Planar Reflection Framebuffer (Offscreen Target)
@@ -48,6 +48,9 @@ namespace Leon {
 
         m_SkyboxVA = FMeshPrimitives::CreateCube(2.0f);
         m_FullscreenQuadVA = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
+
+        // 6. Initialize IBL Environment & 2D BRDF LUT
+        m_IBLEnvironment = FIBLGenerator::CreateEnvironmentFromSkybox(FSkyboxComponent{});
     }
 
     FScene::~FScene() {
@@ -215,30 +218,62 @@ namespace Leon {
         glm::mat4 lightSpaceMatrix = glm::mat4(1.0f);
 
         if (bHasDirLight && m_ShadowMapFramebuffer && m_ShadowDepthShader) {
-            // Track active camera position and focus on ground plane
-            glm::vec3 camPos = InCamera.GetPosition();
-            glm::vec3 camForward = InCamera.GetForwardDirection();
-            glm::vec3 focusPoint = camPos + camForward * 5.0f;
-            focusPoint.y = 0.0f; // Focus on floor level
+            // Extract 8 corners of the active camera frustum in world space
+            glm::mat4 invCamVP = glm::inverse(InCamera.GetViewProjectionMatrix());
+            std::vector<glm::vec4> frustumCorners;
+            frustumCorners.reserve(8);
+            for (unsigned int x = 0; x < 2; ++x) {
+                for (unsigned int y = 0; y < 2; ++y) {
+                    for (unsigned int z = 0; z < 2; ++z) {
+                        glm::vec4 pt = invCamVP * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                        frustumCorners.push_back(pt / pt.w);
+                    }
+                }
+            }
+
+            // Compute center of frustum
+            glm::vec3 frustumCenter(0.0f);
+            for (const auto& v : frustumCorners) {
+                frustumCenter += glm::vec3(v);
+            }
+            frustumCenter /= 8.0f;
 
             glm::vec3 lightDirNorm = glm::normalize(dirLight.Direction);
-            glm::vec3 lightPos = focusPoint - lightDirNorm * 28.0f;
-            glm::mat4 lightView = glm::lookAt(lightPos, focusPoint, glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::vec3 lightPos = frustumCenter - lightDirNorm * 35.0f;
+            glm::mat4 lightView = glm::lookAt(lightPos, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
-            float shadowExtents = 20.0f;
-            glm::mat4 lightProjection =
-                glm::ortho(-shadowExtents, shadowExtents, -shadowExtents, shadowExtents, 0.1f, 65.0f);
+            // Transform frustum corners into light space and compute tight bounding box
+            float minX = std::numeric_limits<float>::max();
+            float maxX = std::numeric_limits<float>::lowest();
+            float minY = std::numeric_limits<float>::max();
+            float maxY = std::numeric_limits<float>::lowest();
+            float minZ = std::numeric_limits<float>::max();
+            float maxZ = std::numeric_limits<float>::lowest();
 
-            // Texel snapping to eliminate shadow edge shimmering/jitter during camera movement
-            glm::mat4 shadowMatrix = lightProjection * lightView;
-            glm::vec4 shadowOrigin = shadowMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-            shadowOrigin *= (2048.0f / 2.0f);
-            glm::vec4 roundedOrigin = glm::round(shadowOrigin);
-            glm::vec4 roundOffset = (roundedOrigin - shadowOrigin) * (2.0f / 2048.0f);
-            roundOffset.z = 0.0f;
-            roundOffset.w = 0.0f;
+            for (const auto& v : frustumCorners) {
+                glm::vec4 trf = lightView * v;
+                minX = std::min(minX, trf.x);
+                maxX = std::max(maxX, trf.x);
+                minY = std::min(minY, trf.y);
+                maxY = std::max(maxY, trf.y);
+                minZ = std::min(minZ, trf.z);
+                maxZ = std::max(maxZ, trf.z);
+            }
 
-            lightProjection[3] += roundOffset;
+            // Margin for shadow casters outside camera frustum
+            float zMargin = 25.0f;
+            minZ -= zMargin;
+            maxZ += zMargin;
+
+            // Texel snapping to eliminate shadow edge shimmering during camera movement
+            float worldUnitsPerTexelX = (maxX - minX) / 2048.0f;
+            float worldUnitsPerTexelY = (maxY - minY) / 2048.0f;
+            minX = std::floor(minX / worldUnitsPerTexelX) * worldUnitsPerTexelX;
+            maxX = std::floor(maxX / worldUnitsPerTexelX) * worldUnitsPerTexelX;
+            minY = std::floor(minY / worldUnitsPerTexelY) * worldUnitsPerTexelY;
+            maxY = std::floor(maxY / worldUnitsPerTexelY) * worldUnitsPerTexelY;
+
+            glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
             lightSpaceMatrix = lightProjection * lightView;
 
             m_ShadowMapFramebuffer->Bind();
@@ -269,7 +304,7 @@ namespace Leon {
         }
 
         // ==========================================
-        // PASS 2: Real-time Planar Reflection Pass (Ground Mirror)
+        // PASS 2: Real-time Planar Reflection Pass with Oblique Near-Plane Clipping
         // ==========================================
         if (m_PlanarReflectionFramebuffer) {
             glm::vec3 camPos = InCamera.GetPosition();
@@ -280,10 +315,32 @@ namespace Leon {
             mirroredCamera.SetPosition(glm::vec3(camPos.x, -camPos.y, camPos.z));
             mirroredCamera.SetRotation(-pitch, yaw);
 
-            // Upload mirrored camera to std140 Camera UBO (Binding 0)
+            // Lengyel's Oblique Near-Plane Clipping Frustum for arbitrary horizontal plane (Y = 0)
+            glm::vec4 clipPlaneWorld(0.0f, 1.0f, 0.0f, 0.0f);
+            glm::mat4 mirrorView = mirroredCamera.GetViewMatrix();
+            glm::mat4 mirrorProj = mirroredCamera.GetProjectionMatrix();
+
+            glm::vec4 clipPlaneCamera = glm::transpose(glm::inverse(mirrorView)) * clipPlaneWorld;
+            glm::vec4 q(
+                (clipPlaneCamera.x > 0.0f ? 1.0f : -1.0f),
+                (clipPlaneCamera.y > 0.0f ? 1.0f : -1.0f),
+                1.0f,
+                1.0f
+            );
+            q = glm::inverse(mirrorProj) * q;
+
+            glm::vec4 c = clipPlaneCamera * (2.0f / glm::dot(clipPlaneCamera, q));
+            mirrorProj[0][2] = c.x - mirrorProj[0][3];
+            mirrorProj[1][2] = c.y - mirrorProj[1][3];
+            mirrorProj[2][2] = c.z - mirrorProj[2][3];
+            mirrorProj[3][2] = c.w - mirrorProj[3][3];
+
+            glm::mat4 mirroredObliqueVP = mirrorProj * mirrorView;
+
+            // Upload mirrored oblique camera to std140 Camera UBO (Binding 0)
             if (m_CameraUBO) {
                 FCameraBufferData mirrorCamData;
-                mirrorCamData.ViewProjection = mirroredCamera.GetViewProjectionMatrix();
+                mirrorCamData.ViewProjection = mirroredObliqueVP;
                 mirrorCamData.LightSpaceMatrix = lightSpaceMatrix;
                 mirrorCamData.CameraPosition = glm::vec4(mirroredCamera.GetPosition(), 1.0f);
                 m_CameraUBO->SetData(&mirrorCamData, sizeof(FCameraBufferData), 0);
@@ -495,14 +552,23 @@ namespace Leon {
                 }
                 mesh.Shader->SetFloat("u_Roughness", pbrMat.Roughness);
 
-            } else {
-                // Classic Blinn-Phong Diffuse Texture
-                if (mesh.bUseTexture && mesh.Texture && mesh.Texture->IsLoaded()) {
-                    mesh.Texture->Bind(0);
-                    mesh.Shader->SetInt("u_DiffuseMap", 0);
-                    mesh.Shader->SetInt("u_UseTexture", 1);
+                // Image-Based Lighting (IBL) Environment (Slots 7, 8, 9)
+                if (m_bUseIBL && m_IBLEnvironment.BRDFLUT) {
+                    mesh.Shader->SetInt("u_UseIBL", 1);
+                    if (m_IBLEnvironment.IrradianceMap) {
+                        m_IBLEnvironment.IrradianceMap->Bind(7);
+                        mesh.Shader->SetInt("u_IrradianceMap", 7);
+                    }
+                    if (m_IBLEnvironment.PrefilterMap) {
+                        m_IBLEnvironment.PrefilterMap->Bind(8);
+                        mesh.Shader->SetInt("u_PrefilterMap", 8);
+                    }
+                    if (m_IBLEnvironment.BRDFLUT) {
+                        m_IBLEnvironment.BRDFLUT->Bind(9);
+                        mesh.Shader->SetInt("u_BRDFLUT", 9);
+                    }
                 } else {
-                    mesh.Shader->SetInt("u_UseTexture", 0);
+                    mesh.Shader->SetInt("u_UseIBL", 0);
                 }
             }
 

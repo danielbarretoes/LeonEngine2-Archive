@@ -88,7 +88,7 @@ Tooling and build automation scripts follow the official naming standards of the
   - `SandboxApp.cpp`
 ### 4.2 Asset Naming Standards (Unreal Engine Standard)
 - **Shaders (`.glsl`)**: Use `PascalCase` with descriptive purpose and standard lighting models:
-  - `DefaultLit.glsl` (Multi-light Blinn-Phong shading model)
+  - `PBR_Lit.glsl` (Cook-Torrance PBR multi-light model with IBL & ACES)
   - `DebugLine.glsl` (3D debug wireframe gizmo rendering)
   - `DebugFont.glsl` (2D orthographic text & HUD overlay)
 - **Textures (`.png`, `.jpg`)**: Use `T_<Asset>_<Suffix>` prefix:

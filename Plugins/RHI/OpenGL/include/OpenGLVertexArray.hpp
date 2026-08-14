@@ -21,6 +21,7 @@ namespace Leon {
 
     private:
         unsigned int m_RendererID = 0;
+        uint32_t m_VertexBufferIndex = 0;
         std::vector<TRef<FVertexBuffer>> m_VertexBuffers;
         TRef<FIndexBuffer> m_IndexBuffer;
     };

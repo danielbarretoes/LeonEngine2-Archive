@@ -114,6 +114,12 @@ uniform sampler2D u_RoughnessMap;
 uniform sampler2DShadow u_ShadowMap;
 uniform sampler2D u_PlanarReflectionMap;
 
+// Real IBL Maps
+uniform samplerCube u_IrradianceMap;
+uniform samplerCube u_PrefilterMap;
+uniform sampler2D u_BRDFLUT;
+uniform int u_UseIBL;
+
 uniform int u_UseAlbedoMap;
 uniform int u_UseNormalMap;
 uniform int u_UseMetallicMap;
@@ -302,7 +308,13 @@ void main() {
         vec3 L = normalize(u_PointLights[i].position.xyz - v_FragPos);
         vec3 H = normalize(V + L);
         float distance = length(u_PointLights[i].position.xyz - v_FragPos);
-        float attenuation = 1.0 / (u_PointLights[i].attenuation.x + u_PointLights[i].attenuation.y * distance + u_PointLights[i].attenuation.z * (distance * distance));
+        
+        // Physical Inverse-Square Attenuation with smooth range cutoff
+        float radius = u_PointLights[i].attenuation.x > 0.0 ? u_PointLights[i].attenuation.x : 25.0;
+        float distSq = distance * distance;
+        float factor = clamp(1.0 - (distSq * distSq) / (radius * radius * radius * radius), 0.0, 1.0);
+        float attenuation = (factor * factor) / (distSq + 1.0);
+        
         vec3 radiance = u_PointLights[i].color.rgb * u_PointLights[i].attenuation.w * attenuation;
 
         float NDF = DistributionGGX(N, H, roughness);
@@ -329,7 +341,11 @@ void main() {
         vec3 L = normalize(u_SpotLights[i].position.xyz - v_FragPos);
         vec3 H = normalize(V + L);
         float distance = length(u_SpotLights[i].position.xyz - v_FragPos);
-        float attenuation = 1.0 / (u_SpotLights[i].attenuation.x + u_SpotLights[i].attenuation.y * distance + u_SpotLights[i].attenuation.z * (distance * distance));
+        
+        float radius = u_SpotLights[i].attenuation.x > 0.0 ? u_SpotLights[i].attenuation.x : 25.0;
+        float distSq = distance * distance;
+        float factor = clamp(1.0 - (distSq * distSq) / (radius * radius * radius * radius), 0.0, 1.0);
+        float attenuation = (factor * factor) / (distSq + 1.0);
 
         float theta = dot(L, normalize(-u_SpotLights[i].direction.xyz));
         float cutOff = u_SpotLights[i].direction.w;
@@ -364,14 +380,28 @@ void main() {
     vec3 kS_IBL = F_IBL;
     vec3 kD_IBL = (1.0 - kS_IBL) * (1.0 - metallic);
     
-    // 4.1 Indirect Diffuse (Hemisphere Irradiance modulated by AO)
-    vec3 irradiance = GetHemisphereIrradiance(N);
-    vec3 diffuseIBL = irradiance * albedo;
+    vec3 diffuseIBL;
+    vec3 specularIBL;
+    vec2 envBRDF;
 
-    // 4.2 Indirect Specular (Environment Reflection based on Roughness)
-    vec3 prefilteredColor = SampleEnvironmentAtmosphere(R, roughness);
-    vec2 envBRDF = vec2(1.0 - roughness, roughness * 0.5);
-    vec3 specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
+    if (u_UseIBL == 1) {
+        // Real Image-Based Lighting via pre-convolved irradiance, pre-filtered environment maps and 2D BRDF LUT
+        vec3 irradiance = texture(u_IrradianceMap, N).rgb * u_EnvSkyColor.w;
+        diffuseIBL = irradiance * albedo;
+
+        const float MAX_REFLECTION_LOD = 4.0;
+        vec3 prefilteredColor = textureLod(u_PrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb * u_EnvSkyColor.w;
+        envBRDF = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
+        specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
+    } else {
+        // Fallback: Analytical Procedural Atmosphere IBL
+        vec3 irradiance = GetHemisphereIrradiance(N);
+        diffuseIBL = irradiance * albedo;
+
+        vec3 prefilteredColor = SampleEnvironmentAtmosphere(R, roughness);
+        envBRDF = vec2(1.0 - roughness, roughness * 0.5);
+        specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
+    }
 
     // 4.3 Real-Time Planar Reflections (Reflecting Scene Objects in Floor)
     if (u_UsePlanarReflection == 1 && N.y > 0.5) {

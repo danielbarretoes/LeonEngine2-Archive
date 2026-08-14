@@ -9,6 +9,8 @@
 #include <glm/glm.hpp>
 #include <string>
 
+#include "renderer/IBLGenerator.hpp"
+
 namespace Leon {
 
     class FEntity;
@@ -86,6 +88,8 @@ namespace Leon {
         TRef<class FShader> m_PostProcessShader;
         TRef<class FVertexArray> m_SkyboxVA;
         TRef<class FVertexArray> m_FullscreenQuadVA;
+        FIBLEnvironment m_IBLEnvironment;
+        bool m_bUseIBL = true;
 
         friend class FEntity;
     };

@@ -11,10 +11,12 @@ add_library(LeonEngineCore STATIC
     src/renderer/RenderCommand.cpp
     src/renderer/Renderer.cpp
     src/renderer/RenderAPI.cpp
+    src/renderer/AssetManager.cpp
     src/renderer/Buffer.cpp
     src/renderer/Framebuffer.cpp
     src/renderer/DebugRenderer.cpp
     src/renderer/DebugOverlay.cpp
+    src/renderer/IBLGenerator.cpp
     src/renderer/MeshPrimitives.cpp
     src/renderer/Shader.cpp
     src/renderer/Texture.cpp
@@ -25,6 +27,7 @@ add_library(LeonEngineCore STATIC
     src/scene/Entity.cpp
     src/scene/Scene.cpp
     src/scene/SceneSerializer.cpp
+    src/scene/MaterialSerializer.cpp
 )
 
 add_library(Leon::Core ALIAS LeonEngineCore)
@@ -37,7 +40,6 @@ target_include_directories(LeonEngineCore PUBLIC
 target_link_libraries(LeonEngineCore PUBLIC
     glfw
     glm::glm
-    glad
     EnTT::EnTT
 )
 

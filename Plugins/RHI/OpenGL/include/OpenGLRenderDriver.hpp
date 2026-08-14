@@ -17,6 +17,8 @@ namespace Leon {
                                    const std::string& InFragmentSrc) override;
         TRef<FTexture2D> CreateTexture2D(uint32_t InWidth, uint32_t InHeight) override;
         TRef<FTexture2D> CreateTexture2D(const std::string& InPath) override;
+        TRef<class FTextureCube> CreateTextureCube(uint32_t InWidth, uint32_t InHeight, bool InbHDR = false) override;
+        TRef<class FTextureCube> CreateTextureCube(const std::vector<std::string>& InFacePaths) override;
         TRef<FFramebuffer> CreateFramebuffer(const FFramebufferSpecification& InSpec) override;
         TRef<FUniformBuffer> CreateUniformBuffer(unsigned int InSize, unsigned int InBinding) override;
 

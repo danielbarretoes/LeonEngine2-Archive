@@ -85,15 +85,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: false
     Material:
-      AlbedoColor: [0.75, 0.78, 0.82]
-      NormalMap: "Projects/Sandbox/Assets/Textures/T_Tiles_N.png"
-      AOMap: "Projects/Sandbox/Assets/Textures/T_Tiles_AO.png"
-      UseNormalMap: true
-      UseAOMap: true
-      Metallic: 0.08
-      Roughness: 0.18
-      AO: 1.0
-      UsePlanarReflection: true
+      Asset: "Projects/Sandbox/Content/Materials/M_FloorTiles.lmat"
 
   - Name: "PBR Emerald Ramp"
     Transform:
@@ -110,14 +102,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: true
     Material:
-      AlbedoColor: [0.05, 0.85, 0.45]
-      NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
-      AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
-      UseNormalMap: true
-      UseAOMap: true
-      Metallic: 0.25
-      Roughness: 0.15
-      AO: 1.0
+      Asset: "Projects/Sandbox/Content/Materials/M_EmeraldRamp.lmat"
 
   - Name: "PBR Textured Cube"
     Transform:
@@ -132,16 +117,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: true
     Material:
-      AlbedoColor: [1.0, 1.0, 1.0]
-      AlbedoMap: "Projects/Sandbox/Assets/Textures/T_Container_D.png"
-      NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
-      AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
-      UseAlbedoMap: true
-      UseNormalMap: true
-      UseAOMap: true
-      Metallic: 0.65
-      Roughness: 0.18
-      AO: 1.0
+      Asset: "Projects/Sandbox/Content/Materials/M_ContainerCube.lmat"
 
   - Name: "PBR Polished Gold Sphere"
     Transform:
@@ -156,10 +132,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: true
     Material:
-      AlbedoColor: [1.0, 0.78, 0.34]
-      Metallic: 1.0
-      Roughness: 0.05
-      AO: 1.0
+      Asset: "Projects/Sandbox/Content/Materials/M_PolishedGold.lmat"
 
   - Name: "PBR Glossy Ruby Sphere"
     Transform:
@@ -174,10 +147,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: true
     Material:
-      AlbedoColor: [0.92, 0.08, 0.12]
-      Metallic: 0.0
-      Roughness: 0.12
-      AO: 1.0
+      Asset: "Projects/Sandbox/Content/Materials/M_RubyDielectric.lmat"
 
   - Name: "PBR Brushed Iron Cylinder"
     Transform:
@@ -193,14 +163,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: true
     Material:
-      AlbedoColor: [0.56, 0.57, 0.58]
-      NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
-      AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
-      UseNormalMap: true
-      UseAOMap: true
-      Metallic: 0.95
-      Roughness: 0.22
-      AO: 1.0
+      Asset: "Projects/Sandbox/Content/Materials/M_BrushedIron.lmat"
 
   - Name: "PBR Cobalt Pyramid"
     Transform:
@@ -217,14 +180,7 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: true
     Material:
-      AlbedoColor: [0.18, 0.45, 0.95]
-      NormalMap: "Projects/Sandbox/Assets/Textures/T_Tiles_N.png"
-      AOMap: "Projects/Sandbox/Assets/Textures/T_Tiles_AO.png"
-      UseNormalMap: true
-      UseAOMap: true
-      Metallic: 0.90
-      Roughness: 0.08
-      AO: 1.0
+      Asset: "Projects/Sandbox/Content/Materials/M_CobaltPyramid.lmat"
 
   # ==========================================
   # 3D In-World Text Actors

@@ -1,10 +1,12 @@
 #include "scene/SceneSerializer.hpp"
 #include "core/Log.hpp"
+#include "renderer/AssetManager.hpp"
 #include "renderer/MeshPrimitives.hpp"
 #include "renderer/Shader.hpp"
 #include "renderer/Texture.hpp"
 #include "scene/Components.hpp"
 #include "scene/Entity.hpp"
+#include "scene/MaterialSerializer.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -527,7 +529,13 @@ namespace Leon {
                         currentActor.bVisibleInReflection = Utils::ParseBool(value, true);
                 } else if (currentSubBlock == "Material") {
                     currentActor.bHasPBRMaterial = true;
-                    if (key == "Shader")
+                    if (key == "Asset" || key == "Path" || key == "File") {
+                        std::string matPath = Utils::CleanValue(value);
+                        auto cachedMat = FAssetManager::GetMaterial(matPath);
+                        if (cachedMat) {
+                            currentActor.Material = *cachedMat;
+                        }
+                    } else if (key == "Shader")
                         currentActor.ShaderPath = Utils::CleanValue(value);
                     else if (key == "AlbedoColor")
                         currentActor.Material.AlbedoColor = Utils::ParseVec3(value, currentActor.Material.AlbedoColor);
@@ -538,20 +546,20 @@ namespace Leon {
                     else if (key == "AO")
                         currentActor.Material.AO = Utils::ParseFloat(value, 1.0f);
                     else if (key == "AlbedoMap") {
-                        currentActor.Material.AlbedoMap = FTexture2D::Create(Utils::CleanValue(value));
-                        currentActor.Material.bUseAlbedoMap = true;
+                        currentActor.Material.AlbedoMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
+                        currentActor.Material.bUseAlbedoMap = (currentActor.Material.AlbedoMap != nullptr);
                     } else if (key == "NormalMap") {
-                        currentActor.Material.NormalMap = FTexture2D::Create(Utils::CleanValue(value));
-                        currentActor.Material.bUseNormalMap = true;
+                        currentActor.Material.NormalMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
+                        currentActor.Material.bUseNormalMap = (currentActor.Material.NormalMap != nullptr);
                     } else if (key == "MetallicMap") {
-                        currentActor.Material.MetallicMap = FTexture2D::Create(Utils::CleanValue(value));
-                        currentActor.Material.bUseMetallicMap = true;
+                        currentActor.Material.MetallicMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
+                        currentActor.Material.bUseMetallicMap = (currentActor.Material.MetallicMap != nullptr);
                     } else if (key == "RoughnessMap") {
-                        currentActor.Material.RoughnessMap = FTexture2D::Create(Utils::CleanValue(value));
-                        currentActor.Material.bUseRoughnessMap = true;
+                        currentActor.Material.RoughnessMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
+                        currentActor.Material.bUseRoughnessMap = (currentActor.Material.RoughnessMap != nullptr);
                     } else if (key == "AOMap") {
-                        currentActor.Material.AOMap = FTexture2D::Create(Utils::CleanValue(value));
-                        currentActor.Material.bUseAOMap = true;
+                        currentActor.Material.AOMap = FAssetManager::GetTexture2D(Utils::CleanValue(value));
+                        currentActor.Material.bUseAOMap = (currentActor.Material.AOMap != nullptr);
                     } else if (key == "UseAlbedoMap")
                         currentActor.Material.bUseAlbedoMap = Utils::ParseBool(value, false);
                     else if (key == "UseNormalMap")
@@ -683,8 +691,9 @@ namespace Leon {
                     va = FMeshPrimitives::CreateCube(actorData.MeshSize > 0 ? actorData.MeshSize : 1.0f);
                 }
 
-                TRef<FShader> shader =
-                    actorData.ShaderPath.empty() ? defaultPBRShader : FShader::Create(actorData.ShaderPath);
+                TRef<FShader> shader = actorData.ShaderPath.empty()
+                                           ? FAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl")
+                                           : FAssetManager::GetShader(actorData.ShaderPath);
                 auto& meshComp = entity.AddComponent<FMeshComponent>(va, shader);
                 meshComp.bCastShadows = actorData.bCastShadows;
                 meshComp.bReceiveShadows = actorData.bReceiveShadows;

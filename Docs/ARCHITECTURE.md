@@ -52,10 +52,11 @@ LeonEngine2/
 │   │   └── Shaders/                       # Core engine multi-stage shaders
 │   │       ├── DebugFont.glsl             # 2D orthographic font & HUD panel shader
 │   │       ├── DebugLine.glsl             # 3D line & wireframe gizmo shader
-│   │       ├── DefaultLit.glsl            # Multi-light Blinn-Phong shader with shadows
 │   │       ├── PBR_Lit.glsl               # Cook-Torrance PBR multi-light shader with IBL & ACES Tonemapping
+│   │       ├── PostProcess.glsl           # HDR ACES Tonemapping and Gamma correction pass
 │   │       ├── ShadowDepth.glsl           # High-speed depth pre-pass shader for directional shadow maps
-│   │       └── Skybox.glsl                # Atmospheric physical HDR skybox shader (Rayleigh/Mie)
+│   │       ├── Skybox.glsl                # Atmospheric physical HDR skybox shader (Rayleigh/Mie)
+│   │       └── WorldText.glsl             # 3D in-world text geometry shader
 │   ├── include/                           # Public exported headers
 │   │   ├── LeonEngine.hpp                 # Master include header
 │   │   ├── core/                          # Application foundation

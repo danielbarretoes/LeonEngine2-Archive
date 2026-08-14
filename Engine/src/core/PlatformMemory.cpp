@@ -1,22 +1,11 @@
 #include "core/PlatformMemory.hpp"
+#include "renderer/RenderCommand.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
 #include <dxgi.h>
 #include <dxgi1_4.h>
 #include <psapi.h>
-#endif
-
-#include <glad/glad.h>
-
-#ifndef GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX
-#define GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX 0x9047
-#endif
-#ifndef GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX
-#define GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX 0x9048
-#endif
-#ifndef GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX
-#define GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX 0x9049
 #endif
 
 namespace Leon {
@@ -42,17 +31,11 @@ namespace Leon {
         }
 #endif
 
-        // 3. GPU VRAM Telemetry (OpenGL NVX query)
-        GLint totalMemKb = 0;
-        GLint curAvailKb = 0;
-        glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, &totalMemKb);
-        glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &curAvailKb);
-
-        if (totalMemKb > 0) {
-            stats.DedicatedVideoMemoryBytes = static_cast<size_t>(totalMemKb) * 1024;
-            if (curAvailKb > 0 && totalMemKb >= curAvailKb) {
-                stats.UsedVideoMemoryBytes = static_cast<size_t>(totalMemKb - curAvailKb) * 1024;
-            }
+        // 3. GPU VRAM Telemetry from RHI Driver
+        FGPUVRAMStats rhiStats = FRenderCommand::GetGPUVRAMStats();
+        if (rhiStats.TotalVRAMBytes > 0) {
+            stats.DedicatedVideoMemoryBytes = rhiStats.TotalVRAMBytes;
+            stats.UsedVideoMemoryBytes = rhiStats.UsedVRAMBytes;
         }
 
 #ifdef _WIN32
@@ -92,19 +75,7 @@ namespace Leon {
     }
 
     FGPUInfo FPlatformMemory::GetGPUInfo() {
-        FGPUInfo info;
-
-        const char* vendor = (const char*)glGetString(GL_VENDOR);
-        const char* renderer = (const char*)glGetString(GL_RENDERER);
-        const char* version = (const char*)glGetString(GL_VERSION);
-        const char* slVersion = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
-
-        info.Vendor = vendor ? vendor : "Unknown Vendor";
-        info.Renderer = renderer ? renderer : "Unknown GPU";
-        info.Version = version ? version : "Unknown Version";
-        info.ShadingLanguageVersion = slVersion ? slVersion : "Unknown GLSL";
-
-        return info;
+        return FRenderCommand::GetGPUInfo();
     }
 
 } // namespace Leon
