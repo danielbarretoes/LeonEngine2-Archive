@@ -224,6 +224,7 @@ namespace Leon {
         FCameraBufferData mainCamData;
         mainCamData.ViewProjection  = InCamera.GetViewProjectionMatrix();
         mainCamData.CameraPosition  = glm::vec4(InCamera.GetPosition(), 1.0f);
+        mainCamData.CameraForward   = glm::vec4(InCamera.GetForwardDirection(), 0.0f);
 
         // ------------------------------------------------------------------
         // PASS 1: Cascaded Shadow Pass
@@ -354,12 +355,13 @@ namespace Leon {
             minZ -= zMargin;
             maxZ += zMargin;
 
-            float texelSizeX = (maxX - minX) / 2048.0f;
-            float texelSizeY = (maxY - minY) / 2048.0f;
-            minX = std::floor(minX / texelSizeX) * texelSizeX;
-            maxX = std::floor(maxX / texelSizeX) * texelSizeX;
-            minY = std::floor(minY / texelSizeY) * texelSizeY;
-            maxY = std::floor(maxY / texelSizeY) * texelSizeY;
+            float worldUnitsPerTexelX = (maxX - minX) / 2048.0f;
+            minX = std::floor(minX / worldUnitsPerTexelX) * worldUnitsPerTexelX;
+            maxX = minX + 2048.0f * worldUnitsPerTexelX;
+
+            float worldUnitsPerTexelY = (maxY - minY) / 2048.0f;
+            minY = std::floor(minY / worldUnitsPerTexelY) * worldUnitsPerTexelY;
+            maxY = minY + 2048.0f * worldUnitsPerTexelY;
 
             // In OpenGL view space, camera looks along -Z.
             // Points in front of the light have negative Z in lightView.
@@ -460,6 +462,7 @@ namespace Leon {
             FCameraBufferData mirrorCamData;
             mirrorCamData.ViewProjection  = mirroredVP;
             mirrorCamData.CameraPosition  = glm::vec4(mirrorPos, 1.0f);
+            mirrorCamData.CameraForward   = glm::vec4(mirroredCamera.GetForwardDirection(), 0.0f);
             m_CameraUBO->SetData(&mirrorCamData, sizeof(FCameraBufferData), 0);
         }
 
@@ -600,20 +603,9 @@ namespace Leon {
 
             mesh.Shader->Bind();
 
-            // Shadow map uniform bindings (per-object flag only)
-            if (bShadowsAvailable && mesh.bReceiveShadows) {
-                mesh.Shader->SetInt("u_CascadeShadowMap", 10);
-                mesh.Shader->SetInt("u_UseShadows", 1);
-            } else {
-                mesh.Shader->SetInt("u_UseShadows", 0);
-            }
-
-            if (bSpotShadowAvailable && mesh.bReceiveShadows) {
-                mesh.Shader->SetInt("u_SpotShadowMap", 11);
-                mesh.Shader->SetInt("u_UseSpotShadows", 1);
-            } else {
-                mesh.Shader->SetInt("u_UseSpotShadows", 0);
-            }
+            // Shadow map enablement flags (samplers are statically bound to slots 10-11)
+            mesh.Shader->SetInt("u_UseShadows", (bShadowsAvailable && mesh.bReceiveShadows) ? 1 : 0);
+            mesh.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && mesh.bReceiveShadows) ? 1 : 0);
 
             // Planar reflection (slot 5, per-material)
             bool bApplyPlanarReflection = false;
@@ -624,7 +616,6 @@ namespace Leon {
             }
             if (bApplyPlanarReflection) {
                 m_PlanarReflectionFramebuffer->BindTexture(0, 5);
-                mesh.Shader->SetInt("u_PlanarReflectionMap", 5);
                 mesh.Shader->SetInt("u_UsePlanarReflection", 1);
                 mesh.Shader->SetFloat2("u_ScreenSize",
                     static_cast<float>(InVpWidth), static_cast<float>(InVpHeight));
@@ -685,15 +676,8 @@ namespace Leon {
                 }
                 mesh.Shader->SetFloat("u_Roughness", pbrMat.Roughness);
 
-                // IBL uniforms (slot indices only — textures already bound above)
-                if (bIBLAvailable) {
-                    mesh.Shader->SetInt("u_UseIBL", 1);
-                    mesh.Shader->SetInt("u_BRDFLUT", 6);
-                    mesh.Shader->SetInt("u_IrradianceMap", 7);
-                    mesh.Shader->SetInt("u_PrefilterMap", 8);
-                } else {
-                    mesh.Shader->SetInt("u_UseIBL", 0);
-                }
+                // IBL enablement (samplers are statically bound to slots 6-8)
+                mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             }
 
             glm::mat4 model = transform.GetTransform();

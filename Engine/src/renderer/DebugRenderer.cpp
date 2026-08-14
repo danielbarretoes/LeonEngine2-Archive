@@ -47,6 +47,13 @@ namespace Leon {
         if (s_LineVertices.empty() || !s_Shader)
             return;
 
+        // Configure render states for debug wireframe rendering
+        FRenderCommand::SetBlendState(true);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
+        FRenderCommand::SetDepthTesting(false);
+        FRenderCommand::SetDepthMask(false);
+        FRenderCommand::SetCulling(false);
+
         s_Shader->Bind();
         s_Shader->SetMat4("u_ViewProjection", glm::value_ptr(s_ViewProjection));
         s_Shader->SetMat4("u_Model", glm::value_ptr(glm::mat4(1.0f)));
@@ -57,6 +64,10 @@ namespace Leon {
         s_VertexArray->Bind();
         FRenderCommand::SetLineWidth(2.0f);
         FRenderCommand::DrawLines(s_VertexArray, static_cast<unsigned int>(s_LineVertices.size()));
+
+        // Restore standard 3D depth testing defaults
+        FRenderCommand::SetDepthTesting(true);
+        FRenderCommand::SetDepthMask(true);
 
         s_LineVertices.clear();
     }

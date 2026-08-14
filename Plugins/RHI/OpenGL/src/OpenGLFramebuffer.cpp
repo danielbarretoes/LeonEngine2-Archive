@@ -1,6 +1,7 @@
 #include "OpenGLFramebuffer.hpp"
 #include "core/Log.hpp"
 #include "renderer/Renderer.hpp"
+#include "renderer/RenderCommand.hpp"
 
 namespace Leon {
 
@@ -187,12 +188,12 @@ namespace Leon {
     }
 
     void FOpenGLFramebuffer::Bind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-        glViewport(0, 0, m_Specification.Width, m_Specification.Height);
+        FRenderCommand::BindFramebuffer(m_RendererID);
+        FRenderCommand::SetViewport(0, 0, m_Specification.Width, m_Specification.Height);
     }
 
     void FOpenGLFramebuffer::Unbind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        FRenderCommand::BindFramebuffer(0);
     }
 
     void FOpenGLFramebuffer::Resize(uint32_t InWidth, uint32_t InHeight) {

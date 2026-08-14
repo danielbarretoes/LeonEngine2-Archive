@@ -23,14 +23,15 @@ namespace Leon {
     // std140-compatible GPU mirror structs — must match UBO layout exactly.
     // =========================================================================
 
-    /** Binding 0 — Camera / Shadow matrices (416 bytes) */
+    /** Binding 0 — Camera / Shadow matrices (432 bytes) */
     struct FCameraBufferData {
         glm::mat4 ViewProjection{1.0f};           // 64 bytes
         glm::mat4 LightSpaceMatrices[4]{1.0f};    // 4 * 64 = 256 bytes
         glm::mat4 SpotLightSpaceMatrix{1.0f};     // 64 bytes
         glm::vec4 CameraPosition{0.0f};           // 16 bytes (xyz = position, w = 0)
-        glm::vec4 CascadeSplits{0.0f};            // 16 bytes (x=split0, y=split1, z=split2)
-    }; // Total: 416 bytes
+        glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f}; // 16 bytes (xyz = forward dir, w = 0)
+        glm::vec4 CascadeSplits{0.0f};            // 16 bytes (x=split0, y=split1, z=split2, w=farClip)
+    }; // Total: 432 bytes
 
     /** std140 GPU directional light (PBR — single Intensity, no Phong split) */
     struct FGpuDirectionalLight {

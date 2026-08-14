@@ -20,6 +20,7 @@ layout(std140) uniform CameraData {
     mat4 u_LightSpaceMatrices[4];
     mat4 u_SpotLightSpaceMatrix;
     vec4 u_ViewPos;
+    vec4 u_CameraForward;
     vec4 u_CascadeSplits;
 };
 
@@ -63,6 +64,7 @@ layout(std140) uniform CameraData {
     mat4 u_LightSpaceMatrices[4];
     mat4 u_SpotLightSpaceMatrix;
     vec4 u_ViewPos;
+    vec4 u_CameraForward;
     vec4 u_CascadeSplits;
 };
 
@@ -216,7 +218,9 @@ float SampleCascadeShadowMap(sampler2DArrayShadow shadowMap, int cascadeIndex, v
     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = max(0.0012 * (1.0 - dot(normal, lightDir)), 0.0002);
+    // Scale depth bias per cascade to prevent acne in near cascades and peter-panning in distant cascades
+    float cascadeBiasScale = 1.0 + float(cascadeIndex) * 1.5;
+    float bias = max(0.0008 * (1.0 - dot(normal, lightDir)), 0.0001) * cascadeBiasScale;
     float currentDepth = projCoords.z - bias;
 
     float shadow = 0.0;
@@ -252,11 +256,12 @@ float SampleShadowMap(sampler2DShadow shadowMap, vec4 fragPosLightSpace, vec3 no
 float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
     if (u_UseShadows == 0) return 0.0;
 
-    float dist = length(u_ViewPos.xyz - fragPos);
+    // Planar view depth along camera forward axis (matches perspective frustum slices exactly)
+    float depth = dot(fragPos - u_ViewPos.xyz, u_CameraForward.xyz);
     int cascadeIndex = 2;
-    if (dist < u_CascadeSplits.x) {
+    if (depth < u_CascadeSplits.x) {
         cascadeIndex = 0;
-    } else if (dist < u_CascadeSplits.y) {
+    } else if (depth < u_CascadeSplits.y) {
         cascadeIndex = 1;
     }
 
@@ -264,8 +269,8 @@ float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDi
     float shadow = SampleCascadeShadowMap(u_CascadeShadowMap, cascadeIndex, fragPosLightSpace, normal, lightDir);
 
     // Soft fadeout at far shadow distance
-    if (dist > u_CascadeSplits.z) {
-        float fade = clamp((dist - u_CascadeSplits.z) / 15.0, 0.0, 1.0);
+    if (depth > u_CascadeSplits.z) {
+        float fade = clamp((depth - u_CascadeSplits.z) / 15.0, 0.0, 1.0);
         shadow = mix(shadow, 0.0, fade);
     }
 
@@ -451,8 +456,8 @@ void main() {
         specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
     }
 
-    // 4.3 Real-Time Planar Reflections (Reflecting Scene Objects onto Floor Plane)
-    if (u_UsePlanarReflection == 1 && N.y > 0.5) {
+    // 4.3 Real-Time Planar Reflections (Decoupled from hardcoded scene geometry)
+    if (u_UsePlanarReflection == 1) {
         vec2 screenUV = gl_FragCoord.xy / u_ScreenSize;
         vec2 perturbedUV = clamp(screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness), 0.001, 0.999);
         vec3 planarColor = texture(u_PlanarReflectionMap, perturbedUV).rgb;

@@ -108,22 +108,45 @@ public:
         m_Scene->OnRender(m_CameraController.GetCamera());
 
         // Render 3D Light Debug Gizmos (F2 Toggle)
-        if (Leon::FApplication::Get().IsLightGizmosEnabled()) {
+        if (Leon::FApplication::Get().IsLightGizmosEnabled() && m_Scene) {
             Leon::FDebugRenderer::BeginScene(m_CameraController.GetCamera());
 
-            if (m_PointLightEntity && m_PointLightEntity.HasComponent<Leon::FPointLightComponent>()) {
-                const auto& pointComp = m_PointLightEntity.GetComponent<Leon::FPointLightComponent>();
-                Leon::FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
+            auto& reg = m_Scene->GetRegistry();
+
+            auto pointView = reg.view<Leon::FPointLightComponent>();
+            for (auto entity : pointView) {
+                const auto& pointComp = pointView.get<Leon::FPointLightComponent>(entity);
+                if (pointComp.bEnabled) {
+                    Leon::FPointLight light = pointComp.Light;
+                    if (reg.all_of<Leon::FTransformComponent>(entity)) {
+                        light.Position = reg.get<Leon::FTransformComponent>(entity).Translation;
+                    }
+                    Leon::FDebugRenderer::DrawPointLightGizmo(light);
+                }
             }
 
-            if (m_SpotLightEntity && m_SpotLightEntity.HasComponent<Leon::FSpotLightComponent>()) {
-                const auto& spotComp = m_SpotLightEntity.GetComponent<Leon::FSpotLightComponent>();
-                Leon::FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
+            auto spotView = reg.view<Leon::FSpotLightComponent>();
+            for (auto entity : spotView) {
+                const auto& spotComp = spotView.get<Leon::FSpotLightComponent>(entity);
+                if (spotComp.bEnabled) {
+                    Leon::FSpotLight light = spotComp.Light;
+                    if (reg.all_of<Leon::FTransformComponent>(entity)) {
+                        light.Position = reg.get<Leon::FTransformComponent>(entity).Translation;
+                    }
+                    Leon::FDebugRenderer::DrawSpotLightGizmo(light);
+                }
             }
 
-            if (m_DirLightEntity && m_DirLightEntity.HasComponent<Leon::FDirectionalLightComponent>()) {
-                const auto& dirComp = m_DirLightEntity.GetComponent<Leon::FDirectionalLightComponent>();
-                Leon::FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, glm::vec3(0.0f, 3.5f, 0.0f));
+            auto dirView = reg.view<Leon::FDirectionalLightComponent>();
+            for (auto entity : dirView) {
+                const auto& dirComp = dirView.get<Leon::FDirectionalLightComponent>(entity);
+                if (dirComp.bEnabled) {
+                    glm::vec3 pos = glm::vec3(0.0f, 3.5f, 0.0f);
+                    if (reg.all_of<Leon::FTransformComponent>(entity)) {
+                        pos = reg.get<Leon::FTransformComponent>(entity).Translation;
+                    }
+                    Leon::FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, pos);
+                }
             }
 
             Leon::FDebugRenderer::EndScene();
