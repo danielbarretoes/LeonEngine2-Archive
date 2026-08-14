@@ -310,9 +310,7 @@ namespace Leon {
                    << comp.Light.Direction.z << "]\n";
                 ss << "      Color: [" << comp.Light.Color.r << ", " << comp.Light.Color.g << ", " << comp.Light.Color.b
                    << "]\n";
-                ss << "      AmbientIntensity: " << comp.Light.AmbientIntensity << "\n";
-                ss << "      DiffuseIntensity: " << comp.Light.DiffuseIntensity << "\n";
-                ss << "      SpecularIntensity: " << comp.Light.SpecularIntensity << "\n";
+                ss << "      Intensity: " << comp.Light.Intensity << "\n";
             }
 
             // Point Light Component
@@ -322,12 +320,8 @@ namespace Leon {
                 ss << "      Enabled: " << (comp.bEnabled ? "true" : "false") << "\n";
                 ss << "      Color: [" << comp.Light.Color.r << ", " << comp.Light.Color.g << ", " << comp.Light.Color.b
                    << "]\n";
-                ss << "      Constant: " << comp.Light.Constant << "\n";
-                ss << "      Linear: " << comp.Light.Linear << "\n";
-                ss << "      Quadratic: " << comp.Light.Quadratic << "\n";
-                ss << "      AmbientIntensity: " << comp.Light.AmbientIntensity << "\n";
-                ss << "      DiffuseIntensity: " << comp.Light.DiffuseIntensity << "\n";
-                ss << "      SpecularIntensity: " << comp.Light.SpecularIntensity << "\n";
+                ss << "      Intensity: " << comp.Light.Intensity << "\n";
+                ss << "      Radius: " << comp.Light.Radius << "\n";
             }
 
             // Spot Light Component
@@ -339,14 +333,10 @@ namespace Leon {
                    << comp.Light.Direction.z << "]\n";
                 ss << "      Color: [" << comp.Light.Color.r << ", " << comp.Light.Color.g << ", " << comp.Light.Color.b
                    << "]\n";
+                ss << "      Intensity: " << comp.Light.Intensity << "\n";
+                ss << "      Radius: " << comp.Light.Radius << "\n";
                 ss << "      CutOff: " << comp.Light.CutOff << "\n";
                 ss << "      OuterCutOff: " << comp.Light.OuterCutOff << "\n";
-                ss << "      Constant: " << comp.Light.Constant << "\n";
-                ss << "      Linear: " << comp.Light.Linear << "\n";
-                ss << "      Quadratic: " << comp.Light.Quadratic << "\n";
-                ss << "      AmbientIntensity: " << comp.Light.AmbientIntensity << "\n";
-                ss << "      DiffuseIntensity: " << comp.Light.DiffuseIntensity << "\n";
-                ss << "      SpecularIntensity: " << comp.Light.SpecularIntensity << "\n";
             }
 
             // Text Component
@@ -614,30 +604,18 @@ namespace Leon {
                         currentActor.DirLight.Direction = Utils::ParseVec3(value, currentActor.DirLight.Direction);
                     else if (key == "Color")
                         currentActor.DirLight.Color = Utils::ParseVec3(value, currentActor.DirLight.Color);
-                    else if (key == "AmbientIntensity")
-                        currentActor.DirLight.AmbientIntensity = Utils::ParseFloat(value, 0.1f);
-                    else if (key == "DiffuseIntensity")
-                        currentActor.DirLight.DiffuseIntensity = Utils::ParseFloat(value, 3.5f);
-                    else if (key == "SpecularIntensity")
-                        currentActor.DirLight.SpecularIntensity = Utils::ParseFloat(value, 1.0f);
+                    else if (key == "Intensity" || key == "DiffuseIntensity")
+                        currentActor.DirLight.Intensity = Utils::ParseFloat(value, 3.5f);
                 } else if (currentSubBlock == "PointLight") {
                     currentActor.bHasPointLight = true;
                     if (key == "Enabled")
                         currentActor.bPointLightEnabled = Utils::ParseBool(value, true);
                     else if (key == "Color")
                         currentActor.PointLight.Color = Utils::ParseVec3(value, currentActor.PointLight.Color);
-                    else if (key == "Constant")
-                        currentActor.PointLight.Constant = Utils::ParseFloat(value, 1.0f);
-                    else if (key == "Linear")
-                        currentActor.PointLight.Linear = Utils::ParseFloat(value, 0.09f);
-                    else if (key == "Quadratic")
-                        currentActor.PointLight.Quadratic = Utils::ParseFloat(value, 0.032f);
-                    else if (key == "AmbientIntensity")
-                        currentActor.PointLight.AmbientIntensity = Utils::ParseFloat(value, 0.05f);
-                    else if (key == "DiffuseIntensity")
-                        currentActor.PointLight.DiffuseIntensity = Utils::ParseFloat(value, 4.0f);
-                    else if (key == "SpecularIntensity")
-                        currentActor.PointLight.SpecularIntensity = Utils::ParseFloat(value, 1.0f);
+                    else if (key == "Intensity" || key == "DiffuseIntensity")
+                        currentActor.PointLight.Intensity = Utils::ParseFloat(value, 8.0f);
+                    else if (key == "Radius")
+                        currentActor.PointLight.Radius = Utils::ParseFloat(value, 10.0f);
                 } else if (currentSubBlock == "SpotLight") {
                     currentActor.bHasSpotLight = true;
                     if (key == "Enabled")
@@ -646,22 +624,14 @@ namespace Leon {
                         currentActor.SpotLight.Direction = Utils::ParseVec3(value, currentActor.SpotLight.Direction);
                     else if (key == "Color")
                         currentActor.SpotLight.Color = Utils::ParseVec3(value, currentActor.SpotLight.Color);
+                    else if (key == "Intensity" || key == "DiffuseIntensity")
+                        currentActor.SpotLight.Intensity = Utils::ParseFloat(value, 10.0f);
+                    else if (key == "Radius")
+                        currentActor.SpotLight.Radius = Utils::ParseFloat(value, 10.0f);
                     else if (key == "CutOff")
                         currentActor.SpotLight.CutOff = Utils::ParseFloat(value, 18.0f);
                     else if (key == "OuterCutOff")
                         currentActor.SpotLight.OuterCutOff = Utils::ParseFloat(value, 26.0f);
-                    else if (key == "Constant")
-                        currentActor.SpotLight.Constant = Utils::ParseFloat(value, 1.0f);
-                    else if (key == "Linear")
-                        currentActor.SpotLight.Linear = Utils::ParseFloat(value, 0.09f);
-                    else if (key == "Quadratic")
-                        currentActor.SpotLight.Quadratic = Utils::ParseFloat(value, 0.032f);
-                    else if (key == "AmbientIntensity")
-                        currentActor.SpotLight.AmbientIntensity = Utils::ParseFloat(value, 0.0f);
-                    else if (key == "DiffuseIntensity")
-                        currentActor.SpotLight.DiffuseIntensity = Utils::ParseFloat(value, 4.5f);
-                    else if (key == "SpecularIntensity")
-                        currentActor.SpotLight.SpecularIntensity = Utils::ParseFloat(value, 1.0f);
                 } else if (currentSubBlock == "Text") {
                     currentActor.bHasText = true;
                     if (key == "Content" || key == "Text")

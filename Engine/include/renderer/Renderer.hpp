@@ -1,31 +1,19 @@
 #pragma once
 
-#include "renderer/PerspectiveCamera.hpp"
 #include "renderer/RenderCommand.hpp"
-#include "renderer/Shader.hpp"
-#include "renderer/VertexArray.hpp"
-
 #include "renderer/RenderStats.hpp"
 
 namespace Leon {
 
+    /**
+     * @brief Centralized render stats tracker and GPU memory accounting.
+     * Draw submission now lives in FSceneRenderer. This class only tracks metrics.
+     */
     class FRenderer {
     public:
         static void Init();
         static void Shutdown();
-
         static void OnWindowResize(unsigned int InWidth, unsigned int InHeight);
-
-        static void BeginScene(const FPerspectiveCamera& InCamera);
-        static void BeginScene();
-        static void EndScene();
-
-        static void Submit(const TRef<FShader>& InShader, const TRef<FVertexArray>& InVertexArray,
-                           unsigned int InVertexCount = 0);
-        static void SubmitIndexed(const TRef<FShader>& InShader, const TRef<FVertexArray>& InVertexArray,
-                                  unsigned int InIndexCount = 0);
-        static void SubmitLines(const TRef<FShader>& InShader, const TRef<FVertexArray>& InVertexArray,
-                                unsigned int InVertexCount);
 
         static const FRenderStats& GetStats() { return s_Stats; }
         static void ResetStats() { s_Stats.Reset(); }
@@ -60,12 +48,6 @@ namespace Leon {
         static ERenderAPI GetAPI() { return IRenderAPI::GetAPI(); }
 
     private:
-        struct FSceneData {
-            glm::mat4 ViewProjectionMatrix = glm::mat4(1.0f);
-            glm::vec3 CameraPosition = glm::vec3(0.0f);
-        };
-
-        static TScope<FSceneData> s_SceneData;
         static FRenderStats s_Stats;
     };
 

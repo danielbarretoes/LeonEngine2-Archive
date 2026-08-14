@@ -33,6 +33,7 @@
 #include "renderer/RenderStats.hpp"
 #include "renderer/Renderer.hpp"
 #include "renderer/Shader.hpp"
+#include "renderer/SceneRenderer.hpp"
 #include "renderer/TextRenderer.hpp"
 #include "renderer/Texture.hpp"
 #include "renderer/VertexArray.hpp"

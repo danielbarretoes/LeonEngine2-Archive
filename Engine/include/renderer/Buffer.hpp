@@ -12,7 +12,7 @@ namespace Leon {
 
     using ShaderDataType = EShaderDataType;
 
-    static unsigned int ShaderDataTypeSize(EShaderDataType InType) {
+    inline unsigned int ShaderDataTypeSize(EShaderDataType InType) {
         switch (InType) {
         case EShaderDataType::Float:
             return 4;

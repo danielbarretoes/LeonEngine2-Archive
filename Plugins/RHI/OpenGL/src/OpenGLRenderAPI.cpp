@@ -6,8 +6,9 @@
 namespace Leon {
 
     void FOpenGLRenderAPI::Init() {
-        glEnable(GL_BLEND);
+        // Default blend: SrcAlpha / OneMinusSrcAlpha — set once at init
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
     }
 
@@ -72,12 +73,11 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetBlendState(bool InEnabled) {
-        if (InEnabled) {
+        // Only toggle blend enable/disable — blend function is set separately via SetBlendFunc()
+        if (InEnabled)
             glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        } else {
+        else
             glDisable(GL_BLEND);
-        }
     }
 
     static GLenum BlendFactorToGL(EBlendFactor InFactor) {

@@ -210,6 +210,10 @@ namespace Leon {
         glUniform4f(GetUniformLocation(InName), InX, InY, InZ, InW);
     }
 
+    void FOpenGLShader::SetMat3(const std::string& InName, const float* InMatrix) {
+        glUniformMatrix3fv(GetUniformLocation(InName), 1, GL_FALSE, InMatrix);
+    }
+
     void FOpenGLShader::SetMat4(const std::string& InName, const float* InMatrix) {
         glUniformMatrix4fv(GetUniformLocation(InName), 1, GL_FALSE, InMatrix);
     }

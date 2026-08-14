@@ -22,6 +22,7 @@ namespace Leon {
         void SetFloat3(const std::string& InName, float InX, float InY, float InZ) override;
 
         void SetFloat4(const std::string& InName, float InX, float InY, float InZ, float InW) override;
+        void SetMat3(const std::string& InName, const float* InMatrix) override;
         void SetMat4(const std::string& InName, const float* InMatrix) override;
 
         const std::string& GetName() const override { return m_Name; }

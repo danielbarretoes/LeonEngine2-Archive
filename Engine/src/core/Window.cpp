@@ -43,12 +43,16 @@ namespace Leon {
             glfwSetErrorCallback(GLFWErrorCallback);
         }
 
-        // Standard modern context profile hints
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        // OpenGL 4.5 Core Profile
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+#ifndef NDEBUG
+        // Enable OpenGL debug context in Debug builds for glDebugMessageCallback validation
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
 
         m_Window = glfwCreateWindow((int)InProps.Width, (int)InProps.Height, m_Data.Title.c_str(), nullptr, nullptr);

@@ -1,5 +1,5 @@
 #type vertex
-#version 330 core
+#version 450 core
 
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNormal;
@@ -24,29 +24,30 @@ layout(std140) uniform CameraData {
 };
 
 uniform mat4 u_Model;
+// Normal matrix pre-computed CPU-side to avoid per-vertex GPU inverse (audit fix MEDIO-05)
+uniform mat3 u_NormalMatrix;
 
 void main() {
     vec4 worldPos = u_Model * vec4(aPos, 1.0);
     v_FragPos = worldPos.xyz;
-    
-    // Normal matrix for non-uniform scaling
-    mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
-    vec3 N = normalize(normalMatrix * aNormal);
-    vec3 T = normalize(normalMatrix * aTangent);
+
+    // Use CPU-pre-computed normal matrix (no inverse on GPU)
+    vec3 N = normalize(u_NormalMatrix * aNormal);
+    vec3 T = normalize(u_NormalMatrix * aTangent);
     T = normalize(T - dot(T, N) * N);
-    vec3 B = normalize(normalMatrix * aBitangent);
+    vec3 B = normalize(u_NormalMatrix * aBitangent);
     B = normalize(B - dot(B, N) * N - dot(B, T) * T);
     v_TBN = mat3(T, B, N);
     v_Normal = N;
 
     v_TexCoord = aTexCoord;
-    v_Color = aColor;
+    v_Color    = aColor;
 
     gl_Position = u_ViewProjection * worldPos;
 }
 
 #type fragment
-#version 330 core
+#version 450 core
 
 layout(location = 0) out vec4 FragColor;
 
@@ -66,25 +67,23 @@ layout(std140) uniform CameraData {
 };
 
 // Direct Lighting & Environment Subsystem (std140)
+// PBR-correct: single Intensity per light — no Phong Ambient/Diffuse/Specular split (audit fix ALTO-05)
 struct DirectionalLight {
-    vec4 direction;        // xyz = dir, w = enabled (1.0 or 0.0)
-    vec4 color;            // xyz = color, w = ambientIntensity
-    vec4 intensities;      // x = diffuseIntensity, y = specularIntensity, zw = padding
+    vec4 direction;   // xyz = dir (normalized), w = enabled (1.0 / 0.0)
+    vec4 color;       // xyz = color, w = intensity (radiance multiplier)
 };
 
 struct PointLight {
-    vec4 position;         // xyz = pos, w = enabled
-    vec4 color;            // xyz = color, w = ambientIntensity
-    vec4 attenuation;      // x = constant, y = linear, z = quadratic, w = diffuseIntensity
-    vec4 params;           // x = specularIntensity, yzw = padding
+    vec4 position;    // xyz = pos, w = enabled (1.0 / 0.0)
+    vec4 color;       // xyz = color, w = intensity
+    vec4 params;      // x = radius (UE4 inverse-square falloff), yzw = 0
 };
 
 struct SpotLight {
-    vec4 position;         // xyz = pos, w = enabled
-    vec4 direction;        // xyz = dir, w = cutOff (cos)
-    vec4 color;            // xyz = color, w = outerCutOff (cos)
-    vec4 attenuation;      // x = constant, y = linear, z = quadratic, w = diffuseIntensity
-    vec4 params;           // x = ambientIntensity, y = specularIntensity, zw = padding
+    vec4 position;    // xyz = pos, w = enabled (1.0 / 0.0)
+    vec4 direction;   // xyz = dir, w = cutOff (cos)
+    vec4 color;       // xyz = color, w = outerCutOff (cos)
+    vec4 params;      // x = radius, y = intensity, zw = 0
 };
 
 #define MAX_POINT_LIGHTS 16
@@ -311,23 +310,23 @@ void main() {
     // Direct lighting radiance accumulation (Lo)
     vec3 Lo = vec3(0.0);
 
-    // 1. Directional Sunlight with Cascaded Shadow Maps (CSM)
+    // 1. Directional Sunlight — single radiance = color * intensity (PBR-correct)
     if (u_DirLight.direction.w > 0.5) {
         vec3 L = normalize(-u_DirLight.direction.xyz);
         vec3 H = normalize(V + L);
-        vec3 radiance = u_DirLight.color.rgb * u_DirLight.intensities.x;
+        // Radiance: color * intensity (one physical quantity, no Phong split)
+        vec3 radiance = u_DirLight.color.rgb * u_DirLight.color.w;
 
         float NDF = DistributionGGX(N, H, roughness);
-        float G = GeometrySmith(N, V, L, roughness);
-        vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+        float G   = GeometrySmith(N, V, L, roughness);
+        vec3  F   = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
-        vec3 numerator = NDF * G * F;
+        vec3  numerator   = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_DirLight.intensities.y;
+        vec3  specular    = numerator / denominator;
 
         vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
 
         float NdotL = max(dot(N, L), 0.0);
         float shadow = CalculateCascadedDirectionalShadow(v_FragPos, N, L);
@@ -335,73 +334,74 @@ void main() {
         Lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - shadow);
     }
 
-    // 2. Point Lights (Multi-Light Loop)
+    // 2. Point Lights — UE4 inverse-square radius falloff (audit fix ALTO-06)
     int pointCount = min(u_LightCounts.x, MAX_POINT_LIGHTS);
     for (int i = 0; i < pointCount; ++i) {
         if (u_PointLights[i].position.w < 0.5) continue;
 
-        vec3 L = normalize(u_PointLights[i].position.xyz - v_FragPos);
-        vec3 H = normalize(V + L);
+        vec3  L        = normalize(u_PointLights[i].position.xyz - v_FragPos);
+        vec3  H        = normalize(V + L);
         float distance = length(u_PointLights[i].position.xyz - v_FragPos);
-        
-        // Physical Inverse-Square Attenuation with smooth range cutoff
-        float radius = u_PointLights[i].attenuation.x > 0.0 ? u_PointLights[i].attenuation.x : 25.0;
-        float distSq = distance * distance;
-        float factor = clamp(1.0 - (distSq * distSq) / (radius * radius * radius * radius), 0.0, 1.0);
+
+        // UE4/Filament inverse-square falloff with radius — params.x IS the radius (correct field)
+        float radius  = max(u_PointLights[i].params.x, 0.001);
+        float distSq  = distance * distance;
+        float factor  = clamp(1.0 - (distSq * distSq) / (radius * radius * radius * radius), 0.0, 1.0);
         float attenuation = (factor * factor) / (distSq + 1.0);
-        
-        vec3 radiance = u_PointLights[i].color.rgb * u_PointLights[i].attenuation.w * attenuation;
+
+        // Radiance = color * intensity * attenuation
+        vec3 radiance = u_PointLights[i].color.rgb * u_PointLights[i].color.w * attenuation;
 
         float NDF = DistributionGGX(N, H, roughness);
-        float G = GeometrySmith(N, V, L, roughness);
-        vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+        float G   = GeometrySmith(N, V, L, roughness);
+        vec3  F   = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
-        vec3 numerator = NDF * G * F;
+        vec3  numerator   = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_PointLights[i].params.x;
+        vec3  specular    = numerator / denominator;
 
         vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
 
-    // 3. Spotlights (Multi-Light Loop with Shadow support)
+    // 3. Spot Lights — same radius falloff model as point lights
     int spotCount = min(u_LightCounts.y, MAX_SPOT_LIGHTS);
     for (int i = 0; i < spotCount; ++i) {
         if (u_SpotLights[i].position.w < 0.5) continue;
 
-        vec3 L = normalize(u_SpotLights[i].position.xyz - v_FragPos);
-        vec3 H = normalize(V + L);
+        vec3  L        = normalize(u_SpotLights[i].position.xyz - v_FragPos);
+        vec3  H        = normalize(V + L);
         float distance = length(u_SpotLights[i].position.xyz - v_FragPos);
-        
-        float radius = u_SpotLights[i].attenuation.x > 0.0 ? u_SpotLights[i].attenuation.x : 25.0;
-        float distSq = distance * distance;
-        float factor = clamp(1.0 - (distSq * distSq) / (radius * radius * radius * radius), 0.0, 1.0);
+
+        // params.x = radius, params.y = intensity
+        float radius  = max(u_SpotLights[i].params.x, 0.001);
+        float distSq  = distance * distance;
+        float factor  = clamp(1.0 - (distSq * distSq) / (radius * radius * radius * radius), 0.0, 1.0);
         float attenuation = (factor * factor) / (distSq + 1.0);
 
-        float theta = dot(L, normalize(-u_SpotLights[i].direction.xyz));
-        float cutOff = u_SpotLights[i].direction.w;
+        float theta       = dot(L, normalize(-u_SpotLights[i].direction.xyz));
+        float cutOff      = u_SpotLights[i].direction.w;
         float outerCutOff = u_SpotLights[i].color.w;
-        float epsilon = cutOff - outerCutOff;
-        float spotIntensity = clamp((theta - outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
+        float epsilon     = cutOff - outerCutOff;
+        float spotFactor  = clamp((theta - outerCutOff) / max(epsilon, 0.0001), 0.0, 1.0);
 
         float spotShadow = (i == 0) ? CalculateSpotShadow(v_FragPos, N, L) : 0.0;
-        vec3 radiance = u_SpotLights[i].color.rgb * u_SpotLights[i].attenuation.w * attenuation * spotIntensity * (1.0 - spotShadow);
+        vec3 radiance = u_SpotLights[i].color.rgb * u_SpotLights[i].params.y
+                        * attenuation * spotFactor * (1.0 - spotShadow);
 
         float NDF = DistributionGGX(N, H, roughness);
-        float G = GeometrySmith(N, V, L, roughness);
-        vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+        float G   = GeometrySmith(N, V, L, roughness);
+        vec3  F   = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
-        vec3 numerator = NDF * G * F;
+        vec3  numerator   = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = (numerator / denominator) * u_SpotLights[i].params.y;
+        vec3  specular    = numerator / denominator;
 
         vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
 
         float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;

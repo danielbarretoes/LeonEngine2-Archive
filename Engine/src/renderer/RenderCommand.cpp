@@ -1,5 +1,6 @@
 #include "renderer/RenderCommand.hpp"
 #include "renderer/Renderer.hpp"
+#include "renderer/VertexArray.hpp"
 
 namespace Leon {
 

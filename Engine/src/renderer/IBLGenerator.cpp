@@ -2,6 +2,7 @@
 #include "core/Log.hpp"
 #include "renderer/AssetManager.hpp"
 #include "renderer/Renderer.hpp"
+#include "renderer/Texture.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -97,9 +98,11 @@ namespace Leon {
     }
 
     TRef<FTexture2D> FIBLGenerator::GenerateBRDFLUT(uint32_t InSize) {
-        LE_CORE_INFO("Generating Cook-Torrance 2D BRDF LUT ({0}x{1})...", InSize, InSize);
+        LE_CORE_INFO("Generating Cook-Torrance 2D BRDF LUT ({0}x{1}, RG16F)...", InSize, InSize);
 
-        std::vector<unsigned char> data(InSize * InSize * 4, 0);
+        // Use two floats per texel (RG) — A and B terms of the split-sum approximation.
+        // Half-float precision is sufficient and avoids the banding caused by 8-bit RGBA8.
+        std::vector<float> data(InSize * InSize * 2, 0.0f);
 
         for (uint32_t y = 0; y < InSize; ++y) {
             float roughness = std::max(static_cast<float>(y) / static_cast<float>(InSize), 0.001f);
@@ -108,19 +111,20 @@ namespace Leon {
 
                 glm::vec2 integrated = IntegrateBRDF(NdotV, roughness);
 
-                uint8_t r = static_cast<uint8_t>(std::clamp(integrated.x * 255.0f, 0.0f, 255.0f));
-                uint8_t g = static_cast<uint8_t>(std::clamp(integrated.y * 255.0f, 0.0f, 255.0f));
-
-                size_t index = (y * InSize + x) * 4;
-                data[index + 0] = r;
-                data[index + 1] = g;
-                data[index + 2] = 0;
-                data[index + 3] = 255;
+                size_t index = (y * InSize + x) * 2;
+                data[index + 0] = integrated.x; // Scale (A term)
+                data[index + 1] = integrated.y; // Bias  (B term)
             }
         }
 
-        TRef<FTexture2D> lutTexture = FTexture2D::Create(InSize, InSize);
-        lutTexture->SetData(data.data(), static_cast<uint32_t>(data.size()));
+        // Allocate RG16F texture via the public CreateWithFormat factory
+        auto lutTexture = FTexture2D::CreateWithFormat(InSize, InSize, ETextureFormat::RG16F);
+
+        if (lutTexture) {
+            // Use abstract SetDataFloat to upload float data
+            lutTexture->SetDataFloat(data.data(), static_cast<uint32_t>(data.size() * sizeof(float)));
+        }
+
         return lutTexture;
     }
 

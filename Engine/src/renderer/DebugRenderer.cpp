@@ -148,19 +148,8 @@ namespace Leon {
     }
 
     void FDebugRenderer::DrawPointLightGizmo(const FPointLight& InLight) {
-        // Calculate attenuation radius (where light intensity drops to ~0.02)
-        float maxIntensity = std::max({InLight.Color.r, InLight.Color.g, InLight.Color.b}) * InLight.DiffuseIntensity;
-        float threshold = 0.02f;
-
-        float radius = 5.0f;
-        if (InLight.Quadratic > 0.0001f) {
-            float discriminant = InLight.Linear * InLight.Linear -
-                                 4.0f * InLight.Quadratic * (InLight.Constant - (256.0f / 5.0f) * maxIntensity);
-            if (discriminant > 0.0f) {
-                radius = (-InLight.Linear + std::sqrt(discriminant)) / (2.0f * InLight.Quadratic);
-            }
-        }
-        radius = glm::clamp(radius, 1.0f, 15.0f);
+        // PBR model: radius is explicit, no more Phong attenuation formula
+        float radius = glm::clamp(InLight.Radius, 1.0f, 100.0f);
 
         glm::vec4 color(InLight.Color, 0.85f);
 
