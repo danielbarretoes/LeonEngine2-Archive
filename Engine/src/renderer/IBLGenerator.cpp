@@ -187,7 +187,7 @@ namespace Leon {
 
             int w = InWidth;
             int h = InHeight;
-            while (w > 16 && h > 8) {
+            while (w > 1 || h > 1) {
                 int nextW = std::max(1, w / 2);
                 int nextH = std::max(1, h / 2);
                 const auto& prevData = Levels.back().Data;
@@ -237,18 +237,20 @@ namespace Leon {
             glm::vec3 n = glm::normalize(inDir);
             float u = 0.5f + std::atan2(n.z, n.x) / (2.0f * PI);
             float v = 0.5f - std::asin(std::clamp(n.y, -1.0f, 1.0f)) / PI;
-            u = std::clamp(u, 0.0f, 1.0f);
+            u = std::fmod(std::fmod(u, 1.0f) + 1.0f, 1.0f);
             v = std::clamp(v, 0.0f, 1.0f);
 
-            float fx = u * static_cast<float>(mip.Width - 1);
+            float fx = u * static_cast<float>(mip.Width);
             float fy = v * static_cast<float>(mip.Height - 1);
 
-            int x0 = static_cast<int>(fx);
-            int y0 = static_cast<int>(fy);
-            int x1 = std::min(x0 + 1, mip.Width - 1);
-            int y1 = std::min(y0 + 1, mip.Height - 1);
+            int x0 = static_cast<int>(std::floor(fx)) % mip.Width;
+            if (x0 < 0) x0 += mip.Width;
+            int x1 = (x0 + 1) % mip.Width;
 
-            float tx = fx - static_cast<float>(x0);
+            int y0 = std::clamp(static_cast<int>(fy), 0, mip.Height - 1);
+            int y1 = std::clamp(y0 + 1, 0, mip.Height - 1);
+
+            float tx = fx - std::floor(fx);
             float ty = fy - static_cast<float>(y0);
 
             auto getTexel = [&](int x, int y) -> glm::vec3 {
@@ -288,18 +290,20 @@ namespace Leon {
         glm::vec3 n = glm::normalize(InDir);
         float u = 0.5f + std::atan2(n.z, n.x) / (2.0f * PI);
         float v = 0.5f - std::asin(std::clamp(n.y, -1.0f, 1.0f)) / PI;
-        u = std::clamp(u, 0.0f, 1.0f);
+        u = std::fmod(std::fmod(u, 1.0f) + 1.0f, 1.0f);
         v = std::clamp(v, 0.0f, 1.0f);
 
-        float fx = u * static_cast<float>(InWidth - 1);
+        float fx = u * static_cast<float>(InWidth);
         float fy = v * static_cast<float>(InHeight - 1);
 
-        int x0 = static_cast<int>(fx);
-        int y0 = static_cast<int>(fy);
-        int x1 = std::min(x0 + 1, InWidth - 1);
-        int y1 = std::min(y0 + 1, InHeight - 1);
+        int x0 = static_cast<int>(std::floor(fx)) % InWidth;
+        if (x0 < 0) x0 += InWidth;
+        int x1 = (x0 + 1) % InWidth;
 
-        float tx = fx - static_cast<float>(x0);
+        int y0 = std::clamp(static_cast<int>(fy), 0, InHeight - 1);
+        int y1 = std::clamp(y0 + 1, 0, InHeight - 1);
+
+        float tx = fx - std::floor(fx);
         float ty = fy - static_cast<float>(y0);
 
         auto getTexel = [&](int x, int y) -> glm::vec3 {
@@ -334,7 +338,7 @@ namespace Leon {
 
     struct FIBLCacheHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-        uint32_t Version = 2; // Version 2: Brian Karis PDF solid angle sampling
+        uint32_t Version = 3; // Version 3: Source HDR solid angle & Karis mip-bias formulation
         uint64_t HDRSourceHash = 0;
         uint32_t EnvSize = 128;
         uint32_t IrradSize = 32;
@@ -381,7 +385,7 @@ namespace Leon {
 
         FIBLCacheHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
-        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 2 || header.HDRSourceHash != currentHDRHash) {
+        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 3 || header.HDRSourceHash != currentHDRHash) {
             return false;
         }
 
@@ -427,7 +431,7 @@ namespace Leon {
         if (!file.is_open()) return;
 
         FIBLCacheHeader header;
-        header.Version = 2;
+        header.Version = 3;
         header.HDRSourceHash = ComputeFileHash64(InHDRPath);
         file.write(reinterpret_cast<const char*>(&header), sizeof(FIBLCacheHeader));
 
@@ -465,7 +469,7 @@ namespace Leon {
             if (TryLoadIBLCache(hdrPath, env)) {
                 auto totalEndT = std::chrono::high_resolution_clock::now();
                 float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v2) for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v3) for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
                 return env;
             }
         }
@@ -503,13 +507,22 @@ namespace Leon {
         env.EnvironmentCubemap = FTextureCube::Create(envSize, envSize, true);
         std::vector<std::vector<float>> envFaces(6, std::vector<float>(envSize * envSize * 4));
         {
+            float envTexelLod = (hdrWidth > 0 && hdrHeight > 0)
+                ? std::max(0.5f * std::log2(static_cast<float>(hdrWidth * hdrHeight) / (6.0f * static_cast<float>(envSize * envSize))), 0.0f)
+                : 0.0f;
+
             for (int face = 0; face < 6; ++face) {
                 for (uint32_t y = 0; y < envSize; ++y) {
                     float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(envSize) - 1.0f;
                     for (uint32_t x = 0; x < envSize; ++x) {
                         float u = 2.0f * (static_cast<float>(x) + 0.5f) / static_cast<float>(envSize) - 1.0f;
                         glm::vec3 dir = GetCubeDirection(face, u, v);
-                        glm::vec3 color = SampleSky(dir);
+                        glm::vec3 color;
+                        if (hdrData) {
+                            color = hdrMipChain.SampleLod(dir, envTexelLod) * InSkybox.Exposure;
+                        } else {
+                            color = SampleAtmosphericSky(InSkybox, dir);
+                        }
 
                         size_t idx = (y * envSize + x) * 4;
                         envFaces[face][idx + 0] = color.r;
@@ -581,6 +594,11 @@ namespace Leon {
         env.PrefilterMap = FTextureCube::Create(prefilterBaseSize, prefilterBaseSize, true);
         std::vector<std::vector<std::vector<float>>> prefilterMips(maxMipLevels);
         {
+            // Solid angle of 1 texel in the source HDR equirectangular texture (Epic Games / Brian Karis reference)
+            float saTexel = (hdrWidth > 0 && hdrHeight > 0)
+                ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
+                : (4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize)));
+
             for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
                 auto mipStartT = std::chrono::high_resolution_clock::now();
                 uint32_t mipSize = prefilterBaseSize >> mip;
@@ -589,9 +607,6 @@ namespace Leon {
 
                 float a = roughness * roughness;
                 float a2 = a * a;
-
-                // Solid angle of 1 texel in 128x128 cubemap face
-                float saTexel = 4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize));
 
                 for (int face = 0; face < 6; ++face) {
                     for (uint32_t y = 0; y < mipSize; ++y) {
@@ -622,7 +637,10 @@ namespace Leon {
                                     float pdf = (D * NdotH) / (4.0f * VdotH + 0.0001f) + 0.0001f;
 
                                     float saSample = 1.0f / (static_cast<float>(SAMPLE_COUNT) * pdf + 0.0001f);
-                                    float sampleLod = (roughness == 0.0f) ? 0.0f : std::max(0.5f * std::log2(saSample / saTexel), 0.0f);
+                                    // Karis PDF LOD with +1.0f mip bias to guarantee solid angle footprint coverage
+                                    float sampleLod = (roughness == 0.0f)
+                                        ? 0.0f
+                                        : std::max(0.5f * std::log2(saSample / saTexel) + 1.0f, 0.0f);
 
                                     glm::vec3 sampleVal;
                                     if (hdrData) {
@@ -657,7 +675,7 @@ namespace Leon {
         // 6. Save baked IBL result to disk cache for instantaneous future startups
         if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
             SaveIBLCache(hdrPath, envFaces, irradFaces, prefilterMips);
-            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v2) to '{0}'", GetIBLCachePath(hdrPath));
+            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v3) to '{0}'", GetIBLCachePath(hdrPath));
         }
 
         if (hdrData) {

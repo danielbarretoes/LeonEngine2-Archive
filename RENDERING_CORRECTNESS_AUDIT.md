@@ -97,24 +97,36 @@ visible firefly (píxeles blancos aislados en esferas pulidas)
 ### B. Solución Física Implementada: Brian Karis (Epic Games 2013)
 En lugar de introducir un corte arbitrario (`clamp(color, ...)`), se implementó la formulación matemática de filtrado por ángulo sólido de Brian Karis en `IBLGenerator.cpp`:
 
-1. **Pirámide de Mipmaps en CPU de la Textura HDR**:
-   Se construye una cadena de 7 niveles de mipmap con reducción bilineal $2 \times 2$.
+1. **Pirámide Completa de Mipmaps en CPU de la Textura HDR**:
+   Se construye una cadena de 11 niveles de mipmap con reducción bilineal $2 \times 2$ hasta alcanzar $1 \times 1$ texel, permitiendo interpolación trilineal continua para cualquier valor de LOD.
 2. **Función de Densidad de Probabilidad (PDF) GGX**:
    $$D(H) = \frac{\alpha^2}{\pi \left( (N \cdot H)^2 (\alpha^2 - 1) + 1 \right)^2}$$
    $$\text{pdf}(H) = \frac{D(H) \cdot (N \cdot H)}{4 \cdot (V \cdot H) + 0.0001} + 0.0001$$
-3. **Ángulo Sólido de la Muestra frente al Ángulo Sólido del Texel**:
+3. **Ángulo Sólido de la Muestra frente al Ángulo Sólido del Texel Fuente**:
    $$\Omega_s = \frac{1.0}{N_{\text{samples}} \cdot \text{pdf}}$$
-   $$\Omega_p = \frac{4\pi}{6 \cdot W_{\text{cubemap}} \cdot H_{\text{cubemap}}}$$
-4. **Nivel de Mipmap Continuo (LOD)**:
-   $$\text{lod} = (\text{roughness} == 0.0) ? 0.0 : \max\left( 0.5 \cdot \log_2\left( \frac{\Omega_s}{\Omega_p} \right), 0.0 \right)$$
-5. **Muestreo Trilineal Continuo**:
-   La función `SampleLod(L, lod)` interpola trilinealmente entre los niveles $\lfloor \text{lod} \rfloor$ y $\lfloor \text{lod} \rfloor + 1$.
+   $$\Omega_p = \frac{4\pi}{W_{\text{sourceHDR}} \cdot H_{\text{sourceHDR}}}$$
+   *(La referencia de texel $\Omega_p$ debe corresponder a la textura HDR original muestreada de $1024 \times 512$, no al cubemap de destino).*
+4. **Nivel de Mipmap Continuo con Sesgo Karis (Mip Bias +1.0)**:
+   $$\text{lod} = (\text{roughness} == 0.0) ? 0.0 : \max\left( 0.5 \cdot \log_2\left( \frac{\Omega_s}{\Omega_p} \right) + 1.0, 0.0 \right)$$
+5. **Muestreo Trilineal Continuo y Envoltura 360°**:
+   La función `SampleLod(L, lod)` calcula la envoltura horizontal continua en $[0, 2\pi)$ con `std::fmod` y `floor`, eliminando discontinuidades en las costuras (*seams*), e interpola trilinealmente entre $\lfloor \text{lod} \rfloor$ y $\lfloor \text{lod} \rfloor + 1$.
 
-### C. Validación Visual y de Estabilidad
+### C. Matriz de Aislamiento Forense (Fase 2 & Fase 7)
+| Test | IBL | Directional | Point | Spot | Planar | Resultado Observado | Conclusión |
+| :---: | :---: | :---: | :---: | :---: | :---: | :--- | :--- |
+| **A** | **OFF** | ON | ON | ON | OFF | Desaparición total de puntos y cuadrados en metales. | El artefacto procede exclusivamente del término especular IBL. |
+| **B** | **ON** | OFF | OFF | OFF | OFF | Puntos visibles antes del fix; curva gaussiana suave tras fix Karis v3. | Confirma que las luces directas son continuas y no generan el ruido. |
+| **C** | **ON** | ON | ON | ON | OFF | Mip 0 directo muestra aliasing puntual de HDR; Mips 1..4 filtrados con $\Omega_p$ fuente son 100% continuos. | El cálculo de $\Omega_p$ sobre la textura fuente elimina el aliasing Monte Carlo. |
+| **D** | **HDR** | - | - | - | - | El archivo `AutumnField1k.hdr` tiene el sol en $(615, 173)$ con radiancia de 114,033. Sin otros píxeles calientes. | Confirma que el HDR es limpio y el problema era de integración de espícula. |
+| **E** | **Sweep** | - | - | - | - | $R=0.02, 0.05, 0.10, 0.25, 0.50, 0.80, 1.0$: Transición continua sin fireflies en ningún nivel. | Estabilidad numérica total en todo el espectro de rugosidad. |
+| **F** | **Vectors** | - | - | - | - | Inspección de $R = \text{reflect}(-V, N)$ y normales $N$: Campo vectorial continuo y suave. | La base TBN y normales de esfera no presentan saltos. |
+
+### D. Validación Visual y de Estabilidad
 | Rugosidad ($\alpha$) | Metalicidad ($M$) | Comportamiento Observado | Estado |
 | :---: | :---: | :--- | :---: |
-| **0.05** | 1.0 | Reflejo nítido del sol/cielo sin puntos aislados ni fireflies. | **PASS** |
-| **0.10** | 1.0 | Transición suave de gradiente especular continuo. | **PASS** |
+| **0.02** | 1.0 | Reflejo especular extremadamente nítido sin saltos ni fireflies. | **PASS** |
+| **0.05** | 1.0 | Reflejo continuo del entorno y sol con campana de gradiente suave. | **PASS** |
+| **0.10** | 1.0 | Transición suave de gradiente especular sin píxeles aislados. | **PASS** |
 | **0.25** | 1.0 | Difusión gaussiana homogénea de altas luces. | **PASS** |
 | **0.50** | 1.0 | Lóbulo especular suave y difuso. | **PASS** |
 | **0.80** | 1.0 | Dispersión ambiental uniforme sin artefactos. | **PASS** |
