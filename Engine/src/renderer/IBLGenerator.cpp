@@ -5,7 +5,10 @@
 #include "renderer/Texture.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <stb_image.h>
 #include <vector>
 
@@ -97,35 +100,62 @@ namespace Leon {
         return glm::vec2(A, B);
     }
 
+    static TRef<FTexture2D> s_CachedBRDFLUT = nullptr;
+
     TRef<FTexture2D> FIBLGenerator::GenerateBRDFLUT(uint32_t InSize) {
-        LE_CORE_INFO("Generating Cook-Torrance 2D BRDF LUT ({0}x{1}, RG16F)...", InSize, InSize);
+        if (s_CachedBRDFLUT) {
+            return s_CachedBRDFLUT;
+        }
 
-        // Use two floats per texel (RG) — A and B terms of the split-sum approximation.
-        // Half-float precision is sufficient and avoids the banding caused by 8-bit RGBA8.
+        auto startT = std::chrono::high_resolution_clock::now();
         std::vector<float> data(InSize * InSize * 2, 0.0f);
+        const std::string lutCachePath = "Engine/Assets/Textures/BRDF_LUT.bin";
 
-        for (uint32_t y = 0; y < InSize; ++y) {
-            float roughness = std::max(static_cast<float>(y) / static_cast<float>(InSize), 0.001f);
-            for (uint32_t x = 0; x < InSize; ++x) {
-                float NdotV = std::max(static_cast<float>(x) / static_cast<float>(InSize), 0.001f);
-
-                glm::vec2 integrated = IntegrateBRDF(NdotV, roughness);
-
-                size_t index = (y * InSize + x) * 2;
-                data[index + 0] = integrated.x; // Scale (A term)
-                data[index + 1] = integrated.y; // Bias  (B term)
+        bool bLoadedFromDisk = false;
+        if (std::filesystem::exists(lutCachePath)) {
+            std::ifstream inFile(lutCachePath, std::ios::binary);
+            if (inFile.is_open()) {
+                inFile.read(reinterpret_cast<char*>(data.data()), data.size() * sizeof(float));
+                if (inFile.gcount() == static_cast<std::streamsize>(data.size() * sizeof(float))) {
+                    bLoadedFromDisk = true;
+                }
             }
         }
 
-        // Allocate RG16F texture via the public CreateWithFormat factory
-        auto lutTexture = FTexture2D::CreateWithFormat(InSize, InSize, ETextureFormat::RG16F);
+        if (!bLoadedFromDisk) {
+            LE_CORE_INFO("Generating Cook-Torrance 2D BRDF LUT ({0}x{1}, RG16F)...", InSize, InSize);
+            for (uint32_t y = 0; y < InSize; ++y) {
+                float roughness = std::max(static_cast<float>(y) / static_cast<float>(InSize), 0.001f);
+                for (uint32_t x = 0; x < InSize; ++x) {
+                    float NdotV = std::max(static_cast<float>(x) / static_cast<float>(InSize), 0.001f);
 
+                    glm::vec2 integrated = IntegrateBRDF(NdotV, roughness);
+
+                    size_t index = (y * InSize + x) * 2;
+                    data[index + 0] = integrated.x; // Scale (A term)
+                    data[index + 1] = integrated.y; // Bias  (B term)
+                }
+            }
+
+            // Save pre-baked BRDF LUT to disk cache
+            std::filesystem::create_directories("Engine/Assets/Textures");
+            std::ofstream outFile(lutCachePath, std::ios::binary);
+            if (outFile.is_open()) {
+                outFile.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
+            }
+        }
+
+        auto lutTexture = FTexture2D::CreateWithFormat(InSize, InSize, ETextureFormat::RG16F);
         if (lutTexture) {
-            // Use abstract SetDataFloat to upload float data
             lutTexture->SetDataFloat(data.data(), static_cast<uint32_t>(data.size() * sizeof(float)));
         }
 
-        return lutTexture;
+        s_CachedBRDFLUT = lutTexture;
+        auto endT = std::chrono::high_resolution_clock::now();
+        float durMs = std::chrono::duration<float, std::milli>(endT - startT).count();
+        LE_CORE_INFO("  [PROFILE] Cook-Torrance 2D BRDF LUT ({0}x{0}) {1} in {2:.2f} ms",
+                     InSize, bLoadedFromDisk ? "loaded from disk cache" : "baked & cached", durMs);
+        return s_CachedBRDFLUT;
     }
 
     static glm::vec3 GetCubeDirection(int face, float u, float v) {
@@ -191,24 +221,138 @@ namespace Leon {
         return sky * InSkybox.EnvironmentIntensity;
     }
 
+    struct FIBLCacheHeader {
+        char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
+        uint32_t Version = 1;
+        uint32_t EnvSize = 128;
+        uint32_t IrradSize = 32;
+        uint32_t PrefilterBaseSize = 128;
+        uint32_t PrefilterMips = 5;
+    };
+
+    static std::string GetIBLCachePath(const std::string& InHDRPath) {
+        std::filesystem::path p(InHDRPath);
+        std::string stem = p.stem().string();
+        return "Projects/Sandbox/Content/Assets/Hdr/Cache/" + stem + ".libl";
+    }
+
+    static bool TryLoadIBLCache(const std::string& InHDRPath, FIBLEnvironment& OutEnv) {
+        std::string cachePath = GetIBLCachePath(InHDRPath);
+        if (!std::filesystem::exists(cachePath) || !std::filesystem::exists(InHDRPath)) {
+            return false;
+        }
+
+        auto hdrTime = std::filesystem::last_write_time(InHDRPath);
+        auto cacheTime = std::filesystem::last_write_time(cachePath);
+        if (cacheTime < hdrTime) {
+            return false;
+        }
+
+        std::ifstream file(cachePath, std::ios::binary);
+        if (!file.is_open()) return false;
+
+        FIBLCacheHeader header;
+        file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
+        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 1) {
+            return false;
+        }
+
+        // 1. Load Environment Cubemap
+        OutEnv.EnvironmentCubemap = FTextureCube::Create(header.EnvSize, header.EnvSize, true);
+        std::vector<float> envFaceBuffer(header.EnvSize * header.EnvSize * 4);
+        for (int face = 0; face < 6; ++face) {
+            file.read(reinterpret_cast<char*>(envFaceBuffer.data()), envFaceBuffer.size() * sizeof(float));
+            OutEnv.EnvironmentCubemap->SetFaceData(face, envFaceBuffer.data(), header.EnvSize, header.EnvSize, 0, true);
+        }
+        OutEnv.EnvironmentCubemap->GenerateMipmaps();
+
+        // 2. Load Irradiance Map
+        OutEnv.IrradianceMap = FTextureCube::Create(header.IrradSize, header.IrradSize, true);
+        std::vector<float> irradFaceBuffer(header.IrradSize * header.IrradSize * 4);
+        for (int face = 0; face < 6; ++face) {
+            file.read(reinterpret_cast<char*>(irradFaceBuffer.data()), irradFaceBuffer.size() * sizeof(float));
+            OutEnv.IrradianceMap->SetFaceData(face, irradFaceBuffer.data(), header.IrradSize, header.IrradSize, 0, true);
+        }
+
+        // 3. Load Prefilter Map Mips
+        OutEnv.PrefilterMap = FTextureCube::Create(header.PrefilterBaseSize, header.PrefilterBaseSize, true);
+        for (uint32_t mip = 0; mip < header.PrefilterMips; ++mip) {
+            uint32_t mipSize = header.PrefilterBaseSize >> mip;
+            std::vector<float> prefFaceBuffer(mipSize * mipSize * 4);
+            for (int face = 0; face < 6; ++face) {
+                file.read(reinterpret_cast<char*>(prefFaceBuffer.data()), prefFaceBuffer.size() * sizeof(float));
+                OutEnv.PrefilterMap->SetFaceData(face, prefFaceBuffer.data(), mipSize, mipSize, mip, true);
+            }
+        }
+
+        return true;
+    }
+
+    static void SaveIBLCache(const std::string& InHDRPath,
+                             const std::vector<std::vector<float>>& InEnvFaces,
+                             const std::vector<std::vector<float>>& InIrradFaces,
+                             const std::vector<std::vector<std::vector<float>>>& InPrefilterMips) {
+        std::string cachePath = GetIBLCachePath(InHDRPath);
+        std::filesystem::create_directories(std::filesystem::path(cachePath).parent_path());
+
+        std::ofstream file(cachePath, std::ios::binary);
+        if (!file.is_open()) return;
+
+        FIBLCacheHeader header;
+        file.write(reinterpret_cast<const char*>(&header), sizeof(FIBLCacheHeader));
+
+        // 1. Write Environment Faces
+        for (int face = 0; face < 6; ++face) {
+            file.write(reinterpret_cast<const char*>(InEnvFaces[face].data()), InEnvFaces[face].size() * sizeof(float));
+        }
+
+        // 2. Write Irradiance Faces
+        for (int face = 0; face < 6; ++face) {
+            file.write(reinterpret_cast<const char*>(InIrradFaces[face].data()), InIrradFaces[face].size() * sizeof(float));
+        }
+
+        // 3. Write Prefilter Mips
+        for (uint32_t mip = 0; mip < header.PrefilterMips; ++mip) {
+            for (int face = 0; face < 6; ++face) {
+                file.write(reinterpret_cast<const char*>(InPrefilterMips[mip][face].data()),
+                           InPrefilterMips[mip][face].size() * sizeof(float));
+            }
+        }
+    }
+
     FIBLEnvironment FIBLGenerator::CreateEnvironmentFromSkybox(const FSkyboxComponent& InSkybox) {
+        auto totalStartT = std::chrono::high_resolution_clock::now();
         FIBLEnvironment env;
         env.BRDFLUT = GenerateBRDFLUT(256);
 
-        // 1. Check if an HDR map is available to load
-        float* hdrData = nullptr;
-        int hdrWidth = 0, hdrHeight = 0, hdrChannels = 0;
         std::string hdrPath = InSkybox.HDREnvironmentMapPath;
         if (hdrPath.empty() && InSkybox.HDREnvironmentMap) {
             hdrPath = InSkybox.HDREnvironmentMap->GetPath();
         }
 
+        // 1. Check if cached .libl binary asset exists on disk for fast startup (< 5ms)
+        if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
+            if (TryLoadIBLCache(hdrPath, env)) {
+                auto totalEndT = std::chrono::high_resolution_clock::now();
+                float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
+                return env;
+            }
+        }
+
+        // 2. Fallback: Full convolution on first load / cache miss
+        auto hdrStartT = std::chrono::high_resolution_clock::now();
+        float* hdrData = nullptr;
+        int hdrWidth = 0, hdrHeight = 0, hdrChannels = 0;
+
         if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
             stbi_set_flip_vertically_on_load(1);
             hdrData = stbi_loadf(hdrPath.c_str(), &hdrWidth, &hdrHeight, &hdrChannels, 4);
+            auto hdrEndT = std::chrono::high_resolution_clock::now();
+            float hdrDurMs = std::chrono::duration<float, std::milli>(hdrEndT - hdrStartT).count();
             if (hdrData) {
-                LE_CORE_INFO("FIBLGenerator: Convolving HDR Environment Map from '{0}' ({1}x{2})", hdrPath, hdrWidth,
-                             hdrHeight);
+                LE_CORE_INFO("  [PROFILE] HDR image load & decode '{0}' ({1}x{2}) in {3:.2f} ms", hdrPath, hdrWidth,
+                             hdrHeight, hdrDurMs);
             } else {
                 LE_CORE_WARN("FIBLGenerator: Failed to load HDR image for convolution: '{0}'", hdrPath);
             }
@@ -221,11 +365,12 @@ namespace Leon {
             return SampleAtmosphericSky(InSkybox, InDir);
         };
 
-        // 2. Generate Environment Cubemap (128x128 per face)
+        // 3. Generate Environment Cubemap (128x128 per face)
+        auto envStartT = std::chrono::high_resolution_clock::now();
         constexpr uint32_t envSize = 128;
         env.EnvironmentCubemap = FTextureCube::Create(envSize, envSize, true);
+        std::vector<std::vector<float>> envFaces(6, std::vector<float>(envSize * envSize * 4));
         {
-            std::vector<float> faceBuffer(envSize * envSize * 4);
             for (int face = 0; face < 6; ++face) {
                 for (uint32_t y = 0; y < envSize; ++y) {
                     float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(envSize) - 1.0f;
@@ -235,22 +380,26 @@ namespace Leon {
                         glm::vec3 color = SampleSky(dir);
 
                         size_t idx = (y * envSize + x) * 4;
-                        faceBuffer[idx + 0] = color.r;
-                        faceBuffer[idx + 1] = color.g;
-                        faceBuffer[idx + 2] = color.b;
-                        faceBuffer[idx + 3] = 1.0f;
+                        envFaces[face][idx + 0] = color.r;
+                        envFaces[face][idx + 1] = color.g;
+                        envFaces[face][idx + 2] = color.b;
+                        envFaces[face][idx + 3] = 1.0f;
                     }
                 }
-                env.EnvironmentCubemap->SetFaceData(face, faceBuffer.data(), envSize, envSize, 0, true);
+                env.EnvironmentCubemap->SetFaceData(face, envFaces[face].data(), envSize, envSize, 0, true);
             }
             env.EnvironmentCubemap->GenerateMipmaps();
         }
+        auto envEndT = std::chrono::high_resolution_clock::now();
+        float envDurMs = std::chrono::duration<float, std::milli>(envEndT - envStartT).count();
+        LE_CORE_INFO("  [PROFILE] Environment Cubemap (128x128x6, {0} texels) generated in {1:.2f} ms", envSize * envSize * 6, envDurMs);
 
-        // 3. Generate Diffuse Irradiance Map (32x32 per face)
+        // 4. Generate Diffuse Irradiance Map (32x32 per face)
+        auto irradStartT = std::chrono::high_resolution_clock::now();
         constexpr uint32_t irradSize = 32;
         env.IrradianceMap = FTextureCube::Create(irradSize, irradSize, true);
+        std::vector<std::vector<float>> irradFaces(6, std::vector<float>(irradSize * irradSize * 4));
         {
-            std::vector<float> faceBuffer(irradSize * irradSize * 4);
             for (int face = 0; face < 6; ++face) {
                 for (uint32_t y = 0; y < irradSize; ++y) {
                     float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(irradSize) - 1.0f;
@@ -281,25 +430,30 @@ namespace Leon {
                         irradiance = PI * irradiance * (1.0f / numSamples);
 
                         size_t idx = (y * irradSize + x) * 4;
-                        faceBuffer[idx + 0] = irradiance.r;
-                        faceBuffer[idx + 1] = irradiance.g;
-                        faceBuffer[idx + 2] = irradiance.b;
-                        faceBuffer[idx + 3] = 1.0f;
+                        irradFaces[face][idx + 0] = irradiance.r;
+                        irradFaces[face][idx + 1] = irradiance.g;
+                        irradFaces[face][idx + 2] = irradiance.b;
+                        irradFaces[face][idx + 3] = 1.0f;
                     }
                 }
-                env.IrradianceMap->SetFaceData(face, faceBuffer.data(), irradSize, irradSize, 0, true);
+                env.IrradianceMap->SetFaceData(face, irradFaces[face].data(), irradSize, irradSize, 0, true);
             }
         }
+        auto irradEndT = std::chrono::high_resolution_clock::now();
+        float irradDurMs = std::chrono::duration<float, std::milli>(irradEndT - irradStartT).count();
+        LE_CORE_INFO("  [PROFILE] Irradiance Convolution (32x32x6, ~1580 samples/px, ~9.7M samples) generated in {0:.2f} ms", irradDurMs);
 
-        // 4. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8)
+        // 5. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8)
         constexpr uint32_t prefilterBaseSize = 128;
         constexpr uint32_t maxMipLevels = 5;
         env.PrefilterMap = FTextureCube::Create(prefilterBaseSize, prefilterBaseSize, true);
+        std::vector<std::vector<std::vector<float>>> prefilterMips(maxMipLevels);
         {
             for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
+                auto mipStartT = std::chrono::high_resolution_clock::now();
                 uint32_t mipSize = prefilterBaseSize >> mip;
                 float roughness = static_cast<float>(mip) / static_cast<float>(maxMipLevels - 1);
-                std::vector<float> faceBuffer(mipSize * mipSize * 4);
+                prefilterMips[mip].resize(6, std::vector<float>(mipSize * mipSize * 4));
 
                 for (int face = 0; face < 6; ++face) {
                     for (uint32_t y = 0; y < mipSize; ++y) {
@@ -314,6 +468,9 @@ namespace Leon {
                             glm::vec3 prefilteredColor(0.0f);
                             float totalWeight = 0.0f;
 
+                            // Adaptive firefly clamp based on roughness to prevent Monte Carlo under-sampling artifacts
+                            float maxSampleLuminance = (roughness > 0.0f) ? (12.0f + 28.0f * (1.0f - roughness)) : 500.0f;
+
                             for (uint32_t i = 0u; i < SAMPLE_COUNT; ++i) {
                                 glm::vec2 Xi = Hammersley(i, SAMPLE_COUNT);
                                 glm::vec3 H = ImportanceSampleGGX(Xi, N, roughness);
@@ -323,8 +480,7 @@ namespace Leon {
                                 if (NdotL > 0.0f) {
                                     glm::vec3 sampleVal = SampleSky(L);
                                     if (roughness > 0.0f) {
-                                        // Clamp extreme single-sample spikes to prevent Monte Carlo fireflies
-                                        sampleVal = glm::min(sampleVal, glm::vec3(20.0f));
+                                        sampleVal = glm::min(sampleVal, glm::vec3(maxSampleLuminance));
                                     }
                                     prefilteredColor += sampleVal * NdotL;
                                     totalWeight += NdotL;
@@ -334,22 +490,33 @@ namespace Leon {
                             prefilteredColor = totalWeight > 0.0f ? prefilteredColor / totalWeight : SampleSky(R);
 
                             size_t idx = (y * mipSize + x) * 4;
-                            faceBuffer[idx + 0] = prefilteredColor.r;
-                            faceBuffer[idx + 1] = prefilteredColor.g;
-                            faceBuffer[idx + 2] = prefilteredColor.b;
-                            faceBuffer[idx + 3] = 1.0f;
+                            prefilterMips[mip][face][idx + 0] = prefilteredColor.r;
+                            prefilterMips[mip][face][idx + 1] = prefilteredColor.g;
+                            prefilterMips[mip][face][idx + 2] = prefilteredColor.b;
+                            prefilterMips[mip][face][idx + 3] = 1.0f;
                         }
                     }
-                    env.PrefilterMap->SetFaceData(face, faceBuffer.data(), mipSize, mipSize, mip, true);
+                    env.PrefilterMap->SetFaceData(face, prefilterMips[mip][face].data(), mipSize, mipSize, mip, true);
                 }
+                auto mipEndT = std::chrono::high_resolution_clock::now();
+                float mipDurMs = std::chrono::duration<float, std::milli>(mipEndT - mipStartT).count();
+                LE_CORE_INFO("  [PROFILE] Prefilter Mip {0} ({1}x{1}x6, 256 samples/px) generated in {2:.2f} ms", mip, mipSize, mipDurMs);
             }
+        }
+
+        // 6. Save baked IBL result to disk cache for instantaneous future startups
+        if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
+            SaveIBLCache(hdrPath, envFaces, irradFaces, prefilterMips);
+            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache to '{0}'", GetIBLCachePath(hdrPath));
         }
 
         if (hdrData) {
             stbi_image_free(hdrData);
         }
 
-        LE_CORE_INFO("FIBLGenerator: Real Cook-Torrance IBL Environment generated successfully (Cubemap, Irradiance, Prefilter 5 mips, BRDF LUT).");
+        auto totalEndT = std::chrono::high_resolution_clock::now();
+        float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
+        LE_CORE_INFO("FIBLGenerator: Real Cook-Torrance IBL Environment generated in TOTAL {0:.2f} ms ({1:.2f} s).", totalDurMs, totalDurMs / 1000.0f);
         return env;
     }
 

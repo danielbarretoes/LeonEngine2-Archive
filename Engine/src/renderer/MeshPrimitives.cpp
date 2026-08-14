@@ -425,8 +425,8 @@ namespace Leon {
 
             for (unsigned int x = 0; x < InSegments; ++x) {
                 indices.push_back(topCenterIndex);
-                indices.push_back(ringStart + x);
                 indices.push_back(ringStart + x + 1);
+                indices.push_back(ringStart + x);
             }
         }
 
@@ -480,8 +480,8 @@ namespace Leon {
 
             for (unsigned int x = 0; x < InSegments; ++x) {
                 indices.push_back(botCenterIndex);
-                indices.push_back(ringStart + x + 1);
                 indices.push_back(ringStart + x);
+                indices.push_back(ringStart + x + 1);
             }
         }
 

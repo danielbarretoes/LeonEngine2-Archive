@@ -6,6 +6,8 @@
 #include "core/Window.hpp"
 #include "core/events/ApplicationEvent.hpp"
 
+#include <chrono>
+
 namespace Leon {
 
     struct FApplicationProps {
@@ -38,6 +40,9 @@ namespace Leon {
         void SetHUDEnabled(bool InbEnabled) { m_bShowHUD = InbEnabled; }
         void SetLightGizmosEnabled(bool InbEnabled) { m_bShowLightGizmos = InbEnabled; }
 
+        float GetTimeSinceWindowOpenMs() const;
+        std::chrono::high_resolution_clock::time_point GetWindowOpenTime() const { return m_WindowCreationTime; }
+
         static FApplication& Get() { return *s_Instance; }
 
     private:
@@ -47,6 +52,7 @@ namespace Leon {
 
     private:
         TScope<FWindow> m_Window;
+        std::chrono::high_resolution_clock::time_point m_WindowCreationTime;
         bool bRunning = true;
         bool bMinimized = false;
         bool m_bShowHUD = false;

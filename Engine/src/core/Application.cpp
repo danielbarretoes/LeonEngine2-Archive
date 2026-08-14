@@ -25,6 +25,7 @@ namespace Leon {
         LE_CORE_INFO("Initializing LeonEngine Application: {0}", InProps.Name);
 
         m_Window = FWindow::Create(FWindowProps(InProps.Name, InProps.WindowWidth, InProps.WindowHeight));
+        m_WindowCreationTime = std::chrono::high_resolution_clock::now();
         m_Window->SetEventCallback(LE_BIND_EVENT_FN(FApplication::OnEvent));
 
         FRenderer::Init();
@@ -126,6 +127,11 @@ namespace Leon {
         }
 
         OnShutdown();
+    }
+
+    float FApplication::GetTimeSinceWindowOpenMs() const {
+        auto now = std::chrono::high_resolution_clock::now();
+        return std::chrono::duration<float, std::milli>(now - m_WindowCreationTime).count();
     }
 
 } // namespace Leon

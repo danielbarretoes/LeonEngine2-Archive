@@ -1,6 +1,7 @@
 #include "LeonEngine.hpp"
 #include "OpenGLRenderDriver.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,6 +14,8 @@ public:
           m_CameraController(45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f) {}
 
     void OnAttach() override {
+        auto startTime = std::chrono::high_resolution_clock::now();
+
         LE_INFO("FLightingShowcaseLayer attached! Initializing Cook-Torrance PBR & Atmospheric Skybox Pipeline.");
         LE_INFO("Loading Level from Asset: {0}", m_LevelPath);
         LE_INFO("Controls (Keyboard & Mouse):");
@@ -56,6 +59,13 @@ public:
         // Set initial camera position looking down at the stage
         m_CameraController.GetCamera().SetPosition({0.0f, 4.0f, 7.5f});
         m_CameraController.GetCamera().SetRotation(-22.0f, -90.0f);
+
+        auto endTime = std::chrono::high_resolution_clock::now();
+        float levelLoadDurationMs = std::chrono::duration<float, std::milli>(endTime - startTime).count();
+        float totalFromWindowOpenMs = Leon::FApplication::Get().GetTimeSinceWindowOpenMs();
+
+        LE_INFO("Level loaded complete. Loaded '{0}' in {1:.2f} ms ({2:.2f} ms since window opened).",
+                m_LevelPath, levelLoadDurationMs, totalFromWindowOpenMs);
     }
 
     void OnDetach() override { LE_INFO("FLightingShowcaseLayer detached."); }

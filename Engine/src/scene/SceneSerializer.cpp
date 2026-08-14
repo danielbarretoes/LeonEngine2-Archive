@@ -9,6 +9,7 @@
 #include "scene/MaterialSerializer.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -370,6 +371,7 @@ namespace Leon {
     }
 
     bool FSceneSerializer::Deserialize(const std::string& InFilePath) {
+        auto startTime = std::chrono::high_resolution_clock::now();
         std::ifstream file(InFilePath);
         if (!file.is_open()) {
             LE_CORE_ERROR("FSceneSerializer: Could not open level file '{0}' for loading!", InFilePath);
@@ -380,7 +382,9 @@ namespace Leon {
         ss << file.rdbuf();
         bool success = DeserializeText(ss.str());
         if (success) {
-            LE_CORE_INFO("FSceneSerializer: Successfully loaded level '{0}'", InFilePath);
+            auto endTime = std::chrono::high_resolution_clock::now();
+            float durationMs = std::chrono::duration<float, std::milli>(endTime - startTime).count();
+            LE_CORE_INFO("FSceneSerializer: Level loaded complete: '{0}' in {1:.2f} ms", InFilePath, durationMs);
         }
         return success;
     }

@@ -84,10 +84,9 @@ namespace Leon {
         m_DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
 
         // -----------------------------------------------------------------------
-        // 6. Initial IBL generation (default atmospheric skybox)
+        // 6. Initial IBL state (deferred until first skybox evaluation)
         // -----------------------------------------------------------------------
-        m_IBLEnvironment       = FIBLGenerator::CreateEnvironmentFromSkybox(FSkyboxComponent{});
-        m_bEnvironmentGenerated = true;
+        m_bEnvironmentGenerated = false;
     }
 
     // =========================================================================
@@ -179,7 +178,11 @@ namespace Leon {
             for (auto entity : view) { skybox = view.get<FSkyboxComponent>(entity); bHasSkybox = true; break; }
         }
 
-        if (bHasSkybox) UpdateIBL(skybox);
+        if (bHasSkybox) {
+            UpdateIBL(skybox);
+        } else if (!m_bEnvironmentGenerated) {
+            UpdateIBL(FSkyboxComponent{});
+        }
 
         // ------------------------------------------------------------------
         // Upload Lighting UBO (Binding 1)
@@ -720,13 +723,10 @@ namespace Leon {
         if (currentHdr.empty() && InSkybox.HDREnvironmentMap)
             currentHdr = InSkybox.HDREnvironmentMap->GetPath();
 
-        if (InSkybox.bUseHDREnvironmentMap && !currentHdr.empty() && currentHdr != m_LoadedHDRPath) {
+        if (!m_bEnvironmentGenerated || (InSkybox.bUseHDREnvironmentMap && !currentHdr.empty() && currentHdr != m_LoadedHDRPath) ||
+            (!InSkybox.bUseHDREnvironmentMap && !m_LoadedHDRPath.empty())) {
             m_IBLEnvironment = FIBLGenerator::CreateEnvironmentFromSkybox(InSkybox);
-            m_LoadedHDRPath  = currentHdr;
-            m_bEnvironmentGenerated = true;
-        } else if (!InSkybox.bUseHDREnvironmentMap && !m_LoadedHDRPath.empty()) {
-            m_IBLEnvironment = FIBLGenerator::CreateEnvironmentFromSkybox(InSkybox);
-            m_LoadedHDRPath  = "";
+            m_LoadedHDRPath  = InSkybox.bUseHDREnvironmentMap ? currentHdr : "";
             m_bEnvironmentGenerated = true;
         }
     }
