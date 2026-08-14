@@ -117,12 +117,19 @@ namespace Leon {
     }
 
     glm::vec2 FTextRenderer::MeasureString(const std::string& InText, float InSize) {
+        std::string processedText = InText;
+        size_t pos = 0;
+        while ((pos = processedText.find("\\n", pos)) != std::string::npos) {
+            processedText.replace(pos, 2, "\n");
+            pos += 1;
+        }
+
         float scale = InSize / FontPixelHeight;
         float maxWidth = 0.0f;
         float currentWidth = 0.0f;
         int lineCount = 1;
 
-        for (char c : InText) {
+        for (char c : processedText) {
             if (c == '\n') {
                 maxWidth = std::max(maxWidth, currentWidth);
                 currentWidth = 0.0f;
@@ -146,12 +153,19 @@ namespace Leon {
         if (InText.empty())
             return;
 
+        std::string processedText = InText;
+        size_t pos = 0;
+        while ((pos = processedText.find("\\n", pos)) != std::string::npos) {
+            processedText.replace(pos, 2, "\n");
+            pos += 1;
+        }
+
         float scale = InSize / FontPixelHeight;
         float lineHeight = InSize * 1.2f;
 
         // Split text by lines
         std::vector<std::string> lines;
-        std::istringstream stream(InText);
+        std::istringstream stream(processedText);
         std::string line;
         while (std::getline(stream, line)) {
             lines.push_back(line);

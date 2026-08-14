@@ -1,0 +1,326 @@
+# LeonEngine2 Level Asset File (.llevel)
+# Unreal Engine-inspired structured level format
+
+Level:
+  Name: "MainShowcase"
+  Version: 1.0
+
+Environment:
+  Skybox:
+    Enabled: true
+    Exposure: 1.0
+    SunIntensity: 3.5
+    EnvironmentIntensity: 1.2
+    SkyZenithColor: [0.18, 0.44, 0.88]
+    HorizonColor: [0.78, 0.84, 0.95]
+    GroundColor: [0.22, 0.24, 0.28]
+    SunColor: [1.0, 0.98, 0.92]
+
+Actors:
+  # ==========================================
+  # Light Actors
+  # ==========================================
+  - Name: "Directional Sunlight"
+    Transform:
+      Translation: [0.0, 3.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    DirectionalLight:
+      Enabled: true
+      Direction: [-0.45, -1.0, -0.35]
+      Color: [1.0, 0.98, 0.92]
+      AmbientIntensity: 0.10
+      DiffuseIntensity: 3.5
+      SpecularIntensity: 1.0
+
+  - Name: "Orbiting Point Light"
+    Transform:
+      Translation: [3.2, 1.4, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.55, 0.15]
+      Constant: 1.0
+      Linear: 0.14
+      Quadratic: 0.07
+      AmbientIntensity: 0.05
+      DiffuseIntensity: 4.0
+      SpecularIntensity: 1.0
+
+  - Name: "Dramatic Spotlight"
+    Transform:
+      Translation: [0.0, 4.2, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    SpotLight:
+      Enabled: true
+      Direction: [0.0, -1.0, 0.0]
+      Color: [0.2, 0.85, 1.0]
+      CutOff: 18.0
+      OuterCutOff: 26.0
+      Constant: 1.0
+      Linear: 0.09
+      Quadratic: 0.032
+      AmbientIntensity: 0.0
+      DiffuseIntensity: 4.5
+      SpecularIntensity: 1.0
+
+  # ==========================================
+  # Static Mesh Geometry & PBR Material Actors
+  # ==========================================
+  - Name: "PBR Ground Plane"
+    Transform:
+      Translation: [0.0, 0.0, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Plane"
+      Width: 24.0
+      Depth: 24.0
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: false
+    Material:
+      AlbedoColor: [0.75, 0.78, 0.82]
+      NormalMap: "Projects/Sandbox/Assets/Textures/T_Tiles_N.png"
+      AOMap: "Projects/Sandbox/Assets/Textures/T_Tiles_AO.png"
+      UseNormalMap: true
+      UseAOMap: true
+      Metallic: 0.08
+      Roughness: 0.18
+      AO: 1.0
+      UsePlanarReflection: true
+
+  - Name: "PBR Emerald Ramp"
+    Transform:
+      Translation: [-4.0, 0.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Ramp"
+      Width: 1.0
+      Height: 1.0
+      Depth: 1.0
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      AlbedoColor: [0.05, 0.85, 0.45]
+      NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
+      AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
+      UseNormalMap: true
+      UseAOMap: true
+      Metallic: 0.25
+      Roughness: 0.15
+      AO: 1.0
+
+  - Name: "PBR Textured Cube"
+    Transform:
+      Translation: [-2.4, 0.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1.0
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      AlbedoColor: [1.0, 1.0, 1.0]
+      AlbedoMap: "Projects/Sandbox/Assets/Textures/T_Container_D.png"
+      NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
+      AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
+      UseAlbedoMap: true
+      UseNormalMap: true
+      UseAOMap: true
+      Metallic: 0.65
+      Roughness: 0.18
+      AO: 1.0
+
+  - Name: "PBR Polished Gold Sphere"
+    Transform:
+      Translation: [-0.8, 0.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Sphere"
+      Radius: 0.5
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      AlbedoColor: [1.0, 0.78, 0.34]
+      Metallic: 1.0
+      Roughness: 0.05
+      AO: 1.0
+
+  - Name: "PBR Glossy Ruby Sphere"
+    Transform:
+      Translation: [0.8, 0.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Sphere"
+      Radius: 0.5
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      AlbedoColor: [0.92, 0.08, 0.12]
+      Metallic: 0.0
+      Roughness: 0.12
+      AO: 1.0
+
+  - Name: "PBR Brushed Iron Cylinder"
+    Transform:
+      Translation: [2.4, 0.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Cylinder"
+      Radius: 0.5
+      Height: 1.0
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      AlbedoColor: [0.56, 0.57, 0.58]
+      NormalMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png"
+      AOMap: "Projects/Sandbox/Assets/Textures/T_MetalPlates_AO.png"
+      UseNormalMap: true
+      UseAOMap: true
+      Metallic: 0.95
+      Roughness: 0.22
+      AO: 1.0
+
+  - Name: "PBR Cobalt Pyramid"
+    Transform:
+      Translation: [4.0, 0.5, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Pyramid"
+      Width: 1.0
+      Height: 1.0
+      Depth: 1.0
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+    Material:
+      AlbedoColor: [0.18, 0.45, 0.95]
+      NormalMap: "Projects/Sandbox/Assets/Textures/T_Tiles_N.png"
+      AOMap: "Projects/Sandbox/Assets/Textures/T_Tiles_AO.png"
+      UseNormalMap: true
+      UseAOMap: true
+      Metallic: 0.90
+      Roughness: 0.08
+      AO: 1.0
+
+  # ==========================================
+  # 3D In-World Text Actors
+  # ==========================================
+  - Name: "Text Actor - Scene Title"
+    Transform:
+      Translation: [0.0, 2.8, -1.8]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "LEON ENGINE 2 - PHYSICAL PBR"
+      Color: [0.35, 0.88, 1.0, 1.0]
+      Size: 0.32
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Text Actor - Subtitle"
+    Transform:
+      Translation: [0.0, 2.35, -1.8]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "Cook-Torrance Specular | Atmospheric IBL | Dynamic Shadows | Tangent Normal Maps"
+      Color: [0.85, 0.88, 0.92, 0.9]
+      Size: 0.13
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Emerald Ramp"
+    Transform:
+      Translation: [-4.0, 1.25, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "EMERALD RAMP\n(Modular Wedge)"
+      Color: [0.15, 1.0, 0.55, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Textured Cube"
+    Transform:
+      Translation: [-2.4, 1.25, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "TEXTURED CUBE\n(Metal Panel NMap)"
+      Color: [1.0, 0.85, 0.30, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Polished Gold"
+    Transform:
+      Translation: [-0.8, 1.25, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "POLISHED GOLD\n(Metallic 1.0)"
+      Color: [1.0, 0.92, 0.45, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Ruby Dielectric"
+    Transform:
+      Translation: [0.8, 1.25, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "RUBY DIELECTRIC\n(Dielectric F0)"
+      Color: [1.0, 0.35, 0.45, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Brushed Iron"
+    Transform:
+      Translation: [2.4, 1.25, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "BRUSHED IRON\n(Brushed Roughness)"
+      Color: [0.78, 0.85, 0.95, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true
+
+  - Name: "Label - Cobalt Pyramid"
+    Transform:
+      Translation: [4.0, 1.25, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "COBALT PYRAMID\n(Square Base)"
+      Color: [0.40, 0.75, 1.0, 1.0]
+      Size: 0.11
+      Alignment: "Center"
+      DoubleSided: true

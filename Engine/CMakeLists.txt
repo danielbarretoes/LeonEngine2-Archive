@@ -1,4 +1,5 @@
 add_library(LeonEngineCore STATIC
+    src/core/ConfigFile.cpp
     src/core/Log.cpp
     src/core/Window.cpp
     src/core/Input.cpp
@@ -20,10 +21,10 @@ add_library(LeonEngineCore STATIC
     src/renderer/TextRenderer.cpp
     src/renderer/VertexArray.cpp
     src/renderer/PerspectiveCamera.cpp
-
     src/renderer/PerspectiveCameraController.cpp
     src/scene/Entity.cpp
     src/scene/Scene.cpp
+    src/scene/SceneSerializer.cpp
 )
 
 add_library(Leon::Core ALIAS LeonEngineCore)

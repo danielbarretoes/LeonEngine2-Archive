@@ -3,6 +3,7 @@
 // Core Subsystems
 #include "core/Application.hpp"
 #include "core/Base.hpp"
+#include "core/ConfigFile.hpp"
 #include "core/Input.hpp"
 #include "core/Layer.hpp"
 #include "core/LayerStack.hpp"
@@ -40,6 +41,7 @@
 #include "scene/Components.hpp"
 #include "scene/Entity.hpp"
 #include "scene/Scene.hpp"
+#include "scene/SceneSerializer.hpp"
 
 // Entry Point
 #include "core/EntryPoint.hpp"
