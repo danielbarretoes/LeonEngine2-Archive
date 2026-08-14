@@ -31,7 +31,7 @@ uniform vec3 u_SunColor;
 uniform float u_SunIntensity;
 uniform float u_Exposure = 1.0;
 
-uniform sampler2D u_HDREnvironmentMap;
+layout(binding = 0) uniform sampler2D u_HDREnvironmentMap;
 uniform int u_UseHDREnvironmentMap = 0;
 
 const float PI = 3.14159265358979323846;

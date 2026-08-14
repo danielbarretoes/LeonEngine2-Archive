@@ -106,25 +106,26 @@ uniform float u_Metallic;
 uniform float u_Roughness;
 uniform float u_AO;
 
-uniform sampler2D u_AlbedoMap;
-uniform sampler2D u_NormalMap;
-uniform sampler2D u_MetallicMap;
-uniform sampler2D u_AOMap;
-uniform sampler2D u_RoughnessMap;
-
-// Cascaded Shadow Maps (CSM) Samplers
-uniform sampler2DShadow u_ShadowMap0;
-uniform sampler2DShadow u_ShadowMap1;
-uniform sampler2DShadow u_ShadowMap2;
-uniform sampler2DShadow u_SpotShadowMap;
-uniform sampler2D u_PlanarReflectionMap;
+// Material Textures
+layout(binding = 0) uniform sampler2D u_AlbedoMap;
+layout(binding = 1) uniform sampler2D u_NormalMap;
+layout(binding = 2) uniform sampler2D u_MetallicMap;
+layout(binding = 3) uniform sampler2D u_AOMap;
+layout(binding = 4) uniform sampler2D u_RoughnessMap;
+layout(binding = 5) uniform sampler2D u_PlanarReflectionMap;
 
 // Real IBL Maps
-uniform samplerCube u_IrradianceMap;
-uniform samplerCube u_PrefilterMap;
-uniform sampler2D u_BRDFLUT;
-uniform int u_UseIBL;
+layout(binding = 6) uniform sampler2D u_BRDFLUT;
+layout(binding = 7) uniform samplerCube u_IrradianceMap;
+layout(binding = 8) uniform samplerCube u_PrefilterMap;
 
+// Cascaded & Spot Shadow Maps (Hardware PCF Depth Samplers)
+layout(binding = 10) uniform sampler2DShadow u_ShadowMap0;
+layout(binding = 11) uniform sampler2DShadow u_ShadowMap1;
+layout(binding = 12) uniform sampler2DShadow u_ShadowMap2;
+layout(binding = 13) uniform sampler2DShadow u_SpotShadowMap;
+
+uniform int u_UseIBL;
 uniform int u_UseAlbedoMap;
 uniform int u_UseNormalMap;
 uniform int u_UseMetallicMap;

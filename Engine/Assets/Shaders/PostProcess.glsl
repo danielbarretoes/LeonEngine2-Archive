@@ -19,7 +19,7 @@ layout(location = 0) out vec4 FragColor;
 
 in vec2 v_TexCoord;
 
-uniform sampler2D u_SceneTexture;
+layout(binding = 0) uniform sampler2D u_SceneTexture;
 uniform float u_Exposure = 1.0;
 
 // ACES Film Tonemapping Curve (Academy Color Encoding System / Unreal Engine Standard)

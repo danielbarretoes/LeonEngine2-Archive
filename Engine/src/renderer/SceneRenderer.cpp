@@ -491,6 +491,12 @@ namespace Leon {
             FRenderCommand::SetDepthFunc(EDepthFunc::Less);
         }
 
+        // Bind shadow maps to slots 10-13 so sampler2DShadow samplers always reference valid depth textures
+        if (m_CascadeShadowFramebuffers[0]) m_CascadeShadowFramebuffers[0]->BindDepthTexture(10);
+        if (m_CascadeShadowFramebuffers[1]) m_CascadeShadowFramebuffers[1]->BindDepthTexture(11);
+        if (m_CascadeShadowFramebuffers[2]) m_CascadeShadowFramebuffers[2]->BindDepthTexture(12);
+        if (m_SpotShadowFramebuffer)        m_SpotShadowFramebuffer->BindDepthTexture(13);
+
         // Visible meshes in reflection (minimal material binding, no shadows)
         auto& reg = m_Scene->GetRegistry();
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
@@ -507,7 +513,6 @@ namespace Leon {
                 const auto& pbrMat = reg.get<FPBRMaterialComponent>(entity).Material;
                 if (pbrMat.bUseAlbedoMap && pbrMat.AlbedoMap && pbrMat.AlbedoMap->IsLoaded()) {
                     pbrMat.AlbedoMap->Bind(0);
-                    mesh.Shader->SetInt("u_AlbedoMap", 0);
                     mesh.Shader->SetInt("u_UseAlbedoMap", 1);
                 } else {
                     mesh.Shader->SetInt("u_UseAlbedoMap", 0);
@@ -524,6 +529,9 @@ namespace Leon {
 
             glm::mat4 model = transform.GetTransform();
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
+            glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+            mesh.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+
             mesh.VertexArray->Bind();
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
@@ -555,19 +563,14 @@ namespace Leon {
         auto& reg = m_Scene->GetRegistry();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
-        // They are global for all objects this frame; re-binding per-object was wasteful.
-        // Shadow Maps (slots 10-13)
-        bool bShadowsAvailable  = bHasDirLight  && m_CascadeShadowFramebuffers[0];
-        bool bSpotShadowAvailable = bHasSpotLight && m_SpotShadowFramebuffer;
+        // Bind shadow depth maps to slots 10-13 so sampler2DShadow samplers always reference valid depth textures
+        if (m_CascadeShadowFramebuffers[0]) m_CascadeShadowFramebuffers[0]->BindDepthTexture(10);
+        if (m_CascadeShadowFramebuffers[1]) m_CascadeShadowFramebuffers[1]->BindDepthTexture(11);
+        if (m_CascadeShadowFramebuffers[2]) m_CascadeShadowFramebuffers[2]->BindDepthTexture(12);
+        if (m_SpotShadowFramebuffer)        m_SpotShadowFramebuffer->BindDepthTexture(13);
 
-        if (bShadowsAvailable) {
-            m_CascadeShadowFramebuffers[0]->BindDepthTexture(10);
-            m_CascadeShadowFramebuffers[1]->BindDepthTexture(11);
-            m_CascadeShadowFramebuffers[2]->BindDepthTexture(12);
-        }
-        if (bSpotShadowAvailable) {
-            m_SpotShadowFramebuffer->BindDepthTexture(13);
-        }
+        bool bShadowsAvailable    = bHasDirLight  && m_CascadeShadowFramebuffers[0];
+        bool bSpotShadowAvailable = bHasSpotLight && m_SpotShadowFramebuffer;
 
         // IBL maps (slots 6-8) — same for all objects
         bool bIBLAvailable = m_bUseIBL && m_IBLEnvironment.BRDFLUT;
