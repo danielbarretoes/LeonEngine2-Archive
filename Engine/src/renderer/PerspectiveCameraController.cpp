@@ -1,5 +1,5 @@
-#include "engine/renderer/PerspectiveCameraController.hpp"
-#include "engine/core/Input.hpp"
+#include "renderer/PerspectiveCameraController.hpp"
+#include "core/Input.hpp"
 #include <cmath>
 
 namespace Leon {

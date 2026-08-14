@@ -1,10 +1,10 @@
-#include "engine/scene/Scene.hpp"
-#include "engine/renderer/Framebuffer.hpp"
-#include "engine/renderer/MeshPrimitives.hpp"
-#include "engine/renderer/Renderer.hpp"
-#include "engine/renderer/Shader.hpp"
-#include "engine/scene/Components.hpp"
-#include "engine/scene/Entity.hpp"
+#include "scene/Scene.hpp"
+#include "renderer/Framebuffer.hpp"
+#include "renderer/MeshPrimitives.hpp"
+#include "renderer/Renderer.hpp"
+#include "renderer/Shader.hpp"
+#include "scene/Components.hpp"
+#include "scene/Entity.hpp"
 
 #include <cmath>
 #include <glad/glad.h>

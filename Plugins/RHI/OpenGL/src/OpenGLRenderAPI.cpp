@@ -1,5 +1,5 @@
-#include "opengl/OpenGLRenderAPI.hpp"
-#include "engine/renderer/VertexArray.hpp"
+#include "OpenGLRenderAPI.hpp"
+#include "renderer/VertexArray.hpp"
 
 #include <glad/glad.h>
 

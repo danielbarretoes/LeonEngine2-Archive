@@ -1,5 +1,5 @@
-#include "opengl/OpenGLBuffer.hpp"
-#include "engine/renderer/Renderer.hpp"
+#include "OpenGLBuffer.hpp"
+#include "renderer/Renderer.hpp"
 #include <glad/glad.h>
 
 namespace Leon {

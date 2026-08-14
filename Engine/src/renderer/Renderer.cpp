@@ -1,5 +1,5 @@
-#include "engine/renderer/Renderer.hpp"
-#include "engine/core/Log.hpp"
+#include "renderer/Renderer.hpp"
+#include "core/Log.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace Leon {

@@ -1,5 +1,5 @@
-#include "engine/renderer/RenderDriver.hpp"
-#include "engine/core/Log.hpp"
+#include "renderer/RenderDriver.hpp"
+#include "core/Log.hpp"
 #include <unordered_map>
 
 namespace Leon {

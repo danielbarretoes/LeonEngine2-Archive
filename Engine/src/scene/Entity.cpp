@@ -1,4 +1,4 @@
-#include "engine/scene/Entity.hpp"
+#include "scene/Entity.hpp"
 
 namespace Leon {
 

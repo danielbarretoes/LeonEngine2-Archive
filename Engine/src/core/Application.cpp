@@ -1,10 +1,10 @@
-#include "engine/core/Application.hpp"
-#include "engine/core/Input.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/core/events/KeyEvent.hpp"
-#include "engine/renderer/DebugOverlay.hpp"
-#include "engine/renderer/DebugRenderer.hpp"
-#include "engine/renderer/Renderer.hpp"
+#include "core/Application.hpp"
+#include "core/Input.hpp"
+#include "core/Log.hpp"
+#include "core/events/KeyEvent.hpp"
+#include "renderer/DebugOverlay.hpp"
+#include "renderer/DebugRenderer.hpp"
+#include "renderer/Renderer.hpp"
 
 #include <GLFW/glfw3.h>
 

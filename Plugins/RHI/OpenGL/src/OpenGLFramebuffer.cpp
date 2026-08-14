@@ -1,6 +1,6 @@
-#include "opengl/OpenGLFramebuffer.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/renderer/Renderer.hpp"
+#include "OpenGLFramebuffer.hpp"
+#include "core/Log.hpp"
+#include "renderer/Renderer.hpp"
 
 namespace Leon {
 

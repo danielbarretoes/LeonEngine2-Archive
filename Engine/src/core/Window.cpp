@@ -1,8 +1,8 @@
-#include "engine/core/Window.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/core/events/ApplicationEvent.hpp"
-#include "engine/core/events/KeyEvent.hpp"
-#include "engine/core/events/MouseEvent.hpp"
+#include "core/Window.hpp"
+#include "core/Log.hpp"
+#include "core/events/ApplicationEvent.hpp"
+#include "core/events/KeyEvent.hpp"
+#include "core/events/MouseEvent.hpp"
 
 #include <GLFW/glfw3.h>
 

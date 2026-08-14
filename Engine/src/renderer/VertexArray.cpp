@@ -1,5 +1,5 @@
-#include "engine/renderer/VertexArray.hpp"
-#include "engine/renderer/RenderDriver.hpp"
+#include "renderer/VertexArray.hpp"
+#include "renderer/RenderDriver.hpp"
 
 namespace Leon {
 

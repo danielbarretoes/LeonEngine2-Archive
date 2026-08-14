@@ -1,5 +1,5 @@
-#include "engine/core/Input.hpp"
-#include "engine/core/Application.hpp"
+#include "core/Input.hpp"
+#include "core/Application.hpp"
 
 #include <GLFW/glfw3.h>
 #include <cmath>

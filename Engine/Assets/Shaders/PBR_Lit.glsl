@@ -200,6 +200,15 @@ vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
         sky = mix(u_EnvHorizonColor, u_EnvGroundColor, groundFactor);
     }
 
+    // Solar specular reflection in sky
+    if (u_DirLight.enabled == 1) {
+        vec3 sunDir = normalize(-u_DirLight.direction);
+        float cosTheta = max(dot(dir, sunDir), 0.0);
+        float sunExponent = mix(256.0, 8.0, roughness);
+        float sunHalo = pow(cosTheta, sunExponent) * (1.0 - roughness * 0.5) * 3.5;
+        sky += u_DirLight.color * sunHalo;
+    }
+
     // Roughness blur effect on specular environment reflection
     vec3 averageEnv = mix(u_EnvSkyColor, u_EnvHorizonColor, 0.5);
     return mix(sky, averageEnv, clamp(roughness * 0.7, 0.0, 1.0)) * u_EnvIntensity;
@@ -243,7 +252,7 @@ void main() {
         albedo *= pow(texture(u_AlbedoMap, v_TexCoord).rgb, vec3(2.2));
     }
 
-    // Normal Mapping
+    // Normal Mapping with orthogonal TBN
     vec3 N = normalize(v_Normal);
     if (u_UseNormalMap == 1) {
         vec3 normalMap = texture(u_NormalMap, v_TexCoord).rgb;

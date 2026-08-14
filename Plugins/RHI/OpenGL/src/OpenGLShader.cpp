@@ -1,5 +1,5 @@
-#include "opengl/OpenGLShader.hpp"
-#include "engine/core/Log.hpp"
+#include "OpenGLShader.hpp"
+#include "core/Log.hpp"
 
 #include <cstring>
 #include <filesystem>

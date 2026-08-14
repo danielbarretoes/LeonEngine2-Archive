@@ -1,6 +1,6 @@
-#include "opengl/OpenGLTexture2D.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/renderer/Renderer.hpp"
+#include "OpenGLTexture2D.hpp"
+#include "core/Log.hpp"
+#include "renderer/Renderer.hpp"
 #include <algorithm>
 #include <cmath>
 #include <stb_image.h>

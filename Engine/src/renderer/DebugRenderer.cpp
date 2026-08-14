@@ -1,6 +1,6 @@
-#include "engine/renderer/DebugRenderer.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/renderer/RenderCommand.hpp"
+#include "renderer/DebugRenderer.hpp"
+#include "core/Log.hpp"
+#include "renderer/RenderCommand.hpp"
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>

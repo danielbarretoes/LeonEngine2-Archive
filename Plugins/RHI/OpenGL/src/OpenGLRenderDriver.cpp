@@ -1,11 +1,11 @@
-#include "opengl/OpenGLRenderDriver.hpp"
-#include "opengl/OpenGLBuffer.hpp"
-#include "opengl/OpenGLContext.hpp"
-#include "opengl/OpenGLRenderAPI.hpp"
-#include "opengl/OpenGLFramebuffer.hpp"
-#include "opengl/OpenGLShader.hpp"
-#include "opengl/OpenGLTexture2D.hpp"
-#include "opengl/OpenGLVertexArray.hpp"
+#include "OpenGLRenderDriver.hpp"
+#include "OpenGLBuffer.hpp"
+#include "OpenGLContext.hpp"
+#include "OpenGLRenderAPI.hpp"
+#include "OpenGLFramebuffer.hpp"
+#include "OpenGLShader.hpp"
+#include "OpenGLTexture2D.hpp"
+#include "OpenGLVertexArray.hpp"
 
 #include <GLFW/glfw3.h>
 

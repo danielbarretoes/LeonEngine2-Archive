@@ -1,5 +1,5 @@
-#include "engine/LeonEngine.hpp"
-#include "opengl/OpenGLRenderDriver.hpp"
+#include "LeonEngine.hpp"
+#include "OpenGLRenderDriver.hpp"
 
 #include <cmath>
 #include <glm/glm.hpp>
@@ -37,16 +37,21 @@ public:
         // 2. Initialize Scene (ECS)
         m_Scene = Leon::FScene::Create();
 
-        // 3. Load Shaders & Textures
+        // 3. Load Shaders & PBR Textures
         m_PBRShader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         m_DefaultLitShader = Leon::FShader::Create("Engine/Assets/Shaders/DefaultLit.glsl");
-        m_Texture = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Container_D.png");
 
-        // 4. Create Geometric Mesh Primitives
-        m_CubeVA = Leon::FMeshPrimitives::CreateCube(1.0f);
-        m_CylinderVA = Leon::FMeshPrimitives::CreateCylinder(0.5f, 0.5f, 1.2f, 48, true);
-        m_SphereVA = Leon::FMeshPrimitives::CreateSphere(0.6f, 48, 24);
+        m_ContainerTexture = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Container_D.png");
+        m_MetalPlatesNormalMap = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_MetalPlates_N.png");
+        m_TilesNormalMap = Leon::FTexture2D::Create("Projects/Sandbox/Assets/Textures/T_Tiles_N.png");
+
+        // 4. Create Geometric Mesh Primitives (Using Default Standard 1.0 Unit Modular Dimensions)
+        m_CubeVA = Leon::FMeshPrimitives::CreateCube();
+        m_CylinderVA = Leon::FMeshPrimitives::CreateCylinder();
+        m_SphereVA = Leon::FMeshPrimitives::CreateSphere();
         m_PlaneVA = Leon::FMeshPrimitives::CreatePlane(24.0f, 24.0f, 24, 24);
+        m_RampVA = Leon::FMeshPrimitives::CreateRamp();
+        m_PyramidVA = Leon::FMeshPrimitives::CreatePyramid();
 
         // 5. Populate PBR & Environment Entities
         // 5.0 Atmospheric HDR Skybox Environment
@@ -64,7 +69,7 @@ public:
             m_SkyboxEntity.AddComponent<Leon::FSkyboxComponent>(skybox);
         }
 
-        // 5.1 Ground Plane (Shadow Receiver)
+        // 5.1 Glossy Ground Plane with Tile Normal Map (Reflective Shadow Receiver)
         {
             m_PlaneEntity = m_Scene->CreateEntity("PBR Ground Plane");
             auto& transform = m_PlaneEntity.GetComponent<Leon::FTransformComponent>();
@@ -73,72 +78,114 @@ public:
             m_PlaneEntity.AddComponent<Leon::FMeshComponent>(m_PlaneVA, m_PBRShader);
 
             Leon::FPBRMaterial mat;
-            mat.AlbedoColor = glm::vec3(0.72f, 0.75f, 0.80f);
-            mat.Metallic = 0.05f;
-            mat.Roughness = 0.50f;
+            mat.AlbedoColor = glm::vec3(0.75f, 0.78f, 0.82f);
+            mat.NormalMap = m_TilesNormalMap;
+            mat.bUseNormalMap = true;
+            mat.Metallic = 0.08f;
+            mat.Roughness = 0.18f; // Glossy reflective floor
             m_PlaneEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.2 Textured PBR Rotating Cube (Left)
+        // 5.2 Emerald PBR Ramp with Metal Panel Normal Map (Far Left)
+        {
+            m_RampEntity = m_Scene->CreateEntity("PBR Emerald Ramp");
+            auto& transform = m_RampEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(-4.0f, 0.5f, 0.0f);
+            transform.Rotation = glm::vec3(0.0f, -25.0f, 0.0f);
+
+            m_RampEntity.AddComponent<Leon::FMeshComponent>(m_RampVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(0.05f, 0.85f, 0.45f);
+            mat.NormalMap = m_MetalPlatesNormalMap;
+            mat.bUseNormalMap = true;
+            mat.Metallic = 0.25f;
+            mat.Roughness = 0.15f; // Crisp reflections perturbed by normal grooves
+            m_RampEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 5.3 Textured PBR Rotating Cube with Diffuse + Normal Map (Left)
         {
             m_CubeEntity = m_Scene->CreateEntity("PBR Textured Cube");
             auto& transform = m_CubeEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Translation = glm::vec3(-2.7f, 0.6f, 0.0f);
+            transform.Translation = glm::vec3(-2.4f, 0.5f, 0.0f);
 
             m_CubeEntity.AddComponent<Leon::FMeshComponent>(m_CubeVA, m_PBRShader);
 
             Leon::FPBRMaterial mat;
             mat.AlbedoColor = glm::vec3(1.0f);
-            mat.AlbedoMap = m_Texture;
+            mat.AlbedoMap = m_ContainerTexture;
             mat.bUseAlbedoMap = true;
-            mat.Metallic = 0.20f;
-            mat.Roughness = 0.25f;
+            mat.NormalMap = m_MetalPlatesNormalMap;
+            mat.bUseNormalMap = true;
+            mat.Metallic = 0.65f;
+            mat.Roughness = 0.18f;
             m_CubeEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.3 Polished Gold PBR Sphere (Center-Left)
+        // 5.4 Polished Mirror Gold PBR Sphere (Center-Left)
         {
             m_GoldSphereEntity = m_Scene->CreateEntity("PBR Polished Gold Sphere");
             auto& transform = m_GoldSphereEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Translation = glm::vec3(-0.9f, 0.7f, 0.0f);
+            transform.Translation = glm::vec3(-0.8f, 0.5f, 0.0f);
 
             m_GoldSphereEntity.AddComponent<Leon::FMeshComponent>(m_SphereVA, m_PBRShader);
 
             Leon::FPBRMaterial mat;
             mat.AlbedoColor = glm::vec3(1.00f, 0.78f, 0.34f); // Pure Gold Base Reflectance
             mat.Metallic = 1.0f;
-            mat.Roughness = 0.08f; // Ultra-crisp sky reflection
+            mat.Roughness = 0.05f; // Mirror-like sky & horizon reflections
             m_GoldSphereEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.4 Matte Red Plastic PBR Sphere (Center-Right)
+        // 5.5 Glossy Ruby Dielectric PBR Sphere (Center-Right)
         {
-            m_RedSphereEntity = m_Scene->CreateEntity("PBR Matte Red Sphere");
+            m_RedSphereEntity = m_Scene->CreateEntity("PBR Glossy Ruby Sphere");
             auto& transform = m_RedSphereEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Translation = glm::vec3(0.9f, 0.7f, 0.0f);
+            transform.Translation = glm::vec3(0.8f, 0.5f, 0.0f);
 
             m_RedSphereEntity.AddComponent<Leon::FMeshComponent>(m_SphereVA, m_PBRShader);
 
             Leon::FPBRMaterial mat;
-            mat.AlbedoColor = glm::vec3(0.92f, 0.12f, 0.12f);
+            mat.AlbedoColor = glm::vec3(0.92f, 0.08f, 0.12f);
             mat.Metallic = 0.0f;
-            mat.Roughness = 0.50f;
+            mat.Roughness = 0.12f; // Glossy dielectric reflection
             m_RedSphereEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
-        // 5.5 Rough Brushed Iron Cylinder (Right)
+        // 5.6 Rough Brushed Iron Cylinder (Right)
         {
             m_CylinderEntity = m_Scene->CreateEntity("PBR Brushed Iron Cylinder");
             auto& transform = m_CylinderEntity.GetComponent<Leon::FTransformComponent>();
-            transform.Translation = glm::vec3(2.7f, 0.7f, 0.0f);
+            transform.Translation = glm::vec3(2.4f, 0.5f, 0.0f);
 
             m_CylinderEntity.AddComponent<Leon::FMeshComponent>(m_CylinderVA, m_PBRShader);
 
             Leon::FPBRMaterial mat;
             mat.AlbedoColor = glm::vec3(0.56f, 0.57f, 0.58f); // Iron Base Reflectance
+            mat.NormalMap = m_MetalPlatesNormalMap;
+            mat.bUseNormalMap = true;
             mat.Metallic = 0.95f;
-            mat.Roughness = 0.28f;
+            mat.Roughness = 0.22f;
             m_CylinderEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
+        }
+
+        // 5.7 Cobalt Mirror Metallic PBR Square Pyramid (Far Right)
+        {
+            m_PyramidEntity = m_Scene->CreateEntity("PBR Cobalt Pyramid");
+            auto& transform = m_PyramidEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = glm::vec3(4.0f, 0.5f, 0.0f);
+            transform.Rotation = glm::vec3(0.0f, 35.0f, 0.0f);
+
+            m_PyramidEntity.AddComponent<Leon::FMeshComponent>(m_PyramidVA, m_PBRShader);
+
+            Leon::FPBRMaterial mat;
+            mat.AlbedoColor = glm::vec3(0.18f, 0.45f, 0.95f);
+            mat.NormalMap = m_TilesNormalMap;
+            mat.bUseNormalMap = true;
+            mat.Metallic = 0.90f;
+            mat.Roughness = 0.08f; // Crisp geometric reflections with beveled normal tile seams
+            m_PyramidEntity.AddComponent<Leon::FPBRMaterialComponent>(mat);
         }
 
         // 6. Configure Light Source Entities
@@ -192,7 +239,7 @@ public:
         }
 
         // Set initial camera position looking down at the stage
-        m_CameraController.GetCamera().SetPosition({0.0f, 3.5f, 6.2f});
+        m_CameraController.GetCamera().SetPosition({0.0f, 4.0f, 7.5f});
         m_CameraController.GetCamera().SetRotation(-22.0f, -90.0f);
     }
 
@@ -240,7 +287,13 @@ public:
             transform.Rotation.y -= 15.0f * InTs.GetSeconds();
         }
 
-        // 4. Orbit Point Light Entity
+        // 4. Slowly rotate Pyramid
+        if (m_PyramidEntity) {
+            auto& transform = m_PyramidEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Rotation.y += 18.0f * InTs.GetSeconds();
+        }
+
+        // 5. Orbit Point Light Entity
         if (m_PointLightEntity) {
             float orbitRadius = 3.4f;
             glm::vec3 newPos = glm::vec3(std::cos(m_TimeAccumulator * 1.4f) * orbitRadius, 1.5f,
@@ -302,20 +355,28 @@ private:
 
     Leon::TRef<Leon::FShader> m_PBRShader;
     Leon::TRef<Leon::FShader> m_DefaultLitShader;
-    Leon::TRef<Leon::FTexture2D> m_Texture;
+
+    // Textures & Normal Maps
+    Leon::TRef<Leon::FTexture2D> m_ContainerTexture;
+    Leon::TRef<Leon::FTexture2D> m_MetalPlatesNormalMap;
+    Leon::TRef<Leon::FTexture2D> m_TilesNormalMap;
 
     // Primitives
     Leon::TRef<Leon::FVertexArray> m_CubeVA;
     Leon::TRef<Leon::FVertexArray> m_CylinderVA;
     Leon::TRef<Leon::FVertexArray> m_SphereVA;
     Leon::TRef<Leon::FVertexArray> m_PlaneVA;
+    Leon::TRef<Leon::FVertexArray> m_RampVA;
+    Leon::TRef<Leon::FVertexArray> m_PyramidVA;
 
     // Entities
     Leon::FEntity m_SkyboxEntity;
+    Leon::FEntity m_RampEntity;
     Leon::FEntity m_CubeEntity;
-    Leon::FEntity m_CylinderEntity;
     Leon::FEntity m_GoldSphereEntity;
     Leon::FEntity m_RedSphereEntity;
+    Leon::FEntity m_CylinderEntity;
+    Leon::FEntity m_PyramidEntity;
     Leon::FEntity m_PlaneEntity;
     Leon::FEntity m_DirLightEntity;
     Leon::FEntity m_PointLightEntity;
@@ -330,7 +391,7 @@ private:
 class FSandboxApp : public Leon::FApplication {
 public:
     FSandboxApp()
-        : Leon::FApplication(Leon::FApplicationProps{"LeonEngine2 - PBR, Atmospheric Skybox & Shadows", 1280, 720}) {
+        : Leon::FApplication(Leon::FApplicationProps{"LeonEngine2 - PBR, Normal Maps & Reflections", 1280, 720}) {
         PushLayer(new FLightingShowcaseLayer());
     }
 

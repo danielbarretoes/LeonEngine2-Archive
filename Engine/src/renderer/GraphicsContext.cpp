@@ -1,5 +1,5 @@
-#include "engine/renderer/GraphicsContext.hpp"
-#include "engine/renderer/RenderDriver.hpp"
+#include "renderer/GraphicsContext.hpp"
+#include "renderer/RenderDriver.hpp"
 
 namespace Leon {
 

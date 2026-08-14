@@ -1,4 +1,4 @@
-#include "engine/core/Log.hpp"
+#include "core/Log.hpp"
 #include <iostream>
 
 #ifdef _WIN32

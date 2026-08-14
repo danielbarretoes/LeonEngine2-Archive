@@ -1,5 +1,5 @@
-#include "engine/renderer/MeshPrimitives.hpp"
-#include "engine/renderer/Buffer.hpp"
+#include "renderer/MeshPrimitives.hpp"
+#include "renderer/Buffer.hpp"
 
 #include <cmath>
 #include <glm/glm.hpp>
@@ -499,6 +499,148 @@ namespace Leon {
 
         TRef<FIndexBuffer> indexBuffer =
             FIndexBuffer::Create(indices.data(), static_cast<unsigned int>(indices.size()));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreateRamp(float InWidth, float InHeight, float InDepth) {
+        float w = InWidth * 0.5f;
+        float h = InHeight * 0.5f;
+        float d = InDepth * 0.5f;
+
+        // Sloped face normal, tangent, bitangent
+        // Ramp slopes from (z = +d, y = -h) up to (z = -d, y = +h)
+        float slopeLen = std::sqrt(4.0f * h * h + 4.0f * d * d);
+        float ny = (2.0f * d) / slopeLen;
+        float nz = (2.0f * h) / slopeLen;
+        float by = (2.0f * h) / slopeLen;
+        float bz = (-2.0f * d) / slopeLen;
+
+        // 18 vertices across 5 faces:
+        // Format: Pos(3), Normal(3), UV(2), Tangent(3), Bitangent(3), Color(3) = 17 floats
+        float vertices[] = {
+            // 1. Bottom Face (-Y) - Normal (0, -1, 0), Tangent (1, 0, 0), Bitangent (0, 0, 1)
+            -w, -h, -d, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, w, -h, -d,
+            0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, w, -h, d, 0.0f, -1.0f,
+            0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, -w, -h, d, 0.0f, -1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+            // 2. Back Vertical Face (-Z) - Normal (0, 0, -1), Tangent (-1, 0, 0), Bitangent (0, 1, 0)
+            w, -h, -d, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -w, -h, -d,
+            0.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -w, h, -d, 0.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, w, h, -d, 0.0f, 0.0f, -1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+
+            // 3. Sloped / Ramp Face - Normal (0, ny, nz), Tangent (1, 0, 0), Bitangent (0, by, bz)
+            -w, -h, d, 0.0f, ny, nz, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, by, bz, 1.0f, 1.0f, 1.0f, w, -h, d, 0.0f, ny,
+            nz, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, by, bz, 1.0f, 1.0f, 1.0f, w, h, -d, 0.0f, ny, nz, 1.0f, 1.0f, 1.0f,
+            0.0f, 0.0f, 0.0f, by, bz, 1.0f, 1.0f, 1.0f, -w, h, -d, 0.0f, ny, nz, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, by,
+            bz, 1.0f, 1.0f, 1.0f,
+
+            // 4. Left Triangular Side Face (-X) - Normal (-1, 0, 0), Tangent (0, 0, 1), Bitangent (0, 1, 0)
+            -w, -h, -d, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -w, -h, d,
+            -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, -w, h, -d, -1.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+
+            // 5. Right Triangular Side Face (+X) - Normal (1, 0, 0), Tangent (0, 0, -1), Bitangent (0, 1, 0)
+            w, -h, d, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, w, -h, -d,
+            1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, w, h, -d, 1.0f, 0.0f,
+            0.0f, 1.0f, 1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f};
+
+        uint32_t indices[] = {
+            0,  1,  2,  2,  3,  0, // Bottom Face
+            4,  5,  6,  6,  7,  4, // Back Face
+            8,  9,  10, 10, 11, 8, // Sloped Face
+            12, 13, 14,            // Left Side
+            15, 16, 17             // Right Side
+        };
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer = FVertexBuffer::Create(vertices, sizeof(vertices));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer = FIndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t));
+        vertexArray->SetIndexBuffer(indexBuffer);
+
+        return vertexArray;
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreatePyramid(float InWidth, float InHeight, float InDepth) {
+        float w = InWidth * 0.5f;
+        float h = InHeight * 0.5f;
+        float d = InDepth * 0.5f;
+
+        // Front/Back normal & bitangent (slope with depth d and height 2h)
+        float zSlopeLen = std::sqrt(d * d + 4.0f * h * h);
+        float fnY = d / zSlopeLen;
+        float fnZ = (2.0f * h) / zSlopeLen;
+        float fbY = (2.0f * h) / zSlopeLen;
+        float fbZ = -d / zSlopeLen;
+
+        // Left/Right normal & bitangent (slope with width w and height 2h)
+        float xSlopeLen = std::sqrt(w * w + 4.0f * h * h);
+        float rnX = (2.0f * h) / xSlopeLen;
+        float rnY = w / xSlopeLen;
+        float rbX = -w / xSlopeLen;
+        float rbY = (2.0f * h) / xSlopeLen;
+
+        // 16 vertices across 5 faces (1 base + 4 triangular sides):
+        // Format: Pos(3), Normal(3), UV(2), Tangent(3), Bitangent(3), Color(3) = 17 floats
+        float vertices[] = {
+            // 1. Base Face (-Y) - Normal (0, -1, 0), Tangent (1, 0, 0), Bitangent (0, 0, 1)
+            -w, -h, -d, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, w, -h, -d,
+            0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, w, -h, d, 0.0f, -1.0f,
+            0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, -w, -h, d, 0.0f, -1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+            // 2. Front Face (+Z) - Normal (0, fnY, fnZ), Tangent (1, 0, 0), Bitangent (0, fbY, fbZ)
+            -w, -h, d, 0.0f, fnY, fnZ, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, fbY, fbZ, 1.0f, 1.0f, 1.0f, w, -h, d, 0.0f,
+            fnY, fnZ, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, fbY, fbZ, 1.0f, 1.0f, 1.0f, 0.0f, h, 0.0f, 0.0f, fnY, fnZ,
+            0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, fbY, fbZ, 1.0f, 1.0f, 1.0f,
+
+            // 3. Right Face (+X) - Normal (rnX, rnY, 0), Tangent (0, 0, -1), Bitangent (rbX, rbY, 0)
+            w, -h, d, rnX, rnY, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, rbX, rbY, 0.0f, 1.0f, 1.0f, 1.0f, w, -h, -d, rnX,
+            rnY, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, -1.0f, rbX, rbY, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, h, 0.0f, rnX, rnY, 0.0f,
+            0.5f, 1.0f, 0.0f, 0.0f, -1.0f, rbX, rbY, 0.0f, 1.0f, 1.0f, 1.0f,
+
+            // 4. Back Face (-Z) - Normal (0, fnY, -fnZ), Tangent (-1, 0, 0), Bitangent (0, fbY, -fbZ)
+            w, -h, -d, 0.0f, fnY, -fnZ, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, fbY, -fbZ, 1.0f, 1.0f, 1.0f, -w, -h, -d,
+            0.0f, fnY, -fnZ, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, fbY, -fbZ, 1.0f, 1.0f, 1.0f, 0.0f, h, 0.0f, 0.0f, fnY,
+            -fnZ, 0.5f, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, fbY, -fbZ, 1.0f, 1.0f, 1.0f,
+
+            // 5. Left Face (-X) - Normal (-rnX, rnY, 0), Tangent (0, 0, 1), Bitangent (-rbX, rbY, 0)
+            -w, -h, -d, -rnX, rnY, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, -rbX, rbY, 0.0f, 1.0f, 1.0f, 1.0f, -w, -h, d,
+            -rnX, rnY, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, -rbX, rbY, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, h, 0.0f, -rnX, rnY,
+            0.0f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, -rbX, rbY, 0.0f, 1.0f, 1.0f, 1.0f};
+
+        uint32_t indices[] = {
+            0,  1,  2,  2, 3, 0, // Base
+            4,  5,  6,           // Front
+            7,  8,  9,           // Right
+            10, 11, 12,          // Back
+            13, 14, 15           // Left
+        };
+
+        TRef<FVertexArray> vertexArray = FVertexArray::Create();
+
+        TRef<FVertexBuffer> vertexBuffer = FVertexBuffer::Create(vertices, sizeof(vertices));
+        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
+                                 {EShaderDataType::Float3, "aNormal"},
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float3, "aTangent"},
+                                 {EShaderDataType::Float3, "aBitangent"},
+                                 {EShaderDataType::Float3, "aColor"}});
+        vertexArray->AddVertexBuffer(vertexBuffer);
+
+        TRef<FIndexBuffer> indexBuffer = FIndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t));
         vertexArray->SetIndexBuffer(indexBuffer);
 
         return vertexArray;

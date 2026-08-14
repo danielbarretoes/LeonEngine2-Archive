@@ -1,6 +1,6 @@
-#include "engine/renderer/DebugOverlay.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/renderer/RenderCommand.hpp"
+#include "renderer/DebugOverlay.hpp"
+#include "core/Log.hpp"
+#include "renderer/RenderCommand.hpp"
 
 #include <cmath>
 #include <format>

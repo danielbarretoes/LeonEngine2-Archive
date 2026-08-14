@@ -1,6 +1,6 @@
-#include "engine/renderer/Shader.hpp"
-#include "engine/core/Log.hpp"
-#include "engine/renderer/RenderDriver.hpp"
+#include "renderer/Shader.hpp"
+#include "core/Log.hpp"
+#include "renderer/RenderDriver.hpp"
 
 namespace Leon {
 

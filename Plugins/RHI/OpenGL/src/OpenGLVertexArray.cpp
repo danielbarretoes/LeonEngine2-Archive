@@ -1,5 +1,5 @@
-#include "opengl/OpenGLVertexArray.hpp"
-#include "engine/core/Log.hpp"
+#include "OpenGLVertexArray.hpp"
+#include "core/Log.hpp"
 
 #include <glad/glad.h>
 
