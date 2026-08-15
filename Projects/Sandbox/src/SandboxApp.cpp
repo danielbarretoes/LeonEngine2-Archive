@@ -36,6 +36,9 @@ public:
         LE_INFO("  - F5: Cycle Post-Process Debug Mode (Full -> Raw HDR -> Bloom -> Bright-Pass -> Tone Mapping Only)");
         LE_INFO("  - F6 / F7: Adjust Exposure Down / Up (-0.10 / +0.10)");
         LE_INFO("  - F8 / F9: Adjust Bloom Intensity Down / Up (-0.01 / +0.01)");
+        LE_INFO("  - F10: Cycle Material Forensic Debug Views (BaseColor -> Metallic -> Roughness -> Normal -> AO -> Emissive -> T -> B -> UV -> N.L)");
+        LE_INFO("  - F11: Cycle Shadow Forensic Debug Views (Composite -> Shadow Factor -> Cascade False-Color -> Contact Shadows -> Depth 0..3)");
+        LE_INFO("  - F12: Cycle Shadow Filter Modes (Hard -> PCF 3x3 -> PCF 5x5 -> Poisson Disk 16-Tap)");
         LE_INFO("  - Shift + F1:  Full Composite PBR Lit (Default)");
         LE_INFO("  - Shift + F2:  Environment Cubemap (LOD 0)");
         LE_INFO("  - Shift + F3:  Prefilter Cubemap Mip 0 (Roughness 0.0)");
@@ -288,6 +291,55 @@ public:
                 } else if (key == Leon::Key::F9) {
                     ppSettings.BloomIntensity += 0.01f;
                     LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", ppSettings.BloomIntensity);
+                    return true;
+                } else if (key == Leon::Key::F10) {
+                    static int s_MatDebugIndex = 0;
+                    static const int s_MatModes[] = { 0, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 };
+                    static const char* s_MatNames[] = {
+                        "Full Shading Composite",
+                        "Base Color / Albedo",
+                        "Metallic",
+                        "Roughness",
+                        "World Normal (Mapped [0, 1])",
+                        "Ambient Occlusion (AO)",
+                        "Emissive Radiance",
+                        "Tangent T (Mapped [0, 1])",
+                        "Bitangent B (Mapped [0, 1])",
+                        "UV Coordinates (Fract)",
+                        "Direct Sunlight N.L"
+                    };
+                    s_MatDebugIndex = (s_MatDebugIndex + 1) % 11;
+                    renderer->SetDebugMode(s_MatModes[s_MatDebugIndex]);
+                    LE_INFO("[MATERIAL DEBUG VIEW] Mode {0}: {1}", s_MatModes[s_MatDebugIndex], s_MatNames[s_MatDebugIndex]);
+                    return true;
+                } else if (key == Leon::Key::F11) {
+                    static int s_ShadowDebugIndex = 0;
+                    static const int s_ShadowModes[] = { 0, 24, 25, 26, 27, 28, 29, 30 };
+                    static const char* s_ShadowNames[] = {
+                        "Full Shading Composite",
+                        "Direct Shadow Factor (1.0 = lit, 0.0 = occluded)",
+                        "Cascade Slice Index False-Color (0:Red, 1:Green, 2:Blue, 3:Yellow)",
+                        "Screen-Space Contact Shadow Factor",
+                        "Cascade 0 Depth Map Slice",
+                        "Cascade 1 Depth Map Slice",
+                        "Cascade 2 Depth Map Slice",
+                        "Cascade 3 Depth Map Slice"
+                    };
+                    s_ShadowDebugIndex = (s_ShadowDebugIndex + 1) % 8;
+                    renderer->SetDebugMode(s_ShadowModes[s_ShadowDebugIndex]);
+                    LE_INFO("[SHADOW DEBUG VIEW] Mode {0}: {1}", s_ShadowModes[s_ShadowDebugIndex], s_ShadowNames[s_ShadowDebugIndex]);
+                    return true;
+                } else if (key == Leon::Key::F12) {
+                    auto& shadowSettings = renderer->GetShadowSettings();
+                    int nextMode = (static_cast<int>(shadowSettings.FilterMode) + 1) % 4;
+                    shadowSettings.FilterMode = static_cast<Leon::EShadowFilterMode>(nextMode);
+                    static const char* s_FilterNames[] = {
+                        "Hard Shadow (1 Tap)",
+                        "PCF 3x3 (9 Taps Kernel)",
+                        "PCF 5x5 (25 Taps Kernel)",
+                        "Poisson Disk (16 Taps Vogel Spiral with Interleaved Noise Jitter)"
+                    };
+                    LE_INFO("[SHADOW FILTER MODE] Switched to: {0}", s_FilterNames[nextMode]);
                     return true;
                 }
             }

@@ -36,6 +36,18 @@ namespace Leon {
         return m_ParentMaterial ? m_ParentMaterial->GetAO() : 1.0f;
     }
 
+    float FMaterialInstance::GetNormalScale() const {
+        if (m_NormalScaleOverride.has_value())
+            return m_NormalScaleOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetNormalScale() : 1.0f;
+    }
+
+    float FMaterialInstance::GetOcclusionStrength() const {
+        if (m_OcclusionStrengthOverride.has_value())
+            return m_OcclusionStrengthOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetOcclusionStrength() : 1.0f;
+    }
+
     glm::vec3 FMaterialInstance::GetEmissiveColor() const {
         if (m_EmissiveColorOverride.has_value())
             return m_EmissiveColorOverride.value();
@@ -46,6 +58,36 @@ namespace Leon {
         if (m_EmissiveIntensityOverride.has_value())
             return m_EmissiveIntensityOverride.value();
         return m_ParentMaterial ? m_ParentMaterial->GetEmissiveIntensity() : 0.0f;
+    }
+
+    EAlphaMode FMaterialInstance::GetAlphaMode() const {
+        if (m_AlphaModeOverride.has_value())
+            return m_AlphaModeOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetAlphaMode() : EAlphaMode::Opaque;
+    }
+
+    float FMaterialInstance::GetAlphaCutoff() const {
+        if (m_AlphaCutoffOverride.has_value())
+            return m_AlphaCutoffOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetAlphaCutoff() : 0.5f;
+    }
+
+    bool FMaterialInstance::GetDoubleSided() const {
+        if (m_bDoubleSidedOverride.has_value())
+            return m_bDoubleSidedOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetDoubleSided() : false;
+    }
+
+    glm::vec2 FMaterialInstance::GetUVTiling() const {
+        if (m_UVTilingOverride.has_value())
+            return m_UVTilingOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetUVTiling() : glm::vec2(1.0f, 1.0f);
+    }
+
+    glm::vec2 FMaterialInstance::GetUVOffset() const {
+        if (m_UVOffsetOverride.has_value())
+            return m_UVOffsetOverride.value();
+        return m_ParentMaterial ? m_ParentMaterial->GetUVOffset() : glm::vec2(0.0f, 0.0f);
     }
 
     bool FMaterialInstance::GetUsePlanarReflection() const {
@@ -84,15 +126,27 @@ namespace Leon {
         float metallic              = GetMetallic();
         float roughness             = GetRoughness();
         float ao                    = GetAO();
+        float normalScale           = GetNormalScale();
+        float occlusionStrength     = GetOcclusionStrength();
         glm::vec3 emissiveColor     = GetEmissiveColor();
         float emissiveIntensity     = GetEmissiveIntensity();
+        EAlphaMode alphaMode        = GetAlphaMode();
+        float alphaCutoff           = GetAlphaCutoff();
+        glm::vec2 uvTiling          = GetUVTiling();
+        glm::vec2 uvOffset          = GetUVOffset();
 
         InShader->SetFloat3("u_AlbedoColor", albedoColor.r, albedoColor.g, albedoColor.b);
         InShader->SetFloat("u_Metallic", metallic);
         InShader->SetFloat("u_Roughness", roughness);
         InShader->SetFloat("u_AO", ao);
+        InShader->SetFloat("u_NormalScale", normalScale);
+        InShader->SetFloat("u_OcclusionStrength", occlusionStrength);
         InShader->SetFloat3("u_EmissiveColor", emissiveColor.r, emissiveColor.g, emissiveColor.b);
         InShader->SetFloat("u_EmissiveIntensity", emissiveIntensity);
+        InShader->SetInt("u_AlphaMode", static_cast<int>(alphaMode));
+        InShader->SetFloat("u_AlphaCutoff", alphaCutoff);
+        InShader->SetFloat2("u_UVTiling", uvTiling.x, uvTiling.y);
+        InShader->SetFloat2("u_UVOffset", uvOffset.x, uvOffset.y);
 
         // 2. Resolve Textures & Bind to Units (0: Albedo, 1: Normal, 2: Metallic, 3: AO, 4: Roughness, 9: Emissive)
         TRef<FTexture2D> albedoMap    = GetTexture(0);
@@ -101,6 +155,8 @@ namespace Leon {
         TRef<FTexture2D> aoMap        = GetTexture(3);
         TRef<FTexture2D> roughnessMap = GetTexture(4);
         TRef<FTexture2D> emissiveMap  = GetTexture(5);
+        if (!emissiveMap)
+            emissiveMap = GetTexture(9);
 
         if (albedoMap && albedoMap->IsLoaded()) {
             albedoMap->Bind(0);

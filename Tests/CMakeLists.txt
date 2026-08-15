@@ -30,6 +30,19 @@ add_executable(RendererTests
     Shader/PostProcessToneMappingTests.cpp
     Shader/PostProcessFXAATests.cpp
     Shader/PostProcessPipelineTests.cpp
+    Shader/PBRShaderNormalMappingTests.cpp
+    Shader/PBRShaderMaterialTextureTests.cpp
+    Shader/PBRShaderEmissiveTests.cpp
+    Shader/PBRShaderAlphaTests.cpp
+    Shader/PBRShaderUVTransformTests.cpp
+    Shader/PBRShaderColorSpaceTests.cpp
+    Shader/PBRShaderTangentSpaceTests.cpp
+    Shader/ShadowCascadeTests.cpp
+    Shader/ShadowPCFTests.cpp
+    Shader/ShadowBiasTests.cpp
+    Shader/ShadowAtlasTests.cpp
+    Shader/ShadowSelectionTests.cpp
+    Shader/ShadowContactTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE

@@ -22,18 +22,18 @@ namespace Leon {
 
     FSceneRenderer::FSceneRenderer(FScene* InScene) : m_Scene(InScene) {
         // -----------------------------------------------------------------------
-        // 1. Shadow framebuffers — DEPTH32F (Texture2DArray for CSM, 2D for Spot)
+        // 1. Shadow framebuffers — DEPTH32F (Texture2DArray for 4-Cascade CSM, 2D for Spot)
         // -----------------------------------------------------------------------
         FFramebufferSpecification csmSpec;
-        csmSpec.Width  = 2048;
-        csmSpec.Height = 2048;
-        csmSpec.ArrayLayers = 3;
+        csmSpec.Width  = m_ShadowSettings.CascadeResolution;
+        csmSpec.Height = m_ShadowSettings.CascadeResolution;
+        csmSpec.ArrayLayers = 4;
         csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
         m_CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
 
         FFramebufferSpecification spotSpec;
-        spotSpec.Width  = 1024;
-        spotSpec.Height = 1024;
+        spotSpec.Width  = m_ShadowSettings.SpotResolution;
+        spotSpec.Height = m_ShadowSettings.SpotResolution;
         spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_SHADOW};
         m_SpotShadowFramebuffer = FFramebuffer::Create(spotSpec);
 
@@ -303,86 +303,46 @@ namespace Leon {
             return;
 
         float nearClip = InCamera.GetNearClip();
-        float farClip  = 75.0f;
-        float split0   = 4.5f;
-        float split1   = 20.0f;
-        float split2   = farClip;
+        float farClip  = m_ShadowSettings.ShadowDistance;
 
-        OutCamData.CascadeSplits = glm::vec4(split0, split1, split2, 0.0f);
+        auto splits = ShadowMath::CalculateCascadeSplits(m_ShadowSettings.CascadeCount, nearClip, farClip,
+                                                         m_ShadowSettings.SplitLambda, m_ShadowSettings.SplitScheme);
 
-        float cascadeSplitsNear[3] = {nearClip, split0, split1};
-        float cascadeSplitsFar[3]  = {split0, split1, split2};
-
-        glm::vec3 lightDirNorm = glm::normalize(InDirLightComp->Light.Direction);
+        OutCamData.CascadeSplits = glm::vec4(splits[1], splits[2], splits[3], splits[4]);
+        OutCamData.ShadowParams = glm::vec4(m_ShadowSettings.ConstantBias, m_ShadowSettings.SlopeBias,
+                                            m_ShadowSettings.NormalBias, m_ShadowSettings.CascadeBlendWidth);
+        OutCamData.ShadowSettings = glm::ivec4(static_cast<int>(m_ShadowSettings.FilterMode),
+                                               m_ShadowSettings.ContactShadowSteps,
+                                               m_ShadowSettings.bEnableContactShadows ? 1 : 0,
+                                               m_DebugMode);
+        OutCamData.ContactShadowParams = glm::vec4(m_ShadowSettings.ContactShadowDistance,
+                                                  m_ShadowSettings.ContactShadowThickness, 0.0f, 0.0f);
 
         m_CascadeShadowFramebuffer->Bind();
-        FRenderCommand::SetViewport(0, 0, 2048, 2048);
+        FRenderCommand::SetViewport(0, 0, m_ShadowSettings.CascadeResolution, m_ShadowSettings.CascadeResolution);
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetCulling(true, ECullMode::Front);
 
         m_ShadowDepthShader->Bind();
 
-        for (int cascade = 0; cascade < 3; ++cascade) {
+        float fov    = InCamera.GetFOV();
+        float aspect = InCamera.GetAspectRatio();
+
+        for (uint32_t cascade = 0; cascade < m_ShadowSettings.CascadeCount && cascade < 4; ++cascade) {
             m_CascadeShadowFramebuffer->AttachDepthTextureLayer(cascade);
             FRenderCommand::Clear();
 
-            float fov    = InCamera.GetFOV();
-            float aspect = InCamera.GetAspectRatio();
-            glm::mat4 subProj = glm::perspective(glm::radians(fov), aspect,
-                                                  cascadeSplitsNear[cascade], cascadeSplitsFar[cascade]);
-            glm::mat4 invSubVP = glm::inverse(subProj * InCamera.GetViewMatrix());
+            glm::mat4 subProj = glm::perspective(glm::radians(fov), aspect, splits[cascade], splits[cascade + 1]);
+            auto corners = ShadowMath::GetFrustumCornersWorldSpace(subProj, InCamera.GetViewMatrix());
 
-            std::vector<glm::vec4> frustumCorners;
-            frustumCorners.reserve(8);
-            for (unsigned int x = 0; x < 2; ++x)
-                for (unsigned int y = 0; y < 2; ++y)
-                    for (unsigned int z = 0; z < 2; ++z) {
-                        glm::vec4 pt = invSubVP * glm::vec4(2.f*x-1.f, 2.f*y-1.f, 2.f*z-1.f, 1.f);
-                        frustumCorners.push_back(pt / pt.w);
-                    }
-
-            glm::vec3 center(0.0f);
-            for (const auto& v : frustumCorners) center += glm::vec3(v);
-            center /= 8.0f;
-
-            glm::vec3 lightPos  = center - lightDirNorm * 40.0f;
-            glm::mat4 lightView = glm::lookAt(lightPos, center, glm::vec3(0.f, 1.f, 0.f));
-
-            float minX = std::numeric_limits<float>::max(),    maxX = std::numeric_limits<float>::lowest();
-            float minY = std::numeric_limits<float>::max(),    maxY = std::numeric_limits<float>::lowest();
-            float minZ = std::numeric_limits<float>::max(),    maxZ = std::numeric_limits<float>::lowest();
-
-            for (const auto& v : frustumCorners) {
-                glm::vec4 trf = lightView * v;
-                minX = std::min(minX, trf.x); maxX = std::max(maxX, trf.x);
-                minY = std::min(minY, trf.y); maxY = std::max(maxY, trf.y);
-                minZ = std::min(minZ, trf.z); maxZ = std::max(maxZ, trf.z);
-            }
-
-            float zMargin = 30.0f;
-            minZ -= zMargin;
-            maxZ += zMargin;
-
-            float worldUnitsPerTexelX = (maxX - minX) / 2048.0f;
-            minX = std::floor(minX / worldUnitsPerTexelX) * worldUnitsPerTexelX;
-            maxX = minX + 2048.0f * worldUnitsPerTexelX;
-
-            float worldUnitsPerTexelY = (maxY - minY) / 2048.0f;
-            minY = std::floor(minY / worldUnitsPerTexelY) * worldUnitsPerTexelY;
-            maxY = minY + 2048.0f * worldUnitsPerTexelY;
-
-            // In OpenGL view space, camera looks along -Z.
-            // Points in front of the light have negative Z in lightView.
-            // zNear is distance to near plane (-maxZ), zFar is distance to far plane (-minZ).
-            float nearPlane = -maxZ;
-            float farPlane  = -minZ;
-            if (nearPlane > farPlane) std::swap(nearPlane, farPlane);
-            if (nearPlane < 0.1f) nearPlane = 0.1f;
-
-            glm::mat4 lightProj     = glm::ortho(minX, maxX, minY, maxY, nearPlane, farPlane);
-            glm::mat4 cascadeMatrix = lightProj * lightView;
+            float worldUnitsPerTexel = 0.01f;
+            glm::mat4 cascadeMatrix = ShadowMath::CalculateCascadeMatrix(corners, InDirLightComp->Light.Direction,
+                                                                         m_ShadowSettings.CascadeResolution,
+                                                                         m_ShadowSettings.bStabilizeCascades,
+                                                                         worldUnitsPerTexel);
             OutCamData.LightSpaceMatrices[cascade] = cascadeMatrix;
+            OutCamData.CascadeOffsets[cascade] = ShadowMath::GetAtlasScaleOffset2x2(cascade);
 
             m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
 
@@ -390,8 +350,36 @@ namespace Leon {
             for (auto entity : meshView) {
                 auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
                 if (!mesh.VertexArray || !mesh.bCastShadows) continue;
+
                 glm::mat4 model = transform.GetTransform();
                 m_ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
+
+                // Support alpha-masked shadow casters
+                if (m_Scene->GetRegistry().all_of<FMaterialComponent>(entity)) {
+                    const auto& matComp = m_Scene->GetRegistry().get<FMaterialComponent>(entity);
+                    if (matComp.MaterialInstance) {
+                        auto alphaMode = matComp.MaterialInstance->GetAlphaMode();
+                        auto albedoTex = matComp.MaterialInstance->GetTexture(0);
+                        glm::vec2 tiling = matComp.MaterialInstance->GetUVTiling();
+                        glm::vec2 offset = matComp.MaterialInstance->GetUVOffset();
+
+                        m_ShadowDepthShader->SetInt("u_AlphaMode", static_cast<int>(alphaMode));
+                        m_ShadowDepthShader->SetFloat("u_AlphaCutoff", matComp.MaterialInstance->GetAlphaCutoff());
+                        m_ShadowDepthShader->SetInt("u_UseAlbedoMap", albedoTex ? 1 : 0);
+                        m_ShadowDepthShader->SetFloat2("u_UVTiling", tiling.x, tiling.y);
+                        m_ShadowDepthShader->SetFloat2("u_UVOffset", offset.x, offset.y);
+                        if (albedoTex) {
+                            albedoTex->Bind(0);
+                        }
+                    } else {
+                        m_ShadowDepthShader->SetInt("u_AlphaMode", 0);
+                        m_ShadowDepthShader->SetInt("u_UseAlbedoMap", 0);
+                    }
+                } else {
+                    m_ShadowDepthShader->SetInt("u_AlphaMode", 0);
+                    m_ShadowDepthShader->SetInt("u_UseAlbedoMap", 0);
+                }
+
                 mesh.VertexArray->Bind();
                 FRenderCommand::DrawIndexed(mesh.VertexArray);
             }
@@ -626,16 +614,19 @@ namespace Leon {
 
             // Apply Material Pipeline State (Culling, Depth, Blend)
             const auto& pso = matInst->GetPipelineState();
-            FRenderCommand::SetCulling(pso.CullMode != ECullMode::None, pso.CullMode);
+            ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : pso.CullMode;
+            FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
             FRenderCommand::SetDepthTesting(pso.bDepthTest);
-            FRenderCommand::SetDepthMask(pso.bDepthWrite);
+            bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
+            FRenderCommand::SetDepthMask(bDepthWrite);
             FRenderCommand::SetDepthFunc(pso.DepthFunc);
-            FRenderCommand::SetBlendState(pso.bBlend);
-            if (pso.bBlend) {
+            bool bBlend = (matInst->GetAlphaMode() == EAlphaMode::Blend) || pso.bBlend;
+            FRenderCommand::SetBlendState(bBlend);
+            if (bBlend) {
                 FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
             }
 
-            // Bind resolved material parameters and textures (slots 0..5)
+            // Bind resolved material parameters and textures (slots 0..5, 9)
             matInst->Bind(mesh.Shader);
 
             // IBL enablement (samplers are statically bound to slots 6-8)

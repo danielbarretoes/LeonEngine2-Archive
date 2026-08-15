@@ -44,7 +44,10 @@ LeonEngine2/
 │   ├── ARCHITECTURE.md                    # System architecture guide (this file)
 │   ├── IBL_CACHE_DESIGN.md                # Image-Based Lighting cache specification (.libl v4)
 │   ├── NAMING.md                          # UE-inspired naming conventions & coding standard
-│   └── RENDERER_FEATURE_AUDIT.md          # Comprehensive renderer capabilities & milestones audit
+│   ├── RENDERER_FEATURE_AUDIT.md          # Comprehensive renderer capabilities & milestones audit
+│   ├── RENDERER_MATERIALS.md              # Advanced Materials & Surface Detail Architecture (v0.8.0)
+│   ├── RENDERER_POSTPROCESSING.md         # Post-Processing Pipeline Architecture (v0.7.0)
+│   └── RENDERER_TEST_COVERAGE.md          # Renderer mathematical test coverage & mutation report
 │
 ├── Scripts/                               # Developer build and run scripts (Python 3.14 / Ninja)
 │   ├── build_incremental.py               # Fast incremental build runner
@@ -112,6 +115,8 @@ LeonEngine2/
 │   │   │   ├── Renderer.hpp               # FRenderer
 │   │   │   ├── SceneRenderer.hpp          # FSceneRenderer (Multi-Pass Rendering Pipeline)
 │   │   │   ├── Shader.hpp                 # FShader
+│   │   │   ├── ShadowMath.hpp             # FShadowMath (CSM Practical Splits, Bounding Spheres, Texel Snapping)
+│   │   │   ├── ShadowTypes.hpp            # EShadowFilterMode, ECascadeSplitScheme, FShadowSettings, FShadowCascade
 │   │   │   ├── TextRenderer.hpp           # FTextRenderer (3D In-World Text Batching)
 │   │   │   ├── Texture.hpp                # FTexture, FTexture2D, FTextureCube
 │   │   │   └── VertexArray.hpp            # FVertexArray

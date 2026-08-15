@@ -14,6 +14,12 @@ namespace Leon {
 
     class FMaterialInstance;
 
+    enum class EAlphaMode : uint8_t {
+        Opaque = 0,
+        Mask   = 1,
+        Blend  = 2
+    };
+
     /**
      * @brief Pipeline state configuration associated with a material.
      */
@@ -30,8 +36,8 @@ namespace Leon {
     /**
      * @brief Master Material Definition.
      *
-     * Defines shader, pipeline state, default PBR parameters, default textures,
-     * and flags. Serves as the template from which lightweight FMaterialInstances are created.
+     * Defines shader, pipeline state, PBR parameters, texture maps, UV transformation,
+     * alpha modes, and feature flags.
      */
     class FMaterial : public std::enable_shared_from_this<FMaterial> {
     public:
@@ -61,9 +67,12 @@ namespace Leon {
         FMaterialPipelineState& GetPipelineState() { return m_PipelineState; }
         void SetPipelineState(const FMaterialPipelineState& InState) { m_PipelineState = InState; }
 
-        // --- Default PBR Parameters ---
+        // --- PBR Parameters ---
         const glm::vec3& GetAlbedoColor() const { return m_AlbedoColor; }
         void SetAlbedoColor(const glm::vec3& InColor) { m_AlbedoColor = InColor; }
+
+        const glm::vec3& GetBaseColor() const { return m_AlbedoColor; }
+        void SetBaseColor(const glm::vec3& InColor) { m_AlbedoColor = InColor; }
 
         float GetMetallic() const { return m_Metallic; }
         void SetMetallic(float InMetallic) { m_Metallic = InMetallic; }
@@ -74,13 +83,44 @@ namespace Leon {
         float GetAO() const { return m_AO; }
         void SetAO(float InAO) { m_AO = InAO; }
 
+        float GetNormalScale() const { return m_NormalScale; }
+        void SetNormalScale(float InScale) { m_NormalScale = InScale; }
+
+        float GetOcclusionStrength() const { return m_OcclusionStrength; }
+        void SetOcclusionStrength(float InStrength) { m_OcclusionStrength = InStrength; }
+
         const glm::vec3& GetEmissiveColor() const { return m_EmissiveColor; }
         void SetEmissiveColor(const glm::vec3& InColor) { m_EmissiveColor = InColor; }
 
         float GetEmissiveIntensity() const { return m_EmissiveIntensity; }
         void SetEmissiveIntensity(float InIntensity) { m_EmissiveIntensity = InIntensity; }
 
-        // --- Default Textures (Slots 0..5) ---
+        float GetEmissiveStrength() const { return m_EmissiveIntensity; }
+        void SetEmissiveStrength(float InStrength) { m_EmissiveIntensity = InStrength; }
+
+        // --- Alpha & Transparency ---
+        EAlphaMode GetAlphaMode() const { return m_AlphaMode; }
+        void SetAlphaMode(EAlphaMode InMode);
+
+        float GetAlphaCutoff() const { return m_AlphaCutoff; }
+        void SetAlphaCutoff(float InCutoff) { m_AlphaCutoff = InCutoff; }
+
+        bool GetDoubleSided() const { return m_bDoubleSided; }
+        void SetDoubleSided(bool bDouble);
+
+        // --- UV Transformation ---
+        const glm::vec2& GetUVTiling() const { return m_UVTiling; }
+        void SetUVTiling(const glm::vec2& InTiling) { m_UVTiling = InTiling; }
+
+        const glm::vec2& GetUVOffset() const { return m_UVOffset; }
+        void SetUVOffset(const glm::vec2& InOffset) { m_UVOffset = InOffset; }
+
+        void SetUVTransform(const glm::vec2& InTiling, const glm::vec2& InOffset) {
+            m_UVTiling = InTiling;
+            m_UVOffset = InOffset;
+        }
+
+        // --- Texture Maps (Slots 0..5, 9) ---
         TRef<FTexture2D> GetTexture(uint32_t InSlot) const;
         void SetTexture(uint32_t InSlot, const TRef<FTexture2D>& InTexture);
 
@@ -120,9 +160,6 @@ namespace Leon {
         bool GetUsePlanarReflection() const { return m_bUsePlanarReflection; }
         void SetUsePlanarReflection(bool bUse) { m_bUsePlanarReflection = bUse; }
 
-        bool GetDoubleSided() const { return m_bDoubleSided; }
-        void SetDoubleSided(bool bDouble) { m_bDoubleSided = bDouble; }
-
     private:
         std::string m_Name;
         std::string m_AssetPath;
@@ -134,8 +171,16 @@ namespace Leon {
         float m_Metallic{0.0f};
         float m_Roughness{0.5f};
         float m_AO{1.0f};
+        float m_NormalScale{1.0f};
+        float m_OcclusionStrength{1.0f};
         glm::vec3 m_EmissiveColor{0.0f, 0.0f, 0.0f};
         float m_EmissiveIntensity{0.0f};
+        float m_AlphaCutoff{0.5f};
+        EAlphaMode m_AlphaMode{EAlphaMode::Opaque};
+        bool m_bDoubleSided{false};
+
+        glm::vec2 m_UVTiling{1.0f, 1.0f};
+        glm::vec2 m_UVOffset{0.0f, 0.0f};
 
         TRef<FTexture2D> m_AlbedoMap;
         TRef<FTexture2D> m_NormalMap;
@@ -151,7 +196,6 @@ namespace Leon {
         bool m_bUseAOMap{false};
         bool m_bUseEmissiveMap{false};
         bool m_bUsePlanarReflection{false};
-        bool m_bDoubleSided{false};
     };
 
 } // namespace Leon

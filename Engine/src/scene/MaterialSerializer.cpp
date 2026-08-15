@@ -96,11 +96,22 @@ namespace Leon {
         ss << "  Metallic: " << InMaterial.GetMetallic() << "\n";
         ss << "  Roughness: " << InMaterial.GetRoughness() << "\n";
         ss << "  AO: " << InMaterial.GetAO() << "\n";
+        ss << "  NormalScale: " << InMaterial.GetNormalScale() << "\n";
+        ss << "  OcclusionStrength: " << InMaterial.GetOcclusionStrength() << "\n";
         if (InMaterial.GetEmissiveIntensity() > 0.0f) {
             ss << "  EmissiveColor: [" << InMaterial.GetEmissiveColor().r << ", " << InMaterial.GetEmissiveColor().g << ", "
                << InMaterial.GetEmissiveColor().b << "]\n";
             ss << "  EmissiveIntensity: " << InMaterial.GetEmissiveIntensity() << "\n";
         }
+
+        const char* alphaModeStr = "Opaque";
+        if (InMaterial.GetAlphaMode() == EAlphaMode::Mask) alphaModeStr = "Mask";
+        else if (InMaterial.GetAlphaMode() == EAlphaMode::Blend) alphaModeStr = "Blend";
+        ss << "  AlphaMode: \"" << alphaModeStr << "\"\n";
+        ss << "  AlphaCutoff: " << InMaterial.GetAlphaCutoff() << "\n";
+        ss << "  DoubleSided: " << (InMaterial.GetDoubleSided() ? "true" : "false") << "\n";
+        ss << "  UVTiling: [" << InMaterial.GetUVTiling().x << ", " << InMaterial.GetUVTiling().y << "]\n";
+        ss << "  UVOffset: [" << InMaterial.GetUVOffset().x << ", " << InMaterial.GetUVOffset().y << "]\n";
 
         if (InMaterial.GetAlbedoMap())
             ss << "  AlbedoMap: \"" << InMaterial.GetAlbedoMap()->GetPath() << "\"\n";
@@ -157,7 +168,7 @@ namespace Leon {
             if (value.empty())
                 continue;
 
-            if (key == "AlbedoColor")
+            if (key == "AlbedoColor" || key == "BaseColor")
                 OutMaterial.SetAlbedoColor(MaterialUtils::ParseVec3(value, OutMaterial.GetAlbedoColor()));
             else if (key == "Metallic")
                 OutMaterial.SetMetallic(MaterialUtils::ParseFloat(value, 0.0f));
@@ -165,11 +176,31 @@ namespace Leon {
                 OutMaterial.SetRoughness(MaterialUtils::ParseFloat(value, 0.5f));
             else if (key == "AO")
                 OutMaterial.SetAO(MaterialUtils::ParseFloat(value, 1.0f));
+            else if (key == "NormalScale")
+                OutMaterial.SetNormalScale(MaterialUtils::ParseFloat(value, 1.0f));
+            else if (key == "OcclusionStrength")
+                OutMaterial.SetOcclusionStrength(MaterialUtils::ParseFloat(value, 1.0f));
             else if (key == "EmissiveColor")
                 OutMaterial.SetEmissiveColor(MaterialUtils::ParseVec3(value, OutMaterial.GetEmissiveColor()));
-            else if (key == "EmissiveIntensity")
+            else if (key == "EmissiveIntensity" || key == "EmissiveStrength")
                 OutMaterial.SetEmissiveIntensity(MaterialUtils::ParseFloat(value, 0.0f));
-            else if (key == "AlbedoMap") {
+            else if (key == "AlphaCutoff")
+                OutMaterial.SetAlphaCutoff(MaterialUtils::ParseFloat(value, 0.5f));
+            else if (key == "DoubleSided")
+                OutMaterial.SetDoubleSided(MaterialUtils::ParseBool(value, false));
+            else if (key == "AlphaMode") {
+                std::string mode = MaterialUtils::CleanValue(value);
+                std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
+                if (mode == "mask") OutMaterial.SetAlphaMode(EAlphaMode::Mask);
+                else if (mode == "blend" || mode == "translucent") OutMaterial.SetAlphaMode(EAlphaMode::Blend);
+                else OutMaterial.SetAlphaMode(EAlphaMode::Opaque);
+            } else if (key == "UVTiling") {
+                glm::vec3 v = MaterialUtils::ParseVec3(value, glm::vec3(1.0f, 1.0f, 0.0f));
+                OutMaterial.SetUVTiling(glm::vec2(v.x, v.y));
+            } else if (key == "UVOffset") {
+                glm::vec3 v = MaterialUtils::ParseVec3(value, glm::vec3(0.0f, 0.0f, 0.0f));
+                OutMaterial.SetUVOffset(glm::vec2(v.x, v.y));
+            } else if (key == "AlbedoMap") {
                 std::string path = MaterialUtils::CleanValue(value);
                 OutMaterial.SetAlbedoMap(FAssetManager::GetTexture2D(path));
             } else if (key == "NormalMap") {

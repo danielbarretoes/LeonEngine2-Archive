@@ -20,6 +20,24 @@ namespace Leon {
         return MakeRef<FMaterialInstance>(shared_from_this(), name);
     }
 
+    void FMaterial::SetAlphaMode(EAlphaMode InMode) {
+        m_AlphaMode = InMode;
+        if (m_AlphaMode == EAlphaMode::Blend) {
+            m_PipelineState.bBlend = true;
+            m_PipelineState.SrcBlend = EBlendFactor::SrcAlpha;
+            m_PipelineState.DstBlend = EBlendFactor::OneMinusSrcAlpha;
+            m_PipelineState.bDepthWrite = false;
+        } else {
+            m_PipelineState.bBlend = false;
+            m_PipelineState.bDepthWrite = true;
+        }
+    }
+
+    void FMaterial::SetDoubleSided(bool bDouble) {
+        m_bDoubleSided = bDouble;
+        m_PipelineState.CullMode = bDouble ? ECullMode::None : ECullMode::Back;
+    }
+
     TRef<FTexture2D> FMaterial::GetTexture(uint32_t InSlot) const {
         switch (InSlot) {
             case 0: return m_AlbedoMap;
@@ -27,7 +45,8 @@ namespace Leon {
             case 2: return m_MetallicMap;
             case 3: return m_AOMap;
             case 4: return m_RoughnessMap;
-            case 5: return m_EmissiveMap;
+            case 5:
+            case 9: return m_EmissiveMap;
             default: return nullptr;
         }
     }
@@ -39,7 +58,8 @@ namespace Leon {
             case 2: SetMetallicMap(InTexture); break;
             case 3: SetAOMap(InTexture); break;
             case 4: SetRoughnessMap(InTexture); break;
-            case 5: SetEmissiveMap(InTexture); break;
+            case 5:
+            case 9: SetEmissiveMap(InTexture); break;
             default: break;
         }
     }

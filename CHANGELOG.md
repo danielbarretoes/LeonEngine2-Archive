@@ -14,6 +14,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render Queue sorting (Opaque front-to-back, Transparent back-to-front).
 - GPU Dynamic Instancing (`glDrawElementsInstanced` / SSBOs).
 
+## [0.9.0] - 2026-08-15
+
+### Advanced Shadow System (Cascaded Shadow Maps, Practical Split Scheme, Stabilized Projection, Normal Offset Bias, Multi-Filtering & Contact Shadows)
+This milestone delivers a complete, production-grade shadow rendering architecture for LeonEngine2. It introduces 4-cascade shadow mapping with analytical Practical Split Scheme ($\lambda = 0.85$), bounding sphere enclosure with world-space texel snapping to eliminate camera rotation shimmering, multi-term depth bias (constant, slope-scale, normal offset) eliminating shadow acne and Peter Panning, multiple filtering algorithms (Hard, PCF 3x3, PCF 5x5, 16-tap Poisson disk with interleaved gradient noise jitter), smooth cascade blending across boundaries, far shadow distance fadeout, alpha-masked shadow casters, screen-space ray-marched contact shadows, and 8 forensic shadow diagnostic modes.
+
+#### Added & Improved
+- **Shadow Mathematical Foundations & Stabilization (`ShadowMath.hpp`, `ShadowMath.cpp`)**:
+  - Implemented analytical Practical Split Scheme ($z_i = \lambda z_{\text{log}} + (1-\lambda) z_{\text{lin}}$, $\lambda = 0.85$).
+  - Implemented 8-corner frustum extraction in world space from inverse view-projection.
+  - Implemented bounding sphere projection enclosure and sub-texel snapping to world-space texel grid ($\Delta x = 2R/\text{Res}$) completely eliminating camera rotation shimmering.
+- **Resource Architecture & Framebuffer Expansion (`ShadowTypes.hpp`, `SceneRenderer.cpp`)**:
+  - Created enums `EShadowFilterMode`, `ECascadeSplitScheme`, and structs `FShadowSettings`, `FShadowCascade`.
+  - Expanded Directional Light CSM allocation from 3-viewport atlas to a 4-layer 2D Texture Array (`DEPTH32F_ARRAY_SHADOW` $2048 \times 2048 \times 4$).
+  - Preserved dedicated Spot Light shadow map ($1024 \times 1024$ `DEPTH32F_SHADOW`).
+- **Shader Pipeline (`PBR_Lit.glsl`, `ShadowDepth.glsl`)**:
+  - Standardized `CameraData` UBO Binding 0 across vertex and fragment stages (544 bytes std140).
+  - Implemented Normal Offset Bias ($\mathbf{p}' = \mathbf{p} + \mathbf{N} \cdot \text{normalBias} \cdot \text{slopeFactor}$) and dynamic slope-scale depth bias.
+  - Implemented multi-mode filter switch: `Hard` (1 tap), `PCF 3x3` (9 taps), `PCF 5x5` (25 taps), and `Poisson Disk` (16 taps Vogel spiral with per-pixel Interleaved Gradient Noise jitter rotation).
+  - Implemented smooth cascade boundary blending (`u_ShadowParams.w`) and far distance soft fadeout.
+  - Implemented screen-space ray-marched contact shadows for micro-geometry contact occlusion.
+  - Extended `ShadowDepth.glsl` with UV passing and fragment discard for alpha-masked caster materials (`u_AlphaMode == 1`).
+- **Forensic Shadow Diagnostic Views & Interactive Controls (`SandboxApp.cpp`)**:
+  - Added `F11` key handler cycling through 8 shadow diagnostic modes (Composite, Direct Shadow Factor, Cascade Slice False-Color [0:Red, 1:Green, 2:Blue, 3:Yellow], Contact Shadows, Cascade 0..3 Depth Maps).
+  - Added `F12` key handler cycling through shadow filter modes (`Hard` $\to$ `PCF 3x3` $\to$ `PCF 5x5` $\to$ `Poisson Disk`).
+- **Comprehensive Headless GPU Testing & Mutation Suite Expansion**:
+  - Added 6 new GPU shadow test suites: `ShadowCascadeTests`, `ShadowPCFTests`, `ShadowBiasTests`, `ShadowAtlasTests`, `ShadowSelectionTests`, and `ShadowContactTests`.
+  - Regression suite expanded to **68 test cases** and **8,102,406 assertions (100% passing)**.
+  - Expanded GLSL shader mutation test suite to **56 mutations with 100.0% detection rate (56/56 caught)**.
+  - Maintained C++ mutation audit at **13/15 (86.7%)**.
+
+---
+
+## [0.8.0] - 2026-08-15
+
+### Advanced Materials & Surface Detail Pipeline (Normal Mapping, PBR Workflow, Emissive Decoupling, Alpha Modes, UV Transform, Material Debug Views & 100% Shader Mutation Coverage)
+This milestone elevates the material subsystem of LeonEngine2 to a production-grade PBR surface detail architecture. It introduces robust tangent space reconstruction with Gram-Schmidt orthogonalization, full texture mapping across all physical PBR channels with strict sRGB-to-Linear color management, independent HDR emissive radiance feeding the Bloom pipeline, alpha testing/blending modes, UV coordinate transformations, and 11 forensic material debug views.
+
+#### Added & Improved
+- **Extended Material Data Model (`FMaterial`, `FMaterialInstance`, `FMaterialSerializer`)**:
+  - Added `NormalScale`, `OcclusionStrength`, `AlphaCutoff`, `AlphaMode` (`Opaque`, `Mask`, `Blend`), `DoubleSided`, `UVTiling`, and `UVOffset`.
+  - Implemented sparse override hierarchy in `FMaterialInstance` with fallback resolution to parent template.
+  - Extended `.lmat` text serializer and deserializer with backward-compatible format support.
+- **Normal Mapping & Tangent Space Orthogonalization (`PBR_Lit.glsl`)**:
+  - Implemented authoritative Gram-Schmidt orthogonalization ($T, B, N$) in fragment shading to eliminate normal interpolation skew across curved geometry.
+  - Added `u_NormalScale` bump perturbation scaling and strict fallback to geometric normals when disabled.
+- **PBR Texture Workflow & Color Spaces**:
+  - Strict sRGB-to-Linear decompression (`pow(..., vec3(2.2))`) for color channels (Albedo, Emissive).
+  - Raw linear channel retention for physical data maps (Metallic, Roughness, Ambient Occlusion).
+  - Standardized 12-unit texture slot allocation table without sampler conflicts.
+  - Deterministic scalar multipliers and fallbacks when textures are unbound.
+- **Emissive Radiance Decoupling**:
+  - Physically independent emissive radiance accumulation ($Lo += \text{emissive}$), bypassing $N \cdot L$, directional sunlight, and shadow maps.
+  - Full HDR intensity support ($> 1.0$) directly feeding the Dual-Kawase Bloom pipeline.
+- **Alpha Modes & Dynamic Pipeline State (`SceneRenderer.cpp`)**:
+  - Support for `Opaque`, `Mask` (alpha cutoff with fragment discard), and `Blend` (translucent blend states).
+  - Automatic double-sided back-face culling bypass for foliage, glass, and thin surfaces.
+- **Texture Coordinate Transformations**:
+  - Uniform `u_UVTiling` scaling and `u_UVOffset` translation applied across all material samplers.
+- **Forensic Material Debug Views & Hotkey (`SandboxApp.cpp`)**:
+  - Added `F10` key handler to cycle through 11 Material Debug Modes (Full Composite, Base Color, Metallic, Roughness, Normal, AO, Emissive, Tangent $T$, Bitangent $B$, UV coordinates, and Direct $N \cdot L$).
+- **Headless GPU Testing & Mutation Suite Expansion**:
+  - Added 7 new headless GPU test suites: `PBRShaderNormalMappingTests`, `PBRShaderMaterialTextureTests`, `PBRShaderEmissiveTests`, `PBRShaderAlphaTests`, `PBRShaderUVTransformTests`, `PBRShaderColorSpaceTests`, and `PBRShaderTangentSpaceTests`.
+  - Regression test suite expanded to **57 test cases** and **8,102,320 assertions (100% passing)**.
+  - Expanded GLSL mutation testing to 40 mutations across all shaders with **100.0% detection rate (40/40 caught)**.
+  - Preserved C++ mutation testing audit at 13/15 (86.7%).
+
 ---
 
 ## [0.7.0] - 2026-08-15

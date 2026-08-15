@@ -22,6 +22,7 @@ add_library(LeonEngineCore STATIC
     src/renderer/MeshPrimitives.cpp
     src/renderer/PostProcessPipeline.cpp
     src/renderer/SceneRenderer.cpp
+    src/renderer/ShadowMath.cpp
     src/renderer/Shader.cpp
     src/renderer/Texture.cpp
     src/renderer/TextRenderer.cpp

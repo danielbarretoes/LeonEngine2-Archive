@@ -122,6 +122,53 @@ namespace Leon::TestGPU {
             glBindTexture(GL_TEXTURE_2D, m_DefaultShadowTex);
         }
 
+        GLuint GetDefaultShadowArrayTex() const { return m_DefaultShadowArrayTex; }
+        GLuint GetDefaultShadowTex() const { return m_DefaultShadowTex; }
+
+        GLuint Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
+            GLuint tex = 0;
+            uint8_t data[4] = { r, g, b, a };
+            glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+            glTextureStorage2D(tex, 1, GL_RGBA8, 1, 1);
+            glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureSubImage2D(tex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            return tex;
+        }
+
+        GLuint Create1x1FloatTexture(float r, float g, float b, float a = 1.0f) {
+            GLuint tex = 0;
+            float data[4] = { r, g, b, a };
+            glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+            glTextureStorage2D(tex, 1, GL_RGBA32F, 1, 1);
+            glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureSubImage2D(tex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, data);
+            return tex;
+        }
+
+        GLuint Create2x2Texture(const uint32_t pixels[4]) {
+            GLuint tex = 0;
+            glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+            glTextureStorage2D(tex, 1, GL_RGBA8, 2, 2);
+            glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureSubImage2D(tex, 0, 0, 0, 2, 2, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+            return tex;
+        }
+
+        void DestroyTexture(GLuint texId) {
+            if (texId != 0) {
+                glDeleteTextures(1, &texId);
+            }
+        }
+
     private:
         FHeadlessGLContext() {
             if (!glfwInit()) {
@@ -307,12 +354,15 @@ namespace Leon::TestGPU {
             glTextureStorage2D(m_DefaultShadowTex, 1, GL_DEPTH_COMPONENT24, 1, 1);
             glTextureParameteri(m_DefaultShadowTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
             glTextureParameteri(m_DefaultShadowTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+            float clearDepth = 1.0f;
+            glClearTexImage(m_DefaultShadowTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
 
             // Default Shadow 2D Array
             glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_DefaultShadowArrayTex);
             glTextureStorage3D(m_DefaultShadowArrayTex, 1, GL_DEPTH_COMPONENT24, 1, 1, 4);
             glTextureParameteri(m_DefaultShadowArrayTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
             glTextureParameteri(m_DefaultShadowArrayTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+            glClearTexImage(m_DefaultShadowArrayTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
         }
 
         GLFWwindow* m_Window = nullptr;

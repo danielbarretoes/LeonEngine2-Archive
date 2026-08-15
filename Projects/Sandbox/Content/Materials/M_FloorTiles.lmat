@@ -7,4 +7,8 @@ Material:
   AO: 1.0
   NormalMap: "Projects/Sandbox/Content/Assets/Textures/T_Tiles_N.png"
   AOMap: "Projects/Sandbox/Content/Assets/Textures/T_Tiles_AO.png"
+  NormalScale: 1.0
+  OcclusionStrength: 1.0
+  UVTiling: [4.0, 4.0]
+  UVOffset: [0.0, 0.0]
   UsePlanarReflection: true

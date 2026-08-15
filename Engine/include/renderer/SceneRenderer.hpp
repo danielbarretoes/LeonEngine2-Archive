@@ -8,6 +8,8 @@
 #include "renderer/Shader.hpp"
 #include "renderer/VertexArray.hpp"
 #include "renderer/PostProcessPipeline.hpp"
+#include "renderer/ShadowTypes.hpp"
+#include "renderer/ShadowMath.hpp"
 
 #include <glm/glm.hpp>
 #include <string>
@@ -24,15 +26,22 @@ namespace Leon {
     // std140-compatible GPU mirror structs — must match UBO layout exactly.
     // =========================================================================
 
-    /** Binding 0 — Camera / Shadow matrices (432 bytes) */
+    /** Binding 0 — Camera / Shadow matrices & params (544 bytes) */
     struct FCameraBufferData {
-        glm::mat4 ViewProjection{1.0f};           // 64 bytes
-        glm::mat4 LightSpaceMatrices[4]{1.0f};    // 4 * 64 = 256 bytes
-        glm::mat4 SpotLightSpaceMatrix{1.0f};     // 64 bytes
-        glm::vec4 CameraPosition{0.0f};           // 16 bytes (xyz = position, w = 0)
-        glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f}; // 16 bytes (xyz = forward dir, w = 0)
-        glm::vec4 CascadeSplits{0.0f};            // 16 bytes (x=split0, y=split1, z=split2, w=farClip)
-    }; // Total: 432 bytes
+        glm::mat4 ViewProjection{1.0f};                         // 64 bytes  (offset 0)
+        glm::mat4 LightSpaceMatrices[4]{glm::mat4(1.0f)};       // 256 bytes (offset 64)
+        glm::mat4 SpotLightSpaceMatrix{1.0f};                   // 64 bytes  (offset 320)
+        glm::vec4 CameraPosition{0.0f};                         // 16 bytes  (offset 384)
+        glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f};       // 16 bytes  (offset 400)
+        glm::vec4 CascadeSplits{0.0f};                          // 16 bytes  (offset 416) (x=s0, y=s1, z=s2, w=s3)
+        glm::vec4 CascadeOffsets[4]{glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
+                                   glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
+                                   glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
+                                   glm::vec4(1.0f, 1.0f, 0.0f, 0.0f)}; // 64 bytes (offset 432) (xy=scale, zw=offset)
+        glm::vec4 ShadowParams{0.0008f, 0.0015f, 0.025f, 0.10f}; // 16 bytes (offset 496) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
+        glm::ivec4 ShadowSettings{1, 16, 0, 0};                 // 16 bytes  (offset 512) (x=filterMode, y=contactSteps, z=bContactShadows, w=shadowDebugMode)
+        glm::vec4 ContactShadowParams{0.35f, 0.05f, 0.0f, 0.0f};// 16 bytes (offset 528) (x=dist, y=thick, zw=0)
+    }; // Total: 544 bytes
 
     /** std140 GPU directional light (PBR — single Intensity, no Phong split) */
     struct FGpuDirectionalLight {
@@ -103,6 +112,9 @@ namespace Leon {
         FPostProcessSettings& GetPostProcessSettings() { return m_PostProcessSettings; }
         const FPostProcessSettings& GetPostProcessSettings() const { return m_PostProcessSettings; }
         FPostProcessPipeline& GetPostProcessPipeline() { return m_PostProcessPipeline; }
+
+        FShadowSettings& GetShadowSettings() { return m_ShadowSettings; }
+        const FShadowSettings& GetShadowSettings() const { return m_ShadowSettings; }
 
     private:
         // ----- Render Passes -------------------------------------------------
@@ -180,6 +192,10 @@ namespace Leon {
         // Post-Processing Pipeline
         FPostProcessPipeline m_PostProcessPipeline;
         FPostProcessSettings m_PostProcessSettings;
+
+        // Shadow Settings and Cascade state
+        FShadowSettings              m_ShadowSettings;
+        std::vector<FShadowCascade>  m_ShadowCascades;
     };
 
 } // namespace Leon
