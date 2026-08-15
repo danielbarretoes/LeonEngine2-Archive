@@ -51,14 +51,14 @@ Tamaño Total: $\approx 1.88\text{ MB}$.
 ```cpp
 struct FIBLCacheHeader {
     char     Magic[8]               = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-    uint32_t Version                = 3;     // Versión 3: Filtrado Karis sobre texel fuente HDR + Mip Bias +1.0
+    uint32_t Version                = 4;     // Versión 4: Muestreo de hemisferio con ponderación por coseno + Mip filtering
     uint64_t HDRSourceHash          = 0;     // Hash FNV-1a de 64 bits del archivo fuente .hdr
     uint32_t EnvSize                = 128;   // Resolución de cara del cubemap de entorno
     uint32_t IrradSize              = 32;    // Resolución de cara del cubemap de irradiancia
     uint32_t PrefilterBaseSize      = 128;   // Resolución base del cubemap prefiltrado
     uint32_t PrefilterMips          = 5;     // Cantidad de niveles de mipmap (128, 64, 32, 16, 8)
-    uint32_t SampleCountIrradiance  = 1580;  // Muestras por píxel de irradiancia
-    uint32_t SampleCountPrefilter   = 256;   // Muestras por píxel de prefiltrado
+    uint32_t SampleCountIrradiance  = 512;   // Muestras Quasi-Monte Carlo ponderadas por coseno
+    uint32_t SampleCountPrefilter   = 256;   // Muestras por píxel de prefiltrado Karis
     uint32_t Reserved[4]            = {0};   // Reservado para extensiones futuras
 };
 ```

@@ -338,13 +338,13 @@ namespace Leon {
 
     struct FIBLCacheHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-        uint32_t Version = 3; // Version 3: Source HDR solid angle & Karis mip-bias formulation
+        uint32_t Version = 4; // Version 4: Cosine-weighted importance sampling + source HDR Mip-filtering for Irradiance
         uint64_t HDRSourceHash = 0;
         uint32_t EnvSize = 128;
         uint32_t IrradSize = 32;
         uint32_t PrefilterBaseSize = 128;
         uint32_t PrefilterMips = 5;
-        uint32_t SampleCountIrradiance = 1580;
+        uint32_t SampleCountIrradiance = 512;
         uint32_t SampleCountPrefilter = 256;
         uint32_t Reserved[4] = {0, 0, 0, 0};
     };
@@ -385,7 +385,7 @@ namespace Leon {
 
         FIBLCacheHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
-        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 3 || header.HDRSourceHash != currentHDRHash) {
+        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 4 || header.HDRSourceHash != currentHDRHash) {
             return false;
         }
 
@@ -431,7 +431,7 @@ namespace Leon {
         if (!file.is_open()) return;
 
         FIBLCacheHeader header;
-        header.Version = 3;
+        header.Version = 4;
         header.HDRSourceHash = ComputeFileHash64(InHDRPath);
         file.write(reinterpret_cast<const char*>(&header), sizeof(FIBLCacheHeader));
 
@@ -469,7 +469,7 @@ namespace Leon {
             if (TryLoadIBLCache(hdrPath, env)) {
                 auto totalEndT = std::chrono::high_resolution_clock::now();
                 float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v3) for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v4) for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
                 return env;
             }
         }
@@ -539,12 +539,25 @@ namespace Leon {
         float envDurMs = std::chrono::duration<float, std::milli>(envEndT - envStartT).count();
         LE_CORE_INFO("  [PROFILE] Environment Cubemap (128x128x6, {0} texels) generated in {1:.2f} ms", envSize * envSize * 6, envDurMs);
 
-        // 4. Generate Diffuse Irradiance Map (32x32 per face)
+        // 4. Generate Diffuse Irradiance Map (32x32 per face) with Cosine-Weighted Hemisphere Sampling & Mip Filtering
         auto irradStartT = std::chrono::high_resolution_clock::now();
         constexpr uint32_t irradSize = 32;
+        constexpr uint32_t IRRAD_SAMPLE_COUNT = 512u;
         env.IrradianceMap = FTextureCube::Create(irradSize, irradSize, true);
         std::vector<std::vector<float>> irradFaces(6, std::vector<float>(irradSize * irradSize * 4));
         {
+            // Solid angle of 1 texel in the source HDR equirectangular texture (Epic Games / Brian Karis reference)
+            const float saTexel = (hdrWidth > 0 && hdrHeight > 0)
+                ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
+                : (4.0f * PI / (6.0f * static_cast<float>(irradSize * irradSize)));
+
+            // Solid angle of a sample in cosine-weighted hemisphere sampling:
+            // Omega_s = 2*PI / N
+            const float irradSaSample = (2.0f * PI) / static_cast<float>(IRRAD_SAMPLE_COUNT);
+            const float irradSampleLod = (hdrWidth > 0 && hdrHeight > 0)
+                ? std::max(0.5f * std::log2(irradSaSample / saTexel) + 1.0f, 0.0f)
+                : 0.0f;
+
             for (int face = 0; face < 6; ++face) {
                 for (uint32_t y = 0; y < irradSize; ++y) {
                     float v = 2.0f * (static_cast<float>(y) + 0.5f) / static_cast<float>(irradSize) - 1.0f;
@@ -557,22 +570,29 @@ namespace Leon {
                         glm::vec3 bitangent = glm::cross(N, tangent);
 
                         glm::vec3 irradiance(0.0f);
-                        float sampleDelta = 0.08f;
-                        float numSamples = 0.0f;
 
-                        for (float phi = 0.0f; phi < 2.0f * PI; phi += sampleDelta) {
-                            for (float theta = 0.0f; theta < 0.5f * PI; theta += sampleDelta) {
-                                glm::vec3 tangentSample = glm::vec3(std::sin(theta) * std::cos(phi),
-                                                                    std::sin(theta) * std::sin(phi),
-                                                                    std::cos(theta));
-                                glm::vec3 sampleVec = tangent * tangentSample.x + bitangent * tangentSample.y + N * tangentSample.z;
+                        for (uint32_t i = 0u; i < IRRAD_SAMPLE_COUNT; ++i) {
+                            glm::vec2 Xi = Hammersley(i, IRRAD_SAMPLE_COUNT);
+                            float phi = 2.0f * PI * Xi.x;
+                            float cosTheta = std::sqrt(1.0f - Xi.y);
+                            float sinTheta = std::sqrt(Xi.y);
 
-                                irradiance += SampleSky(sampleVec) * std::cos(theta) * std::sin(theta);
-                                numSamples += 1.0f;
+                            glm::vec3 tangentSample = glm::vec3(sinTheta * std::cos(phi),
+                                                                sinTheta * std::sin(phi),
+                                                                cosTheta);
+                            glm::vec3 sampleVec = tangent * tangentSample.x + bitangent * tangentSample.y + N * tangentSample.z;
+
+                            glm::vec3 sampleVal;
+                            if (hdrData) {
+                                sampleVal = hdrMipChain.SampleLod(sampleVec, irradSampleLod) * InSkybox.Exposure;
+                            } else {
+                                sampleVal = SampleAtmosphericSky(InSkybox, sampleVec);
                             }
+
+                            irradiance += sampleVal;
                         }
 
-                        irradiance = PI * irradiance * (1.0f / numSamples);
+                        irradiance = PI * irradiance * (1.0f / static_cast<float>(IRRAD_SAMPLE_COUNT));
 
                         size_t idx = (y * irradSize + x) * 4;
                         irradFaces[face][idx + 0] = irradiance.r;
@@ -586,7 +606,7 @@ namespace Leon {
         }
         auto irradEndT = std::chrono::high_resolution_clock::now();
         float irradDurMs = std::chrono::duration<float, std::milli>(irradEndT - irradStartT).count();
-        LE_CORE_INFO("  [PROFILE] Irradiance Convolution (32x32x6, ~1580 samples/px, ~9.7M samples) generated in {0:.2f} ms", irradDurMs);
+        LE_CORE_INFO("  [PROFILE] Irradiance Convolution (32x32x6, 512 samples/px, ~3.1M samples) generated in {0:.2f} ms", irradDurMs);
 
         // 5. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8) with Karis PDF Solid Angle Filtering
         constexpr uint32_t prefilterBaseSize = 128;
@@ -675,7 +695,7 @@ namespace Leon {
         // 6. Save baked IBL result to disk cache for instantaneous future startups
         if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
             SaveIBLCache(hdrPath, envFaces, irradFaces, prefilterMips);
-            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v3) to '{0}'", GetIBLCachePath(hdrPath));
+            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v4) to '{0}'", GetIBLCachePath(hdrPath));
         }
 
         if (hdrData) {
