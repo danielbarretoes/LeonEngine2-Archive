@@ -43,9 +43,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(entt)
 
 
-# Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Projects)
+# Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Projects -> Tests)
 add_subdirectory(ThirdParty/glad)
 add_subdirectory(ThirdParty/stb)
+add_subdirectory(ThirdParty/doctest)
 add_subdirectory(Engine)
 add_subdirectory(Plugins/RHI/OpenGL)
 add_subdirectory(Projects/Sandbox)
+add_subdirectory(Tests)
