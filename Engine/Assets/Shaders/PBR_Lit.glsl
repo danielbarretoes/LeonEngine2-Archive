@@ -140,6 +140,7 @@ uniform int u_UseEmissiveMap;
 uniform int u_UseShadows;
 uniform int u_UseSpotShadows;
 uniform int u_UsePlanarReflection;
+uniform int u_DebugMode;
 uniform vec2 u_ScreenSize;
 
 const float PI = 3.14159265358979323846;
@@ -483,5 +484,45 @@ void main() {
 
     // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
     vec3 hdrColor = ambient + Lo + emissive;
+
+    // Forensic Debug Views (F3..F12 / D1..D5 switches)
+    if (u_DebugMode == 1 || u_DebugMode == 2) {
+        FragColor = vec4(textureLod(u_PrefilterMap, R, 0.0).rgb, 1.0);
+        return;
+    } else if (u_DebugMode == 3) {
+        FragColor = vec4(textureLod(u_PrefilterMap, R, 1.0).rgb, 1.0);
+        return;
+    } else if (u_DebugMode == 4) {
+        FragColor = vec4(textureLod(u_PrefilterMap, R, 2.0).rgb, 1.0);
+        return;
+    } else if (u_DebugMode == 5) {
+        FragColor = vec4(textureLod(u_PrefilterMap, R, 3.0).rgb, 1.0);
+        return;
+    } else if (u_DebugMode == 6) {
+        FragColor = vec4(textureLod(u_PrefilterMap, R, 4.0).rgb, 1.0);
+        return;
+    } else if (u_DebugMode == 7) {
+        FragColor = vec4(texture(u_IrradianceMap, N).rgb, 1.0);
+        return;
+    } else if (u_DebugMode == 8) {
+        FragColor = vec4(texture(u_BRDFLUT, vec2(NdotV, roughness)).rg, 0.0, 1.0);
+        return;
+    } else if (u_DebugMode == 9) {
+        FragColor = vec4(specularIBL, 1.0);
+        return;
+    } else if (u_DebugMode == 10) {
+        FragColor = vec4(Lo, 1.0);
+        return;
+    } else if (u_DebugMode == 11) {
+        FragColor = vec4(N * 0.5 + 0.5, 1.0);
+        return;
+    } else if (u_DebugMode == 12) {
+        FragColor = vec4(R * 0.5 + 0.5, 1.0);
+        return;
+    } else if (u_DebugMode == 13) {
+        FragColor = vec4(texture(u_PlanarReflectionMap, gl_FragCoord.xy / u_ScreenSize).rgb, 1.0);
+        return;
+    }
+
     FragColor = vec4(hdrColor, 1.0);
 }

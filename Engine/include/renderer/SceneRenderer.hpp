@@ -93,6 +93,9 @@ namespace Leon {
          */
         void OnViewportResize(uint32_t InWidth, uint32_t InHeight);
 
+        void SetDebugMode(int InMode) { m_DebugMode = InMode; }
+        int  GetDebugMode() const { return m_DebugMode; }
+
     private:
         // ----- Render Passes -------------------------------------------------
         void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
@@ -129,6 +132,7 @@ namespace Leon {
 
         uint32_t m_ViewportWidth  = 1280;
         uint32_t m_ViewportHeight = 720;
+        int      m_DebugMode      = 0;
 
         // Tracks the FBO active before Render() was called, restored after PostProcess
         uint32_t m_PreviousFBO = 0;

@@ -163,7 +163,68 @@ public:
         }
     }
 
-    void OnEvent(Leon::FEvent& InEvent) override { m_CameraController.OnEvent(InEvent); }
+    void OnEvent(Leon::FEvent& InEvent) override {
+        m_CameraController.OnEvent(InEvent);
+
+        Leon::FEventDispatcher dispatcher(InEvent);
+        dispatcher.Dispatch<Leon::FKeyPressedEvent>([this](Leon::FKeyPressedEvent& e) {
+            if (e.IsRepeat() || !m_Scene || !m_Scene->GetSceneRenderer()) return false;
+
+            int key = e.GetKeyCode();
+            auto* renderer = m_Scene->GetSceneRenderer();
+
+            if (key == Leon::Key::F3) {
+                renderer->SetDebugMode(1);
+                LE_INFO("[DEBUG VIEW] Environment Cubemap (LOD 0)");
+                return true;
+            } else if (key == Leon::Key::F4) {
+                renderer->SetDebugMode(2);
+                LE_INFO("[DEBUG VIEW] Prefilter Cubemap Mip 0 (Roughness 0.0)");
+                return true;
+            } else if (key == Leon::Key::F5) {
+                renderer->SetDebugMode(3);
+                LE_INFO("[DEBUG VIEW] Prefilter Cubemap Mip 1 (Roughness 0.25)");
+                return true;
+            } else if (key == Leon::Key::F6) {
+                renderer->SetDebugMode(4);
+                LE_INFO("[DEBUG VIEW] Prefilter Cubemap Mip 2 (Roughness 0.50)");
+                return true;
+            } else if (key == Leon::Key::F7) {
+                renderer->SetDebugMode(5);
+                LE_INFO("[DEBUG VIEW] Prefilter Cubemap Mip 3 (Roughness 0.75)");
+                return true;
+            } else if (key == Leon::Key::F8) {
+                renderer->SetDebugMode(6);
+                LE_INFO("[DEBUG VIEW] Prefilter Cubemap Mip 4 (Roughness 1.00)");
+                return true;
+            } else if (key == Leon::Key::F9) {
+                renderer->SetDebugMode(7);
+                LE_INFO("[DEBUG VIEW] Diffuse Irradiance Cubemap");
+                return true;
+            } else if (key == Leon::Key::F10) {
+                renderer->SetDebugMode(9);
+                LE_INFO("[DEBUG VIEW] Specular IBL Only (No Direct Lights)");
+                return true;
+            } else if (key == Leon::Key::F11) {
+                renderer->SetDebugMode(10);
+                LE_INFO("[DEBUG VIEW] Direct Lighting Only (No IBL)");
+                return true;
+            } else if (key == Leon::Key::F12) {
+                renderer->SetDebugMode(0);
+                LE_INFO("[DEBUG VIEW] Full Composite PBR Lit");
+                return true;
+            } else if (key == Leon::Key::N) {
+                renderer->SetDebugMode(11);
+                LE_INFO("[DEBUG VIEW] World-Space Normals N");
+                return true;
+            } else if (key == Leon::Key::R) {
+                renderer->SetDebugMode(12);
+                LE_INFO("[DEBUG VIEW] World-Space Reflection Vector R");
+                return true;
+            }
+            return false;
+        });
+    }
 
 private:
     std::string m_LevelPath;

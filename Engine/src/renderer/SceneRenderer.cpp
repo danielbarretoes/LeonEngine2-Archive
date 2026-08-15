@@ -634,6 +634,7 @@ namespace Leon {
 
             // IBL enablement (samplers are statically bound to slots 6-8)
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
+            mesh.Shader->SetInt("u_DebugMode", m_DebugMode);
 
             glm::mat4 model = transform.GetTransform();
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
