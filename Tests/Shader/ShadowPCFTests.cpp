@@ -15,6 +15,7 @@ TEST_SUITE("Shader GPU - Shadow Filtering Modes (Hard, PCF 3x3, PCF 5x5, Poisson
         REQUIRE(shader != nullptr);
         shader->Bind();
 
+        gl.ResetShaderUniforms(shader);
         gl.BindDefaultTextures();
         gl.BindFramebuffer(1, 1);
 

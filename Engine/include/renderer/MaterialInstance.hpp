@@ -20,12 +20,10 @@ namespace Leon {
      */
     class FMaterialInstance {
     public:
-        explicit FMaterialInstance(const TRef<FMaterial>& InParent,
-                                   const std::string& InName = "");
+        explicit FMaterialInstance(const TRef<FMaterial>& InParent, const std::string& InName = "");
         ~FMaterialInstance() = default;
 
-        static TRef<FMaterialInstance> Create(const TRef<FMaterial>& InParent,
-                                              const std::string& InName = "");
+        static TRef<FMaterialInstance> Create(const TRef<FMaterial>& InParent, const std::string& InName = "");
 
         // --- Parent & Identification ---
         TRef<FMaterial> GetParent() const { return m_ParentMaterial; }
@@ -34,9 +32,7 @@ namespace Leon {
         const std::string& GetName() const { return m_Name; }
         void SetName(const std::string& InName) { m_Name = InName; }
 
-        TRef<FShader> GetShader() const {
-            return m_ParentMaterial ? m_ParentMaterial->GetShader() : nullptr;
-        }
+        TRef<FShader> GetShader() const { return m_ParentMaterial ? m_ParentMaterial->GetShader() : nullptr; }
 
         const FMaterialPipelineState& GetPipelineState() const {
             static FMaterialPipelineState s_Default;

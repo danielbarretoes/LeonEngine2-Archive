@@ -25,14 +25,14 @@ namespace Leon {
         // 1. Shadow framebuffers — DEPTH32F (Texture2DArray for 4-Cascade CSM, 2D for Spot)
         // -----------------------------------------------------------------------
         FFramebufferSpecification csmSpec;
-        csmSpec.Width  = m_ShadowSettings.CascadeResolution;
+        csmSpec.Width = m_ShadowSettings.CascadeResolution;
         csmSpec.Height = m_ShadowSettings.CascadeResolution;
         csmSpec.ArrayLayers = 4;
         csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
         m_CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
 
         FFramebufferSpecification spotSpec;
-        spotSpec.Width  = m_ShadowSettings.SpotResolution;
+        spotSpec.Width = m_ShadowSettings.SpotResolution;
         spotSpec.Height = m_ShadowSettings.SpotResolution;
         spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_SHADOW};
         m_SpotShadowFramebuffer = FFramebuffer::Create(spotSpec);
@@ -41,13 +41,13 @@ namespace Leon {
         // 2. Offscreen framebuffers
         // -----------------------------------------------------------------------
         FFramebufferSpecification planarSpec;
-        planarSpec.Width  = 1280;
+        planarSpec.Width = 1280;
         planarSpec.Height = 720;
         planarSpec.Attachments = {EFramebufferTextureFormat::RGBA8, EFramebufferTextureFormat::DEPTH24STENCIL8};
         m_PlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
 
         FFramebufferSpecification hdrSpec;
-        hdrSpec.Width  = 1280;
+        hdrSpec.Width = 1280;
         hdrSpec.Height = 720;
         hdrSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
         m_HDRSceneFramebuffer = FFramebuffer::Create(hdrSpec);
@@ -55,18 +55,18 @@ namespace Leon {
         // -----------------------------------------------------------------------
         // 3. UBOs (std140 — binding 0: camera/shadows, binding 1: lighting)
         // -----------------------------------------------------------------------
-        m_CameraUBO   = FUniformBuffer::Create(sizeof(FCameraBufferData), 0);
+        m_CameraUBO = FUniformBuffer::Create(sizeof(FCameraBufferData), 0);
         m_LightingUBO = FUniformBuffer::Create(sizeof(FLightingBufferData), 1);
 
         // -----------------------------------------------------------------------
         // 4. Pipeline shaders and geometry
         // -----------------------------------------------------------------------
         m_ShadowDepthShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth.glsl");
-        m_SkyboxShader      = FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
+        m_SkyboxShader = FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
         m_PostProcessShader = FShader::Create("Engine/Assets/Shaders/PostProcess.glsl");
 
-        m_SkyboxVA          = FMeshPrimitives::CreateCube(2.0f);
-        m_FullscreenQuadVA  = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
+        m_SkyboxVA = FMeshPrimitives::CreateCube(2.0f);
+        m_FullscreenQuadVA = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
 
         // -----------------------------------------------------------------------
         // 5. Fallback 1x1 textures (keeps all shader texture units valid & defined)
@@ -96,17 +96,16 @@ namespace Leon {
 
     // =========================================================================
     void FSceneRenderer::OnViewportResize(uint32_t InWidth, uint32_t InHeight) {
-        m_ViewportWidth  = InWidth;
+        m_ViewportWidth = InWidth;
         m_ViewportHeight = InHeight;
 
         if (InWidth > 0 && InHeight > 0) {
-            if (m_HDRSceneFramebuffer &&
-                (m_HDRSceneFramebuffer->GetSpecification().Width  != InWidth ||
-                 m_HDRSceneFramebuffer->GetSpecification().Height != InHeight)) {
+            if (m_HDRSceneFramebuffer && (m_HDRSceneFramebuffer->GetSpecification().Width != InWidth ||
+                                          m_HDRSceneFramebuffer->GetSpecification().Height != InHeight)) {
                 m_HDRSceneFramebuffer->Resize(InWidth, InHeight);
             }
             if (m_PlanarReflectionFramebuffer &&
-                (m_PlanarReflectionFramebuffer->GetSpecification().Width  != InWidth ||
+                (m_PlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
                  m_PlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
                 m_PlanarReflectionFramebuffer->Resize(InWidth, InHeight);
             }
@@ -118,14 +117,15 @@ namespace Leon {
     // Main Render — frame entry point
     // =========================================================================
     void FSceneRenderer::Render(const FPerspectiveCamera& InCamera) {
-        if (!m_Scene) return;
+        if (!m_Scene)
+            return;
 
         auto& reg = m_Scene->GetRegistry();
 
         // Audit fix FASE-8: track FBO in CPU instead of querying with glGetIntegerv per frame
         m_PreviousFBO = FRenderCommand::GetFramebufferBinding();
 
-        uint32_t vpWidth  = m_ViewportWidth  > 0 ? m_ViewportWidth  : 1280;
+        uint32_t vpWidth = m_ViewportWidth > 0 ? m_ViewportWidth : 1280;
         uint32_t vpHeight = m_ViewportHeight > 0 ? m_ViewportHeight : 720;
 
         // ------------------------------------------------------------------
@@ -137,7 +137,11 @@ namespace Leon {
             auto view = reg.view<FDirectionalLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<FDirectionalLightComponent>(entity);
-                if (comp.bEnabled) { dirLightComp = comp; bHasDirLight = true; break; }
+                if (comp.bEnabled) {
+                    dirLightComp = comp;
+                    bHasDirLight = true;
+                    break;
+                }
             }
         }
 
@@ -169,7 +173,7 @@ namespace Leon {
                         sl.Position = reg.get<FTransformComponent>(entity).Translation;
                     if (!bHasSpotLight) {
                         firstSpotComp = comp;
-                        firstSpotPos  = sl.Position;
+                        firstSpotPos = sl.Position;
                         bHasSpotLight = true;
                     }
                     spotLights.push_back(sl);
@@ -181,7 +185,11 @@ namespace Leon {
         bool bHasSkybox = false;
         {
             auto view = reg.view<FSkyboxComponent>();
-            for (auto entity : view) { skybox = view.get<FSkyboxComponent>(entity); bHasSkybox = true; break; }
+            for (auto entity : view) {
+                skybox = view.get<FSkyboxComponent>(entity);
+                bHasSkybox = true;
+                break;
+            }
         }
 
         if (bHasSkybox) {
@@ -196,33 +204,32 @@ namespace Leon {
         FLightingBufferData lightingData;
         if (bHasDirLight) {
             lightingData.DirLight.Direction = glm::vec4(glm::normalize(dirLightComp.Light.Direction), 1.0f);
-            lightingData.DirLight.Color     = glm::vec4(dirLightComp.Light.Color, dirLightComp.Light.Intensity);
+            lightingData.DirLight.Color = glm::vec4(dirLightComp.Light.Color, dirLightComp.Light.Intensity);
         } else {
             lightingData.DirLight.Direction = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
-            lightingData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+            lightingData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
         }
 
         for (size_t i = 0; i < pointLights.size(); ++i) {
             lightingData.PointLights[i].Position = glm::vec4(pointLights[i].Position, 1.0f);
-            lightingData.PointLights[i].Color    = glm::vec4(pointLights[i].Color, pointLights[i].Intensity);
-            lightingData.PointLights[i].Params   = glm::vec4(pointLights[i].Radius, 0.0f, 0.0f, 0.0f);
+            lightingData.PointLights[i].Color = glm::vec4(pointLights[i].Color, pointLights[i].Intensity);
+            lightingData.PointLights[i].Params = glm::vec4(pointLights[i].Radius, 0.0f, 0.0f, 0.0f);
         }
 
         for (size_t i = 0; i < spotLights.size(); ++i) {
-            lightingData.SpotLights[i].Position  = glm::vec4(spotLights[i].Position, 1.0f);
+            lightingData.SpotLights[i].Position = glm::vec4(spotLights[i].Position, 1.0f);
             lightingData.SpotLights[i].Direction =
                 glm::vec4(glm::normalize(spotLights[i].Direction), std::cos(glm::radians(spotLights[i].CutOff)));
-            lightingData.SpotLights[i].Color     =
+            lightingData.SpotLights[i].Color =
                 glm::vec4(spotLights[i].Color, std::cos(glm::radians(spotLights[i].OuterCutOff)));
-            lightingData.SpotLights[i].Params    =
-                glm::vec4(spotLights[i].Radius, spotLights[i].Intensity, 0.0f, 0.0f);
+            lightingData.SpotLights[i].Params = glm::vec4(spotLights[i].Radius, spotLights[i].Intensity, 0.0f, 0.0f);
         }
 
-        lightingData.LightCounts    = glm::ivec4(static_cast<int>(pointLights.size()),
-                                                  static_cast<int>(spotLights.size()), 0, 0);
-        lightingData.EnvSkyColor    = glm::vec4(skybox.SkyZenithColor, skybox.EnvironmentIntensity);
+        lightingData.LightCounts =
+            glm::ivec4(static_cast<int>(pointLights.size()), static_cast<int>(spotLights.size()), 0, 0);
+        lightingData.EnvSkyColor = glm::vec4(skybox.SkyZenithColor, skybox.EnvironmentIntensity);
         lightingData.EnvHorizonColor = glm::vec4(skybox.HorizonColor, 0.0f);
-        lightingData.EnvGroundColor  = glm::vec4(skybox.GroundColor, 0.0f);
+        lightingData.EnvGroundColor = glm::vec4(skybox.GroundColor, 0.0f);
 
         if (m_LightingUBO)
             m_LightingUBO->SetData(&lightingData, sizeof(FLightingBufferData), 0);
@@ -231,9 +238,9 @@ namespace Leon {
         // Camera UBO base
         // ------------------------------------------------------------------
         FCameraBufferData mainCamData;
-        mainCamData.ViewProjection  = InCamera.GetViewProjectionMatrix();
-        mainCamData.CameraPosition  = glm::vec4(InCamera.GetPosition(), 1.0f);
-        mainCamData.CameraForward   = glm::vec4(InCamera.GetForwardDirection(), 0.0f);
+        mainCamData.ViewProjection = InCamera.GetViewProjectionMatrix();
+        mainCamData.CameraPosition = glm::vec4(InCamera.GetPosition(), 1.0f);
+        mainCamData.CameraForward = glm::vec4(InCamera.GetForwardDirection(), 0.0f);
 
         // ------------------------------------------------------------------
         // PASS 1: Cascaded Shadow Pass
@@ -246,8 +253,7 @@ namespace Leon {
             RenderSpotShadowPass(&firstSpotComp, firstSpotPos, mainCamData);
 
         // PASS 3: Planar Reflection
-        RenderPlanarReflectionPass(InCamera, bHasSkybox ? &skybox : nullptr,
-                                   bHasDirLight, dirLightComp.Light);
+        RenderPlanarReflectionPass(InCamera, bHasSkybox ? &skybox : nullptr, bHasDirLight, dirLightComp.Light);
 
         // PASS 4: Main HDR Scene
         if (m_HDRSceneFramebuffer)
@@ -279,10 +285,11 @@ namespace Leon {
         FTextRenderer::BeginScene(InCamera);
         for (auto entity : textView) {
             auto [transform, textComp] = textView.get<FTransformComponent, FTextComponent>(entity);
-            if (textComp.Text.empty()) continue;
+            if (textComp.Text.empty())
+                continue;
             glm::mat4 model = transform.GetTransform();
-            FTextRenderer::DrawString(textComp.Text, model, textComp.Color,
-                                      textComp.Size, textComp.Alignment, textComp.bDoubleSided);
+            FTextRenderer::DrawString(textComp.Text, model, textComp.Color, textComp.Size, textComp.Alignment,
+                                      textComp.bDoubleSided);
         }
         FTextRenderer::EndScene();
 
@@ -297,13 +304,13 @@ namespace Leon {
     // PASS 1: Cascaded Shadow Pass (OpenGL 4.5 Texture2DArray)
     // =========================================================================
     void FSceneRenderer::RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
-                                                   const FDirectionalLightComponent* InDirLightComp,
-                                                   FCameraBufferData& OutCamData) {
+                                                  const FDirectionalLightComponent* InDirLightComp,
+                                                  FCameraBufferData& OutCamData) {
         if (!InDirLightComp || !InDirLightComp->bEnabled || !m_ShadowDepthShader || !m_CascadeShadowFramebuffer)
             return;
 
         float nearClip = InCamera.GetNearClip();
-        float farClip  = m_ShadowSettings.ShadowDistance;
+        float farClip = m_ShadowSettings.ShadowDistance;
 
         auto splits = ShadowMath::CalculateCascadeSplits(m_ShadowSettings.CascadeCount, nearClip, farClip,
                                                          m_ShadowSettings.SplitLambda, m_ShadowSettings.SplitScheme);
@@ -311,12 +318,11 @@ namespace Leon {
         OutCamData.CascadeSplits = glm::vec4(splits[1], splits[2], splits[3], splits[4]);
         OutCamData.ShadowParams = glm::vec4(m_ShadowSettings.ConstantBias, m_ShadowSettings.SlopeBias,
                                             m_ShadowSettings.NormalBias, m_ShadowSettings.CascadeBlendWidth);
-        OutCamData.ShadowSettings = glm::ivec4(static_cast<int>(m_ShadowSettings.FilterMode),
-                                               m_ShadowSettings.ContactShadowSteps,
-                                               m_ShadowSettings.bEnableContactShadows ? 1 : 0,
-                                               m_DebugMode);
-        OutCamData.ContactShadowParams = glm::vec4(m_ShadowSettings.ContactShadowDistance,
-                                                  m_ShadowSettings.ContactShadowThickness, 0.0f, 0.0f);
+        OutCamData.ShadowSettings =
+            glm::ivec4(static_cast<int>(m_ShadowSettings.FilterMode), m_ShadowSettings.ContactShadowSteps,
+                       m_ShadowSettings.bEnableContactShadows ? 1 : 0, m_DebugMode);
+        OutCamData.ContactShadowParams =
+            glm::vec4(m_ShadowSettings.ContactShadowDistance, m_ShadowSettings.ContactShadowThickness, 0.0f, 0.0f);
 
         m_CascadeShadowFramebuffer->Bind();
         FRenderCommand::SetViewport(0, 0, m_ShadowSettings.CascadeResolution, m_ShadowSettings.CascadeResolution);
@@ -326,7 +332,7 @@ namespace Leon {
 
         m_ShadowDepthShader->Bind();
 
-        float fov    = InCamera.GetFOV();
+        float fov = InCamera.GetFOV();
         float aspect = InCamera.GetAspectRatio();
 
         for (uint32_t cascade = 0; cascade < m_ShadowSettings.CascadeCount && cascade < 4; ++cascade) {
@@ -337,10 +343,9 @@ namespace Leon {
             auto corners = ShadowMath::GetFrustumCornersWorldSpace(subProj, InCamera.GetViewMatrix());
 
             float worldUnitsPerTexel = 0.01f;
-            glm::mat4 cascadeMatrix = ShadowMath::CalculateCascadeMatrix(corners, InDirLightComp->Light.Direction,
-                                                                         m_ShadowSettings.CascadeResolution,
-                                                                         m_ShadowSettings.bStabilizeCascades,
-                                                                         worldUnitsPerTexel);
+            glm::mat4 cascadeMatrix = ShadowMath::CalculateCascadeMatrix(
+                corners, InDirLightComp->Light.Direction, m_ShadowSettings.CascadeResolution,
+                m_ShadowSettings.bStabilizeCascades, worldUnitsPerTexel);
             OutCamData.LightSpaceMatrices[cascade] = cascadeMatrix;
             OutCamData.CascadeOffsets[cascade] = ShadowMath::GetAtlasScaleOffset2x2(cascade);
 
@@ -349,7 +354,8 @@ namespace Leon {
             auto meshView = m_Scene->GetRegistry().view<FTransformComponent, FMeshComponent>();
             for (auto entity : meshView) {
                 auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-                if (!mesh.VertexArray || !mesh.bCastShadows) continue;
+                if (!mesh.VertexArray || !mesh.bCastShadows)
+                    continue;
 
                 glm::mat4 model = transform.GetTransform();
                 m_ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
@@ -383,6 +389,28 @@ namespace Leon {
                 mesh.VertexArray->Bind();
                 FRenderCommand::DrawIndexed(mesh.VertexArray);
             }
+
+            // Static Mesh Entities in CSM
+            auto staticMeshView = m_Scene->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
+            for (auto entity : staticMeshView) {
+                auto [transform, staticMeshComp] =
+                    staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+                if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
+                    !staticMeshComp.bCastShadows)
+                    continue;
+
+                staticMeshComp.StaticMesh->GetVertexArray()->Bind();
+                for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
+                    if (submesh.IndexCount == 0)
+                        continue;
+                    glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                    m_ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
+                    m_ShadowDepthShader->SetInt("u_AlphaMode", 0);
+                    m_ShadowDepthShader->SetInt("u_UseAlbedoMap", 0);
+                    FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
+                                                      submesh.IndexOffset);
+                }
+            }
         }
 
         FRenderCommand::SetCulling(false);
@@ -393,18 +421,17 @@ namespace Leon {
     // PASS 2: Spot Shadow Pass
     // =========================================================================
     void FSceneRenderer::RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp,
-                                               const glm::vec3& InSpotLightPos,
-                                               FCameraBufferData& OutCamData) {
+                                              const glm::vec3& InSpotLightPos, FCameraBufferData& OutCamData) {
         if (!InSpotLightComp || !InSpotLightComp->bEnabled || !m_SpotShadowFramebuffer || !m_ShadowDepthShader)
             return;
 
         glm::vec3 spotDir = glm::normalize(InSpotLightComp->Light.Direction);
-        glm::vec3 up = (std::abs(spotDir.y) < 0.99f) ? glm::vec3(0.f,1.f,0.f) : glm::vec3(0.f,0.f,1.f);
+        glm::vec3 up = (std::abs(spotDir.y) < 0.99f) ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
         glm::mat4 spotView = glm::lookAt(InSpotLightPos, InSpotLightPos + spotDir, up);
 
         float fov = glm::clamp(InSpotLightComp->Light.OuterCutOff * 2.0f + 2.0f, 10.0f, 160.0f);
         float farPlane = std::max(InSpotLightComp->Light.Radius * 1.05f, 1.0f);
-        glm::mat4 spotProj       = glm::perspective(glm::radians(fov), 1.0f, 0.1f, farPlane);
+        glm::mat4 spotProj = glm::perspective(glm::radians(fov), 1.0f, 0.1f, farPlane);
         glm::mat4 spotLightSpace = spotProj * spotView;
         OutCamData.SpotLightSpaceMatrix = spotLightSpace;
 
@@ -421,11 +448,29 @@ namespace Leon {
         auto meshView = m_Scene->GetRegistry().view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.bCastShadows) continue;
+            if (!mesh.VertexArray || !mesh.bCastShadows)
+                continue;
             glm::mat4 model = transform.GetTransform();
             m_ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
             mesh.VertexArray->Bind();
             FRenderCommand::DrawIndexed(mesh.VertexArray);
+        }
+
+        auto staticMeshView = m_Scene->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
+        for (auto entity : staticMeshView) {
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
+                !staticMeshComp.bCastShadows)
+                continue;
+            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
+            for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
+                if (submesh.IndexCount == 0)
+                    continue;
+                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                m_ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
+                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
+                                                  submesh.IndexOffset);
+            }
         }
 
         FRenderCommand::SetCulling(false);
@@ -436,12 +481,12 @@ namespace Leon {
     // PASS 3: Planar Reflection Pass
     // =========================================================================
     void FSceneRenderer::RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera,
-                                                     const FSkyboxComponent* InSkybox,
-                                                     bool bHasDirLight,
-                                                     const FDirectionalLight& InDirLight) {
-        if (!m_PlanarReflectionFramebuffer) return;
+                                                    const FSkyboxComponent* InSkybox, bool bHasDirLight,
+                                                    const FDirectionalLight& InDirLight) {
+        if (!m_PlanarReflectionFramebuffer)
+            return;
 
-        uint32_t vpW = m_ViewportWidth  > 0 ? m_ViewportWidth  : 1280;
+        uint32_t vpW = m_ViewportWidth > 0 ? m_ViewportWidth : 1280;
         uint32_t vpH = m_ViewportHeight > 0 ? m_ViewportHeight : 720;
 
         glm::vec3 camPos = InCamera.GetPosition();
@@ -458,9 +503,9 @@ namespace Leon {
 
         if (m_CameraUBO) {
             FCameraBufferData mirrorCamData;
-            mirrorCamData.ViewProjection  = mirroredVP;
-            mirrorCamData.CameraPosition  = glm::vec4(mirrorPos, 1.0f);
-            mirrorCamData.CameraForward   = glm::vec4(mirroredCamera.GetForwardDirection(), 0.0f);
+            mirrorCamData.ViewProjection = mirroredVP;
+            mirrorCamData.CameraPosition = glm::vec4(mirrorPos, 1.0f);
+            mirrorCamData.CameraForward = glm::vec4(mirroredCamera.GetForwardDirection(), 0.0f);
             m_CameraUBO->SetData(&mirrorCamData, sizeof(FCameraBufferData), 0);
         }
 
@@ -484,12 +529,16 @@ namespace Leon {
                 m_SkyboxShader->SetInt("u_HDREnvironmentMap", 0);
             } else {
                 m_SkyboxShader->SetInt("u_UseHDREnvironmentMap", 0);
-                glm::vec3 sunDir = bHasDirLight ? -glm::normalize(InDirLight.Direction) : glm::vec3(0.f,1.f,0.f);
+                glm::vec3 sunDir = bHasDirLight ? -glm::normalize(InDirLight.Direction) : glm::vec3(0.f, 1.f, 0.f);
                 m_SkyboxShader->SetFloat3("u_SunDir", sunDir.x, sunDir.y, sunDir.z);
-                m_SkyboxShader->SetFloat3("u_SkyColor", InSkybox->SkyZenithColor.r, InSkybox->SkyZenithColor.g, InSkybox->SkyZenithColor.b);
-                m_SkyboxShader->SetFloat3("u_HorizonColor", InSkybox->HorizonColor.r, InSkybox->HorizonColor.g, InSkybox->HorizonColor.b);
-                m_SkyboxShader->SetFloat3("u_GroundColor", InSkybox->GroundColor.r, InSkybox->GroundColor.g, InSkybox->GroundColor.b);
-                m_SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g, InSkybox->SunColor.b);
+                m_SkyboxShader->SetFloat3("u_SkyColor", InSkybox->SkyZenithColor.r, InSkybox->SkyZenithColor.g,
+                                          InSkybox->SkyZenithColor.b);
+                m_SkyboxShader->SetFloat3("u_HorizonColor", InSkybox->HorizonColor.r, InSkybox->HorizonColor.g,
+                                          InSkybox->HorizonColor.b);
+                m_SkyboxShader->SetFloat3("u_GroundColor", InSkybox->GroundColor.r, InSkybox->GroundColor.g,
+                                          InSkybox->GroundColor.b);
+                m_SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g,
+                                          InSkybox->SunColor.b);
                 m_SkyboxShader->SetFloat("u_SunIntensity", InSkybox->SunIntensity);
             }
             m_SkyboxVA->Bind();
@@ -499,8 +548,10 @@ namespace Leon {
         }
 
         // Bind shadow maps to slots 10-11 so depth samplers always reference valid depth textures
-        if (m_CascadeShadowFramebuffer) m_CascadeShadowFramebuffer->BindDepthTexture(10);
-        if (m_SpotShadowFramebuffer)    m_SpotShadowFramebuffer->BindDepthTexture(11);
+        if (m_CascadeShadowFramebuffer)
+            m_CascadeShadowFramebuffer->BindDepthTexture(10);
+        if (m_SpotShadowFramebuffer)
+            m_SpotShadowFramebuffer->BindDepthTexture(11);
 
         // Bind fallback 1x1 textures on material slots
         if (m_DefaultWhiteTexture) {
@@ -509,15 +560,18 @@ namespace Leon {
             m_DefaultWhiteTexture->Bind(3);
             m_DefaultWhiteTexture->Bind(4);
         }
-        if (m_DefaultFlatNormalTexture) m_DefaultFlatNormalTexture->Bind(1);
-        if (m_DefaultBlackTexture)      m_DefaultBlackTexture->Bind(5);
+        if (m_DefaultFlatNormalTexture)
+            m_DefaultFlatNormalTexture->Bind(1);
+        if (m_DefaultBlackTexture)
+            m_DefaultBlackTexture->Bind(5);
 
         // Visible meshes in reflection (minimal material binding, no shadows)
         auto& reg = m_Scene->GetRegistry();
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.Shader || !mesh.bVisibleInReflection) continue;
+            if (!mesh.VertexArray || !mesh.Shader || !mesh.bVisibleInReflection)
+                continue;
 
             mesh.Shader->Bind();
             mesh.Shader->SetInt("u_UsePlanarReflection", 0);
@@ -539,14 +593,46 @@ namespace Leon {
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
 
+        auto staticMeshView = reg.view<FTransformComponent, FStaticMeshComponent>();
+        for (auto entity : staticMeshView) {
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
+                !staticMeshComp.bVisibleInReflection)
+                continue;
+
+            TRef<FShader> shader = staticMeshComp.Shader
+                                       ? staticMeshComp.Shader
+                                       : FAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+            if (!shader)
+                continue;
+
+            shader->Bind();
+            shader->SetInt("u_UsePlanarReflection", 0);
+            shader->SetInt("u_UseShadows", 0);
+            shader->SetInt("u_UseSpotShadows", 0);
+
+            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
+            for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
+                if (submesh.IndexCount == 0)
+                    continue;
+                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                shader->SetMat4("u_Model", glm::value_ptr(model));
+                glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+                shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
+                                                  submesh.IndexOffset);
+            }
+        }
+
         // Text in reflection
         auto textView = reg.view<FTransformComponent, FTextComponent>();
         FTextRenderer::BeginScene(mirroredCamera);
         for (auto entity : textView) {
             auto [transform, textComp] = textView.get<FTransformComponent, FTextComponent>(entity);
-            if (textComp.Text.empty()) continue;
-            FTextRenderer::DrawString(textComp.Text, transform.GetTransform(), textComp.Color,
-                                      textComp.Size, textComp.Alignment, textComp.bDoubleSided);
+            if (textComp.Text.empty())
+                continue;
+            FTextRenderer::DrawString(textComp.Text, transform.GetTransform(), textComp.Color, textComp.Size,
+                                      textComp.Alignment, textComp.bDoubleSided);
         }
         FTextRenderer::EndScene();
 
@@ -558,33 +644,36 @@ namespace Leon {
     // Audit fix ALTO-01: shadow maps + IBL bound ONCE before the loop, not per-object
     // Audit fix MEDIO-05: normal matrix calculated CPU-side, uploaded as u_NormalMatrix
     // =========================================================================
-    void FSceneRenderer::RenderGeometryPass(const FPerspectiveCamera& InCamera,
-                                             bool bHasDirLight,
-                                             bool bHasSpotLight,
-                                             uint32_t InVpWidth,
-                                             uint32_t InVpHeight) {
+    void FSceneRenderer::RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
+                                            uint32_t InVpWidth, uint32_t InVpHeight) {
         auto& reg = m_Scene->GetRegistry();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
         // Bind shadow depth maps to slots 10-11
-        if (m_CascadeShadowFramebuffer) m_CascadeShadowFramebuffer->BindDepthTexture(10);
-        if (m_SpotShadowFramebuffer)    m_SpotShadowFramebuffer->BindDepthTexture(11);
+        if (m_CascadeShadowFramebuffer)
+            m_CascadeShadowFramebuffer->BindDepthTexture(10);
+        if (m_SpotShadowFramebuffer)
+            m_SpotShadowFramebuffer->BindDepthTexture(11);
 
-        bool bShadowsAvailable    = bHasDirLight  && m_CascadeShadowFramebuffer;
+        bool bShadowsAvailable = bHasDirLight && m_CascadeShadowFramebuffer;
         bool bSpotShadowAvailable = bHasSpotLight && m_SpotShadowFramebuffer;
 
         // IBL maps (slots 6-8) — same for all objects
         bool bIBLAvailable = m_bUseIBL && m_IBLEnvironment.BRDFLUT;
         if (bIBLAvailable) {
-            if (m_IBLEnvironment.BRDFLUT)     m_IBLEnvironment.BRDFLUT->Bind(6);
-            if (m_IBLEnvironment.IrradianceMap) m_IBLEnvironment.IrradianceMap->Bind(7);
-            if (m_IBLEnvironment.PrefilterMap)  m_IBLEnvironment.PrefilterMap->Bind(8);
+            if (m_IBLEnvironment.BRDFLUT)
+                m_IBLEnvironment.BRDFLUT->Bind(6);
+            if (m_IBLEnvironment.IrradianceMap)
+                m_IBLEnvironment.IrradianceMap->Bind(7);
+            if (m_IBLEnvironment.PrefilterMap)
+                m_IBLEnvironment.PrefilterMap->Bind(8);
         }
 
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.Shader) continue;
+            if (!mesh.VertexArray || !mesh.Shader)
+                continue;
 
             mesh.Shader->Bind();
 
@@ -606,8 +695,7 @@ namespace Leon {
             if (bApplyPlanarReflection) {
                 m_PlanarReflectionFramebuffer->BindTexture(0, 5);
                 mesh.Shader->SetInt("u_UsePlanarReflection", 1);
-                mesh.Shader->SetFloat2("u_ScreenSize",
-                    static_cast<float>(InVpWidth), static_cast<float>(InVpHeight));
+                mesh.Shader->SetFloat2("u_ScreenSize", static_cast<float>(InVpWidth), static_cast<float>(InVpHeight));
             } else {
                 mesh.Shader->SetInt("u_UsePlanarReflection", 0);
             }
@@ -644,6 +732,88 @@ namespace Leon {
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
 
+        // Static Mesh Component Rendering
+        auto staticMeshView = reg.view<FTransformComponent, FStaticMeshComponent>();
+        for (auto entity : staticMeshView) {
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray())
+                continue;
+
+            TRef<FShader> activeShader = staticMeshComp.Shader
+                                             ? staticMeshComp.Shader
+                                             : FAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+            if (!activeShader)
+                continue;
+
+            activeShader->Bind();
+            activeShader->SetInt("u_UseShadows", (bShadowsAvailable && staticMeshComp.bReceiveShadows) ? 1 : 0);
+            activeShader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && staticMeshComp.bReceiveShadows) ? 1 : 0);
+            activeShader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
+            activeShader->SetInt("u_DebugMode", m_DebugMode);
+
+            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
+
+            const auto& submeshes = staticMeshComp.StaticMesh->GetSubmeshes();
+            for (const auto& submesh : submeshes) {
+                if (submesh.IndexCount == 0)
+                    continue;
+
+                // Resolve Material for this submesh
+                TRef<FMaterialInstance> matInst = nullptr;
+                if (submesh.MaterialSlotIndex < staticMeshComp.MaterialOverrides.size() &&
+                    staticMeshComp.MaterialOverrides[submesh.MaterialSlotIndex]) {
+                    matInst = staticMeshComp.MaterialOverrides[submesh.MaterialSlotIndex];
+                } else if (submesh.MaterialSlotIndex < staticMeshComp.StaticMesh->GetMaterialSlots().size()) {
+                    auto& slot = staticMeshComp.StaticMesh->GetMaterialSlots()[submesh.MaterialSlotIndex];
+                    if (!slot.MaterialInstance && !slot.DefaultMaterialPath.empty()) {
+                        slot.MaterialInstance = FAssetManager::GetMaterialInstance(slot.DefaultMaterialPath);
+                    }
+                    matInst = slot.MaterialInstance;
+                }
+
+                if (!matInst) {
+                    matInst = FAssetManager::GetDefaultMaterial()->CreateInstance();
+                }
+
+                // Planar reflection
+                bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && m_PlanarReflectionFramebuffer;
+                if (bApplyPlanarReflection) {
+                    m_PlanarReflectionFramebuffer->BindTexture(0, 5);
+                    activeShader->SetInt("u_UsePlanarReflection", 1);
+                    activeShader->SetFloat2("u_ScreenSize", static_cast<float>(InVpWidth),
+                                            static_cast<float>(InVpHeight));
+                } else {
+                    activeShader->SetInt("u_UsePlanarReflection", 0);
+                }
+
+                // Pipeline State
+                const auto& pso = matInst->GetPipelineState();
+                ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : pso.CullMode;
+                FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
+                FRenderCommand::SetDepthTesting(pso.bDepthTest);
+                bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
+                FRenderCommand::SetDepthMask(bDepthWrite);
+                FRenderCommand::SetDepthFunc(pso.DepthFunc);
+                bool bBlend = (matInst->GetAlphaMode() == EAlphaMode::Blend) || pso.bBlend;
+                FRenderCommand::SetBlendState(bBlend);
+                if (bBlend) {
+                    FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
+                }
+
+                // Bind Material
+                matInst->Bind(activeShader);
+
+                // Transform with submesh local transform
+                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                activeShader->SetMat4("u_Model", glm::value_ptr(model));
+                glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+                activeShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+
+                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
+                                                  submesh.IndexOffset);
+            }
+        }
+
         // Restore pass-level default rasterizer state
         FRenderCommand::SetCulling(false);
         FRenderCommand::SetBlendState(false);
@@ -654,11 +824,10 @@ namespace Leon {
     // =========================================================================
     // Skybox Pass
     // =========================================================================
-    void FSceneRenderer::RenderSkyboxPass(const FPerspectiveCamera& InCamera,
-                                           const FSkyboxComponent* InSkybox,
-                                           bool bHasDirLight,
-                                           const FDirectionalLight& InDirLight) {
-        if (!InSkybox || !InSkybox->bEnabled || !m_SkyboxShader || !m_SkyboxVA) return;
+    void FSceneRenderer::RenderSkyboxPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
+                                          bool bHasDirLight, const FDirectionalLight& InDirLight) {
+        if (!InSkybox || !InSkybox->bEnabled || !m_SkyboxShader || !m_SkyboxVA)
+            return;
 
         FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
         FRenderCommand::SetDepthMask(false);
@@ -673,11 +842,14 @@ namespace Leon {
             m_SkyboxShader->SetInt("u_HDREnvironmentMap", 0);
         } else {
             m_SkyboxShader->SetInt("u_UseHDREnvironmentMap", 0);
-            glm::vec3 sunDir = bHasDirLight ? -glm::normalize(InDirLight.Direction) : glm::vec3(0.f,1.f,0.f);
+            glm::vec3 sunDir = bHasDirLight ? -glm::normalize(InDirLight.Direction) : glm::vec3(0.f, 1.f, 0.f);
             m_SkyboxShader->SetFloat3("u_SunDir", sunDir.x, sunDir.y, sunDir.z);
-            m_SkyboxShader->SetFloat3("u_SkyColor", InSkybox->SkyZenithColor.r, InSkybox->SkyZenithColor.g, InSkybox->SkyZenithColor.b);
-            m_SkyboxShader->SetFloat3("u_HorizonColor", InSkybox->HorizonColor.r, InSkybox->HorizonColor.g, InSkybox->HorizonColor.b);
-            m_SkyboxShader->SetFloat3("u_GroundColor", InSkybox->GroundColor.r, InSkybox->GroundColor.g, InSkybox->GroundColor.b);
+            m_SkyboxShader->SetFloat3("u_SkyColor", InSkybox->SkyZenithColor.r, InSkybox->SkyZenithColor.g,
+                                      InSkybox->SkyZenithColor.b);
+            m_SkyboxShader->SetFloat3("u_HorizonColor", InSkybox->HorizonColor.r, InSkybox->HorizonColor.g,
+                                      InSkybox->HorizonColor.b);
+            m_SkyboxShader->SetFloat3("u_GroundColor", InSkybox->GroundColor.r, InSkybox->GroundColor.g,
+                                      InSkybox->GroundColor.b);
             m_SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g, InSkybox->SunColor.b);
             m_SkyboxShader->SetFloat("u_SunIntensity", InSkybox->SunIntensity);
         }
@@ -692,9 +864,10 @@ namespace Leon {
     // =========================================================================
     // Post-Process Pass (Bloom + ACES Tonemapping + FXAA)
     // =========================================================================
-    void FSceneRenderer::RenderPostProcessPass(float InExposure, uint32_t InTargetFBO,
-                                                uint32_t InVpWidth, uint32_t InVpHeight) {
-        if (!m_HDRSceneFramebuffer) return;
+    void FSceneRenderer::RenderPostProcessPass(float InExposure, uint32_t InTargetFBO, uint32_t InVpWidth,
+                                               uint32_t InVpHeight) {
+        if (!m_HDRSceneFramebuffer)
+            return;
 
         m_PostProcessSettings.Exposure = InExposure;
         m_PostProcessPipeline.Render(m_PostProcessSettings, m_HDRSceneFramebuffer, InTargetFBO, InVpWidth, InVpHeight);
@@ -708,10 +881,11 @@ namespace Leon {
         if (currentHdr.empty() && InSkybox.HDREnvironmentMap)
             currentHdr = InSkybox.HDREnvironmentMap->GetPath();
 
-        if (!m_bEnvironmentGenerated || (InSkybox.bUseHDREnvironmentMap && !currentHdr.empty() && currentHdr != m_LoadedHDRPath) ||
+        if (!m_bEnvironmentGenerated ||
+            (InSkybox.bUseHDREnvironmentMap && !currentHdr.empty() && currentHdr != m_LoadedHDRPath) ||
             (!InSkybox.bUseHDREnvironmentMap && !m_LoadedHDRPath.empty())) {
             m_IBLEnvironment = FIBLGenerator::CreateEnvironmentFromSkybox(InSkybox);
-            m_LoadedHDRPath  = InSkybox.bUseHDREnvironmentMap ? currentHdr : "";
+            m_LoadedHDRPath = InSkybox.bUseHDREnvironmentMap ? currentHdr : "";
             m_bEnvironmentGenerated = true;
         }
     }

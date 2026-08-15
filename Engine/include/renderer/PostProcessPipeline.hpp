@@ -44,11 +44,8 @@ namespace Leon {
         void Init();
         void OnViewportResize(uint32_t InWidth, uint32_t InHeight);
 
-        void Render(const FPostProcessSettings& InSettings,
-                    TRef<FFramebuffer> InHDRScene,
-                    uint32_t InTargetFBO,
-                    uint32_t InVpWidth,
-                    uint32_t InVpHeight);
+        void Render(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene, uint32_t InTargetFBO,
+                    uint32_t InVpWidth, uint32_t InVpHeight);
 
         // Accessors for testing and debugging
         TRef<FFramebuffer> GetToneMappedFBO() const { return m_ToneMappedFBO; }
@@ -63,7 +60,8 @@ namespace Leon {
 
     private:
         void InvalidateFramebuffers(uint32_t InWidth, uint32_t InHeight);
-        void RenderBloom(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene, uint32_t InWidth, uint32_t InHeight);
+        void RenderBloom(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene, uint32_t InWidth,
+                         uint32_t InHeight);
 
     private:
         uint32_t m_Width = 1280;

@@ -61,6 +61,8 @@ namespace Leon {
 
         virtual void DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) = 0;
         virtual void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0) = 0;
+        virtual void DrawIndexedOffset(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                       unsigned int InIndexOffset) = 0;
         virtual void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) = 0;
         virtual void SetLineWidth(float InWidth) = 0;
 
@@ -79,4 +81,3 @@ namespace Leon {
     using RenderAPI = IRenderAPI;
 
 } // namespace Leon
-

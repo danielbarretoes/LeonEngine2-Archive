@@ -65,7 +65,8 @@ namespace Leon {
 
             for (unsigned int i = 0; i < 6; ++i) {
                 if (faceData[i]) {
-                    glTextureSubImage3D(m_RendererID, 0, 0, 0, i, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE, faceData[i]);
+                    glTextureSubImage3D(m_RendererID, 0, 0, 0, i, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE,
+                                        faceData[i]);
                     stbi_image_free(faceData[i]);
                 }
             }
@@ -101,13 +102,14 @@ namespace Leon {
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
 
-    void FOpenGLTextureCube::SetFaceData(uint32_t InFaceIndex, const void* InData, uint32_t InWidth,
-                                         uint32_t InHeight, uint32_t InMipLevel, bool InbHDR) {
+    void FOpenGLTextureCube::SetFaceData(uint32_t InFaceIndex, const void* InData, uint32_t InWidth, uint32_t InHeight,
+                                         uint32_t InMipLevel, bool InbHDR) {
         GLenum dataFormat = GL_RGBA;
         GLenum dataType = InbHDR ? GL_FLOAT : GL_UNSIGNED_BYTE;
 
         glTextureSubImage3D(m_RendererID, static_cast<GLint>(InMipLevel), 0, 0, static_cast<GLint>(InFaceIndex),
-                            static_cast<GLsizei>(InWidth), static_cast<GLsizei>(InHeight), 1, dataFormat, dataType, InData);
+                            static_cast<GLsizei>(InWidth), static_cast<GLsizei>(InHeight), 1, dataFormat, dataType,
+                            InData);
 
         if (InMipLevel > m_MaxMipLevel) {
             m_MaxMipLevel = InMipLevel;

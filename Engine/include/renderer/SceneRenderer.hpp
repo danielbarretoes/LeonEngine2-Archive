@@ -28,19 +28,20 @@ namespace Leon {
 
     /** Binding 0 — Camera / Shadow matrices & params (544 bytes) */
     struct FCameraBufferData {
-        glm::mat4 ViewProjection{1.0f};                         // 64 bytes  (offset 0)
-        glm::mat4 LightSpaceMatrices[4]{glm::mat4(1.0f)};       // 256 bytes (offset 64)
-        glm::mat4 SpotLightSpaceMatrix{1.0f};                   // 64 bytes  (offset 320)
-        glm::vec4 CameraPosition{0.0f};                         // 16 bytes  (offset 384)
-        glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f};       // 16 bytes  (offset 400)
-        glm::vec4 CascadeSplits{0.0f};                          // 16 bytes  (offset 416) (x=s0, y=s1, z=s2, w=s3)
-        glm::vec4 CascadeOffsets[4]{glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
-                                   glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
-                                   glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
-                                   glm::vec4(1.0f, 1.0f, 0.0f, 0.0f)}; // 64 bytes (offset 432) (xy=scale, zw=offset)
-        glm::vec4 ShadowParams{0.0008f, 0.0015f, 0.025f, 0.10f}; // 16 bytes (offset 496) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
-        glm::ivec4 ShadowSettings{1, 16, 0, 0};                 // 16 bytes  (offset 512) (x=filterMode, y=contactSteps, z=bContactShadows, w=shadowDebugMode)
-        glm::vec4 ContactShadowParams{0.35f, 0.05f, 0.0f, 0.0f};// 16 bytes (offset 528) (x=dist, y=thick, zw=0)
+        glm::mat4 ViewProjection{1.0f};                   // 64 bytes  (offset 0)
+        glm::mat4 LightSpaceMatrices[4]{glm::mat4(1.0f)}; // 256 bytes (offset 64)
+        glm::mat4 SpotLightSpaceMatrix{1.0f};             // 64 bytes  (offset 320)
+        glm::vec4 CameraPosition{0.0f};                   // 16 bytes  (offset 384)
+        glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f}; // 16 bytes  (offset 400)
+        glm::vec4 CascadeSplits{0.0f};                    // 16 bytes  (offset 416) (x=s0, y=s1, z=s2, w=s3)
+        glm::vec4 CascadeOffsets[4]{glm::vec4(1.0f, 1.0f, 0.0f, 0.0f), glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
+                                    glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
+                                    glm::vec4(1.0f, 1.0f, 0.0f, 0.0f)}; // 64 bytes (offset 432) (xy=scale, zw=offset)
+        glm::vec4 ShadowParams{0.0008f, 0.0015f, 0.025f,
+                               0.10f}; // 16 bytes (offset 496) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
+        glm::ivec4 ShadowSettings{
+            1, 16, 0, 0}; // 16 bytes  (offset 512) (x=filterMode, y=contactSteps, z=bContactShadows, w=shadowDebugMode)
+        glm::vec4 ContactShadowParams{0.35f, 0.05f, 0.0f, 0.0f}; // 16 bytes (offset 528) (x=dist, y=thick, zw=0)
     }; // Total: 544 bytes
 
     /** std140 GPU directional light (PBR — single Intensity, no Phong split) */
@@ -66,13 +67,13 @@ namespace Leon {
 
     /** Binding 1 — Lighting buffer */
     struct FLightingBufferData {
-        FGpuDirectionalLight DirLight;                 // 32 bytes
-        FGpuPointLight       PointLights[16];          // 16 * 48 = 768 bytes
-        FGpuSpotLight        SpotLights[8];            // 8  * 64 = 512 bytes
-        glm::ivec4 LightCounts{0, 0, 0, 0};            // 16 bytes (x = pointCount, y = spotCount)
-        glm::vec4  EnvSkyColor{0.18f, 0.44f, 0.88f, 1.2f}; // xyz = sky, w = envIntensity
-        glm::vec4  EnvHorizonColor{0.78f, 0.84f, 0.95f, 0.0f};
-        glm::vec4  EnvGroundColor{0.22f, 0.24f, 0.28f, 0.0f};
+        FGpuDirectionalLight DirLight;                    // 32 bytes
+        FGpuPointLight PointLights[16];                   // 16 * 48 = 768 bytes
+        FGpuSpotLight SpotLights[8];                      // 8  * 64 = 512 bytes
+        glm::ivec4 LightCounts{0, 0, 0, 0};               // 16 bytes (x = pointCount, y = spotCount)
+        glm::vec4 EnvSkyColor{0.18f, 0.44f, 0.88f, 1.2f}; // xyz = sky, w = envIntensity
+        glm::vec4 EnvHorizonColor{0.78f, 0.84f, 0.95f, 0.0f};
+        glm::vec4 EnvGroundColor{0.22f, 0.24f, 0.28f, 0.0f};
     }; // Total: ~1344 bytes
 
     // =========================================================================
@@ -89,7 +90,7 @@ namespace Leon {
         ~FSceneRenderer() = default;
 
         // Non-copyable
-        FSceneRenderer(const FSceneRenderer&)            = delete;
+        FSceneRenderer(const FSceneRenderer&) = delete;
         FSceneRenderer& operator=(const FSceneRenderer&) = delete;
 
         /**
@@ -107,7 +108,7 @@ namespace Leon {
         TRef<FFramebuffer> GetPlanarReflectionFramebuffer() const { return m_PlanarReflectionFramebuffer; }
 
         void SetDebugMode(int InMode) { m_DebugMode = InMode; }
-        int  GetDebugMode() const { return m_DebugMode; }
+        int GetDebugMode() const { return m_DebugMode; }
 
         FPostProcessSettings& GetPostProcessSettings() { return m_PostProcessSettings; }
         const FPostProcessSettings& GetPostProcessSettings() const { return m_PostProcessSettings; }
@@ -119,40 +120,30 @@ namespace Leon {
     private:
         // ----- Render Passes -------------------------------------------------
         void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
-                                      const FDirectionalLightComponent* InDirLightComp,
-                                      FCameraBufferData& OutCamData);
+                                      const FDirectionalLightComponent* InDirLightComp, FCameraBufferData& OutCamData);
 
-        void RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp,
-                                  const glm::vec3& InSpotLightPos,
+        void RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp, const glm::vec3& InSpotLightPos,
                                   FCameraBufferData& OutCamData);
 
-        void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera,
-                                        const FSkyboxComponent* InSkybox,
-                                        bool bHasDirLight,
-                                        const FDirectionalLight& InDirLight);
+        void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
+                                        bool bHasDirLight, const FDirectionalLight& InDirLight);
 
-        void RenderGeometryPass(const FPerspectiveCamera& InCamera,
-                                bool bHasDirLight,
-                                bool bHasSpotLight,
-                                uint32_t InVpWidth,
-                                uint32_t InVpHeight);
+        void RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
+                                uint32_t InVpWidth, uint32_t InVpHeight);
 
-        void RenderSkyboxPass(const FPerspectiveCamera& InCamera,
-                              const FSkyboxComponent* InSkybox,
-                              bool bHasDirLight,
+        void RenderSkyboxPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox, bool bHasDirLight,
                               const FDirectionalLight& InDirLight);
 
-        void RenderPostProcessPass(float InExposure, uint32_t InTargetFBO,
-                                   uint32_t InVpWidth, uint32_t InVpHeight);
+        void RenderPostProcessPass(float InExposure, uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight);
 
         void UpdateIBL(const FSkyboxComponent& InSkybox);
 
         // ----- Members -------------------------------------------------------
         FScene* m_Scene = nullptr;
 
-        uint32_t m_ViewportWidth  = 1280;
+        uint32_t m_ViewportWidth = 1280;
         uint32_t m_ViewportHeight = 720;
-        int      m_DebugMode      = 0;
+        int m_DebugMode = 0;
 
         // Tracks the FBO active before Render() was called, restored after PostProcess
         uint32_t m_PreviousFBO = 0;
@@ -166,8 +157,8 @@ namespace Leon {
         TRef<FFramebuffer> m_HDRSceneFramebuffer;
 
         // Uniform buffer objects
-        TRef<FUniformBuffer> m_CameraUBO;    // Binding 0
-        TRef<FUniformBuffer> m_LightingUBO;  // Binding 1
+        TRef<FUniformBuffer> m_CameraUBO;   // Binding 0
+        TRef<FUniformBuffer> m_LightingUBO; // Binding 1
 
         // Built-in pipeline shaders
         TRef<FShader> m_ShadowDepthShader;
@@ -185,8 +176,8 @@ namespace Leon {
 
         // IBL environment
         FIBLEnvironment m_IBLEnvironment;
-        bool   m_bUseIBL              = true;
-        bool   m_bEnvironmentGenerated = false;
+        bool m_bUseIBL = true;
+        bool m_bEnvironmentGenerated = false;
         std::string m_LoadedHDRPath;
 
         // Post-Processing Pipeline
@@ -194,8 +185,8 @@ namespace Leon {
         FPostProcessSettings m_PostProcessSettings;
 
         // Shadow Settings and Cascade state
-        FShadowSettings              m_ShadowSettings;
-        std::vector<FShadowCascade>  m_ShadowCascades;
+        FShadowSettings m_ShadowSettings;
+        std::vector<FShadowCascade> m_ShadowCascades;
     };
 
 } // namespace Leon

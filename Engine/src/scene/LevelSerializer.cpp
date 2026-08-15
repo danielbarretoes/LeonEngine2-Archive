@@ -1,4 +1,4 @@
-#include "scene/SceneSerializer.hpp"
+#include "scene/LevelSerializer.hpp"
 #include "core/Log.hpp"
 #include "renderer/AssetManager.hpp"
 #include "renderer/MeshPrimitives.hpp"
@@ -169,25 +169,25 @@ namespace Leon {
 
     } // namespace Utils
 
-    FSceneSerializer::FSceneSerializer(const TRef<FScene>& InScene) : m_Scene(InScene) {}
+    FLevelSerializer::FLevelSerializer(const TRef<FScene>& InScene) : m_Scene(InScene) {}
 
-    bool FSceneSerializer::Serialize(const std::string& InFilePath) {
+    bool FLevelSerializer::Serialize(const std::string& InFilePath) {
         std::string text;
         if (!SerializeText(text))
             return false;
 
         std::ofstream file(InFilePath);
         if (!file.is_open()) {
-            LE_CORE_ERROR("FSceneSerializer: Could not open '{0}' for writing!", InFilePath);
+            LE_CORE_ERROR("FLevelSerializer: Could not open '{0}' for writing!", InFilePath);
             return false;
         }
 
         file << text;
-        LE_CORE_INFO("FSceneSerializer: Saved level to '{0}'", InFilePath);
+        LE_CORE_INFO("FLevelSerializer: Saved level to '{0}'", InFilePath);
         return true;
     }
 
-    bool FSceneSerializer::SerializeText(std::string& OutText) {
+    bool FLevelSerializer::SerializeText(std::string& OutText) {
         if (!m_Scene)
             return false;
 
@@ -225,142 +225,186 @@ namespace Leon {
             break;
         }
 
+        // 2. Serialize Actors
         ss << "Actors:\n";
+        auto tagView = m_Scene->GetRegistry().view<FTagComponent>();
+        for (auto entityHandle : tagView) {
+            FEntity entity = {entityHandle, m_Scene.get()};
 
-        // 2. Serialize All Actors
-        auto view = m_Scene->GetRegistry().view<FTagComponent, FTransformComponent>();
-        for (auto entity : view) {
-            auto [tag, transform] = view.get<FTagComponent, FTransformComponent>(entity);
-
-            // Skip Skybox Entity since it's already serialized in Environment
-            if (m_Scene->GetRegistry().all_of<FSkyboxComponent>(entity))
+            // Skip Environment Skybox entity as it is serialized in the Environment block
+            if (entity.HasComponent<FSkyboxComponent>()) {
                 continue;
+            }
+
+            const auto& tag = entity.GetComponent<FTagComponent>();
 
             ss << "  - Name: \"" << tag.Tag << "\"\n";
-            ss << "    Transform:\n";
-            ss << "      Translation: [" << transform.Translation.x << ", " << transform.Translation.y << ", "
-               << transform.Translation.z << "]\n";
-            ss << "      Rotation: [" << transform.Rotation.x << ", " << transform.Rotation.y << ", "
-               << transform.Rotation.z << "]\n";
-            ss << "      Scale: [" << transform.Scale.x << ", " << transform.Scale.y << ", " << transform.Scale.z
-               << "]\n";
 
-            // StaticMesh Component
-            if (m_Scene->GetRegistry().all_of<FMeshComponent>(entity)) {
-                const auto& mesh = m_Scene->GetRegistry().get<FMeshComponent>(entity);
+            // Transform
+            if (entity.HasComponent<FTransformComponent>()) {
+                const auto& transform = entity.GetComponent<FTransformComponent>();
+                ss << "    Transform:\n";
+                ss << "      Translation: [" << transform.Translation.x << ", " << transform.Translation.y << ", "
+                   << transform.Translation.z << "]\n";
+                ss << "      Rotation: [" << transform.Rotation.x << ", " << transform.Rotation.y << ", "
+                   << transform.Rotation.z << "]\n";
+                ss << "      Scale: [" << transform.Scale.x << ", " << transform.Scale.y << ", " << transform.Scale.z
+                   << "]\n";
+            }
+
+            // Static Mesh Component
+            if (entity.HasComponent<FStaticMeshComponent>()) {
+                const auto& meshComp = entity.GetComponent<FStaticMeshComponent>();
                 ss << "    StaticMesh:\n";
-                ss << "      Type: \"" << mesh.MeshType << "\"\n";
-                if (mesh.MeshType == "Plane") {
+                if (!meshComp.AssetPath.empty()) {
+                    ss << "      Asset: \"" << meshComp.AssetPath << "\"\n";
+                }
+                ss << "      CastShadows: " << (meshComp.bCastShadows ? "true" : "false") << "\n";
+                ss << "      ReceiveShadows: " << (meshComp.bReceiveShadows ? "true" : "false") << "\n";
+                ss << "      VisibleInReflection: " << (meshComp.bVisibleInReflection ? "true" : "false") << "\n";
+                if (!meshComp.MaterialOverridePaths.empty()) {
+                    ss << "      MaterialOverrides:\n";
+                    for (size_t sl = 0; sl < meshComp.MaterialOverridePaths.size(); ++sl) {
+                        if (!meshComp.MaterialOverridePaths[sl].empty()) {
+                            ss << "        - Slot: " << sl << "\n";
+                            ss << "          Asset: \"" << meshComp.MaterialOverridePaths[sl] << "\"\n";
+                        }
+                    }
+                }
+            }
+
+            // Camera Component
+            if (entity.HasComponent<FCameraComponent>()) {
+                const auto& camComp = entity.GetComponent<FCameraComponent>();
+                ss << "    Camera:\n";
+                ss << "      Primary: " << (camComp.bPrimary ? "true" : "false") << "\n";
+                ss << "      FOV: " << camComp.Camera.GetFOV() << "\n";
+                ss << "      NearPlane: " << camComp.Camera.GetNearClip() << "\n";
+                ss << "      FarPlane: " << camComp.Camera.GetFarClip() << "\n";
+            }
+
+            // Mesh Component (Procedural)
+            if (entity.HasComponent<FMeshComponent>()) {
+                const auto& mesh = entity.GetComponent<FMeshComponent>();
+                ss << "    Mesh:\n";
+                ss << "      Type: " << mesh.MeshType << "\n";
+                if (mesh.MeshType == "Cube")
+                    ss << "      Size: " << mesh.MeshSize << "\n";
+                else if (mesh.MeshType == "Plane") {
                     ss << "      Width: " << mesh.MeshWidth << "\n";
                     ss << "      Depth: " << mesh.MeshDepth << "\n";
                     ss << "      SubdivisionsX: " << mesh.MeshSubdivX << "\n";
                     ss << "      SubdivisionsZ: " << mesh.MeshSubdivZ << "\n";
                 } else if (mesh.MeshType == "Sphere") {
                     ss << "      Radius: " << mesh.MeshRadius << "\n";
-                } else if (mesh.MeshType == "Cylinder") {
+                    ss << "      SubdivisionsX: " << mesh.MeshSubdivX << "\n";
+                    ss << "      SubdivisionsZ: " << mesh.MeshSubdivZ << "\n";
+                } else if (mesh.MeshType == "Cylinder" || mesh.MeshType == "Cone") {
                     ss << "      Radius: " << mesh.MeshRadius << "\n";
                     ss << "      Height: " << mesh.MeshHeight << "\n";
+                    ss << "      SubdivisionsX: " << mesh.MeshSubdivX << "\n";
                 } else if (mesh.MeshType == "Ramp" || mesh.MeshType == "Pyramid") {
                     ss << "      Width: " << mesh.MeshWidth << "\n";
                     ss << "      Height: " << mesh.MeshHeight << "\n";
                     ss << "      Depth: " << mesh.MeshDepth << "\n";
-                } else {
-                    ss << "      Size: " << mesh.MeshSize << "\n";
+                } else if (mesh.MeshType == "Quad") {
+                    ss << "      Width: " << mesh.MeshWidth << "\n";
+                    ss << "      Height: " << mesh.MeshHeight << "\n";
                 }
-                if (!mesh.ShaderPath.empty()) {
+                if (!mesh.ShaderPath.empty())
                     ss << "      Shader: \"" << mesh.ShaderPath << "\"\n";
-                }
                 ss << "      CastShadows: " << (mesh.bCastShadows ? "true" : "false") << "\n";
                 ss << "      ReceiveShadows: " << (mesh.bReceiveShadows ? "true" : "false") << "\n";
                 ss << "      VisibleInReflection: " << (mesh.bVisibleInReflection ? "true" : "false") << "\n";
             }
 
             // Material Component
-            if (m_Scene->GetRegistry().all_of<FMaterialComponent>(entity)) {
-                const auto& matComp = m_Scene->GetRegistry().get<FMaterialComponent>(entity);
+            if (entity.HasComponent<FMaterialComponent>()) {
+                const auto& matComp = entity.GetComponent<FMaterialComponent>();
                 ss << "    Material:\n";
                 if (!matComp.AssetPath.empty()) {
                     ss << "      Asset: \"" << matComp.AssetPath << "\"\n";
                 } else if (matComp.MaterialInstance) {
-                    const auto& inst = matComp.MaterialInstance;
-                    glm::vec3 col = inst->GetAlbedoColor();
-                    ss << "      AlbedoColor: [" << col.r << ", " << col.g << ", " << col.b << "]\n";
-                    ss << "      Metallic: " << inst->GetMetallic() << "\n";
-                    ss << "      Roughness: " << inst->GetRoughness() << "\n";
-                    ss << "      AO: " << inst->GetAO() << "\n";
-                    if (inst->GetEmissiveIntensity() > 0.0f) {
-                        glm::vec3 em = inst->GetEmissiveColor();
-                        ss << "      EmissiveColor: [" << em.r << ", " << em.g << ", " << em.b << "]\n";
-                        ss << "      EmissiveIntensity: " << inst->GetEmissiveIntensity() << "\n";
-                    }
-                    if (inst->GetTexture(0))
-                        ss << "      AlbedoMap: \"" << inst->GetTexture(0)->GetPath() << "\"\n";
-                    if (inst->GetTexture(1))
-                        ss << "      NormalMap: \"" << inst->GetTexture(1)->GetPath() << "\"\n";
-                    if (inst->GetTexture(2))
-                        ss << "      MetallicMap: \"" << inst->GetTexture(2)->GetPath() << "\"\n";
-                    if (inst->GetTexture(3))
-                        ss << "      AOMap: \"" << inst->GetTexture(3)->GetPath() << "\"\n";
-                    if (inst->GetTexture(4))
-                        ss << "      RoughnessMap: \"" << inst->GetTexture(4)->GetPath() << "\"\n";
-                    if (inst->GetTexture(5))
-                        ss << "      EmissiveMap: \"" << inst->GetTexture(5)->GetPath() << "\"\n";
-                    ss << "      UsePlanarReflection: " << (inst->GetUsePlanarReflection() ? "true" : "false") << "\n";
+                    ss << "      BaseColor: [" << matComp.MaterialInstance->GetBaseColor().r << ", "
+                       << matComp.MaterialInstance->GetBaseColor().g << ", "
+                       << matComp.MaterialInstance->GetBaseColor().b << "]\n";
+                    ss << "      Metallic: " << matComp.MaterialInstance->GetMetallic() << "\n";
+                    ss << "      Roughness: " << matComp.MaterialInstance->GetRoughness() << "\n";
+                    ss << "      AO: " << matComp.MaterialInstance->GetAO() << "\n";
+                    ss << "      NormalScale: " << matComp.MaterialInstance->GetNormalScale() << "\n";
+                    ss << "      OcclusionStrength: " << matComp.MaterialInstance->GetOcclusionStrength() << "\n";
+                    ss << "      EmissiveColor: [" << matComp.MaterialInstance->GetEmissiveColor().r << ", "
+                       << matComp.MaterialInstance->GetEmissiveColor().g << ", "
+                       << matComp.MaterialInstance->GetEmissiveColor().b << "]\n";
+                    ss << "      EmissiveIntensity: " << matComp.MaterialInstance->GetEmissiveIntensity() << "\n";
+                    ss << "      AlphaMode: " << static_cast<int>(matComp.MaterialInstance->GetAlphaMode()) << "\n";
+                    ss << "      AlphaCutoff: " << matComp.MaterialInstance->GetAlphaCutoff() << "\n";
+                    ss << "      UVTiling: [" << matComp.MaterialInstance->GetUVTiling().x << ", "
+                       << matComp.MaterialInstance->GetUVTiling().y << "]\n";
+                    ss << "      UVOffset: [" << matComp.MaterialInstance->GetUVOffset().x << ", "
+                       << matComp.MaterialInstance->GetUVOffset().y << "]\n";
+
+                    if (matComp.MaterialInstance->GetTexture(0))
+                        ss << "      AlbedoMap: \"" << matComp.MaterialInstance->GetTexture(0)->GetPath() << "\"\n";
+                    if (matComp.MaterialInstance->GetTexture(1))
+                        ss << "      NormalMap: \"" << matComp.MaterialInstance->GetTexture(1)->GetPath() << "\"\n";
+                    if (matComp.MaterialInstance->GetTexture(2))
+                        ss << "      MetallicMap: \"" << matComp.MaterialInstance->GetTexture(2)->GetPath() << "\"\n";
+                    if (matComp.MaterialInstance->GetTexture(3))
+                        ss << "      RoughnessMap: \"" << matComp.MaterialInstance->GetTexture(3)->GetPath() << "\"\n";
+                    if (matComp.MaterialInstance->GetTexture(4))
+                        ss << "      AOMap: \"" << matComp.MaterialInstance->GetTexture(4)->GetPath() << "\"\n";
+                    if (matComp.MaterialInstance->GetTexture(5))
+                        ss << "      EmissiveMap: \"" << matComp.MaterialInstance->GetTexture(5)->GetPath() << "\"\n";
                 }
             }
 
             // Directional Light Component
-            if (m_Scene->GetRegistry().all_of<FDirectionalLightComponent>(entity)) {
-                const auto& comp = m_Scene->GetRegistry().get<FDirectionalLightComponent>(entity);
+            if (entity.HasComponent<FDirectionalLightComponent>()) {
+                const auto& dir = entity.GetComponent<FDirectionalLightComponent>();
                 ss << "    DirectionalLight:\n";
-                ss << "      Enabled: " << (comp.bEnabled ? "true" : "false") << "\n";
-                ss << "      Direction: [" << comp.Light.Direction.x << ", " << comp.Light.Direction.y << ", "
-                   << comp.Light.Direction.z << "]\n";
-                ss << "      Color: [" << comp.Light.Color.r << ", " << comp.Light.Color.g << ", " << comp.Light.Color.b
+                ss << "      Enabled: " << (dir.bEnabled ? "true" : "false") << "\n";
+                ss << "      Direction: [" << dir.Light.Direction.x << ", " << dir.Light.Direction.y << ", "
+                   << dir.Light.Direction.z << "]\n";
+                ss << "      Color: [" << dir.Light.Color.r << ", " << dir.Light.Color.g << ", " << dir.Light.Color.b
                    << "]\n";
-                ss << "      Intensity: " << comp.Light.Intensity << "\n";
+                ss << "      Intensity: " << dir.Light.Intensity << "\n";
             }
 
             // Point Light Component
-            if (m_Scene->GetRegistry().all_of<FPointLightComponent>(entity)) {
-                const auto& comp = m_Scene->GetRegistry().get<FPointLightComponent>(entity);
+            if (entity.HasComponent<FPointLightComponent>()) {
+                const auto& point = entity.GetComponent<FPointLightComponent>();
                 ss << "    PointLight:\n";
-                ss << "      Enabled: " << (comp.bEnabled ? "true" : "false") << "\n";
-                ss << "      Color: [" << comp.Light.Color.r << ", " << comp.Light.Color.g << ", " << comp.Light.Color.b
-                   << "]\n";
-                ss << "      Intensity: " << comp.Light.Intensity << "\n";
-                ss << "      Radius: " << comp.Light.Radius << "\n";
+                ss << "      Enabled: " << (point.bEnabled ? "true" : "false") << "\n";
+                ss << "      Color: [" << point.Light.Color.r << ", " << point.Light.Color.g << ", "
+                   << point.Light.Color.b << "]\n";
+                ss << "      Intensity: " << point.Light.Intensity << "\n";
+                ss << "      Radius: " << point.Light.Radius << "\n";
             }
 
             // Spot Light Component
-            if (m_Scene->GetRegistry().all_of<FSpotLightComponent>(entity)) {
-                const auto& comp = m_Scene->GetRegistry().get<FSpotLightComponent>(entity);
+            if (entity.HasComponent<FSpotLightComponent>()) {
+                const auto& spot = entity.GetComponent<FSpotLightComponent>();
                 ss << "    SpotLight:\n";
-                ss << "      Enabled: " << (comp.bEnabled ? "true" : "false") << "\n";
-                ss << "      Direction: [" << comp.Light.Direction.x << ", " << comp.Light.Direction.y << ", "
-                   << comp.Light.Direction.z << "]\n";
-                ss << "      Color: [" << comp.Light.Color.r << ", " << comp.Light.Color.g << ", " << comp.Light.Color.b
+                ss << "      Enabled: " << (spot.bEnabled ? "true" : "false") << "\n";
+                ss << "      Direction: [" << spot.Light.Direction.x << ", " << spot.Light.Direction.y << ", "
+                   << spot.Light.Direction.z << "]\n";
+                ss << "      Color: [" << spot.Light.Color.r << ", " << spot.Light.Color.g << ", " << spot.Light.Color.b
                    << "]\n";
-                ss << "      Intensity: " << comp.Light.Intensity << "\n";
-                ss << "      Radius: " << comp.Light.Radius << "\n";
-                ss << "      CutOff: " << comp.Light.CutOff << "\n";
-                ss << "      OuterCutOff: " << comp.Light.OuterCutOff << "\n";
+                ss << "      Intensity: " << spot.Light.Intensity << "\n";
+                ss << "      Radius: " << spot.Light.Radius << "\n";
+                ss << "      CutOff: " << spot.Light.CutOff << "\n";
+                ss << "      OuterCutOff: " << spot.Light.OuterCutOff << "\n";
             }
 
             // Text Component
-            if (m_Scene->GetRegistry().all_of<FTextComponent>(entity)) {
-                const auto& textComp = m_Scene->GetRegistry().get<FTextComponent>(entity);
+            if (entity.HasComponent<FTextComponent>()) {
+                const auto& textComp = entity.GetComponent<FTextComponent>();
                 ss << "    Text:\n";
                 ss << "      Content: \"" << Utils::EscapeString(textComp.Text) << "\"\n";
                 ss << "      Color: [" << textComp.Color.r << ", " << textComp.Color.g << ", " << textComp.Color.b
                    << ", " << textComp.Color.a << "]\n";
-                ss << "      Size: " << textComp.Size << "\n";
-                ss << "      Alignment: "
-                   << (textComp.Alignment == ETextAlignment::Left
-                           ? "Left"
-                           : (textComp.Alignment == ETextAlignment::Right ? "Right" : "Center"))
-                   << "\n";
-                ss << "      DoubleSided: " << (textComp.bDoubleSided ? "true" : "false") << "\n";
+                ss << "      Scale: " << textComp.Size << "\n";
             }
 
             ss << "\n";
@@ -370,11 +414,11 @@ namespace Leon {
         return true;
     }
 
-    bool FSceneSerializer::Deserialize(const std::string& InFilePath) {
+    bool FLevelSerializer::Deserialize(const std::string& InFilePath) {
         auto startTime = std::chrono::high_resolution_clock::now();
         std::ifstream file(InFilePath);
         if (!file.is_open()) {
-            LE_CORE_ERROR("FSceneSerializer: Could not open level file '{0}' for loading!", InFilePath);
+            LE_CORE_ERROR("FLevelSerializer: Could not open level file '{0}' for loading!", InFilePath);
             return false;
         }
 
@@ -384,12 +428,12 @@ namespace Leon {
         if (success) {
             auto endTime = std::chrono::high_resolution_clock::now();
             float durationMs = std::chrono::duration<float, std::milli>(endTime - startTime).count();
-            LE_CORE_INFO("FSceneSerializer: Level loaded complete: '{0}' in {1:.2f} ms", InFilePath, durationMs);
+            LE_CORE_INFO("FLevelSerializer: Level loaded complete: '{0}' in {1:.2f} ms", InFilePath, durationMs);
         }
         return success;
     }
 
-    bool FSceneSerializer::DeserializeText(const std::string& InText) {
+    bool FLevelSerializer::DeserializeText(const std::string& InText) {
         if (!m_Scene)
             return false;
 
@@ -401,6 +445,17 @@ namespace Leon {
             glm::vec3 Translation{0.0f};
             glm::vec3 Rotation{0.0f};
             glm::vec3 Scale{1.0f};
+
+            bool bHasStaticMeshAsset = false;
+            std::string StaticMeshAssetPath = "";
+            std::vector<std::pair<uint32_t, std::string>> MaterialOverrides;
+            uint32_t CurrentOverrideSlot = 0;
+
+            bool bHasCamera = false;
+            bool bCameraPrimary = true;
+            float CameraFOV = 45.0f;
+            float CameraNear = 0.1f;
+            float CameraFar = 1000.0f;
 
             bool bHasMesh = false;
             std::string MeshType = "Cube";
@@ -417,20 +472,20 @@ namespace Leon {
             bool bVisibleInReflection = true;
 
             bool bHasMaterial = false;
-            TRef<FMaterialInstance> MaterialInstance;
-            std::string MaterialAssetPath;
+            std::string MaterialAssetPath = "";
+            TRef<FMaterialInstance> MaterialInstance = nullptr;
 
             bool bHasDirLight = false;
-            FDirectionalLight DirLight;
             bool bDirLightEnabled = true;
+            FDirectionalLight DirLight;
 
             bool bHasPointLight = false;
-            FPointLight PointLight;
             bool bPointLightEnabled = true;
+            FPointLight PointLight;
 
             bool bHasSpotLight = false;
-            FSpotLight SpotLight;
             bool bSpotLightEnabled = true;
+            FSpotLight SpotLight;
 
             bool bHasText = false;
             FTextComponent TextComp;
@@ -439,6 +494,7 @@ namespace Leon {
         std::vector<FActorData> actors;
         FActorData currentActor;
         bool bParsingActor = false;
+
         std::string currentBlock = "";
         std::string currentSubBlock = "";
 
@@ -446,15 +502,11 @@ namespace Leon {
         bool bHasSkybox = false;
 
         while (std::getline(ss, line)) {
-            // Remove comments
-            size_t commentPos = line.find('#');
-            if (commentPos != std::string::npos) {
-                line = line.substr(0, commentPos);
-            }
+            size_t firstChar = line.find_first_not_of(" \t\r\n");
+            if (firstChar == std::string::npos || line[firstChar] == '#' || line[firstChar] == ';')
+                continue;
 
             std::string trimmed = Utils::Trim(line);
-            if (trimmed.empty())
-                continue;
 
             // Calculate indentation
             size_t indent = line.find_first_not_of(' ');
@@ -496,10 +548,16 @@ namespace Leon {
                     } else if (bParsingActor) {
                         currentSubBlock = key;
                     }
-                } else if (indent == 4 && bParsingActor) {
+                } else if (indent >= 4 && bParsingActor) {
                     currentSubBlock = key;
                 }
                 continue;
+            }
+
+            // Check if key is a list item like "- Slot"
+            if (key == "- Slot" || key == "-Slot") {
+                key = "Slot";
+                currentSubBlock = "MaterialOverrides";
             }
 
             // Environment / Skybox Block
@@ -540,10 +598,18 @@ namespace Leon {
                     else if (key == "Scale")
                         currentActor.Scale = Utils::ParseVec3(value, currentActor.Scale);
                 } else if (currentSubBlock == "StaticMesh") {
-                    currentActor.bHasMesh = true;
-                    if (key == "Type")
+                    if (key == "Asset" || key == "Path") {
+                        currentActor.bHasStaticMeshAsset = true;
+                        currentActor.StaticMeshAssetPath = Utils::CleanValue(value);
+                    } else if (key == "Type") {
                         currentActor.MeshType = Utils::CleanValue(value);
-                    else if (key == "Size")
+                        if (currentActor.MeshType.find(".lmesh") != std::string::npos) {
+                            currentActor.bHasStaticMeshAsset = true;
+                            currentActor.StaticMeshAssetPath = currentActor.MeshType;
+                        } else {
+                            currentActor.bHasMesh = true;
+                        }
+                    } else if (key == "Size")
                         currentActor.MeshSize = Utils::ParseFloat(value, 1.0f);
                     else if (key == "Width")
                         currentActor.MeshWidth = Utils::ParseFloat(value, 1.0f);
@@ -565,6 +631,22 @@ namespace Leon {
                         currentActor.bReceiveShadows = Utils::ParseBool(value, true);
                     else if (key == "VisibleInReflection")
                         currentActor.bVisibleInReflection = Utils::ParseBool(value, true);
+                } else if (currentSubBlock == "MaterialOverrides") {
+                    if (key == "Slot")
+                        currentActor.CurrentOverrideSlot = static_cast<uint32_t>(Utils::ParseInt(value, 0));
+                    else if (key == "Asset" || key == "Path")
+                        currentActor.MaterialOverrides.push_back(
+                            {currentActor.CurrentOverrideSlot, Utils::CleanValue(value)});
+                } else if (currentSubBlock == "Camera") {
+                    currentActor.bHasCamera = true;
+                    if (key == "Primary")
+                        currentActor.bCameraPrimary = Utils::ParseBool(value, true);
+                    else if (key == "FOV")
+                        currentActor.CameraFOV = Utils::ParseFloat(value, 45.0f);
+                    else if (key == "NearPlane" || key == "NearClip")
+                        currentActor.CameraNear = Utils::ParseFloat(value, 0.1f);
+                    else if (key == "FarPlane" || key == "FarClip")
+                        currentActor.CameraFar = Utils::ParseFloat(value, 1000.0f);
                 } else if (currentSubBlock == "Material") {
                     currentActor.bHasMaterial = true;
                     if (key == "Asset" || key == "Path" || key == "File") {
@@ -575,34 +657,60 @@ namespace Leon {
                         if (!currentActor.MaterialInstance) {
                             currentActor.MaterialInstance = FAssetManager::GetDefaultMaterial()->CreateInstance();
                         }
-                        if (key == "Shader") {
-                            currentActor.ShaderPath = Utils::CleanValue(value);
-                        } else if (key == "AlbedoColor") {
-                            currentActor.MaterialInstance->SetAlbedoColor(Utils::ParseVec3(value, currentActor.MaterialInstance->GetAlbedoColor()));
-                        } else if (key == "Metallic") {
-                            currentActor.MaterialInstance->SetMetallic(Utils::ParseFloat(value, 0.0f));
-                        } else if (key == "Roughness") {
-                            currentActor.MaterialInstance->SetRoughness(Utils::ParseFloat(value, 0.5f));
-                        } else if (key == "AO") {
-                            currentActor.MaterialInstance->SetAO(Utils::ParseFloat(value, 1.0f));
-                        } else if (key == "EmissiveColor") {
-                            currentActor.MaterialInstance->SetEmissiveColor(Utils::ParseVec3(value, currentActor.MaterialInstance->GetEmissiveColor()));
-                        } else if (key == "EmissiveIntensity") {
-                            currentActor.MaterialInstance->SetEmissiveIntensity(Utils::ParseFloat(value, 0.0f));
-                        } else if (key == "AlbedoMap") {
-                            currentActor.MaterialInstance->SetTexture(0, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                        if (key == "BaseColor" || key == "AlbedoColor")
+                            currentActor.MaterialInstance->SetBaseColor(
+                                Utils::ParseVec3(value, currentActor.MaterialInstance->GetBaseColor()));
+                        else if (key == "Metallic")
+                            currentActor.MaterialInstance->SetMetallic(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetMetallic()));
+                        else if (key == "Roughness")
+                            currentActor.MaterialInstance->SetRoughness(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetRoughness()));
+                        else if (key == "AO" || key == "AmbientOcclusion")
+                            currentActor.MaterialInstance->SetAO(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetAO()));
+                        else if (key == "NormalScale")
+                            currentActor.MaterialInstance->SetNormalScale(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetNormalScale()));
+                        else if (key == "OcclusionStrength")
+                            currentActor.MaterialInstance->SetOcclusionStrength(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetOcclusionStrength()));
+                        else if (key == "EmissiveColor")
+                            currentActor.MaterialInstance->SetEmissiveColor(
+                                Utils::ParseVec3(value, currentActor.MaterialInstance->GetEmissiveColor()));
+                        else if (key == "EmissiveIntensity")
+                            currentActor.MaterialInstance->SetEmissiveIntensity(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetEmissiveIntensity()));
+                        else if (key == "AlphaMode")
+                            currentActor.MaterialInstance->SetAlphaMode(
+                                static_cast<EAlphaMode>(Utils::ParseInt(value, 0)));
+                        else if (key == "AlphaCutoff")
+                            currentActor.MaterialInstance->SetAlphaCutoff(
+                                Utils::ParseFloat(value, currentActor.MaterialInstance->GetAlphaCutoff()));
+                        else if (key == "UVTiling")
+                            currentActor.MaterialInstance->SetUVTiling(
+                                Utils::ParseVec2(value, currentActor.MaterialInstance->GetUVTiling()));
+                        else if (key == "UVOffset")
+                            currentActor.MaterialInstance->SetUVOffset(
+                                Utils::ParseVec2(value, currentActor.MaterialInstance->GetUVOffset()));
+                        else if (key == "AlbedoMap" || key == "DiffuseMap" || key == "BaseColorMap") {
+                            std::string path = Utils::CleanValue(value);
+                            currentActor.MaterialInstance->SetTexture(0, FAssetManager::GetTexture2D(path));
                         } else if (key == "NormalMap") {
-                            currentActor.MaterialInstance->SetTexture(1, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                            std::string path = Utils::CleanValue(value);
+                            currentActor.MaterialInstance->SetTexture(1, FAssetManager::GetTexture2D(path));
                         } else if (key == "MetallicMap") {
-                            currentActor.MaterialInstance->SetTexture(2, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
-                        } else if (key == "AOMap") {
-                            currentActor.MaterialInstance->SetTexture(3, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                            std::string path = Utils::CleanValue(value);
+                            currentActor.MaterialInstance->SetTexture(2, FAssetManager::GetTexture2D(path));
                         } else if (key == "RoughnessMap") {
-                            currentActor.MaterialInstance->SetTexture(4, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
+                            std::string path = Utils::CleanValue(value);
+                            currentActor.MaterialInstance->SetTexture(3, FAssetManager::GetTexture2D(path));
+                        } else if (key == "AOMap" || key == "OcclusionMap") {
+                            std::string path = Utils::CleanValue(value);
+                            currentActor.MaterialInstance->SetTexture(4, FAssetManager::GetTexture2D(path));
                         } else if (key == "EmissiveMap") {
-                            currentActor.MaterialInstance->SetTexture(5, FAssetManager::GetTexture2D(Utils::CleanValue(value)));
-                        } else if (key == "UsePlanarReflection") {
-                            currentActor.MaterialInstance->SetUsePlanarReflection(Utils::ParseBool(value, false));
+                            std::string path = Utils::CleanValue(value);
+                            currentActor.MaterialInstance->SetTexture(5, FAssetManager::GetTexture2D(path));
                         }
                     }
                 } else if (currentSubBlock == "DirectionalLight") {
@@ -613,7 +721,7 @@ namespace Leon {
                         currentActor.DirLight.Direction = Utils::ParseVec3(value, currentActor.DirLight.Direction);
                     else if (key == "Color")
                         currentActor.DirLight.Color = Utils::ParseVec3(value, currentActor.DirLight.Color);
-                    else if (key == "Intensity" || key == "DiffuseIntensity")
+                    else if (key == "Intensity")
                         currentActor.DirLight.Intensity = Utils::ParseFloat(value, 3.5f);
                 } else if (currentSubBlock == "PointLight") {
                     currentActor.bHasPointLight = true;
@@ -621,7 +729,7 @@ namespace Leon {
                         currentActor.bPointLightEnabled = Utils::ParseBool(value, true);
                     else if (key == "Color")
                         currentActor.PointLight.Color = Utils::ParseVec3(value, currentActor.PointLight.Color);
-                    else if (key == "Intensity" || key == "DiffuseIntensity")
+                    else if (key == "Intensity")
                         currentActor.PointLight.Intensity = Utils::ParseFloat(value, 8.0f);
                     else if (key == "Radius")
                         currentActor.PointLight.Radius = Utils::ParseFloat(value, 10.0f);
@@ -633,32 +741,22 @@ namespace Leon {
                         currentActor.SpotLight.Direction = Utils::ParseVec3(value, currentActor.SpotLight.Direction);
                     else if (key == "Color")
                         currentActor.SpotLight.Color = Utils::ParseVec3(value, currentActor.SpotLight.Color);
-                    else if (key == "Intensity" || key == "DiffuseIntensity")
+                    else if (key == "Intensity")
                         currentActor.SpotLight.Intensity = Utils::ParseFloat(value, 10.0f);
                     else if (key == "Radius")
                         currentActor.SpotLight.Radius = Utils::ParseFloat(value, 10.0f);
                     else if (key == "CutOff")
-                        currentActor.SpotLight.CutOff = Utils::ParseFloat(value, 18.0f);
+                        currentActor.SpotLight.CutOff = Utils::ParseFloat(value, 12.5f);
                     else if (key == "OuterCutOff")
-                        currentActor.SpotLight.OuterCutOff = Utils::ParseFloat(value, 26.0f);
+                        currentActor.SpotLight.OuterCutOff = Utils::ParseFloat(value, 17.5f);
                 } else if (currentSubBlock == "Text") {
                     currentActor.bHasText = true;
                     if (key == "Content" || key == "Text")
                         currentActor.TextComp.Text = Utils::CleanValue(value);
                     else if (key == "Color")
                         currentActor.TextComp.Color = Utils::ParseVec4(value, currentActor.TextComp.Color);
-                    else if (key == "Size")
+                    else if (key == "Scale" || key == "Size")
                         currentActor.TextComp.Size = Utils::ParseFloat(value, 1.0f);
-                    else if (key == "Alignment") {
-                        std::string align = Utils::CleanValue(value);
-                        if (align == "Left")
-                            currentActor.TextComp.Alignment = ETextAlignment::Left;
-                        else if (align == "Right")
-                            currentActor.TextComp.Alignment = ETextAlignment::Right;
-                        else
-                            currentActor.TextComp.Alignment = ETextAlignment::Center;
-                    } else if (key == "DoubleSided")
-                        currentActor.TextComp.bDoubleSided = Utils::ParseBool(value, true);
                 }
             }
         }
@@ -667,63 +765,110 @@ namespace Leon {
             actors.push_back(currentActor);
         }
 
-        // ==========================================
-        // Instantiate Deserialized Scene Hierarchy
-        // ==========================================
+        // 3. Populate Scene ECS
+        m_Scene->GetRegistry().clear();
 
-        // 1. Create Skybox Actor if found in environment
+        // Environment / Skybox Entity
         if (bHasSkybox) {
-            auto skyboxEntity = m_Scene->CreateEntity("Atmospheric Skybox");
-            skyboxEntity.AddComponent<FSkyboxComponent>(skybox);
+            FEntity envEntity = m_Scene->CreateEntity("Environment Skybox");
+            envEntity.AddComponent<FSkyboxComponent>(skybox);
         }
 
-        // 2. Instantiate Actors
+        // Spawn actors
         for (const auto& actorData : actors) {
-            auto entity = m_Scene->CreateEntity(actorData.Name);
+            FEntity entity = m_Scene->CreateEntity(actorData.Name);
+
+            // Transform
             auto& transform = entity.GetComponent<FTransformComponent>();
             transform.Translation = actorData.Translation;
             transform.Rotation = actorData.Rotation;
             transform.Scale = actorData.Scale;
 
-            // Mesh Primitive Creation
-            if (actorData.bHasMesh) {
-                TRef<FVertexArray> va;
-                if (actorData.MeshType == "Plane") {
-                    va = FMeshPrimitives::CreatePlane(actorData.MeshWidth > 0 ? actorData.MeshWidth : 24.0f,
-                                                      actorData.MeshDepth > 0 ? actorData.MeshDepth : 24.0f,
-                                                      actorData.MeshSubdivX, actorData.MeshSubdivZ);
+            // Camera Component
+            if (actorData.bHasCamera) {
+                FPerspectiveCamera camera(actorData.CameraFOV, 1280.0f / 720.0f, actorData.CameraNear,
+                                          actorData.CameraFar);
+                auto& cam = entity.AddComponent<FCameraComponent>(camera);
+                cam.bPrimary = actorData.bCameraPrimary;
+            }
+
+            // Static Mesh Component
+            if (actorData.bHasStaticMeshAsset) {
+                auto mesh = FAssetManager::GetStaticMesh(actorData.StaticMeshAssetPath);
+                if (mesh) {
+                    auto& comp = entity.AddComponent<FStaticMeshComponent>(mesh, actorData.StaticMeshAssetPath);
+                    comp.bCastShadows = actorData.bCastShadows;
+                    comp.bReceiveShadows = actorData.bReceiveShadows;
+                    comp.bVisibleInReflection = actorData.bVisibleInReflection;
+
+                    // Apply Material Overrides per slot
+                    for (const auto& [slotIdx, overridePath] : actorData.MaterialOverrides) {
+                        auto matInst = FAssetManager::GetMaterialInstance(overridePath);
+                        if (!matInst) {
+                            auto baseMat = FAssetManager::GetMaterial(overridePath);
+                            if (baseMat) {
+                                matInst = baseMat->CreateInstance();
+                            }
+                        }
+                        if (matInst) {
+                            if (comp.MaterialOverrides.size() <= slotIdx) {
+                                comp.MaterialOverrides.resize(slotIdx + 1, nullptr);
+                                comp.MaterialOverridePaths.resize(slotIdx + 1, "");
+                            }
+                            comp.MaterialOverrides[slotIdx] = matInst;
+                            comp.MaterialOverridePaths[slotIdx] = overridePath;
+                        }
+                    }
+                } else {
+                    LE_CORE_WARN("FLevelSerializer: Failed to load static mesh '{0}' for actor '{1}'",
+                                 actorData.StaticMeshAssetPath, actorData.Name);
+                }
+            }
+            // Mesh Component (Procedural)
+            else if (actorData.bHasMesh) {
+                TRef<FVertexArray> va = nullptr;
+                if (actorData.MeshType == "Cube") {
+                    va = FMeshPrimitives::CreateCube(actorData.MeshSize);
+                } else if (actorData.MeshType == "Plane") {
+                    va = FMeshPrimitives::CreatePlane(actorData.MeshWidth, actorData.MeshDepth, actorData.MeshSubdivX,
+                                                      actorData.MeshSubdivZ);
                 } else if (actorData.MeshType == "Sphere") {
-                    va = FMeshPrimitives::CreateSphere(actorData.MeshRadius > 0 ? actorData.MeshRadius : 0.5f);
+                    va = FMeshPrimitives::CreateSphere(actorData.MeshRadius, actorData.MeshSubdivX,
+                                                       actorData.MeshSubdivZ);
                 } else if (actorData.MeshType == "Cylinder") {
-                    va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius > 0 ? actorData.MeshRadius : 0.5f,
-                                                         actorData.MeshRadius > 0 ? actorData.MeshRadius : 0.5f,
-                                                         actorData.MeshHeight > 0 ? actorData.MeshHeight : 1.0f);
+                    va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, actorData.MeshRadius,
+                                                         actorData.MeshHeight, actorData.MeshSubdivX, true);
+                } else if (actorData.MeshType == "Cone") {
+                    va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, 0.0f, actorData.MeshHeight,
+                                                         actorData.MeshSubdivX, true);
                 } else if (actorData.MeshType == "Ramp") {
                     va = FMeshPrimitives::CreateRamp(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
                 } else if (actorData.MeshType == "Pyramid") {
-                    va =
-                        FMeshPrimitives::CreatePyramid(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
-                } else {
-                    // Default Cube
-                    va = FMeshPrimitives::CreateCube(actorData.MeshSize > 0 ? actorData.MeshSize : 1.0f);
+                    va = FMeshPrimitives::CreatePyramid(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
+                } else if (actorData.MeshType == "Quad") {
+                    va = FMeshPrimitives::CreateQuad(actorData.MeshWidth, actorData.MeshHeight);
                 }
 
-                TRef<FShader> shader = actorData.ShaderPath.empty()
-                                           ? FAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl")
-                                           : FAssetManager::GetShader(actorData.ShaderPath);
-                auto& meshComp = entity.AddComponent<FMeshComponent>(va, shader);
-                meshComp.MeshType = actorData.MeshType;
-                meshComp.MeshSize = actorData.MeshSize;
-                meshComp.MeshWidth = actorData.MeshWidth;
-                meshComp.MeshHeight = actorData.MeshHeight;
-                meshComp.MeshDepth = actorData.MeshDepth;
-                meshComp.MeshRadius = actorData.MeshRadius;
-                meshComp.MeshSubdivX = actorData.MeshSubdivX;
-                meshComp.MeshSubdivZ = actorData.MeshSubdivZ;
-                meshComp.ShaderPath = actorData.ShaderPath;
-                meshComp.bCastShadows = actorData.bCastShadows;
-                meshComp.bReceiveShadows = actorData.bReceiveShadows;
-                meshComp.bVisibleInReflection = actorData.bVisibleInReflection;
+                auto shader = FAssetManager::GetShader(actorData.ShaderPath);
+                if (!shader) {
+                    shader = FShader::Create(actorData.ShaderPath);
+                }
+
+                if (va) {
+                    auto& comp = entity.AddComponent<FMeshComponent>(va, shader);
+                    comp.MeshType = actorData.MeshType;
+                    comp.MeshSize = actorData.MeshSize;
+                    comp.MeshWidth = actorData.MeshWidth;
+                    comp.MeshHeight = actorData.MeshHeight;
+                    comp.MeshDepth = actorData.MeshDepth;
+                    comp.MeshRadius = actorData.MeshRadius;
+                    comp.MeshSubdivX = actorData.MeshSubdivX;
+                    comp.MeshSubdivZ = actorData.MeshSubdivZ;
+                    comp.ShaderPath = actorData.ShaderPath;
+                    comp.bCastShadows = actorData.bCastShadows;
+                    comp.bReceiveShadows = actorData.bReceiveShadows;
+                    comp.bVisibleInReflection = actorData.bVisibleInReflection;
+                }
             }
 
             // Material Component
@@ -757,7 +902,7 @@ namespace Leon {
             }
         }
 
-        LE_CORE_INFO("FSceneSerializer: Instantiated {0} actors from level file", actors.size());
+        LE_CORE_INFO("FLevelSerializer: Instantiated {0} actors from level file", actors.size());
         return true;
     }
 

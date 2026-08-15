@@ -29,9 +29,16 @@ add_library(LeonEngineCore STATIC
     src/renderer/VertexArray.cpp
     src/renderer/PerspectiveCamera.cpp
     src/renderer/PerspectiveCameraController.cpp
+    src/asset/AssetPath.cpp
+    src/asset/TextureImporter.cpp
+    src/asset/HDRImporter.cpp
+    src/asset/MeshImporter.cpp
+    src/asset/MaterialImporter.cpp
+    src/asset/AssetManifest.cpp
+    src/renderer/StaticMesh.cpp
     src/scene/Entity.cpp
     src/scene/Scene.cpp
-    src/scene/SceneSerializer.cpp
+    src/scene/LevelSerializer.cpp
     src/scene/MaterialSerializer.cpp
 )
 
@@ -40,12 +47,15 @@ add_library(Leon::Core ALIAS LeonEngineCore)
 target_include_directories(LeonEngineCore PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
+    "${CMAKE_SOURCE_DIR}/ThirdParty/ufbx"
 )
 
 target_link_libraries(LeonEngineCore PUBLIC
     glfw
     glm::glm
     EnTT::EnTT
+    ufbx
+    stb_image
 )
 
 

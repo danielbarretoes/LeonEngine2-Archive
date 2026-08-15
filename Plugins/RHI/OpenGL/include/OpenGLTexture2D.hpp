@@ -19,8 +19,8 @@ namespace Leon {
 
         ~FOpenGLTexture2D() override;
 
-        uint32_t GetWidth()      const override { return m_Width; }
-        uint32_t GetHeight()     const override { return m_Height; }
+        uint32_t GetWidth() const override { return m_Width; }
+        uint32_t GetHeight() const override { return m_Height; }
         uint32_t GetRendererID() const override { return m_RendererID; }
         const std::string& GetPath() const override { return m_Path; }
 
@@ -32,19 +32,17 @@ namespace Leon {
         void Bind(uint32_t InSlot = 0) const override;
         bool IsLoaded() const override { return m_IsLoaded; }
 
-        bool operator==(const FTexture& InOther) const override {
-            return m_RendererID == InOther.GetRendererID();
-        }
+        bool operator==(const FTexture& InOther) const override { return m_RendererID == InOther.GetRendererID(); }
 
     private:
         std::string m_Path;
-        bool     m_IsLoaded      = false;
-        uint32_t m_Width         = 0;
-        uint32_t m_Height        = 0;
-        uint32_t m_RendererID    = 0;
-        size_t   m_AllocatedBytes = 0;
-        GLenum   m_InternalFormat = 0;
-        GLenum   m_DataFormat     = 0;
+        bool m_IsLoaded = false;
+        uint32_t m_Width = 0;
+        uint32_t m_Height = 0;
+        uint32_t m_RendererID = 0;
+        size_t m_AllocatedBytes = 0;
+        GLenum m_InternalFormat = 0;
+        GLenum m_DataFormat = 0;
     };
 
     using OpenGLTexture2D = FOpenGLTexture2D;

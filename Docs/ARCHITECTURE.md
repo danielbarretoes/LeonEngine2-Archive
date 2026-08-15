@@ -120,11 +120,20 @@ LeonEngine2/
 │   │   │   ├── TextRenderer.hpp           # FTextRenderer (3D In-World Text Batching)
 │   │   │   ├── Texture.hpp                # FTexture, FTexture2D, FTextureCube
 │   │   │   └── VertexArray.hpp            # FVertexArray
+│   │   ├── asset/                         # Native Binary Asset Pipeline
+│   │   │   ├── AssetManifest.hpp          # FAssetManifest
+│   │   │   ├── AssetPath.hpp              # FAssetPath
+│   │   │   ├── AssetTypes.hpp             # EAssetType, FUUID, FAssetMetadata
+│   │   │   ├── HDRImporter.hpp            # FHDRImporter & FNativeHDRData (.lhdr)
+│   │   │   ├── MaterialImporter.hpp       # FMaterialImporter (.lmat, .lmi)
+│   │   │   ├── MeshImporter.hpp           # FMeshImporter (.lmesh)
+│   │   │   └── TextureImporter.hpp        # FTextureImporter (.ltex)
 │   │   └── scene/                         # Scene & Entity Component System (ECS)
 │   │       ├── Components.hpp             # FTag, FTransform, FMesh, FMaterialComponent, FSkybox, FLights
 │   │       ├── Entity.hpp                 # FEntity wrapper around EnTT handles
-│   │       ├── Scene.hpp                  # FScene world container
-│   │       └── SceneSerializer.hpp        # FSceneSerializer (.llevel scene deserializer)
+│   │       ├── Scene.hpp                  # FScene runtime world container
+│   │       ├── LevelSerializer.hpp        # FLevelSerializer (.llevel level deserializer)
+│   │       └── MaterialSerializer.hpp     # FMaterialSerializer (.lmat / .lmi serializer)
 │   │
 │   └── src/                               # Internal engine implementations
 │       ├── core/                          # Core subsystem implementations
@@ -135,6 +144,13 @@ LeonEngine2/
 │       │   ├── Log.cpp                    # FLog
 │       │   ├── PlatformMemory.cpp         # FPlatformMemory (Win32 & OpenGL queries)
 │       │   └── Window.cpp                 # FWindow
+│       ├── asset/                         # Asset Pipeline implementations
+│       │   ├── AssetManifest.cpp          # FAssetManifest
+│       │   ├── AssetPath.cpp              # FAssetPath
+│       │   ├── HDRImporter.cpp            # FHDRImporter
+│       │   ├── MaterialImporter.cpp       # FMaterialImporter
+│       │   ├── MeshImporter.cpp           # FMeshImporter
+│       │   └── TextureImporter.cpp        # FTextureImporter
 │       ├── renderer/                      # Renderer & RHI implementations
 │       │   ├── AssetManager.cpp           # FAssetManager
 │       │   ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer, FUniformBuffer
@@ -143,7 +159,7 @@ LeonEngine2/
 │       │   ├── Framebuffer.cpp            # FFramebuffer
 │       │   ├── GraphicsContext.cpp        # IGraphicsContext
 │       │   ├── IBLGenerator.cpp           # FIBLGenerator (Quasi-Monte Carlo & Mip Filtering)
-│       │   ├── Material.cpp               # FMaterial & MaterialSerializer
+│       │   ├── Material.cpp               # FMaterial
 │       │   ├── MaterialInstance.cpp       # FMaterialInstance
 │       │   ├── MeshPrimitives.cpp         # FMeshPrimitives procedural generation
 │       │   ├── PerspectiveCamera.cpp      # FPerspectiveCamera
@@ -154,13 +170,15 @@ LeonEngine2/
 │       │   ├── Renderer.cpp               # FRenderer
 │       │   ├── SceneRenderer.cpp          # FSceneRenderer (Multi-Pass Engine Pipeline)
 │       │   ├── Shader.cpp                 # FShader
+│       │   ├── StaticMesh.cpp             # FStaticMesh
 │       │   ├── TextRenderer.cpp           # FTextRenderer 3D batching
 │       │   ├── Texture.cpp                # FTexture2D & FTextureCube
 │       │   └── VertexArray.cpp            # FVertexArray
 │       └── scene/                         # Scene & ECS implementations
 │           ├── Entity.cpp                 # FEntity
 │           ├── Scene.cpp                  # FScene
-│           └── SceneSerializer.cpp        # FSceneSerializer
+│           ├── LevelSerializer.cpp        # FLevelSerializer
+│           └── MaterialSerializer.cpp     # FMaterialSerializer
 │
 ├── Plugins/                               # Hardware Backends and Extensions
 │   └── RHI/

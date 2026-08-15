@@ -59,6 +59,8 @@ namespace Leon::TestGPU {
             glViewport(0, 0, width, height);
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
+            glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_CameraUBO);
+            glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_LightingUBO);
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         }
@@ -120,6 +122,34 @@ namespace Leon::TestGPU {
             // Unit 11: Spot Shadow Map (Texture2DShadow)
             glActiveTexture(GL_TEXTURE11);
             glBindTexture(GL_TEXTURE_2D, m_DefaultShadowTex);
+        }
+
+        void ResetShaderUniforms(const TRef<FShader>& shader) {
+            if (!shader) return;
+            shader->Bind();
+            shader->SetInt("u_AlphaMode", 0);
+            shader->SetFloat("u_AlphaCutoff", 0.5f);
+            shader->SetInt("u_UseAlbedoMap", 0);
+            shader->SetInt("u_UseNormalMap", 0);
+            shader->SetInt("u_UseMetallicMap", 0);
+            shader->SetInt("u_UseAOMap", 0);
+            shader->SetInt("u_UseRoughnessMap", 0);
+            shader->SetInt("u_UseEmissiveMap", 0);
+            shader->SetInt("u_UsePlanarReflection", 0);
+            shader->SetInt("u_UseIBL", 0);
+            shader->SetInt("u_UseShadows", 0);
+            shader->SetInt("u_UseSpotShadows", 0);
+            shader->SetInt("u_DebugMode", 0);
+            shader->SetFloat3("u_AlbedoColor", 1.0f, 1.0f, 1.0f);
+            shader->SetFloat("u_Metallic", 0.0f);
+            shader->SetFloat("u_Roughness", 0.5f);
+            shader->SetFloat("u_AO", 1.0f);
+            shader->SetFloat("u_NormalScale", 1.0f);
+            shader->SetFloat("u_OcclusionStrength", 1.0f);
+            shader->SetFloat3("u_EmissiveColor", 0.0f, 0.0f, 0.0f);
+            shader->SetFloat("u_EmissiveIntensity", 0.0f);
+            shader->SetFloat2("u_UVTiling", 1.0f, 1.0f);
+            shader->SetFloat2("u_UVOffset", 0.0f, 0.0f);
         }
 
         GLuint GetDefaultShadowArrayTex() const { return m_DefaultShadowArrayTex; }

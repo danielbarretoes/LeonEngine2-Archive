@@ -139,7 +139,8 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) {
-        if (m_SrcBlend == InSrc && m_DstBlend == InDst) return;
+        if (m_SrcBlend == InSrc && m_DstBlend == InDst)
+            return;
         m_SrcBlend = InSrc;
         m_DstBlend = InDst;
         glBlendFunc(BlendFactorToGL(InSrc), BlendFactorToGL(InDst));
@@ -197,6 +198,12 @@ namespace Leon {
     void FOpenGLRenderAPI::DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount) {
         unsigned int count = InIndexCount ? InIndexCount : InVertexArray->GetIndexBuffer()->GetCount();
         glDrawElements(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_INT, nullptr);
+    }
+
+    void FOpenGLRenderAPI::DrawIndexedOffset(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                             unsigned int InIndexOffset) {
+        glDrawElements(GL_TRIANGLES, (GLsizei)InIndexCount, GL_UNSIGNED_INT,
+                       (const void*)(uintptr_t)(InIndexOffset * sizeof(uint32_t)));
     }
 
     void FOpenGLRenderAPI::DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {

@@ -54,7 +54,8 @@ namespace Leon {
         return MakeRef<FOpenGLTexture2D>(InPath);
     }
 
-    TRef<FTexture2D> FOpenGLRenderDriver::CreateTexture2DWithFormat(uint32_t InWidth, uint32_t InHeight, ETextureFormat InFormat) {
+    TRef<FTexture2D> FOpenGLRenderDriver::CreateTexture2DWithFormat(uint32_t InWidth, uint32_t InHeight,
+                                                                    ETextureFormat InFormat) {
         return MakeRef<FOpenGLTexture2D>(InWidth, InHeight, InFormat);
     }
 

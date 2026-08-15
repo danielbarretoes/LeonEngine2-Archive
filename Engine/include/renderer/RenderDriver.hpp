@@ -27,8 +27,10 @@ namespace Leon {
                                            const std::string& InFragmentSrc) = 0;
         virtual TRef<FTexture2D> CreateTexture2D(uint32_t InWidth, uint32_t InHeight) = 0;
         virtual TRef<FTexture2D> CreateTexture2D(const std::string& InPath) = 0;
-        virtual TRef<FTexture2D> CreateTexture2DWithFormat(uint32_t InWidth, uint32_t InHeight, ETextureFormat InFormat) = 0;
-        virtual TRef<class FTextureCube> CreateTextureCube(uint32_t InWidth, uint32_t InHeight, bool InbHDR = false) = 0;
+        virtual TRef<FTexture2D> CreateTexture2DWithFormat(uint32_t InWidth, uint32_t InHeight,
+                                                           ETextureFormat InFormat) = 0;
+        virtual TRef<class FTextureCube> CreateTextureCube(uint32_t InWidth, uint32_t InHeight,
+                                                           bool InbHDR = false) = 0;
         virtual TRef<class FTextureCube> CreateTextureCube(const std::vector<std::string>& InFacePaths) = 0;
         virtual TRef<FFramebuffer> CreateFramebuffer(const FFramebufferSpecification& InSpec) = 0;
         virtual TRef<FUniformBuffer> CreateUniformBuffer(unsigned int InSize, unsigned int InBinding) = 0;

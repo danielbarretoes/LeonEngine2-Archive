@@ -1,0 +1,8 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [0.06, 0.18, 0.92]
+  Metallic: 0.0
+  Roughness: 0.05
+  AO: 1.0
+  UsePlanarReflection: false

@@ -14,6 +14,7 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
         REQUIRE(shader != nullptr);
         shader->Bind();
 
+        gl.ResetShaderUniforms(shader);
         gl.BindDefaultTextures();
         gl.BindFramebuffer(1, 1);
 

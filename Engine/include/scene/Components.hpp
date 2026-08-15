@@ -7,6 +7,7 @@
 #include "renderer/MaterialInstance.hpp"
 #include "renderer/PerspectiveCamera.hpp"
 #include "renderer/Shader.hpp"
+#include "renderer/StaticMesh.hpp"
 #include "renderer/Texture.hpp"
 #include "renderer/VertexArray.hpp"
 
@@ -63,6 +64,27 @@ namespace Leon {
         FMeshComponent(const FMeshComponent&) = default;
         FMeshComponent(const TRef<FVertexArray>& InVertexArray, const TRef<FShader>& InShader)
             : VertexArray(InVertexArray), Shader(InShader) {}
+    };
+
+    /**
+     * @brief Component representing an imported or procedural StaticMesh asset.
+     *
+     * Holds an FStaticMesh reference with submeshes, bounds, and material slot overrides.
+     */
+    struct FStaticMeshComponent {
+        TRef<FStaticMesh> StaticMesh = nullptr;
+        std::vector<TRef<FMaterialInstance>> MaterialOverrides;
+        std::vector<std::string> MaterialOverridePaths;
+        std::string AssetPath; // Virtual path to .lmesh
+        TRef<FShader> Shader = nullptr;
+        bool bCastShadows = true;
+        bool bReceiveShadows = true;
+        bool bVisibleInReflection = true;
+
+        FStaticMeshComponent() = default;
+        FStaticMeshComponent(const FStaticMeshComponent&) = default;
+        explicit FStaticMeshComponent(const TRef<FStaticMesh>& InMesh, const std::string& InAssetPath = "")
+            : StaticMesh(InMesh), AssetPath(InAssetPath) {}
     };
 
     /**

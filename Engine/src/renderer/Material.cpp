@@ -40,27 +40,47 @@ namespace Leon {
 
     TRef<FTexture2D> FMaterial::GetTexture(uint32_t InSlot) const {
         switch (InSlot) {
-            case 0: return m_AlbedoMap;
-            case 1: return m_NormalMap;
-            case 2: return m_MetallicMap;
-            case 3: return m_AOMap;
-            case 4: return m_RoughnessMap;
-            case 5:
-            case 9: return m_EmissiveMap;
-            default: return nullptr;
+        case 0:
+            return m_AlbedoMap;
+        case 1:
+            return m_NormalMap;
+        case 2:
+            return m_MetallicMap;
+        case 3:
+            return m_AOMap;
+        case 4:
+            return m_RoughnessMap;
+        case 5:
+        case 9:
+            return m_EmissiveMap;
+        default:
+            return nullptr;
         }
     }
 
     void FMaterial::SetTexture(uint32_t InSlot, const TRef<FTexture2D>& InTexture) {
         switch (InSlot) {
-            case 0: SetAlbedoMap(InTexture); break;
-            case 1: SetNormalMap(InTexture); break;
-            case 2: SetMetallicMap(InTexture); break;
-            case 3: SetAOMap(InTexture); break;
-            case 4: SetRoughnessMap(InTexture); break;
-            case 5:
-            case 9: SetEmissiveMap(InTexture); break;
-            default: break;
+        case 0:
+            SetAlbedoMap(InTexture);
+            break;
+        case 1:
+            SetNormalMap(InTexture);
+            break;
+        case 2:
+            SetMetallicMap(InTexture);
+            break;
+        case 3:
+            SetAOMap(InTexture);
+            break;
+        case 4:
+            SetRoughnessMap(InTexture);
+            break;
+        case 5:
+        case 9:
+            SetEmissiveMap(InTexture);
+            break;
+        default:
+            break;
         }
     }
 

@@ -1,0 +1,10 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [0.25, 0.25, 0.27]
+  Metallic: 1.0
+  Roughness: 0.80
+  AO: 1.0
+  NormalMap: "Projects/Sandbox/Content/Textures/T_MetalPlates_N.png"
+  AOMap: "Projects/Sandbox/Content/Textures/T_MetalPlates_AO.png"
+  UsePlanarReflection: false

@@ -112,13 +112,20 @@ namespace Leon {
 
     inline glm::vec3 GetCubeDirection(int face, float u, float v) {
         switch (face) {
-        case 0: return glm::normalize(glm::vec3( 1.0f,   -v,   -u)); // +X
-        case 1: return glm::normalize(glm::vec3(-1.0f,   -v,    u)); // -X
-        case 2: return glm::normalize(glm::vec3(    u, 1.0f,    v)); // +Y
-        case 3: return glm::normalize(glm::vec3(    u,-1.0f,   -v)); // -Y
-        case 4: return glm::normalize(glm::vec3(    u,   -v, 1.0f)); // +Z
-        case 5: return glm::normalize(glm::vec3(   -u,   -v,-1.0f)); // -Z
-        default: return glm::vec3(0.0f, 1.0f, 0.0f);
+        case 0:
+            return glm::normalize(glm::vec3(1.0f, -v, -u)); // +X
+        case 1:
+            return glm::normalize(glm::vec3(-1.0f, -v, u)); // -X
+        case 2:
+            return glm::normalize(glm::vec3(u, 1.0f, v)); // +Y
+        case 3:
+            return glm::normalize(glm::vec3(u, -1.0f, -v)); // -Y
+        case 4:
+            return glm::normalize(glm::vec3(u, -v, 1.0f)); // +Z
+        case 5:
+            return glm::normalize(glm::vec3(-u, -v, -1.0f)); // -Z
+        default:
+            return glm::vec3(0.0f, 1.0f, 0.0f);
         }
     }
 
@@ -182,7 +189,8 @@ namespace Leon {
         }
 
         glm::vec3 SampleLevel(int inLevel, glm::vec3 inDir) const {
-            if (Levels.empty()) return glm::vec3(0.0f);
+            if (Levels.empty())
+                return glm::vec3(0.0f);
             int lvl = std::clamp(inLevel, 0, static_cast<int>(Levels.size()) - 1);
             const auto& mip = Levels[lvl];
 
@@ -196,7 +204,8 @@ namespace Leon {
             float fy = v * static_cast<float>(mip.Height - 1);
 
             int x0 = static_cast<int>(std::floor(fx)) % mip.Width;
-            if (x0 < 0) x0 += mip.Width;
+            if (x0 < 0)
+                x0 += mip.Width;
             int x1 = (x0 + 1) % mip.Width;
 
             int y0 = std::clamp(static_cast<int>(fy), 0, mip.Height - 1);
@@ -222,8 +231,10 @@ namespace Leon {
         }
 
         glm::vec3 SampleLod(glm::vec3 inDir, float inLod) const {
-            if (Levels.empty()) return glm::vec3(0.0f);
-            if (inLod <= 0.0f) return SampleLevel(0, inDir);
+            if (Levels.empty())
+                return glm::vec3(0.0f);
+            if (inLod <= 0.0f)
+                return SampleLevel(0, inDir);
 
             int lvl0 = static_cast<int>(std::floor(inLod));
             int lvl1 = lvl0 + 1;
@@ -249,7 +260,8 @@ namespace Leon {
         float fy = v * static_cast<float>(InHeight - 1);
 
         int x0 = static_cast<int>(std::floor(fx)) % InWidth;
-        if (x0 < 0) x0 += InWidth;
+        if (x0 < 0)
+            x0 += InWidth;
         int x1 = (x0 + 1) % InWidth;
 
         int y0 = std::clamp(static_cast<int>(fy), 0, InHeight - 1);
@@ -276,7 +288,8 @@ namespace Leon {
 
     struct FIBLCacheHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-        uint32_t Version = 4; // Version 4: Cosine-weighted importance sampling + source HDR Mip-filtering for Irradiance
+        uint32_t Version =
+            4; // Version 4: Cosine-weighted importance sampling + source HDR Mip-filtering for Irradiance
         uint64_t HDRSourceHash = 0;
         uint32_t EnvSize = 128;
         uint32_t IrradSize = 32;
@@ -288,9 +301,11 @@ namespace Leon {
     };
 
     inline uint64_t ComputeFileHash64(const std::string& InFilePath) {
-        if (!std::filesystem::exists(InFilePath)) return 0;
+        if (!std::filesystem::exists(InFilePath))
+            return 0;
         std::ifstream file(InFilePath, std::ios::binary);
-        if (!file.is_open()) return 0;
+        if (!file.is_open())
+            return 0;
 
         uint64_t hash = 14695981039346656037ull; // FNV-1a 64-bit offset basis
         char buffer[65536];

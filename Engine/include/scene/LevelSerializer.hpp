@@ -8,13 +8,13 @@
 namespace Leon {
 
     /**
-     * @brief Serializer and deserializer for LeonEngine2 level files (.llevel, .umap).
-     * Parses and generates Unreal Engine-inspired structured scene files containing
-     * environment settings, actors, components, meshes, PBR materials, lights, and text.
+     * @brief Serializer and deserializer for LeonEngine2 level asset files (.llevel).
+     * Parses and generates declarative level files containing environment settings,
+     * actors, components, meshes, PBR materials, lights, and cameras.
      */
-    class FSceneSerializer {
+    class FLevelSerializer {
     public:
-        explicit FSceneSerializer(const TRef<FScene>& InScene);
+        explicit FLevelSerializer(const TRef<FScene>& InScene);
 
         bool Serialize(const std::string& InFilePath);
         bool Deserialize(const std::string& InFilePath);

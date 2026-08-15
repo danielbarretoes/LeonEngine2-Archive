@@ -102,7 +102,8 @@ namespace Leon {
                 }
 
                 glCreateTextures(GL_TEXTURE_2D, 1, &m_ColorAttachments[i]);
-                glTextureStorage2D(m_ColorAttachments[i], 1, internalFormat, m_Specification.Width, m_Specification.Height);
+                glTextureStorage2D(m_ColorAttachments[i], 1, internalFormat, m_Specification.Width,
+                                   m_Specification.Height);
 
                 glTextureParameteri(m_ColorAttachments[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTextureParameteri(m_ColorAttachments[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -110,7 +111,8 @@ namespace Leon {
                 glTextureParameteri(m_ColorAttachments[i], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                 glTextureParameteri(m_ColorAttachments[i], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-                glNamedFramebufferTexture(m_RendererID, static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i), m_ColorAttachments[i], 0);
+                glNamedFramebufferTexture(m_RendererID, static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i),
+                                          m_ColorAttachments[i], 0);
                 totalBytes += m_Specification.Width * m_Specification.Height * bpp;
             }
         }
@@ -120,7 +122,8 @@ namespace Leon {
             if (m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW) {
                 uint32_t layers = std::max(m_Specification.ArrayLayers, 1u);
                 glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_DepthAttachment);
-                glTextureStorage3D(m_DepthAttachment, 1, GL_DEPTH_COMPONENT32F, m_Specification.Width, m_Specification.Height, layers);
+                glTextureStorage3D(m_DepthAttachment, 1, GL_DEPTH_COMPONENT32F, m_Specification.Width,
+                                   m_Specification.Height, layers);
 
                 glTextureParameteri(m_DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTextureParameteri(m_DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -136,8 +139,9 @@ namespace Leon {
                 glNamedFramebufferTextureLayer(m_RendererID, GL_DEPTH_ATTACHMENT, m_DepthAttachment, 0, 0);
                 totalBytes += m_Specification.Width * m_Specification.Height * 4 * layers;
             } else {
-                bool bIsShadow = (m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW ||
-                                  m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_SHADOW);
+                bool bIsShadow =
+                    (m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH24STENCIL8_SHADOW ||
+                     m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_SHADOW);
                 bool bIs32F = (m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F ||
                                m_DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_SHADOW);
 
@@ -171,7 +175,8 @@ namespace Leon {
         // 3. Draw buffers setup (DSA)
         if (m_ColorAttachments.size() > 1) {
             LE_CORE_ASSERT(m_ColorAttachments.size() <= 4, "Only up to 4 color attachments are supported!");
-            GLenum buffers[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+            GLenum buffers[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2,
+                                 GL_COLOR_ATTACHMENT3};
             glNamedFramebufferDrawBuffers(m_RendererID, static_cast<GLsizei>(m_ColorAttachments.size()), buffers);
             glNamedFramebufferReadBuffer(m_RendererID, GL_COLOR_ATTACHMENT0);
         } else if (m_ColorAttachments.size() == 1) {
@@ -240,14 +245,14 @@ namespace Leon {
 
     void FOpenGLFramebuffer::AttachDepthTextureLayer(uint32_t InLayer) {
         LE_CORE_ASSERT(m_DepthAttachment != 0, "No depth attachment in framebuffer!");
-        glNamedFramebufferTextureLayer(m_RendererID, GL_DEPTH_ATTACHMENT, m_DepthAttachment, 0, static_cast<GLint>(InLayer));
+        glNamedFramebufferTextureLayer(m_RendererID, GL_DEPTH_ATTACHMENT, m_DepthAttachment, 0,
+                                       static_cast<GLint>(InLayer));
     }
 
     void FOpenGLFramebuffer::BlitToDefault(uint32_t InTargetWidth, uint32_t InTargetHeight) {
-        glBlitNamedFramebuffer(m_RendererID, 0,
-                               0, 0, static_cast<GLint>(m_Specification.Width), static_cast<GLint>(m_Specification.Height),
-                               0, 0, static_cast<GLint>(InTargetWidth), static_cast<GLint>(InTargetHeight),
-                               GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBlitNamedFramebuffer(m_RendererID, 0, 0, 0, static_cast<GLint>(m_Specification.Width),
+                               static_cast<GLint>(m_Specification.Height), 0, 0, static_cast<GLint>(InTargetWidth),
+                               static_cast<GLint>(InTargetHeight), GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
 } // namespace Leon

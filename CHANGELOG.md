@@ -7,12 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.13.0] - 2026-08-15
 
-### Planned
-- Frustum Culling with AABB / Bounding Sphere hierarchy.
-- Render Queue sorting (Opaque front-to-back, Transparent back-to-front).
-- GPU Dynamic Instancing (`glDrawElementsInstanced` / SSBOs).
+### Project Runtime, Coral Preview & HDR Asset Pipeline
+This milestone expands the native asset pipeline with full HDR environment asset compilation, introduces generic developer launchers and automated smoke testing, and enforces 100% decoupling between LeonEngine2 and project content.
+
+#### Added & Improved
+- **Native HDR Asset Pipeline (`.lhdr` & `FHDRImporter`)**:
+  - Introduced native binary `.lhdr` container format with packed metadata (`FLHDRHeader`), 32-bit floating point pixel payloads (`FNativeHDRData`), and equirectangular projection descriptors.
+  - Implemented `FHDRImporter` (`Engine/include/asset/HDRImporter.hpp`, `Engine/src/asset/HDRImporter.cpp`) for offline Radiance `.hdr` conversion, saving compiled assets to `<Project>/Content/Assets/HDR/<Name>.lhdr`.
+  - Added native `.lhdr` support to `FOpenGLTexture2D` and `FAssetManager::GetHDRTexture(...)`.
+  - Updated `FIBLGenerator` to consume `.lhdr` assets and save `.libl` pre-baked IBL caches directly in project asset cache directories (`<Project>/Content/Assets/Cache/IBL/`).
+- **Structured Sandbox Runtime Diagnostics & First-Frame Notification**:
+  - Implemented structured startup diagnostics output (`[Project]`, `[Level]`, `[Renderer]`).
+  - Added first-frame completion signal `[Sandbox] READY` to stdout for automated testing frameworks.
+  - Removed all hardcoded fallbacks in `SandboxApp.cpp`, using dynamic `Projects/` scanning.
+- **Developer Launchers & Automated Smoke Testing**:
+  - **`Scripts/run_project.py`**: Convenient CLI launcher for any project (`python Scripts/run_project.py --project Projects/Coral [--level <name>]`).
+  - **`Scripts/smoke_test_project.py`**: Automated end-to-end integration tester verifying project structure, level references, and actual process startup to `[Sandbox] READY`.
+  - **`LeonAssetTool run`**: Subcommand `LeonAssetTool run --project <path> [--level <name>]`.
+  - Updated `LeonAssetTool` with `inspect <file.lhdr>` and automated HDR import in `import --project <path>`.
+- **Coral Project HDR Environment & Showcase Level**:
+  - Generated calibrated oceanic atmosphere raw HDR `Projects/Coral/Content/Assets/Raw/Environment/OceanSky.hdr`.
+  - Compiled and integrated native `Projects/Coral/Content/Assets/HDR/OceanSky.lhdr` into `CoralShowcase.llevel`.
+- **Automated Regression Test Suite (`HDRAssetTests.cpp`)**:
+  - Added 5 new test cases covering atmospheric synthesis, `.lhdr` save/load roundtrips, raw `.hdr` import, and corrupt payload rejection. Total test count reached 100 passing suites (8,102,660 assertions).
+
+## [0.12.0] - 2026-08-15
+
+### Unreal-Style Project, Level & Scene Architecture Refactoring
+This milestone introduces a formal Unreal Engine-inspired architectural separation in LeonEngine2:
+- Decouples persistent on-disk world assets (**Level**, `.llevel`, `FLevelSerializer`) from in-memory runtime world states (**Scene**, `FScene`).
+- Introduces the **Project Subsystem** (`FProject`, `<ProjectName>.project`), allowing games and demo projects to be completely decoupled from the engine runtime.
+- Transforms **Sandbox** into a project-agnostic previewer (`Sandbox.exe --project <Path> [--level <Name>]`).
+- Eliminates all hardcoded project paths and project-specific conditionals across the engine core, establishing unified virtual path resolution.
+
+#### Added & Improved
+- **Project Subsystem (`Engine/include/project/Project.hpp`, `Engine/src/project/Project.cpp`)**:
+  - `FProject` container and `FProjectConfig` parsing `<ProjectName>.project` descriptor files.
+  - Deterministic virtual asset path (`/Assets/...` -> `<Project>/Content/Assets/...`) and level path resolution.
+  - Active project management (`FProject::SetActive`) with automatic `FAssetManager` content root synchronization.
+- **Level Serialization & Standardized Naming (`LevelSerializer.hpp`, `LevelSerializer.cpp`)**:
+  - Renamed and refactored `FSceneSerializer` to `FLevelSerializer`.
+  - Standardized level asset files to `.llevel` extension (deprecated `.lscene`).
+  - Added backward compatibility aliases (`using FSceneSerializer = FLevelSerializer`).
+- **Complete Decoupling of Projects & Generic Sandbox Previewer (`SandboxApp.cpp`, `AssetManager.cpp`)**:
+  - Removed all hardcoded `"Projects/Coral/Content/Assets"` and `if (startupLevel.find("Coral") != ...)` logic.
+  - Added command-line options: `--project <path>` and optional `--level <name>`.
+- **Project Descriptors & Test Projects**:
+  - Created `Projects/Coral/Coral.project` and updated level to `Projects/Coral/Content/Levels/CoralShowcase.llevel`.
+  - Created `Projects/Minimal/Minimal.project` and `Projects/Minimal/Content/Levels/Empty.llevel`.
+- **Tooling & Validation CLI (`LeonAssetTool`, `validate_project.py`, `validate_level.py`)**:
+  - Added `LeonAssetTool validate_project --project <path>` (or `project`).
+  - Added `LeonAssetTool validate_level --level <path> [--project <path>]` (or `level`).
+  - Added validation checks for zero absolute Windows/Unix paths in level assets.
+- **Architecture Documentation & Automated Tests**:
+  - Created `Docs/PROJECT_LEVEL_ARCHITECTURE.md`.
+  - Added `Tests/Project/ProjectTests.cpp` and updated `Tests/Scene/CoralShowcaseSceneTests.cpp`.
+
+## [0.11.0] - 2026-08-15
+
+### Coral Asset Showcase & Dynamic Lighting Validation
+This milestone introduces a playable, visual showcase level for LeonEngine2 featuring real native assets imported from the Coral project. It validates the end-to-end rendering pipeline, ECS scene architecture, multi-submesh material slot overrides, and all three dynamic light types (Directional CSM, Point, Spot) with distinctive visual response.
+
+#### Added & Improved
+- **Coral Showcase Level Asset (`Projects/Coral/Content/Levels/CoralShowcase.lscene`)**:
+  - Full oceanic underwater environment with calibrated atmospheric skybox lighting.
+  - Multi-tiered static mesh composition including seabed formations (`CoralRocks.lmesh`), hero coral clusters (`Corals.lmesh`), deep reef boundary walls (`CoralGroups.lmesh`, 1.05M vertices, 44 submeshes), and ambient seaweed foliage (`Seaweeds.lmesh`).
+  - Material instance variations: `MI_Coral_Warm.lmi` (amber tone, 0.65 roughness), `MI_Rock_Wet.lmi` (glossy wet rock, 0.18 roughness), `MI_Coral_Blue.lmi` (deep azure, 0.35 roughness).
+- **Scene Serialization & Dynamic Components (`SceneSerializer.cpp`, `Components.hpp`)**:
+  - Added native static mesh serialization (`StaticMesh: Asset: ...`, `CastShadows`, `ReceiveShadows`, `VisibleInReflection`).
+  - Added per-slot material overrides parsing and serialization (`MaterialOverrides: - Slot: X, Asset: ...`).
+  - Added primary perspective camera serialization (`Camera: Primary: true, FOV: 45.0, NearPlane: 0.1, FarPlane: 1000.0`).
+- **Dynamic Multi-Light Lighting Rig**:
+  - **Directional Sunlight (Surface Penetration)**: Downward penetrating primary sunlight with 4-split Cascaded Shadow Maps (CSM).
+  - **Underwater Ambient Point Light**: Broad cyan/blue ambient bounce fill ($r = 22.0$).
+  - **Warm Bioluminescent Point Light**: Localized amber glow accent ($r = 14.0$).
+  - **Specular Accent Spotlight**: Greenish high-intensity raking light ($r = 20.0$, cone $14^\circ/28^\circ$) casting sharp spot shadows.
+- **Engine Runtime & Sandbox Application CLI Support (`SandboxApp.cpp`, `Application.hpp`, `EntryPoint.hpp`)**:
+  - Added `FApplicationCommandLineArgs` supporting level launching via CLI (`Sandbox.exe <PathToLevel.lscene>`).
+  - Automatic `FAssetManager` content root resolution (`Projects/Coral/Content/Assets`).
+  - Automatic camera viewport positioning from the scene's primary `FCameraComponent`.
+- **CLI Subcommands & Level Validation (`LeonAssetTool`, `validate_level.py`, `create_coral_showcase.py`)**:
+  - Added `LeonAssetTool showcase --project <Path>` generator subcommand.
+  - Added `LeonAssetTool validate_level --level <Path>` validation subcommand ensuring zero broken links, mesh existence, light counts, and camera configurations.
+  - Added Python wrapper `Scripts/validate_level.py` and level generation script `Scripts/create_coral_showcase.py`.
+- **Automated Regression Test Suite (`CoralShowcaseSceneTests.cpp`)**:
+  - Added doctest suite verifying scene deserialization, light counts, mesh bindings, submesh counts, and serialization roundtrip.
+
+## [0.10.0] - 2026-08-15
+
+### Native Asset Import Pipeline (Meshes, Textures, Materials, CLI Toolchain & Incremental Manifest)
+This milestone delivers a complete, high-performance native asset import pipeline for LeonEngine2. It decouples external authoring formats (FBX, PNG, TGA, JPG) from runtime rendering formats (`.lmesh`, `.ltex`, `.lmat`, `.lmi`), eliminating runtime decoding overhead and enabling instantaneous scene startup.
+
+#### Added & Improved
+- **Native Texture Pipeline (`.ltex`, `TextureImporter.hpp`, `TextureImporter.cpp`)**:
+  - 64-byte packed header with UUID, dimensions, channel count, color space (sRGB/Linear), and semantic metadata.
+  - Software box-filtered mipmap generation down to $1\times 1$.
+  - Semantic auto-detection (`diff`, `norm`, `gloss`, `rough`, `metal`, `illum`, `ao`).
+  - Offline Gloss-to-Roughness inversion ($R = 255 - G$) for legacy roughness workflows.
+  - Direct OpenGL GPU texture memory allocation and mip upload without runtime CPU decompression.
+- **Native Static Mesh Pipeline (`.lmesh`, `StaticMesh.hpp`, `StaticMesh.cpp`, `MeshImporter.hpp`, `MeshImporter.cpp`)**:
+  - Integrated `ufbx` for robust, high-performance FBX parsing and coordinate conversion (right-handed, Y-up).
+  - 68-byte packed vertex stride (`Float3 Pos`, `Float3 Normal`, `Float2 UV`, `Float3 Tangent`, `Float3 Bitangent`, `Float3 Color`).
+  - Multi-submesh preservation with per-submesh indices, local transforms, and material slot assignments.
+  - Precalculated bounding boxes ($\mathbf{Min}, \mathbf{Max}$) and bounding spheres ($\mathbf{Center}, Radius$).
+- **Material Extraction & Instances (`.lmat`, `.lmi`, `MaterialImporter.hpp`, `MaterialImporter.cpp`)**:
+  - Fuzzy token matching for automatic material texture map binding.
+  - Extraction and serialization of master materials (`.lmat`) and material instances (`.lmi`).
+- **Asset Manifest & Incremental Import (`AssetManifest.hpp`, `AssetManifest.cpp`)**:
+  - 64-bit FNV-1a content hashing for change detection.
+  - Dependency graph tracking and JSON persistence (`manifest.json`).
+  - Instantaneous skip of unmodified assets during subsequent import runs.
+- **Engine & ECS Integration (`Components.hpp`, `AssetManager.hpp`, `SceneRenderer.cpp`)**:
+  - Added `FStaticMeshComponent` with material overrides and shadow/reflection flags.
+  - Extended `FAssetManager` with `GetStaticMesh`, `GetMaterialInstance`, and template `Load<T>`.
+  - Added submesh-indexed rendering (`FRenderCommand::DrawIndexedOffset`) across Directional CSM, Spot Shadow, Planar Reflection, and Geometry passes.
+- **CLI Tools & Python Wrappers**:
+  - Added `Tools/LeonAssetTool/` CLI executable supporting `import`, `validate`, and `inspect` commands.
+  - Added `Scripts/import_assets.py` and `Scripts/validate_assets.py`.
+- **Coral Project Integration & Test Coverage**:
+  - Successfully imported all raw Coral assets in `Projects/Coral/Content/Assets/` (39 native assets: 4 static meshes including 44-submesh `CoralGroups`, 23 textures up to 4K, 12 materials/instances).
+  - Added 5 new automated test suites (`AssetIDTests`, `TextureImportTests`, `MeshImportTests`, `AssetValidationTests`, `CoralPipelineTests`).
+  - Total test suite expanded to **87 test cases** and **8,102,532 assertions (100% passing)**.
+
+---
 
 ## [0.9.0] - 2026-08-15
 

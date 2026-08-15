@@ -24,6 +24,14 @@ namespace Leon {
         }
     }
 
+    void FRenderCommand::DrawIndexedOffset(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                           unsigned int InIndexOffset) {
+        if (s_RenderAPI && InVertexArray) {
+            s_RenderAPI->DrawIndexedOffset(InVertexArray, InIndexCount, InIndexOffset);
+            FRenderer::RecordDrawIndexed(InIndexCount, InIndexCount);
+        }
+    }
+
     void FRenderCommand::DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
         if (s_RenderAPI && InVertexArray) {
             s_RenderAPI->DrawLines(InVertexArray, InVertexCount);

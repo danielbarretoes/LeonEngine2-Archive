@@ -1,26 +1,25 @@
 #include <doctest/doctest.h>
-#include <stb_image.h>
+#include "asset/HDRImporter.hpp"
 #include "renderer/IBLMath.hpp"
 
 TEST_SUITE("IBL - Solar HDR Regression Tests") {
 
-    TEST_CASE("AutumnField1k.hdr Solar Irradiance Convergence & Bounded Discontinuity") {
-        const std::string hdrPath = "Projects/Sandbox/Content/Assets/Hdr/AutumnField1k.hdr";
+    TEST_CASE("AutumnField1k.lhdr Solar Irradiance Convergence & Bounded Discontinuity") {
+        const std::string hdrPath = "Projects/Sandbox/Content/HDR/AutumnField1k.lhdr";
         if (!std::filesystem::exists(hdrPath)) {
-            MESSAGE("AutumnField1k.hdr not found in working directory — skipping real asset test.");
+            MESSAGE("AutumnField1k.lhdr not found in working directory — skipping real asset test.");
             return;
         }
 
-        int width = 0, height = 0, channels = 0;
-        stbi_set_flip_vertically_on_load(0);
-        float* hdrData = stbi_loadf(hdrPath.c_str(), &width, &height, &channels, 4);
-        REQUIRE(hdrData != nullptr);
+        Leon::FNativeHDRData nativeData;
+        REQUIRE(nativeData.LoadFromFile(hdrPath));
+        int width = nativeData.Header.Width;
+        int height = nativeData.Header.Height;
         REQUIRE(width == 1024);
         REQUIRE(height == 512);
 
         Leon::FHDREquirectangularMipChain mipChain;
-        mipChain.Build(hdrData, width, height);
-        stbi_image_free(hdrData);
+        mipChain.Build(nativeData.Pixels.data(), width, height);
 
         // Sun Direction in World Space from (615.5, 173.5)
         float uSun = (615.0f + 0.5f) / static_cast<float>(width);

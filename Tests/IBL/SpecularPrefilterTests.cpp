@@ -1,24 +1,23 @@
 #include <doctest/doctest.h>
-#include <stb_image.h>
+#include "asset/HDRImporter.hpp"
 #include "renderer/IBLMath.hpp"
 
 TEST_SUITE("IBL - Specular Prefilter Regression Tests") {
 
     TEST_CASE("Specular Prefilter Mip Chain Smooth Roughness Dispersion (No Fireflies)") {
-        const std::string hdrPath = "Projects/Sandbox/Content/Assets/Hdr/AutumnField1k.hdr";
+        const std::string hdrPath = "Projects/Sandbox/Content/HDR/AutumnField1k.lhdr";
         if (!std::filesystem::exists(hdrPath)) {
-            MESSAGE("AutumnField1k.hdr not found — skipping prefilter test.");
+            MESSAGE("AutumnField1k.lhdr not found — skipping prefilter test.");
             return;
         }
 
-        int width = 0, height = 0, channels = 0;
-        stbi_set_flip_vertically_on_load(0);
-        float* hdrData = stbi_loadf(hdrPath.c_str(), &width, &height, &channels, 4);
-        REQUIRE(hdrData != nullptr);
+        Leon::FNativeHDRData nativeData;
+        REQUIRE(nativeData.LoadFromFile(hdrPath));
+        int width = nativeData.Header.Width;
+        int height = nativeData.Header.Height;
 
         Leon::FHDREquirectangularMipChain mipChain;
-        mipChain.Build(hdrData, width, height);
-        stbi_image_free(hdrData);
+        mipChain.Build(nativeData.Pixels.data(), width, height);
 
         const uint32_t numMips = 5;
         const uint32_t baseSize = 128;

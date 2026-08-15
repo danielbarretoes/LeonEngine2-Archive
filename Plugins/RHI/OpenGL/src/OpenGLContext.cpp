@@ -7,30 +7,49 @@
 namespace Leon {
 
 #ifndef NDEBUG
-    static void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id,
-                                              GLenum severity, GLsizei /*length*/,
-                                              const GLchar* message, const void* /*userParam*/) {
+    static void APIENTRY OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei /*length*/,
+                                             const GLchar* message, const void* /*userParam*/) {
         // Filter out non-significant notification messages and driver texture base-level warnings
         if (severity == GL_DEBUG_SEVERITY_NOTIFICATION || id == 131204 || id == 131218)
             return;
 
         const char* sourceStr = "Unknown";
         switch (source) {
-            case GL_DEBUG_SOURCE_API:             sourceStr = "API"; break;
-            case GL_DEBUG_SOURCE_SHADER_COMPILER: sourceStr = "ShaderCompiler"; break;
-            case GL_DEBUG_SOURCE_APPLICATION:     sourceStr = "Application"; break;
-            case GL_DEBUG_SOURCE_THIRD_PARTY:     sourceStr = "ThirdParty"; break;
-            default: break;
+        case GL_DEBUG_SOURCE_API:
+            sourceStr = "API";
+            break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER:
+            sourceStr = "ShaderCompiler";
+            break;
+        case GL_DEBUG_SOURCE_APPLICATION:
+            sourceStr = "Application";
+            break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:
+            sourceStr = "ThirdParty";
+            break;
+        default:
+            break;
         }
 
         const char* typeStr = "Unknown";
         switch (type) {
-            case GL_DEBUG_TYPE_ERROR:               typeStr = "Error"; break;
-            case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: typeStr = "Deprecated"; break;
-            case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  typeStr = "UndefinedBehavior"; break;
-            case GL_DEBUG_TYPE_PERFORMANCE:         typeStr = "Performance"; break;
-            case GL_DEBUG_TYPE_PORTABILITY:         typeStr = "Portability"; break;
-            default: break;
+        case GL_DEBUG_TYPE_ERROR:
+            typeStr = "Error";
+            break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+            typeStr = "Deprecated";
+            break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+            typeStr = "UndefinedBehavior";
+            break;
+        case GL_DEBUG_TYPE_PERFORMANCE:
+            typeStr = "Performance";
+            break;
+        case GL_DEBUG_TYPE_PORTABILITY:
+            typeStr = "Portability";
+            break;
+        default:
+            break;
         }
 
         if (severity == GL_DEBUG_SEVERITY_HIGH || type == GL_DEBUG_TYPE_ERROR) {

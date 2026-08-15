@@ -21,8 +21,8 @@ namespace Leon {
     struct FPointLight {
         glm::vec3 Position{0.0f, 1.5f, 0.0f};
         glm::vec3 Color{1.0f, 0.6f, 0.2f}; ///< Warm orange-gold
-        float Intensity{8.0f};              ///< Radiance multiplier (candela equivalent)
-        float Radius{10.0f};                ///< Effective influence radius in world units
+        float Intensity{8.0f};             ///< Radiance multiplier (candela equivalent)
+        float Radius{10.0f};               ///< Effective influence radius in world units
     };
 
     /**
@@ -33,8 +33,8 @@ namespace Leon {
         glm::vec3 Position{0.0f, 4.0f, 0.0f};
         glm::vec3 Direction{0.0f, -1.0f, 0.0f};
         glm::vec3 Color{0.2f, 0.8f, 1.0f}; ///< Crisp cyan
-        float Intensity{10.0f};             ///< Radiance multiplier
-        float Radius{15.0f};                ///< Effective influence radius in world units
+        float Intensity{10.0f};            ///< Radiance multiplier
+        float Radius{15.0f};               ///< Effective influence radius in world units
         float CutOff{12.5f};               ///< Inner cone angle (degrees)
         float OuterCutOff{17.5f};          ///< Outer cone angle (degrees)
     };

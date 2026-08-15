@@ -8,7 +8,6 @@ namespace Leon {
         if (auto driver = FRenderDriverRegistry::GetActiveDriver()) {
             return driver->CreateShader(InFilePath);
         }
-        LE_CORE_ASSERT(false, "No active RenderDriver registered for Shader creation!");
         return nullptr;
     }
 
@@ -17,7 +16,6 @@ namespace Leon {
         if (auto driver = FRenderDriverRegistry::GetActiveDriver()) {
             return driver->CreateShader(InName, InVertexSrc, InFragmentSrc);
         }
-        LE_CORE_ASSERT(false, "No active RenderDriver registered for Shader creation!");
         return nullptr;
     }
 

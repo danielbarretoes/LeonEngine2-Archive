@@ -40,19 +40,20 @@ namespace Leon {
     }
 
     inline glm::vec3 FresnelSchlickRoughness(float cosTheta, glm::vec3 F0, float roughness) {
-        return F0 + (glm::max(glm::vec3(1.0f - roughness), F0) - F0) * std::pow(std::clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);
+        return F0 + (glm::max(glm::vec3(1.0f - roughness), F0) - F0) *
+                        std::pow(std::clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);
     }
 
-    inline glm::vec3 EvaluateCookTorrance(glm::vec3 N, glm::vec3 V, glm::vec3 L,
-                                          glm::vec3 albedo, float metallic, float roughness,
-                                          glm::vec3 radiance) {
+    inline glm::vec3 EvaluateCookTorrance(glm::vec3 N, glm::vec3 V, glm::vec3 L, glm::vec3 albedo, float metallic,
+                                          float roughness, glm::vec3 radiance) {
         glm::vec3 H = glm::normalize(V + L);
         float NdotV = std::max(glm::dot(N, V), 0.0001f);
         float NdotL = std::max(glm::dot(N, L), 0.0f);
         float NdotH = std::max(glm::dot(N, H), 0.0f);
         float HdotV = std::max(glm::dot(H, V), 0.0f);
 
-        if (NdotL <= 0.0f) return glm::vec3(0.0f);
+        if (NdotL <= 0.0f)
+            return glm::vec3(0.0f);
 
         glm::vec3 F0 = glm::mix(glm::vec3(0.04f), albedo, metallic);
 
@@ -73,8 +74,10 @@ namespace Leon {
     inline bool ValidateEnergyConservation(glm::vec3 kD, glm::vec3 kS, float metallic) {
         if (metallic >= 1.0f) {
             // Pure metals have kD = 0
-            if (kD.r > 1e-4f || kD.g > 1e-4f || kD.b > 1e-4f) return false;
-            if (kS.r > 1.0001f || kS.g > 1.0001f || kS.b > 1.0001f) return false;
+            if (kD.r > 1e-4f || kD.g > 1e-4f || kD.b > 1e-4f)
+                return false;
+            if (kS.r > 1.0001f || kS.g > 1.0001f || kS.b > 1.0001f)
+                return false;
             return true;
         }
         glm::vec3 total = kD + kS;

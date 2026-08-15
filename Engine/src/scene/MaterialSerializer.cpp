@@ -99,14 +99,16 @@ namespace Leon {
         ss << "  NormalScale: " << InMaterial.GetNormalScale() << "\n";
         ss << "  OcclusionStrength: " << InMaterial.GetOcclusionStrength() << "\n";
         if (InMaterial.GetEmissiveIntensity() > 0.0f) {
-            ss << "  EmissiveColor: [" << InMaterial.GetEmissiveColor().r << ", " << InMaterial.GetEmissiveColor().g << ", "
-               << InMaterial.GetEmissiveColor().b << "]\n";
+            ss << "  EmissiveColor: [" << InMaterial.GetEmissiveColor().r << ", " << InMaterial.GetEmissiveColor().g
+               << ", " << InMaterial.GetEmissiveColor().b << "]\n";
             ss << "  EmissiveIntensity: " << InMaterial.GetEmissiveIntensity() << "\n";
         }
 
         const char* alphaModeStr = "Opaque";
-        if (InMaterial.GetAlphaMode() == EAlphaMode::Mask) alphaModeStr = "Mask";
-        else if (InMaterial.GetAlphaMode() == EAlphaMode::Blend) alphaModeStr = "Blend";
+        if (InMaterial.GetAlphaMode() == EAlphaMode::Mask)
+            alphaModeStr = "Mask";
+        else if (InMaterial.GetAlphaMode() == EAlphaMode::Blend)
+            alphaModeStr = "Blend";
         ss << "  AlphaMode: \"" << alphaModeStr << "\"\n";
         ss << "  AlphaCutoff: " << InMaterial.GetAlphaCutoff() << "\n";
         ss << "  DoubleSided: " << (InMaterial.GetDoubleSided() ? "true" : "false") << "\n";
@@ -191,9 +193,12 @@ namespace Leon {
             else if (key == "AlphaMode") {
                 std::string mode = MaterialUtils::CleanValue(value);
                 std::transform(mode.begin(), mode.end(), mode.begin(), ::tolower);
-                if (mode == "mask") OutMaterial.SetAlphaMode(EAlphaMode::Mask);
-                else if (mode == "blend" || mode == "translucent") OutMaterial.SetAlphaMode(EAlphaMode::Blend);
-                else OutMaterial.SetAlphaMode(EAlphaMode::Opaque);
+                if (mode == "mask")
+                    OutMaterial.SetAlphaMode(EAlphaMode::Mask);
+                else if (mode == "blend" || mode == "translucent")
+                    OutMaterial.SetAlphaMode(EAlphaMode::Blend);
+                else
+                    OutMaterial.SetAlphaMode(EAlphaMode::Opaque);
             } else if (key == "UVTiling") {
                 glm::vec3 v = MaterialUtils::ParseVec3(value, glm::vec3(1.0f, 1.0f, 0.0f));
                 OutMaterial.SetUVTiling(glm::vec2(v.x, v.y));

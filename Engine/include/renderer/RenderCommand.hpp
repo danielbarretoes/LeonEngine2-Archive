@@ -60,9 +60,7 @@ namespace Leon {
                 s_RenderAPI->SetBlendFunc(InSrc, InDst);
         }
 
-        static uint32_t GetFramebufferBinding() {
-            return s_RenderAPI ? s_RenderAPI->GetFramebufferBinding() : 0;
-        }
+        static uint32_t GetFramebufferBinding() { return s_RenderAPI ? s_RenderAPI->GetFramebufferBinding() : 0; }
 
         static void BindFramebuffer(uint32_t InRendererID) {
             if (s_RenderAPI)
@@ -71,6 +69,8 @@ namespace Leon {
 
         static void DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount);
         static void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0);
+        static void DrawIndexedOffset(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                      unsigned int InIndexOffset);
         static void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount);
 
         static void SetLineWidth(float InWidth) {
@@ -78,9 +78,7 @@ namespace Leon {
                 s_RenderAPI->SetLineWidth(InWidth);
         }
 
-        static FGPUInfo GetGPUInfo() {
-            return s_RenderAPI ? s_RenderAPI->GetGPUInfo() : FGPUInfo{};
-        }
+        static FGPUInfo GetGPUInfo() { return s_RenderAPI ? s_RenderAPI->GetGPUInfo() : FGPUInfo{}; }
 
         static FGPUVRAMStats GetGPUVRAMStats() {
             return s_RenderAPI ? s_RenderAPI->GetGPUVRAMStats() : FGPUVRAMStats{};

@@ -62,8 +62,7 @@ namespace Leon {
             case EShaderDataType::Float3:
             case EShaderDataType::Float4: {
                 glEnableVertexArrayAttrib(m_RendererID, m_VertexBufferIndex);
-                glVertexArrayAttribFormat(m_RendererID, m_VertexBufferIndex,
-                                          element.GetComponentCount(),
+                glVertexArrayAttribFormat(m_RendererID, m_VertexBufferIndex, element.GetComponentCount(),
                                           ShaderDataTypeToOpenGLBaseType(element.Type),
                                           element.bNormalized ? GL_TRUE : GL_FALSE,
                                           static_cast<GLuint>(element.Offset));
@@ -77,8 +76,7 @@ namespace Leon {
             case EShaderDataType::Int4:
             case EShaderDataType::Bool: {
                 glEnableVertexArrayAttrib(m_RendererID, m_VertexBufferIndex);
-                glVertexArrayAttribIFormat(m_RendererID, m_VertexBufferIndex,
-                                           element.GetComponentCount(),
+                glVertexArrayAttribIFormat(m_RendererID, m_VertexBufferIndex, element.GetComponentCount(),
                                            ShaderDataTypeToOpenGLBaseType(element.Type),
                                            static_cast<GLuint>(element.Offset));
                 glVertexArrayAttribBinding(m_RendererID, m_VertexBufferIndex, bindingIndex);
@@ -90,8 +88,7 @@ namespace Leon {
                 uint8_t count = element.GetComponentCount();
                 for (uint8_t i = 0; i < count; i++) {
                     glEnableVertexArrayAttrib(m_RendererID, m_VertexBufferIndex);
-                    glVertexArrayAttribFormat(m_RendererID, m_VertexBufferIndex,
-                                              count,
+                    glVertexArrayAttribFormat(m_RendererID, m_VertexBufferIndex, count,
                                               ShaderDataTypeToOpenGLBaseType(element.Type),
                                               element.bNormalized ? GL_TRUE : GL_FALSE,
                                               static_cast<GLuint>(element.Offset + sizeof(float) * count * i));

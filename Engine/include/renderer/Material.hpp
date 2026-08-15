@@ -14,11 +14,7 @@ namespace Leon {
 
     class FMaterialInstance;
 
-    enum class EAlphaMode : uint8_t {
-        Opaque = 0,
-        Mask   = 1,
-        Blend  = 2
-    };
+    enum class EAlphaMode : uint8_t { Opaque = 0, Mask = 1, Blend = 2 };
 
     /**
      * @brief Pipeline state configuration associated with a material.
@@ -41,8 +37,7 @@ namespace Leon {
      */
     class FMaterial : public std::enable_shared_from_this<FMaterial> {
     public:
-        explicit FMaterial(const std::string& InName = "DefaultMaterial",
-                           const TRef<FShader>& InShader = nullptr);
+        explicit FMaterial(const std::string& InName = "DefaultMaterial", const TRef<FShader>& InShader = nullptr);
         ~FMaterial() = default;
 
         static TRef<FMaterial> Create(const std::string& InName = "DefaultMaterial",
@@ -124,23 +119,50 @@ namespace Leon {
         TRef<FTexture2D> GetTexture(uint32_t InSlot) const;
         void SetTexture(uint32_t InSlot, const TRef<FTexture2D>& InTexture);
 
+        const std::string& GetTexturePath(uint32_t InSlot) const {
+            static std::string s_Empty = "";
+            return (InSlot < 12) ? m_TexturePaths[InSlot] : s_Empty;
+        }
+        void SetTexturePath(uint32_t InSlot, const std::string& InPath) {
+            if (InSlot < 12)
+                m_TexturePaths[InSlot] = InPath;
+        }
+
         TRef<FTexture2D> GetAlbedoMap() const { return m_AlbedoMap; }
-        void SetAlbedoMap(const TRef<FTexture2D>& InTex) { m_AlbedoMap = InTex; m_bUseAlbedoMap = (InTex != nullptr); }
+        void SetAlbedoMap(const TRef<FTexture2D>& InTex) {
+            m_AlbedoMap = InTex;
+            m_bUseAlbedoMap = (InTex != nullptr);
+        }
 
         TRef<FTexture2D> GetNormalMap() const { return m_NormalMap; }
-        void SetNormalMap(const TRef<FTexture2D>& InTex) { m_NormalMap = InTex; m_bUseNormalMap = (InTex != nullptr); }
+        void SetNormalMap(const TRef<FTexture2D>& InTex) {
+            m_NormalMap = InTex;
+            m_bUseNormalMap = (InTex != nullptr);
+        }
 
         TRef<FTexture2D> GetMetallicMap() const { return m_MetallicMap; }
-        void SetMetallicMap(const TRef<FTexture2D>& InTex) { m_MetallicMap = InTex; m_bUseMetallicMap = (InTex != nullptr); }
+        void SetMetallicMap(const TRef<FTexture2D>& InTex) {
+            m_MetallicMap = InTex;
+            m_bUseMetallicMap = (InTex != nullptr);
+        }
 
         TRef<FTexture2D> GetRoughnessMap() const { return m_RoughnessMap; }
-        void SetRoughnessMap(const TRef<FTexture2D>& InTex) { m_RoughnessMap = InTex; m_bUseRoughnessMap = (InTex != nullptr); }
+        void SetRoughnessMap(const TRef<FTexture2D>& InTex) {
+            m_RoughnessMap = InTex;
+            m_bUseRoughnessMap = (InTex != nullptr);
+        }
 
         TRef<FTexture2D> GetAOMap() const { return m_AOMap; }
-        void SetAOMap(const TRef<FTexture2D>& InTex) { m_AOMap = InTex; m_bUseAOMap = (InTex != nullptr); }
+        void SetAOMap(const TRef<FTexture2D>& InTex) {
+            m_AOMap = InTex;
+            m_bUseAOMap = (InTex != nullptr);
+        }
 
         TRef<FTexture2D> GetEmissiveMap() const { return m_EmissiveMap; }
-        void SetEmissiveMap(const TRef<FTexture2D>& InTex) { m_EmissiveMap = InTex; m_bUseEmissiveMap = (InTex != nullptr); }
+        void SetEmissiveMap(const TRef<FTexture2D>& InTex) {
+            m_EmissiveMap = InTex;
+            m_bUseEmissiveMap = (InTex != nullptr);
+        }
 
         // --- Material Feature Flags ---
         bool HasAlbedoMap() const { return m_bUseAlbedoMap && m_AlbedoMap != nullptr; }
@@ -188,6 +210,7 @@ namespace Leon {
         TRef<FTexture2D> m_RoughnessMap;
         TRef<FTexture2D> m_AOMap;
         TRef<FTexture2D> m_EmissiveMap;
+        std::string m_TexturePaths[12];
 
         bool m_bUseAlbedoMap{false};
         bool m_bUseNormalMap{false};

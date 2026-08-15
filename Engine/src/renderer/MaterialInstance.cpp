@@ -3,12 +3,10 @@
 
 namespace Leon {
 
-    FMaterialInstance::FMaterialInstance(const TRef<FMaterial>& InParent,
-                                         const std::string& InName)
+    FMaterialInstance::FMaterialInstance(const TRef<FMaterial>& InParent, const std::string& InName)
         : m_ParentMaterial(InParent), m_Name(InName) {}
 
-    TRef<FMaterialInstance> FMaterialInstance::Create(const TRef<FMaterial>& InParent,
-                                                      const std::string& InName) {
+    TRef<FMaterialInstance> FMaterialInstance::Create(const TRef<FMaterial>& InParent, const std::string& InName) {
         return MakeRef<FMaterialInstance>(InParent, InName);
     }
 
@@ -119,21 +117,22 @@ namespace Leon {
     }
 
     void FMaterialInstance::Bind(const TRef<FShader>& InShader) const {
-        if (!InShader) return;
+        if (!InShader)
+            return;
 
         // 1. Resolve Scalar / Vector Parameters
-        glm::vec3 albedoColor       = GetAlbedoColor();
-        float metallic              = GetMetallic();
-        float roughness             = GetRoughness();
-        float ao                    = GetAO();
-        float normalScale           = GetNormalScale();
-        float occlusionStrength     = GetOcclusionStrength();
-        glm::vec3 emissiveColor     = GetEmissiveColor();
-        float emissiveIntensity     = GetEmissiveIntensity();
-        EAlphaMode alphaMode        = GetAlphaMode();
-        float alphaCutoff           = GetAlphaCutoff();
-        glm::vec2 uvTiling          = GetUVTiling();
-        glm::vec2 uvOffset          = GetUVOffset();
+        glm::vec3 albedoColor = GetAlbedoColor();
+        float metallic = GetMetallic();
+        float roughness = GetRoughness();
+        float ao = GetAO();
+        float normalScale = GetNormalScale();
+        float occlusionStrength = GetOcclusionStrength();
+        glm::vec3 emissiveColor = GetEmissiveColor();
+        float emissiveIntensity = GetEmissiveIntensity();
+        EAlphaMode alphaMode = GetAlphaMode();
+        float alphaCutoff = GetAlphaCutoff();
+        glm::vec2 uvTiling = GetUVTiling();
+        glm::vec2 uvOffset = GetUVOffset();
 
         InShader->SetFloat3("u_AlbedoColor", albedoColor.r, albedoColor.g, albedoColor.b);
         InShader->SetFloat("u_Metallic", metallic);
@@ -149,12 +148,12 @@ namespace Leon {
         InShader->SetFloat2("u_UVOffset", uvOffset.x, uvOffset.y);
 
         // 2. Resolve Textures & Bind to Units (0: Albedo, 1: Normal, 2: Metallic, 3: AO, 4: Roughness, 9: Emissive)
-        TRef<FTexture2D> albedoMap    = GetTexture(0);
-        TRef<FTexture2D> normalMap    = GetTexture(1);
-        TRef<FTexture2D> metallicMap  = GetTexture(2);
-        TRef<FTexture2D> aoMap        = GetTexture(3);
+        TRef<FTexture2D> albedoMap = GetTexture(0);
+        TRef<FTexture2D> normalMap = GetTexture(1);
+        TRef<FTexture2D> metallicMap = GetTexture(2);
+        TRef<FTexture2D> aoMap = GetTexture(3);
         TRef<FTexture2D> roughnessMap = GetTexture(4);
-        TRef<FTexture2D> emissiveMap  = GetTexture(5);
+        TRef<FTexture2D> emissiveMap = GetTexture(5);
         if (!emissiveMap)
             emissiveMap = GetTexture(9);
 

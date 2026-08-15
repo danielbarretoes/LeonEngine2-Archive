@@ -43,6 +43,11 @@ add_executable(RendererTests
     Shader/ShadowAtlasTests.cpp
     Shader/ShadowSelectionTests.cpp
     Shader/ShadowContactTests.cpp
+    Asset/AssetIDTests.cpp
+    Asset/TextureImportTests.cpp
+    Asset/HDRAssetTests.cpp
+    Asset/MeshImportTests.cpp
+    Asset/AssetValidationTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE

@@ -10,10 +10,18 @@
 
 namespace Leon {
 
+    struct FApplicationCommandLineArgs {
+        int Count = 0;
+        char** Args = nullptr;
+
+        const char* operator[](int index) const { return Args[index]; }
+    };
+
     struct FApplicationProps {
         std::string Name = "LeonEngine App";
         unsigned int WindowWidth = 1280;
         unsigned int WindowHeight = 720;
+        FApplicationCommandLineArgs CommandLineArgs;
     };
 
     using ApplicationProps = FApplicationProps;
@@ -66,6 +74,6 @@ namespace Leon {
     using Application = FApplication;
 
     // Client/Sandbox defined entry point
-    FApplication* CreateApplication();
+    FApplication* CreateApplication(FApplicationCommandLineArgs InArgs = {});
 
 } // namespace Leon

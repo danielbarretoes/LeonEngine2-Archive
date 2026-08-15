@@ -41,7 +41,7 @@ namespace Leon {
          */
         void OnViewportResize(uint32_t InWidth, uint32_t InHeight);
 
-        entt::registry&       GetRegistry()       { return m_Registry; }
+        entt::registry& GetRegistry() { return m_Registry; }
         const entt::registry& GetRegistry() const { return m_Registry; }
 
         FSceneRenderer* GetSceneRenderer() { return m_Renderer.get(); }
@@ -49,8 +49,8 @@ namespace Leon {
         static TRef<FScene> Create();
 
     private:
-        entt::registry           m_Registry;
-        TScope<FSceneRenderer>   m_Renderer;  ///< Owns the rendering pipeline
+        entt::registry m_Registry;
+        TScope<FSceneRenderer> m_Renderer; ///< Owns the rendering pipeline
 
         friend class FEntity;
     };

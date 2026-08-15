@@ -42,7 +42,7 @@
 #include "scene/Components.hpp"
 #include "scene/Entity.hpp"
 #include "scene/Scene.hpp"
-#include "scene/SceneSerializer.hpp"
+#include "scene/LevelSerializer.hpp"
 
 // Entry Point
 #include "core/EntryPoint.hpp"

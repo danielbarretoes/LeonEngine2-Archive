@@ -8,17 +8,18 @@ namespace Leon {
     FPostProcessPipeline::FPostProcessPipeline() = default;
 
     void FPostProcessPipeline::Init() {
-        if (m_bInitialized) return;
+        if (m_bInitialized)
+            return;
 
         // 1. Shaders
         m_BloomBrightPassShader = FShader::Create("Engine/Assets/Shaders/BloomBrightPass.glsl");
         m_BloomDownsampleShader = FShader::Create("Engine/Assets/Shaders/BloomDownsample.glsl");
-        m_BloomUpsampleShader   = FShader::Create("Engine/Assets/Shaders/BloomUpsample.glsl");
-        m_ToneMappingShader     = FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
-        m_FXAAShader            = FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
+        m_BloomUpsampleShader = FShader::Create("Engine/Assets/Shaders/BloomUpsample.glsl");
+        m_ToneMappingShader = FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
+        m_FXAAShader = FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
 
         // 2. Fullscreen Quad Mesh
-        m_FullscreenQuadVA      = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
+        m_FullscreenQuadVA = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
 
         // 3. Allocate Framebuffers
         InvalidateFramebuffers(m_Width, m_Height);
@@ -27,10 +28,12 @@ namespace Leon {
     }
 
     void FPostProcessPipeline::OnViewportResize(uint32_t InWidth, uint32_t InHeight) {
-        if (InWidth == 0 || InHeight == 0) return;
-        if (m_Width == InWidth && m_Height == InHeight && m_bInitialized) return;
+        if (InWidth == 0 || InHeight == 0)
+            return;
+        if (m_Width == InWidth && m_Height == InHeight && m_bInitialized)
+            return;
 
-        m_Width  = InWidth;
+        m_Width = InWidth;
         m_Height = InHeight;
 
         if (m_bInitialized) {
@@ -44,38 +47,39 @@ namespace Leon {
         m_BloomDownsampleFBOs.resize(mipCount);
         m_BloomUpsampleFBOs.resize(mipCount);
 
-        uint32_t currentWidth  = std::max(InWidth / 2, 1u);
+        uint32_t currentWidth = std::max(InWidth / 2, 1u);
         uint32_t currentHeight = std::max(InHeight / 2, 1u);
 
         for (uint32_t i = 0; i < mipCount; ++i) {
             FFramebufferSpecification mipSpec;
-            mipSpec.Width  = currentWidth;
+            mipSpec.Width = currentWidth;
             mipSpec.Height = currentHeight;
             mipSpec.Attachments = {EFramebufferTextureFormat::RGBA16F};
 
             m_BloomDownsampleFBOs[i] = FFramebuffer::Create(mipSpec);
-            m_BloomUpsampleFBOs[i]   = FFramebuffer::Create(mipSpec);
+            m_BloomUpsampleFBOs[i] = FFramebuffer::Create(mipSpec);
 
-            currentWidth  = std::max(currentWidth / 2, 1u);
+            currentWidth = std::max(currentWidth / 2, 1u);
             currentHeight = std::max(currentHeight / 2, 1u);
         }
 
         // LDR Tone-Mapped Buffer (RGBA8)
         FFramebufferSpecification ldrSpec;
-        ldrSpec.Width  = InWidth;
+        ldrSpec.Width = InWidth;
         ldrSpec.Height = InHeight;
         ldrSpec.Attachments = {EFramebufferTextureFormat::RGBA8};
         m_ToneMappedFBO = FFramebuffer::Create(ldrSpec);
     }
 
-    void FPostProcessPipeline::RenderBloom(const FPostProcessSettings& InSettings,
-                                           TRef<FFramebuffer> InHDRScene,
-                                           uint32_t InWidth,
-                                           uint32_t InHeight) {
-        if (!InHDRScene || m_BloomDownsampleFBOs.empty()) return;
+    void FPostProcessPipeline::RenderBloom(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene,
+                                           uint32_t InWidth, uint32_t InHeight) {
+        if (!InHDRScene || m_BloomDownsampleFBOs.empty())
+            return;
 
-        const uint32_t mipCount = std::min(static_cast<uint32_t>(m_BloomDownsampleFBOs.size()), InSettings.BloomMipCount);
-        if (mipCount < 2) return;
+        const uint32_t mipCount =
+            std::min(static_cast<uint32_t>(m_BloomDownsampleFBOs.size()), InSettings.BloomMipCount);
+        if (mipCount < 2)
+            return;
 
         FRenderCommand::SetDepthTesting(false);
         FRenderCommand::SetDepthMask(false);
@@ -109,7 +113,7 @@ namespace Leon {
 
         for (uint32_t i = 1; i < mipCount; ++i) {
             auto& destFBO = m_BloomDownsampleFBOs[i];
-            auto& srcFBO  = m_BloomDownsampleFBOs[i - 1];
+            auto& srcFBO = m_BloomDownsampleFBOs[i - 1];
 
             destFBO->Bind();
             FRenderCommand::SetViewport(0, 0, destFBO->GetSpecification().Width, destFBO->GetSpecification().Height);
@@ -137,14 +141,14 @@ namespace Leon {
         for (int i = static_cast<int>(mipCount) - 1; i > 0; --i) {
             auto& destUpsampleFBO = m_BloomUpsampleFBOs[i - 1];
             auto& srcDownsampleFBO = m_BloomDownsampleFBOs[i - 1];
-            
+
             // Source for upsampling is either the lower upsample FBO or the lowest downsample FBO
-            TRef<FFramebuffer> srcHigherMipFBO = (i == static_cast<int>(mipCount) - 1)
-                                                     ? m_BloomDownsampleFBOs[i]
-                                                     : m_BloomUpsampleFBOs[i];
+            TRef<FFramebuffer> srcHigherMipFBO =
+                (i == static_cast<int>(mipCount) - 1) ? m_BloomDownsampleFBOs[i] : m_BloomUpsampleFBOs[i];
 
             destUpsampleFBO->Bind();
-            FRenderCommand::SetViewport(0, 0, destUpsampleFBO->GetSpecification().Width, destUpsampleFBO->GetSpecification().Height);
+            FRenderCommand::SetViewport(0, 0, destUpsampleFBO->GetSpecification().Width,
+                                        destUpsampleFBO->GetSpecification().Height);
             FRenderCommand::SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             FRenderCommand::Clear();
 
@@ -175,16 +179,14 @@ namespace Leon {
         }
     }
 
-    void FPostProcessPipeline::Render(const FPostProcessSettings& InSettings,
-                                      TRef<FFramebuffer> InHDRScene,
-                                      uint32_t InTargetFBO,
-                                      uint32_t InVpWidth,
-                                      uint32_t InVpHeight) {
+    void FPostProcessPipeline::Render(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene,
+                                      uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight) {
         if (!m_bInitialized) {
             Init();
         }
 
-        if (!InHDRScene || !m_FullscreenQuadVA || !m_ToneMappedFBO) return;
+        if (!InHDRScene || !m_FullscreenQuadVA || !m_ToneMappedFBO)
+            return;
 
         // Check if resize is required
         if (m_Width != InVpWidth || m_Height != InVpHeight) {
@@ -243,8 +245,10 @@ namespace Leon {
         m_FXAAShader->Bind();
         m_ToneMappedFBO->BindTexture(0, 0);
         m_FXAAShader->SetInt("u_LDRTexture", 0);
-        m_FXAAShader->SetFloat2("u_InverseScreenSize", 1.0f / static_cast<float>(InVpWidth), 1.0f / static_cast<float>(InVpHeight));
-        m_FXAAShader->SetInt("u_FXAAEnabled", (InSettings.bEnabled && InSettings.bFXAAEnabled && InSettings.DebugMode != 4) ? 1 : 0);
+        m_FXAAShader->SetFloat2("u_InverseScreenSize", 1.0f / static_cast<float>(InVpWidth),
+                                1.0f / static_cast<float>(InVpHeight));
+        m_FXAAShader->SetInt("u_FXAAEnabled",
+                             (InSettings.bEnabled && InSettings.bFXAAEnabled && InSettings.DebugMode != 4) ? 1 : 0);
 
         m_FullscreenQuadVA->Bind();
         FRenderCommand::DrawIndexed(m_FullscreenQuadVA);

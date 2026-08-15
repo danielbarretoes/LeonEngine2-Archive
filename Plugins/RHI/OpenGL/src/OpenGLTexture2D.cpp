@@ -1,4 +1,6 @@
 #include "OpenGLTexture2D.hpp"
+#include "asset/TextureImporter.hpp"
+#include "asset/HDRImporter.hpp"
 #include "core/Log.hpp"
 #include "renderer/Renderer.hpp"
 #include <stb_image.h>
@@ -14,10 +16,9 @@ namespace Leon {
     // -------------------------------------------------------------------------
     // Blank RGBA8 texture (used for render target / manual SetData uploads)
     // -------------------------------------------------------------------------
-    FOpenGLTexture2D::FOpenGLTexture2D(uint32_t InWidth, uint32_t InHeight)
-        : m_Width(InWidth), m_Height(InHeight) {
+    FOpenGLTexture2D::FOpenGLTexture2D(uint32_t InWidth, uint32_t InHeight) : m_Width(InWidth), m_Height(InHeight) {
         m_InternalFormat = GL_RGBA8;
-        m_DataFormat     = GL_RGBA;
+        m_DataFormat = GL_RGBA;
         m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4);
 
         glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
@@ -36,30 +37,30 @@ namespace Leon {
     // RG16F / RGBA16F / RGBA32F float texture (used for BRDF LUT & HDR)
     // -------------------------------------------------------------------------
     FOpenGLTexture2D::FOpenGLTexture2D(uint32_t InWidth, uint32_t InHeight, ETextureFormat InFormat) {
-        m_Width  = InWidth;
+        m_Width = InWidth;
         m_Height = InHeight;
 
         switch (InFormat) {
-            case ETextureFormat::RG16F:
-                m_InternalFormat = GL_RG16F;
-                m_DataFormat     = GL_RG;
-                m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 2 * sizeof(uint16_t));
-                break;
-            case ETextureFormat::RGBA16F:
-                m_InternalFormat = GL_RGBA16F;
-                m_DataFormat     = GL_RGBA;
-                m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4 * sizeof(uint16_t));
-                break;
-            case ETextureFormat::RGBA32F:
-                m_InternalFormat = GL_RGBA32F;
-                m_DataFormat     = GL_RGBA;
-                m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4 * sizeof(float));
-                break;
-            default: // RGBA8
-                m_InternalFormat = GL_RGBA8;
-                m_DataFormat     = GL_RGBA;
-                m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4);
-                break;
+        case ETextureFormat::RG16F:
+            m_InternalFormat = GL_RG16F;
+            m_DataFormat = GL_RG;
+            m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 2 * sizeof(uint16_t));
+            break;
+        case ETextureFormat::RGBA16F:
+            m_InternalFormat = GL_RGBA16F;
+            m_DataFormat = GL_RGBA;
+            m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4 * sizeof(uint16_t));
+            break;
+        case ETextureFormat::RGBA32F:
+            m_InternalFormat = GL_RGBA32F;
+            m_DataFormat = GL_RGBA;
+            m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4 * sizeof(float));
+            break;
+        default: // RGBA8
+            m_InternalFormat = GL_RGBA8;
+            m_DataFormat = GL_RGBA;
+            m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4);
+            break;
         }
 
         glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
@@ -75,9 +76,85 @@ namespace Leon {
     }
 
     // -------------------------------------------------------------------------
-    // File-loaded texture (LDR or HDR)
+    // File-loaded texture (Native .ltex, LDR: PNG/JPG/TGA, or HDR: .hdr)
     // -------------------------------------------------------------------------
     FOpenGLTexture2D::FOpenGLTexture2D(const std::string& InPath) : m_Path(InPath) {
+        // Native .ltex container
+        if (InPath.length() >= 5 && InPath.substr(InPath.length() - 5) == ".ltex") {
+            FNativeTextureData nativeData;
+            if (!nativeData.LoadFromFile(InPath)) {
+                LE_CORE_ERROR("Failed to load native .ltex texture from: {0}", InPath);
+                return;
+            }
+
+            m_IsLoaded = true;
+            m_Width = nativeData.Header.Width;
+            m_Height = nativeData.Header.Height;
+            m_InternalFormat = (nativeData.Header.ColorSpace == 1) ? GL_SRGB8_ALPHA8 : GL_RGBA8;
+            m_DataFormat = GL_RGBA;
+            m_AllocatedBytes = static_cast<size_t>(nativeData.Header.TotalDataSize);
+
+            glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+            uint32_t mipLevels = std::max(1u, nativeData.Header.MipCount);
+            glTextureStorage2D(m_RendererID, mipLevels, m_InternalFormat, m_Width, m_Height);
+
+            GLenum minFilter = (mipLevels > 1) ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR;
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, minFilter);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            GLenum wrap = (nativeData.Header.WrapMode == 1) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, wrap);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, wrap);
+
+            for (const auto& mip : nativeData.Mips) {
+                if (!mip.Pixels.empty()) {
+                    glTextureSubImage2D(m_RendererID, mip.Level, 0, 0, mip.Width, mip.Height, m_DataFormat,
+                                        GL_UNSIGNED_BYTE, mip.Pixels.data());
+                }
+            }
+
+            FRenderer::OnGPUAlloc(m_AllocatedBytes);
+            LE_CORE_INFO("Loaded Native Texture: {0} ({1}x{2}, {3} mips, {4} KB)", InPath, m_Width, m_Height, mipLevels,
+                         m_AllocatedBytes / 1024);
+            return;
+        }
+
+        // Native .lhdr container
+        if (InPath.length() >= 5 && InPath.substr(InPath.length() - 5) == ".lhdr") {
+            FNativeHDRData hdrData;
+            if (!hdrData.LoadFromFile(InPath)) {
+                LE_CORE_ERROR("Failed to load native .lhdr texture from: {0}", InPath);
+                return;
+            }
+
+            m_IsLoaded = true;
+            m_Width = hdrData.Header.Width;
+            m_Height = hdrData.Header.Height;
+            m_InternalFormat = GL_RGBA32F;
+            m_DataFormat = GL_RGBA;
+            m_AllocatedBytes = static_cast<size_t>(hdrData.Header.TotalDataSize);
+
+            uint32_t levels = CalculateMipLevels(m_Width, m_Height);
+
+            glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+            glTextureStorage2D(m_RendererID, levels, m_InternalFormat, m_Width, m_Height);
+
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            if (!hdrData.Pixels.empty()) {
+                glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, m_DataFormat, GL_FLOAT,
+                                    hdrData.Pixels.data());
+                glGenerateTextureMipmap(m_RendererID);
+            }
+
+            FRenderer::OnGPUAlloc(m_AllocatedBytes);
+            LE_CORE_INFO("Loaded Native HDR Texture: {0} ({1}x{2}, RGBA32F, {3} KB)", InPath, m_Width, m_Height,
+                         m_AllocatedBytes / 1024);
+            return;
+        }
+
         int width, height, channels;
         stbi_set_flip_vertically_on_load(1);
 
@@ -89,11 +166,11 @@ namespace Leon {
                 return;
             }
 
-            m_IsLoaded       = true;
-            m_Width          = static_cast<uint32_t>(width);
-            m_Height         = static_cast<uint32_t>(height);
+            m_IsLoaded = true;
+            m_Width = static_cast<uint32_t>(width);
+            m_Height = static_cast<uint32_t>(height);
             m_InternalFormat = GL_RGBA32F;
-            m_DataFormat     = GL_RGBA;
+            m_DataFormat = GL_RGBA;
             m_AllocatedBytes = static_cast<size_t>(m_Width * m_Height * 4 * sizeof(float));
 
             uint32_t levels = CalculateMipLevels(m_Width, m_Height);
@@ -112,8 +189,8 @@ namespace Leon {
             stbi_image_free(data);
             FRenderer::OnGPUAlloc(m_AllocatedBytes);
 
-            LE_CORE_INFO("Loaded HDR Environment Map: {0} ({1}x{2}, RGBA32F, {3} KB)",
-                         InPath, m_Width, m_Height, m_AllocatedBytes / 1024);
+            LE_CORE_INFO("Loaded HDR Environment Map: {0} ({1}x{2}, RGBA32F, {3} KB)", InPath, m_Width, m_Height,
+                         m_AllocatedBytes / 1024);
             return;
         }
 
@@ -125,21 +202,21 @@ namespace Leon {
         }
 
         m_IsLoaded = true;
-        m_Width    = static_cast<uint32_t>(width);
-        m_Height   = static_cast<uint32_t>(height);
+        m_Width = static_cast<uint32_t>(width);
+        m_Height = static_cast<uint32_t>(height);
 
         uint32_t bpp = 4;
         if (channels == 4) {
             m_InternalFormat = GL_RGBA8;
-            m_DataFormat     = GL_RGBA;
+            m_DataFormat = GL_RGBA;
             bpp = 4;
         } else if (channels == 3) {
             m_InternalFormat = GL_RGB8;
-            m_DataFormat     = GL_RGB;
+            m_DataFormat = GL_RGB;
             bpp = 3;
         } else if (channels == 1) {
             m_InternalFormat = GL_R8;
-            m_DataFormat     = GL_RED;
+            m_DataFormat = GL_RED;
             bpp = 1;
         } else {
             LE_CORE_ERROR("Texture format not supported for: {0} ({1} channels)", InPath, channels);

@@ -1,5 +1,6 @@
 #include "renderer/IBLGenerator.hpp"
 #include "core/Log.hpp"
+#include "asset/HDRImporter.hpp"
 #include "renderer/AssetManager.hpp"
 #include "renderer/IBLMath.hpp"
 #include "renderer/Renderer.hpp"
@@ -68,8 +69,8 @@ namespace Leon {
         s_CachedBRDFLUT = lutTexture;
         auto endT = std::chrono::high_resolution_clock::now();
         float durMs = std::chrono::duration<float, std::milli>(endT - startT).count();
-        LE_CORE_INFO("  [PROFILE] Cook-Torrance 2D BRDF LUT ({0}x{0}) {1} in {2:.2f} ms",
-                     InSize, bLoadedFromDisk ? "loaded from disk cache" : "baked & cached", durMs);
+        LE_CORE_INFO("  [PROFILE] Cook-Torrance 2D BRDF LUT ({0}x{0}) {1} in {2:.2f} ms", InSize,
+                     bLoadedFromDisk ? "loaded from disk cache" : "baked & cached", durMs);
         return s_CachedBRDFLUT;
     }
 
@@ -90,7 +91,11 @@ namespace Leon {
     static std::string GetIBLCachePath(const std::string& InHDRPath) {
         std::filesystem::path p(InHDRPath);
         std::string stem = p.stem().string();
-        return "Projects/Sandbox/Content/Assets/Hdr/Cache/" + stem + ".libl";
+        std::filesystem::path parentDir = p.parent_path();
+        if (!parentDir.empty()) {
+            return (parentDir / "Cache" / "IBL" / (stem + ".libl")).string();
+        }
+        return (std::filesystem::path("Cache/IBL") / (stem + ".libl")).string();
     }
 
     static bool TryLoadIBLCache(const std::string& InHDRPath, FIBLEnvironment& OutEnv) {
@@ -102,11 +107,13 @@ namespace Leon {
         uint64_t currentHDRHash = ComputeFileHash64(InHDRPath);
 
         std::ifstream file(cachePath, std::ios::binary);
-        if (!file.is_open()) return false;
+        if (!file.is_open())
+            return false;
 
         FIBLCacheHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
-        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 4 || header.HDRSourceHash != currentHDRHash) {
+        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 4 ||
+            header.HDRSourceHash != currentHDRHash) {
             return false;
         }
 
@@ -124,7 +131,8 @@ namespace Leon {
         std::vector<float> irradFaceBuffer(header.IrradSize * header.IrradSize * 4);
         for (int face = 0; face < 6; ++face) {
             file.read(reinterpret_cast<char*>(irradFaceBuffer.data()), irradFaceBuffer.size() * sizeof(float));
-            OutEnv.IrradianceMap->SetFaceData(face, irradFaceBuffer.data(), header.IrradSize, header.IrradSize, 0, true);
+            OutEnv.IrradianceMap->SetFaceData(face, irradFaceBuffer.data(), header.IrradSize, header.IrradSize, 0,
+                                              true);
         }
 
         // 3. Load Prefilter Map Mips
@@ -141,15 +149,15 @@ namespace Leon {
         return true;
     }
 
-    static void SaveIBLCache(const std::string& InHDRPath,
-                             const std::vector<std::vector<float>>& InEnvFaces,
+    static void SaveIBLCache(const std::string& InHDRPath, const std::vector<std::vector<float>>& InEnvFaces,
                              const std::vector<std::vector<float>>& InIrradFaces,
                              const std::vector<std::vector<std::vector<float>>>& InPrefilterMips) {
         std::string cachePath = GetIBLCachePath(InHDRPath);
         std::filesystem::create_directories(std::filesystem::path(cachePath).parent_path());
 
         std::ofstream file(cachePath, std::ios::binary);
-        if (!file.is_open()) return;
+        if (!file.is_open())
+            return;
 
         FIBLCacheHeader header;
         header.Version = 4;
@@ -163,7 +171,8 @@ namespace Leon {
 
         // 2. Write Irradiance Faces
         for (int face = 0; face < 6; ++face) {
-            file.write(reinterpret_cast<const char*>(InIrradFaces[face].data()), InIrradFaces[face].size() * sizeof(float));
+            file.write(reinterpret_cast<const char*>(InIrradFaces[face].data()),
+                       InIrradFaces[face].size() * sizeof(float));
         }
 
         // 3. Write Prefilter Mips
@@ -185,33 +194,58 @@ namespace Leon {
             hdrPath = InSkybox.HDREnvironmentMap->GetPath();
         }
 
+        std::string resolvedHdrPath = hdrPath;
+        if (!resolvedHdrPath.empty()) {
+            resolvedHdrPath = FAssetManager::ResolveVirtualPath(resolvedHdrPath);
+        }
+
         // 1. Check if cached .libl binary asset exists on disk for fast startup (< 5ms)
-        if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
-            if (TryLoadIBLCache(hdrPath, env)) {
+        if (InSkybox.bUseHDREnvironmentMap && !resolvedHdrPath.empty()) {
+            if (TryLoadIBLCache(resolvedHdrPath, env)) {
                 auto totalEndT = std::chrono::high_resolution_clock::now();
                 float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v4) for '{0}' in {1:.2f} ms.", hdrPath, totalDurMs);
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v4) for '{0}' in {1:.2f} ms.", resolvedHdrPath,
+                             totalDurMs);
                 return env;
             }
         }
 
         // 2. Fallback: Full convolution on first load / cache miss
         auto hdrStartT = std::chrono::high_resolution_clock::now();
-        float* hdrData = nullptr;
+        const float* hdrData = nullptr;
+        float* hdrDataAlloc = nullptr;
         int hdrWidth = 0, hdrHeight = 0, hdrChannels = 0;
+        FNativeHDRData nativeHDR;
         FHDREquirectangularMipChain hdrMipChain;
 
-        if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
-            stbi_set_flip_vertically_on_load(1);
-            hdrData = stbi_loadf(hdrPath.c_str(), &hdrWidth, &hdrHeight, &hdrChannels, 4);
-            auto hdrEndT = std::chrono::high_resolution_clock::now();
-            float hdrDurMs = std::chrono::duration<float, std::milli>(hdrEndT - hdrStartT).count();
-            if (hdrData) {
-                hdrMipChain.Build(hdrData, hdrWidth, hdrHeight);
-                LE_CORE_INFO("  [PROFILE] HDR image load & mip pyramid '{0}' ({1}x{2}, {3} levels) in {4:.2f} ms",
-                             hdrPath, hdrWidth, hdrHeight, hdrMipChain.Levels.size(), hdrDurMs);
+        if (InSkybox.bUseHDREnvironmentMap && !resolvedHdrPath.empty()) {
+            if (resolvedHdrPath.length() >= 5 && resolvedHdrPath.substr(resolvedHdrPath.length() - 5) == ".lhdr") {
+                if (nativeHDR.LoadFromFile(resolvedHdrPath)) {
+                    hdrWidth = static_cast<int>(nativeHDR.Header.Width);
+                    hdrHeight = static_cast<int>(nativeHDR.Header.Height);
+                    hdrData = nativeHDR.Pixels.data();
+                    hdrMipChain.Build(hdrData, hdrWidth, hdrHeight);
+                    auto hdrEndT = std::chrono::high_resolution_clock::now();
+                    float hdrDurMs = std::chrono::duration<float, std::milli>(hdrEndT - hdrStartT).count();
+                    LE_CORE_INFO(
+                        "  [PROFILE] Native .lhdr load & mip pyramid '{0}' ({1}x{2}, {3} levels) in {4:.2f} ms",
+                        resolvedHdrPath, hdrWidth, hdrHeight, hdrMipChain.Levels.size(), hdrDurMs);
+                } else {
+                    LE_CORE_WARN("FIBLGenerator: Failed to load native .lhdr asset: '{0}'", resolvedHdrPath);
+                }
             } else {
-                LE_CORE_WARN("FIBLGenerator: Failed to load HDR image for convolution: '{0}'", hdrPath);
+                stbi_set_flip_vertically_on_load(1);
+                hdrDataAlloc = stbi_loadf(resolvedHdrPath.c_str(), &hdrWidth, &hdrHeight, &hdrChannels, 4);
+                hdrData = hdrDataAlloc;
+                auto hdrEndT = std::chrono::high_resolution_clock::now();
+                float hdrDurMs = std::chrono::duration<float, std::milli>(hdrEndT - hdrStartT).count();
+                if (hdrData) {
+                    hdrMipChain.Build(hdrData, hdrWidth, hdrHeight);
+                    LE_CORE_INFO("  [PROFILE] Raw HDR load & mip pyramid '{0}' ({1}x{2}, {3} levels) in {4:.2f} ms",
+                                 resolvedHdrPath, hdrWidth, hdrHeight, hdrMipChain.Levels.size(), hdrDurMs);
+                } else {
+                    LE_CORE_WARN("FIBLGenerator: Failed to load raw HDR image: '{0}'", resolvedHdrPath);
+                }
             }
         }
 
@@ -229,8 +263,10 @@ namespace Leon {
         std::vector<std::vector<float>> envFaces(6, std::vector<float>(envSize * envSize * 4));
         {
             float envTexelLod = (hdrWidth > 0 && hdrHeight > 0)
-                ? std::max(0.5f * std::log2(static_cast<float>(hdrWidth * hdrHeight) / (6.0f * static_cast<float>(envSize * envSize))), 0.0f)
-                : 0.0f;
+                                    ? std::max(0.5f * std::log2(static_cast<float>(hdrWidth * hdrHeight) /
+                                                                (6.0f * static_cast<float>(envSize * envSize))),
+                                               0.0f)
+                                    : 0.0f;
 
             for (int face = 0; face < 6; ++face) {
                 for (uint32_t y = 0; y < envSize; ++y) {
@@ -258,7 +294,8 @@ namespace Leon {
         }
         auto envEndT = std::chrono::high_resolution_clock::now();
         float envDurMs = std::chrono::duration<float, std::milli>(envEndT - envStartT).count();
-        LE_CORE_INFO("  [PROFILE] Environment Cubemap (128x128x6, {0} texels) generated in {1:.2f} ms", envSize * envSize * 6, envDurMs);
+        LE_CORE_INFO("  [PROFILE] Environment Cubemap (128x128x6, {0} texels) generated in {1:.2f} ms",
+                     envSize * envSize * 6, envDurMs);
 
         // 4. Generate Diffuse Irradiance Map (32x32 per face) with Cosine-Weighted Hemisphere Sampling & Mip Filtering
         auto irradStartT = std::chrono::high_resolution_clock::now();
@@ -269,15 +306,15 @@ namespace Leon {
         {
             // Solid angle of 1 texel in the source HDR equirectangular texture (Epic Games / Brian Karis reference)
             const float saTexel = (hdrWidth > 0 && hdrHeight > 0)
-                ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
-                : (4.0f * PI / (6.0f * static_cast<float>(irradSize * irradSize)));
+                                      ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
+                                      : (4.0f * PI / (6.0f * static_cast<float>(irradSize * irradSize)));
 
             // Solid angle of a sample in cosine-weighted hemisphere sampling:
             // Omega_s = 2*PI / N
             const float irradSaSample = (2.0f * PI) / static_cast<float>(IRRAD_SAMPLE_COUNT);
             const float irradSampleLod = (hdrWidth > 0 && hdrHeight > 0)
-                ? std::max(0.5f * std::log2(irradSaSample / saTexel) + 1.0f, 0.0f)
-                : 0.0f;
+                                             ? std::max(0.5f * std::log2(irradSaSample / saTexel) + 1.0f, 0.0f)
+                                             : 0.0f;
 
             for (int face = 0; face < 6; ++face) {
                 for (uint32_t y = 0; y < irradSize; ++y) {
@@ -286,7 +323,8 @@ namespace Leon {
                         float u = 2.0f * (static_cast<float>(x) + 0.5f) / static_cast<float>(irradSize) - 1.0f;
                         glm::vec3 N = GetCubeDirection(face, u, v);
 
-                        glm::vec3 up = (std::abs(N.z) < 0.999f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+                        glm::vec3 up =
+                            (std::abs(N.z) < 0.999f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
                         glm::vec3 tangent = glm::normalize(glm::cross(up, N));
                         glm::vec3 bitangent = glm::cross(N, tangent);
 
@@ -298,10 +336,10 @@ namespace Leon {
                             float cosTheta = std::sqrt(1.0f - Xi.y);
                             float sinTheta = std::sqrt(Xi.y);
 
-                            glm::vec3 tangentSample = glm::vec3(sinTheta * std::cos(phi),
-                                                                sinTheta * std::sin(phi),
-                                                                cosTheta);
-                            glm::vec3 sampleVec = tangent * tangentSample.x + bitangent * tangentSample.y + N * tangentSample.z;
+                            glm::vec3 tangentSample =
+                                glm::vec3(sinTheta * std::cos(phi), sinTheta * std::sin(phi), cosTheta);
+                            glm::vec3 sampleVec =
+                                tangent * tangentSample.x + bitangent * tangentSample.y + N * tangentSample.z;
 
                             glm::vec3 sampleVal;
                             if (hdrData) {
@@ -327,9 +365,12 @@ namespace Leon {
         }
         auto irradEndT = std::chrono::high_resolution_clock::now();
         float irradDurMs = std::chrono::duration<float, std::milli>(irradEndT - irradStartT).count();
-        LE_CORE_INFO("  [PROFILE] Irradiance Convolution (32x32x6, 512 samples/px, ~3.1M samples) generated in {0:.2f} ms", irradDurMs);
+        LE_CORE_INFO(
+            "  [PROFILE] Irradiance Convolution (32x32x6, 512 samples/px, ~3.1M samples) generated in {0:.2f} ms",
+            irradDurMs);
 
-        // 5. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8) with Karis PDF Solid Angle Filtering
+        // 5. Generate Specular Prefilter Map (128x128, 5 mip levels: 128, 64, 32, 16, 8) with Karis PDF Solid Angle
+        // Filtering
         constexpr uint32_t prefilterBaseSize = 128;
         constexpr uint32_t maxMipLevels = 5;
         env.PrefilterMap = FTextureCube::Create(prefilterBaseSize, prefilterBaseSize, true);
@@ -337,8 +378,8 @@ namespace Leon {
         {
             // Solid angle of 1 texel in the source HDR equirectangular texture (Epic Games / Brian Karis reference)
             float saTexel = (hdrWidth > 0 && hdrHeight > 0)
-                ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
-                : (4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize)));
+                                ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
+                                : (4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize)));
 
             for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
                 auto mipStartT = std::chrono::high_resolution_clock::now();
@@ -380,8 +421,8 @@ namespace Leon {
                                     float saSample = 1.0f / (static_cast<float>(SAMPLE_COUNT) * pdf + 0.0001f);
                                     // Karis PDF LOD with +1.0f mip bias to guarantee solid angle footprint coverage
                                     float sampleLod = (roughness == 0.0f)
-                                        ? 0.0f
-                                        : std::max(0.5f * std::log2(saSample / saTexel) + 1.0f, 0.0f);
+                                                          ? 0.0f
+                                                          : std::max(0.5f * std::log2(saSample / saTexel) + 1.0f, 0.0f);
 
                                     glm::vec3 sampleVal;
                                     if (hdrData) {
@@ -408,24 +449,26 @@ namespace Leon {
                 }
                 auto mipEndT = std::chrono::high_resolution_clock::now();
                 float mipDurMs = std::chrono::duration<float, std::milli>(mipEndT - mipStartT).count();
-                LE_CORE_INFO("  [PROFILE] Prefilter Mip {0} ({1}x{1}x6, 256 samples/px, Karis PDF lod) generated in {2:.2f} ms",
-                             mip, mipSize, mipDurMs);
+                LE_CORE_INFO(
+                    "  [PROFILE] Prefilter Mip {0} ({1}x{1}x6, 256 samples/px, Karis PDF lod) generated in {2:.2f} ms",
+                    mip, mipSize, mipDurMs);
             }
         }
 
         // 6. Save baked IBL result to disk cache for instantaneous future startups
-        if (InSkybox.bUseHDREnvironmentMap && !hdrPath.empty()) {
-            SaveIBLCache(hdrPath, envFaces, irradFaces, prefilterMips);
-            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v4) to '{0}'", GetIBLCachePath(hdrPath));
+        if (InSkybox.bUseHDREnvironmentMap && !resolvedHdrPath.empty()) {
+            SaveIBLCache(resolvedHdrPath, envFaces, irradFaces, prefilterMips);
+            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v4) to '{0}'", GetIBLCachePath(resolvedHdrPath));
         }
 
-        if (hdrData) {
-            stbi_image_free(hdrData);
+        if (hdrDataAlloc) {
+            stbi_image_free(hdrDataAlloc);
         }
 
         auto totalEndT = std::chrono::high_resolution_clock::now();
         float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-        LE_CORE_INFO("FIBLGenerator: Real Cook-Torrance IBL Environment generated in TOTAL {0:.2f} ms ({1:.2f} s).", totalDurMs, totalDurMs / 1000.0f);
+        LE_CORE_INFO("FIBLGenerator: Real Cook-Torrance IBL Environment generated in TOTAL {0:.2f} ms ({1:.2f} s).",
+                     totalDurMs, totalDurMs / 1000.0f);
         return env;
     }
 

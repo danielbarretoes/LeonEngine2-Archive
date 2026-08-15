@@ -38,11 +38,8 @@ namespace Leon {
          * @param OutWorldUnitsPerTexel Outputs the world-space size of a single shadow texel
          * @return glm::mat4 Combined LightProjection * LightView matrix
          */
-        glm::mat4 CalculateCascadeMatrix(const std::array<glm::vec3, 8>& InFrustumCorners,
-                                         const glm::vec3& InLightDir,
-                                         uint32_t InResolution,
-                                         bool bInStabilize,
-                                         float& OutWorldUnitsPerTexel);
+        glm::mat4 CalculateCascadeMatrix(const std::array<glm::vec3, 8>& InFrustumCorners, const glm::vec3& InLightDir,
+                                         uint32_t InResolution, bool bInStabilize, float& OutWorldUnitsPerTexel);
 
         /**
          * @brief Computes UV scale and offset for a 2x2 atlas partition.

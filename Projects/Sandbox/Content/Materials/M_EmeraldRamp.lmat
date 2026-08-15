@@ -2,9 +2,7 @@
 Material:
   Type: "PBR_Lit"
   AlbedoColor: [0.05, 0.85, 0.45]
-  Metallic: 0.25
-  Roughness: 0.15
+  Metallic: 0.0
+  Roughness: 0.08
   AO: 1.0
-  NormalMap: "Projects/Sandbox/Content/Assets/Textures/T_MetalPlates_N.png"
-  AOMap: "Projects/Sandbox/Content/Assets/Textures/T_MetalPlates_AO.png"
   UsePlanarReflection: false

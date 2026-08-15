@@ -1,8 +1,11 @@
 #include "LeonEngine.hpp"
 #include "OpenGLRenderDriver.hpp"
+#include "renderer/AssetManager.hpp"
 
 #include <chrono>
 #include <cmath>
+#include <iostream>
+#include <filesystem>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -15,6 +18,8 @@ public:
 
     void OnAttach() override {
         auto startTime = std::chrono::high_resolution_clock::now();
+
+        Leon::FAssetManager::SetContentRoot("Projects/Sandbox/Content");
 
         LE_INFO("FLightingShowcaseLayer attached! Initializing Cook-Torrance PBR & Atmospheric Skybox Pipeline.");
         LE_INFO("Loading Level from Asset: {0}", m_LevelPath);
@@ -36,8 +41,10 @@ public:
         LE_INFO("  - F5: Cycle Post-Process Debug Mode (Full -> Raw HDR -> Bloom -> Bright-Pass -> Tone Mapping Only)");
         LE_INFO("  - F6 / F7: Adjust Exposure Down / Up (-0.10 / +0.10)");
         LE_INFO("  - F8 / F9: Adjust Bloom Intensity Down / Up (-0.01 / +0.01)");
-        LE_INFO("  - F10: Cycle Material Forensic Debug Views (BaseColor -> Metallic -> Roughness -> Normal -> AO -> Emissive -> T -> B -> UV -> N.L)");
-        LE_INFO("  - F11: Cycle Shadow Forensic Debug Views (Composite -> Shadow Factor -> Cascade False-Color -> Contact Shadows -> Depth 0..3)");
+        LE_INFO("  - F10: Cycle Material Forensic Debug Views (BaseColor -> Metallic -> Roughness -> Normal -> AO -> "
+                "Emissive -> T -> B -> UV -> N.L)");
+        LE_INFO("  - F11: Cycle Shadow Forensic Debug Views (Composite -> Shadow Factor -> Cascade False-Color -> "
+                "Contact Shadows -> Depth 0..3)");
         LE_INFO("  - F12: Cycle Shadow Filter Modes (Hard -> PCF 3x3 -> PCF 5x5 -> Poisson Disk 16-Tap)");
         LE_INFO("  - Shift + F1:  Full Composite PBR Lit (Default)");
         LE_INFO("  - Shift + F2:  Environment Cubemap (LOD 0)");
@@ -56,7 +63,7 @@ public:
 
         // 1. Initialize Scene (ECS) and Deserialize Level from .llevel asset file
         m_Scene = Leon::FScene::Create();
-        Leon::FSceneSerializer serializer(m_Scene);
+        Leon::FLevelSerializer serializer(m_Scene);
         if (!serializer.Deserialize(m_LevelPath)) {
             LE_ERROR("Failed to load startup level: {0}", m_LevelPath);
         }
@@ -70,24 +77,69 @@ public:
                 m_GoldSphereEntity = entity;
             else if (tag.Tag == "PBR Glossy Ruby Sphere")
                 m_RedSphereEntity = entity;
+            else if (tag.Tag == "PBR Mirror Chrome Sphere")
+                m_ChromeSphereEntity = entity;
             else if (tag.Tag == "Orbiting Point Light")
                 m_PointLightEntity = entity;
+            else if (tag.Tag == "Accent Magenta Point Light")
+                m_PointLight2Entity = entity;
             else if (tag.Tag == "Dramatic Spotlight")
                 m_SpotLightEntity = entity;
+            else if (tag.Tag == "Golden Raking Spotlight")
+                m_SpotLight2Entity = entity;
             else if (tag.Tag == "Directional Sunlight")
                 m_DirLightEntity = entity;
         }
 
-        // Set initial camera position looking down at the stage
-        m_CameraController.GetCamera().SetPosition({0.0f, 4.0f, 7.5f});
-        m_CameraController.GetCamera().SetRotation(-22.0f, -90.0f);
+        // Set initial camera position looking down at the stage or from level's primary camera
+        bool bFoundPrimaryCamera = false;
+        auto camView = m_Scene->GetRegistry().view<Leon::FCameraComponent, Leon::FTransformComponent>();
+        for (auto entityHandle : camView) {
+            const auto& [camComp, transform] =
+                camView.get<Leon::FCameraComponent, Leon::FTransformComponent>(entityHandle);
+            if (camComp.bPrimary) {
+                m_CameraController.GetCamera().SetPosition(transform.Translation);
+                m_CameraController.GetCamera().SetRotation(transform.Rotation.x, transform.Rotation.y);
+                m_CameraController.GetCamera().SetFOV(camComp.Camera.GetFOV());
+                bFoundPrimaryCamera = true;
+                break;
+            }
+        }
+        if (!bFoundPrimaryCamera) {
+            m_CameraController.GetCamera().SetPosition({0.0f, 4.5f, 9.5f});
+            m_CameraController.GetCamera().SetRotation(-18.0f, -90.0f);
+        }
+
+        size_t totalActors = m_Scene->GetRegistry().view<Leon::FTagComponent>().size();
+        size_t meshActors = m_Scene->GetRegistry().view<Leon::FMeshComponent>().size() +
+                            m_Scene->GetRegistry().view<Leon::FStaticMeshComponent>().size();
+        size_t dirLights = m_Scene->GetRegistry().view<Leon::FDirectionalLightComponent>().size();
+        size_t pointLights = m_Scene->GetRegistry().view<Leon::FPointLightComponent>().size();
+        size_t spotLights = m_Scene->GetRegistry().view<Leon::FSpotLightComponent>().size();
+        size_t cameras = m_Scene->GetRegistry().view<Leon::FCameraComponent>().size();
+
+        std::filesystem::path lp(m_LevelPath);
+        std::cout << "\n[Level] Loading: " << lp.filename().string() << "\n";
+        std::cout << "[Level] Actors: " << totalActors << "\n";
+        std::cout << "[Level] Mesh Actors: " << meshActors << "\n";
+        std::cout << "[Level] Directional Lights: " << dirLights << "\n";
+        std::cout << "[Level] Point Lights: " << pointLights << "\n";
+        std::cout << "[Level] Spot Lights: " << spotLights << "\n";
+        std::cout << "[Level] Cameras: " << cameras << "\n\n";
+
+        std::cout << "[Renderer] Initializing...\n";
+        std::cout << "[Renderer] Loading assets...\n";
+        std::cout << "[Renderer] Level ready.\n\n";
+
+        std::cout << "[Sandbox] Renderer Showcase loaded successfully.\n";
+        std::cout << "[Sandbox] READY\n" << std::flush;
 
         auto endTime = std::chrono::high_resolution_clock::now();
         float levelLoadDurationMs = std::chrono::duration<float, std::milli>(endTime - startTime).count();
         float totalFromWindowOpenMs = Leon::FApplication::Get().GetTimeSinceWindowOpenMs();
 
-        LE_INFO("Level loaded complete. Loaded '{0}' in {1:.2f} ms ({2:.2f} ms since window opened).",
-                m_LevelPath, levelLoadDurationMs, totalFromWindowOpenMs);
+        LE_INFO("Level loaded complete. Loaded '{0}' in {1:.2f} ms ({2:.2f} ms since window opened).", m_LevelPath,
+                levelLoadDurationMs, totalFromWindowOpenMs);
     }
 
     void OnDetach() override { LE_INFO("FLightingShowcaseLayer detached."); }
@@ -118,12 +170,17 @@ public:
             transform.Translation.y = 0.7f + std::cos(m_TimeAccumulator * 2.0f) * 0.15f;
             transform.Rotation.y -= 15.0f * InTs.GetSeconds();
         }
+        if (m_ChromeSphereEntity) {
+            auto& transform = m_ChromeSphereEntity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation.y = 0.7f + std::sin(m_TimeAccumulator * 2.5f + 1.0f) * 0.12f;
+            transform.Rotation.y += 20.0f * InTs.GetSeconds();
+        }
 
-        // 2. Orbit Point Light Entity
+        // 2. Orbit Point Light 1 (Amber, clockwise)
         if (m_PointLightEntity) {
-            float orbitRadius = 3.4f;
-            glm::vec3 newPos = glm::vec3(std::cos(m_TimeAccumulator * 1.4f) * orbitRadius, 1.5f,
-                                         std::sin(m_TimeAccumulator * 1.4f) * orbitRadius);
+            float orbitRadius = 5.2f;
+            glm::vec3 newPos = glm::vec3(std::cos(m_TimeAccumulator * 1.2f) * orbitRadius, 1.8f,
+                                         std::sin(m_TimeAccumulator * 1.2f) * orbitRadius);
 
             auto& transform = m_PointLightEntity.GetComponent<Leon::FTransformComponent>();
             transform.Translation = newPos;
@@ -134,50 +191,60 @@ public:
             }
         }
 
+        // 3. Orbit Point Light 2 (Magenta, counter-clockwise)
+        if (m_PointLight2Entity) {
+            float orbitRadius = 4.8f;
+            glm::vec3 newPos = glm::vec3(std::cos(-m_TimeAccumulator * 0.9f + 1.57f) * orbitRadius, 2.0f,
+                                         std::sin(-m_TimeAccumulator * 0.9f + 1.57f) * orbitRadius);
+
+            auto& transform = m_PointLight2Entity.GetComponent<Leon::FTransformComponent>();
+            transform.Translation = newPos;
+
+            if (m_PointLight2Entity.HasComponent<Leon::FPointLightComponent>()) {
+                auto& pointLightComp = m_PointLight2Entity.GetComponent<Leon::FPointLightComponent>();
+                pointLightComp.Light.Position = newPos;
+            }
+        }
+
         // ==========================================
         // Render Scene Pipeline (CSM + Spot + Reflection + PBR + Skybox + Post-Process)
         // ==========================================
         m_Scene->OnRender(m_CameraController.GetCamera());
 
         // Render 3D Light Debug Gizmos (F2 Toggle)
+        // Render 3D Light Debug Gizmos (F2 Toggle)
         if (Leon::FApplication::Get().IsLightGizmosEnabled() && m_Scene) {
             Leon::FDebugRenderer::BeginScene(m_CameraController.GetCamera());
 
             auto& reg = m_Scene->GetRegistry();
 
-            auto pointView = reg.view<Leon::FPointLightComponent>();
-            for (auto entity : pointView) {
-                const auto& pointComp = pointView.get<Leon::FPointLightComponent>(entity);
-                if (pointComp.bEnabled) {
-                    Leon::FPointLight light = pointComp.Light;
-                    if (reg.all_of<Leon::FTransformComponent>(entity)) {
-                        light.Position = reg.get<Leon::FTransformComponent>(entity).Translation;
-                    }
-                    Leon::FDebugRenderer::DrawPointLightGizmo(light);
-                }
-            }
-
-            auto spotView = reg.view<Leon::FSpotLightComponent>();
-            for (auto entity : spotView) {
-                const auto& spotComp = spotView.get<Leon::FSpotLightComponent>(entity);
-                if (spotComp.bEnabled) {
-                    Leon::FSpotLight light = spotComp.Light;
-                    if (reg.all_of<Leon::FTransformComponent>(entity)) {
-                        light.Position = reg.get<Leon::FTransformComponent>(entity).Translation;
-                    }
-                    Leon::FDebugRenderer::DrawSpotLightGizmo(light);
-                }
-            }
-
-            auto dirView = reg.view<Leon::FDirectionalLightComponent>();
-            for (auto entity : dirView) {
-                const auto& dirComp = dirView.get<Leon::FDirectionalLightComponent>(entity);
+            // 1. Directional Light Vector & Arrow
+            auto dirView = reg.view<Leon::FDirectionalLightComponent, Leon::FTransformComponent>();
+            for (auto entityHandle : dirView) {
+                const auto& [dirComp, transform] =
+                    dirView.get<Leon::FDirectionalLightComponent, Leon::FTransformComponent>(entityHandle);
                 if (dirComp.bEnabled) {
-                    glm::vec3 pos = glm::vec3(0.0f, 3.5f, 0.0f);
-                    if (reg.all_of<Leon::FTransformComponent>(entity)) {
-                        pos = reg.get<Leon::FTransformComponent>(entity).Translation;
-                    }
-                    Leon::FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, pos);
+                    Leon::FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, transform.Translation, 2.5f);
+                }
+            }
+
+            // 2. Point Light Origin & Attenuation Radii
+            auto pointView = reg.view<Leon::FPointLightComponent, Leon::FTransformComponent>();
+            for (auto entityHandle : pointView) {
+                const auto& [pointComp, transform] =
+                    pointView.get<Leon::FPointLightComponent, Leon::FTransformComponent>(entityHandle);
+                if (pointComp.bEnabled) {
+                    Leon::FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
+                }
+            }
+
+            // 3. Spot Light Origin, Axis & Cone Wireframe
+            auto spotView = reg.view<Leon::FSpotLightComponent, Leon::FTransformComponent>();
+            for (auto entityHandle : spotView) {
+                const auto& [spotComp, transform] =
+                    spotView.get<Leon::FSpotLightComponent, Leon::FTransformComponent>(entityHandle);
+                if (spotComp.bEnabled) {
+                    Leon::FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
                 }
             }
 
@@ -190,17 +257,17 @@ public:
 
         Leon::FEventDispatcher dispatcher(InEvent);
         dispatcher.Dispatch<Leon::FKeyPressedEvent>([this](Leon::FKeyPressedEvent& e) {
-            if (e.IsRepeat() || !m_Scene || !m_Scene->GetSceneRenderer()) return false;
+            auto key = e.GetKeyCode();
+            auto renderer = m_Scene ? m_Scene->GetSceneRenderer() : nullptr;
 
-            int key = e.GetKeyCode();
-            bool bShift = Leon::FInput::IsKeyPressed(Leon::Key::LeftShift) ||
-                          Leon::FInput::IsKeyPressed(Leon::Key::RightShift);
-            auto* renderer = m_Scene->GetSceneRenderer();
+            // Shift + Function Keys: Diagnostic Views
+            if (Leon::FInput::IsKeyPressed(Leon::Key::LeftShift) || Leon::FInput::IsKeyPressed(Leon::Key::RightShift)) {
+                if (!renderer)
+                    return false;
 
-            if (bShift) {
                 if (key == Leon::Key::F1) {
                     renderer->SetDebugMode(0);
-                    LE_INFO("[DEBUG VIEW] Full Composite PBR Lit (Default)");
+                    LE_INFO("[DEBUG VIEW] Full Composite PBR Lit");
                     return true;
                 } else if (key == Leon::Key::F2) {
                     renderer->SetDebugMode(1);
@@ -255,90 +322,87 @@ public:
                     LE_INFO("[DEBUG VIEW] World-Space Reflection Vector R");
                     return true;
                 }
-            } else {
-                auto& ppSettings = renderer->GetPostProcessSettings();
+            }
+
+            if (renderer) {
+                auto& postSettings = renderer->GetPostProcessSettings();
+
                 if (key == Leon::Key::F3) {
-                    ppSettings.bEnabled = !ppSettings.bEnabled;
-                    LE_INFO("[POST-PROCESS] Pipeline {0}", ppSettings.bEnabled ? "ENABLED" : "DISABLED (Raw Linear Pass-through)");
+                    postSettings.bEnabled = !postSettings.bEnabled;
+                    LE_INFO("[POST-PROCESS] Pipeline {0}",
+                            postSettings.bEnabled ? "ENABLED" : "DISABLED (Raw Linear Pass-through)");
                     return true;
                 } else if (key == Leon::Key::F4) {
-                    ppSettings.bFXAAEnabled = !ppSettings.bFXAAEnabled;
-                    LE_INFO("[POST-PROCESS] FXAA Anti-Aliasing {0}", ppSettings.bFXAAEnabled ? "ENABLED" : "DISABLED");
+                    postSettings.bFXAAEnabled = !postSettings.bFXAAEnabled;
+                    LE_INFO("[POST-PROCESS] FXAA Anti-Aliasing {0}",
+                            postSettings.bFXAAEnabled ? "ENABLED" : "DISABLED");
                     return true;
                 } else if (key == Leon::Key::F5) {
-                    ppSettings.DebugMode = (ppSettings.DebugMode + 1) % 5;
-                    const char* modeNames[] = {
-                        "Full Composite Post-Process (Bloom + ACES + FXAA)",
-                        "Raw HDR Scene (Before Post-Processing)",
-                        "Bloom Glow Output Only",
-                        "Bright-Pass High-Luminance Extract Only",
-                        "Tone Mapping Output Only (No FXAA)"
-                    };
-                    LE_INFO("[POST-PROCESS DEBUG] Mode {0}: {1}", ppSettings.DebugMode, modeNames[ppSettings.DebugMode]);
+                    postSettings.DebugMode = (postSettings.DebugMode + 1) % 5;
+                    static const char* s_ModeNames[] = {"Full Post-Processing", "Raw HDR (Linear Pre-ToneMap)",
+                                                        "Bloom Composite Only", "Bright-Pass Isolation Only",
+                                                        "Tone Mapping Only (No Bloom)"};
+                    LE_INFO("[POST-PROCESS DEBUG] Mode: {0}", s_ModeNames[postSettings.DebugMode]);
                     return true;
                 } else if (key == Leon::Key::F6) {
-                    ppSettings.Exposure = std::max(ppSettings.Exposure - 0.1f, 0.1f);
-                    LE_INFO("[POST-PROCESS] Exposure: {0:.2f}", ppSettings.Exposure);
+                    postSettings.Exposure = std::max(0.1f, postSettings.Exposure - 0.1f);
+                    LE_INFO("[POST-PROCESS] Exposure: {0:.2f}", postSettings.Exposure);
                     return true;
                 } else if (key == Leon::Key::F7) {
-                    ppSettings.Exposure += 0.1f;
-                    LE_INFO("[POST-PROCESS] Exposure: {0:.2f}", ppSettings.Exposure);
+                    postSettings.Exposure = std::min(10.0f, postSettings.Exposure + 0.1f);
+                    LE_INFO("[POST-PROCESS] Exposure: {0:.2f}", postSettings.Exposure);
                     return true;
                 } else if (key == Leon::Key::F8) {
-                    ppSettings.BloomIntensity = std::max(ppSettings.BloomIntensity - 0.01f, 0.0f);
-                    LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", ppSettings.BloomIntensity);
+                    postSettings.BloomIntensity = std::max(0.0f, postSettings.BloomIntensity - 0.01f);
+                    LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", postSettings.BloomIntensity);
                     return true;
                 } else if (key == Leon::Key::F9) {
-                    ppSettings.BloomIntensity += 0.01f;
-                    LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", ppSettings.BloomIntensity);
+                    postSettings.BloomIntensity = std::min(1.0f, postSettings.BloomIntensity + 0.01f);
+                    LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", postSettings.BloomIntensity);
                     return true;
                 } else if (key == Leon::Key::F10) {
                     static int s_MatDebugIndex = 0;
-                    static const int s_MatModes[] = { 0, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 };
-                    static const char* s_MatNames[] = {
-                        "Full Shading Composite",
-                        "Base Color / Albedo",
-                        "Metallic",
-                        "Roughness",
-                        "World Normal (Mapped [0, 1])",
-                        "Ambient Occlusion (AO)",
-                        "Emissive Radiance",
-                        "Tangent T (Mapped [0, 1])",
-                        "Bitangent B (Mapped [0, 1])",
-                        "UV Coordinates (Fract)",
-                        "Direct Sunlight N.L"
-                    };
+                    static int s_MatModes[] = {0, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+                    static const char* s_MatNames[] = {"Full Lit (Composite)",
+                                                       "Albedo / Base Color",
+                                                       "Metallic",
+                                                       "Roughness",
+                                                       "World Normals (N)",
+                                                       "Ambient Occlusion",
+                                                       "Emissive",
+                                                       "World Tangent (T)",
+                                                       "World Bitangent (B)",
+                                                       "Texture Coordinates (UV0)",
+                                                       "Direct Lighting Cosine Term (N.L)"};
                     s_MatDebugIndex = (s_MatDebugIndex + 1) % 11;
                     renderer->SetDebugMode(s_MatModes[s_MatDebugIndex]);
-                    LE_INFO("[MATERIAL DEBUG VIEW] Mode {0}: {1}", s_MatModes[s_MatDebugIndex], s_MatNames[s_MatDebugIndex]);
+                    LE_INFO("[MATERIAL DEBUG VIEW] Mode {0}: {1}", s_MatModes[s_MatDebugIndex],
+                            s_MatNames[s_MatDebugIndex]);
                     return true;
                 } else if (key == Leon::Key::F11) {
                     static int s_ShadowDebugIndex = 0;
-                    static const int s_ShadowModes[] = { 0, 24, 25, 26, 27, 28, 29, 30 };
+                    static int s_ShadowModes[] = {0, 24, 25, 26, 27, 28, 29, 30};
                     static const char* s_ShadowNames[] = {
-                        "Full Shading Composite",
-                        "Direct Shadow Factor (1.0 = lit, 0.0 = occluded)",
-                        "Cascade Slice Index False-Color (0:Red, 1:Green, 2:Blue, 3:Yellow)",
+                        "Full Lit (Default Composite)",
+                        "Directional Shadow Factor (White=Lit, Black=Shadow)",
+                        "CSM Cascade False-Color Visualization (Red=C0, Green=C1, Blue=C2, Yellow=C3)",
                         "Screen-Space Contact Shadow Factor",
                         "Cascade 0 Depth Map Slice",
                         "Cascade 1 Depth Map Slice",
                         "Cascade 2 Depth Map Slice",
-                        "Cascade 3 Depth Map Slice"
-                    };
+                        "Cascade 3 Depth Map Slice"};
                     s_ShadowDebugIndex = (s_ShadowDebugIndex + 1) % 8;
                     renderer->SetDebugMode(s_ShadowModes[s_ShadowDebugIndex]);
-                    LE_INFO("[SHADOW DEBUG VIEW] Mode {0}: {1}", s_ShadowModes[s_ShadowDebugIndex], s_ShadowNames[s_ShadowDebugIndex]);
+                    LE_INFO("[SHADOW DEBUG VIEW] Mode {0}: {1}", s_ShadowModes[s_ShadowDebugIndex],
+                            s_ShadowNames[s_ShadowDebugIndex]);
                     return true;
                 } else if (key == Leon::Key::F12) {
                     auto& shadowSettings = renderer->GetShadowSettings();
                     int nextMode = (static_cast<int>(shadowSettings.FilterMode) + 1) % 4;
                     shadowSettings.FilterMode = static_cast<Leon::EShadowFilterMode>(nextMode);
                     static const char* s_FilterNames[] = {
-                        "Hard Shadow (1 Tap)",
-                        "PCF 3x3 (9 Taps Kernel)",
-                        "PCF 5x5 (25 Taps Kernel)",
-                        "Poisson Disk (16 Taps Vogel Spiral with Interleaved Noise Jitter)"
-                    };
+                        "Hard Shadow (1 Tap)", "PCF 3x3 (9 Taps Kernel)", "PCF 5x5 (25 Taps Kernel)",
+                        "Poisson Disk (16 Taps Vogel Spiral with Interleaved Noise Jitter)"};
                     LE_INFO("[SHADOW FILTER MODE] Switched to: {0}", s_FilterNames[nextMode]);
                     return true;
                 }
@@ -354,8 +418,11 @@ private:
     // Entity References
     Leon::FEntity m_GoldSphereEntity;
     Leon::FEntity m_RedSphereEntity;
+    Leon::FEntity m_ChromeSphereEntity;
     Leon::FEntity m_PointLightEntity;
+    Leon::FEntity m_PointLight2Entity;
     Leon::FEntity m_SpotLightEntity;
+    Leon::FEntity m_SpotLight2Entity;
     Leon::FEntity m_DirLightEntity;
 
     // Camera
@@ -374,23 +441,28 @@ public:
     ~FSandboxApp() override = default;
 };
 
-Leon::FApplication* Leon::CreateApplication() {
+Leon::FApplication* Leon::CreateApplication(Leon::FApplicationCommandLineArgs InArgs) {
     Leon::FOpenGLRenderDriver::Register();
 
-    // 1. Load Project Configuration from INI file
-    Leon::FConfigFile engineConfig("Projects/Sandbox/Config/DefaultEngine.ini");
+    std::string levelPath = "Projects/Sandbox/Content/Maps/MainShowcase.llevel";
 
-    std::string windowTitle =
-        engineConfig.GetString("/Script/Engine.DisplaySettings", "WindowTitle", "LeonEngine2 - Next-Gen Engine");
-    int windowWidth = engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowWidth", 1280);
-    int windowHeight = engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowHeight", 720);
-    std::string startupLevel = engineConfig.GetString(
-        "/Script/EngineSettings.GameMapsSettings", "GameDefaultMap", "Projects/Sandbox/Content/Maps/MainShowcase.llevel");
+    // Optional command-line level override
+    for (int i = 1; i < InArgs.Count; ++i) {
+        if (!InArgs[i])
+            continue;
+        std::string arg = InArgs[i];
+        if (arg == "--level" && i + 1 < InArgs.Count && InArgs[i + 1]) {
+            levelPath = InArgs[++i];
+        } else if (arg.rfind("-", 0) != 0) {
+            levelPath = arg;
+        }
+    }
 
     Leon::FApplicationProps appProps;
-    appProps.Name = windowTitle;
-    appProps.WindowWidth = static_cast<unsigned int>(windowWidth);
-    appProps.WindowHeight = static_cast<unsigned int>(windowHeight);
+    appProps.Name = "LeonEngine2 - Renderer Showcase";
+    appProps.WindowWidth = 1280;
+    appProps.WindowHeight = 720;
+    appProps.CommandLineArgs = InArgs;
 
-    return new FSandboxApp(appProps, startupLevel);
+    return new FSandboxApp(appProps, levelPath);
 }

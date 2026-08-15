@@ -1,24 +1,25 @@
 #include <doctest/doctest.h>
-#include <stb_image.h>
+#include "asset/HDRImporter.hpp"
 #include "renderer/IBLMath.hpp"
 
 TEST_SUITE("IBL - Irradiance Cubemap Spatial Continuity") {
 
     TEST_CASE("All 6 Faces x 32x32 Spatial Neighbor Outlier Ratio <= 1.25x (Zero Fireflies)") {
-        const std::string hdrPath = "Projects/Sandbox/Content/Assets/Hdr/AutumnField1k.hdr";
+        const std::string hdrPath = "Projects/Sandbox/Content/HDR/AutumnField1k.lhdr";
         if (!std::filesystem::exists(hdrPath)) {
-            MESSAGE("AutumnField1k.hdr not found — skipping asset continuity test.");
+            MESSAGE("AutumnField1k.lhdr not found — skipping asset continuity test.");
             return;
         }
 
-        int width = 0, height = 0, channels = 0;
-        stbi_set_flip_vertically_on_load(0);
-        float* hdrData = stbi_loadf(hdrPath.c_str(), &width, &height, &channels, 4);
-        REQUIRE(hdrData != nullptr);
+        Leon::FNativeHDRData nativeData;
+        REQUIRE(nativeData.LoadFromFile(hdrPath));
+        int width = nativeData.Header.Width;
+        int height = nativeData.Header.Height;
+        REQUIRE(width == 1024);
+        REQUIRE(height == 512);
 
         Leon::FHDREquirectangularMipChain mipChain;
-        mipChain.Build(hdrData, width, height);
-        stbi_image_free(hdrData);
+        mipChain.Build(nativeData.Pixels.data(), width, height);
 
         const int irradSize = 32;
         const uint32_t sampleCount = 512;

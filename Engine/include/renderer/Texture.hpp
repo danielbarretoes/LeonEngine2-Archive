@@ -10,8 +10,8 @@ namespace Leon {
      * Used when the default RGBA8 is insufficient (e.g. BRDF LUT, HDR offscreen targets).
      */
     enum class ETextureFormat : uint8_t {
-        RGBA8   = 0, ///< Default: 8-bit RGBA unsigned
-        RG16F   = 1, ///< 2-channel half-float  (BRDF LUT)
+        RGBA8 = 0,   ///< Default: 8-bit RGBA unsigned
+        RG16F = 1,   ///< 2-channel half-float  (BRDF LUT)
         RGBA16F = 2, ///< 4-channel half-float  (HDR framebuffer)
         RGBA32F = 3, ///< 4-channel full-float  (HDR environment maps)
     };

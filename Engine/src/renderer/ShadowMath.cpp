@@ -8,9 +8,10 @@ namespace Leon {
 
     namespace ShadowMath {
 
-        std::vector<float> CalculateCascadeSplits(uint32_t InCount, float InNearClip, float InFarClip,
-                                                  float InLambda, ECascadeSplitScheme InScheme) {
-            if (InCount == 0) return {InNearClip, InFarClip};
+        std::vector<float> CalculateCascadeSplits(uint32_t InCount, float InNearClip, float InFarClip, float InLambda,
+                                                  ECascadeSplitScheme InScheme) {
+            if (InCount == 0)
+                return {InNearClip, InFarClip};
 
             std::vector<float> splits(InCount + 1);
             splits[0] = InNearClip;
@@ -25,7 +26,7 @@ namespace Leon {
             lambda = std::clamp(lambda, 0.0f, 1.0f);
 
             float nearFarRatio = InFarClip / std::max(InNearClip, 0.0001f);
-            float clipRange    = InFarClip - InNearClip;
+            float clipRange = InFarClip - InNearClip;
 
             for (uint32_t i = 1; i < InCount; ++i) {
                 float p = static_cast<float>(i) / static_cast<float>(InCount);
@@ -45,12 +46,9 @@ namespace Leon {
             for (int x = 0; x < 2; ++x) {
                 for (int y = 0; y < 2; ++y) {
                     for (int z = 0; z < 2; ++z) {
-                        glm::vec4 pt = invVP * glm::vec4(
-                            2.0f * static_cast<float>(x) - 1.0f,
-                            2.0f * static_cast<float>(y) - 1.0f,
-                            2.0f * static_cast<float>(z) - 1.0f,
-                            1.0f
-                        );
+                        glm::vec4 pt =
+                            invVP * glm::vec4(2.0f * static_cast<float>(x) - 1.0f, 2.0f * static_cast<float>(y) - 1.0f,
+                                              2.0f * static_cast<float>(z) - 1.0f, 1.0f);
                         corners[idx++] = glm::vec3(pt / pt.w);
                     }
                 }
@@ -59,13 +57,11 @@ namespace Leon {
             return corners;
         }
 
-        glm::mat4 CalculateCascadeMatrix(const std::array<glm::vec3, 8>& InFrustumCorners,
-                                         const glm::vec3& InLightDir,
-                                         uint32_t InResolution,
-                                         bool bInStabilize,
-                                         float& OutWorldUnitsPerTexel) {
+        glm::mat4 CalculateCascadeMatrix(const std::array<glm::vec3, 8>& InFrustumCorners, const glm::vec3& InLightDir,
+                                         uint32_t InResolution, bool bInStabilize, float& OutWorldUnitsPerTexel) {
             glm::vec3 lightDirNorm = glm::normalize(InLightDir);
-            glm::vec3 up = (std::abs(lightDirNorm.y) < 0.99f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(0.0f, 0.0f, 1.0f);
+            glm::vec3 up =
+                (std::abs(lightDirNorm.y) < 0.99f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(0.0f, 0.0f, 1.0f);
 
             // Compute geometric centroid of the frustum slice
             glm::vec3 center(0.0f);
@@ -106,7 +102,7 @@ namespace Leon {
 
                 // Symmetrical orthographic bounds aligned with bounding sphere radius
                 float nearPlane = 0.1f;
-                float farPlane  = zMargin * 2.0f;
+                float farPlane = zMargin * 2.0f;
                 glm::mat4 lightProj = glm::ortho(-radius, radius, -radius, radius, nearPlane, farPlane);
 
                 return lightProj * lightView;
@@ -121,9 +117,12 @@ namespace Leon {
 
                 for (const auto& v : InFrustumCorners) {
                     glm::vec4 trf = lightView * glm::vec4(v, 1.0f);
-                    minX = std::min(minX, trf.x); maxX = std::max(maxX, trf.x);
-                    minY = std::min(minY, trf.y); maxY = std::max(maxY, trf.y);
-                    minZ = std::min(minZ, trf.z); maxZ = std::max(maxZ, trf.z);
+                    minX = std::min(minX, trf.x);
+                    maxX = std::max(maxX, trf.x);
+                    minY = std::min(minY, trf.y);
+                    maxY = std::max(maxY, trf.y);
+                    minZ = std::min(minZ, trf.z);
+                    maxZ = std::max(maxZ, trf.z);
                 }
 
                 float zMargin = 30.0f;
@@ -142,9 +141,11 @@ namespace Leon {
                 OutWorldUnitsPerTexel = std::max(worldUnitsPerTexelX, worldUnitsPerTexelY);
 
                 float nearPlane = -maxZ;
-                float farPlane  = -minZ;
-                if (nearPlane > farPlane) std::swap(nearPlane, farPlane);
-                if (nearPlane < 0.1f) nearPlane = 0.1f;
+                float farPlane = -minZ;
+                if (nearPlane > farPlane)
+                    std::swap(nearPlane, farPlane);
+                if (nearPlane < 0.1f)
+                    nearPlane = 0.1f;
 
                 glm::mat4 lightProj = glm::ortho(minX, maxX, minY, maxY, nearPlane, farPlane);
                 return lightProj * lightView;
@@ -153,11 +154,15 @@ namespace Leon {
 
         glm::vec4 GetAtlasScaleOffset2x2(uint32_t InCascadeIndex) {
             switch (InCascadeIndex) {
-            case 0: return glm::vec4(0.5f, 0.5f, 0.0f, 0.0f);
-            case 1: return glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
-            case 2: return glm::vec4(0.5f, 0.5f, 0.0f, 0.5f);
+            case 0:
+                return glm::vec4(0.5f, 0.5f, 0.0f, 0.0f);
+            case 1:
+                return glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
+            case 2:
+                return glm::vec4(0.5f, 0.5f, 0.0f, 0.5f);
             case 3:
-            default: return glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
+            default:
+                return glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
             }
         }
 
