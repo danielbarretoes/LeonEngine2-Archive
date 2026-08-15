@@ -3,6 +3,7 @@
 #include "core/Log.hpp"
 #include "world/MaterialSerializer.hpp"
 
+#include "core/ProjectPaths.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -55,29 +56,8 @@ namespace Leon {
         if (InVirtualPath.empty())
             return "";
 
-        std::string norm = FAssetPath::Normalize(InVirtualPath);
-
-        // 1. If file exists directly as given
-        if (std::filesystem::exists(norm))
-            return norm;
-
-        // 2. If content root is set, check relative to content root
-        if (!s_ContentRoot.empty()) {
-            std::string combined = FAssetPath::Combine(s_ContentRoot, norm);
-            if (std::filesystem::exists(combined))
-                return combined;
-        }
-
-        // 3. Standard engine fallback search roots
-        std::vector<std::string> searchRoots = {"Projects/Sandbox/Content", "Content"};
-
-        for (const auto& root : searchRoots) {
-            std::string candidate = FAssetPath::Combine(root, norm);
-            if (std::filesystem::exists(candidate))
-                return candidate;
-        }
-
-        return norm;
+        // Delegate to unified FProjectPaths virtual resolver
+        return FProjectPaths::ResolveVirtualPath(InVirtualPath);
     }
 
     TRef<FTexture2D> FAssetManager::GetDefaultWhiteTexture() {

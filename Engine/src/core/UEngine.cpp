@@ -14,6 +14,10 @@
 #include <filesystem>
 #include <fstream>
 
+#include "asset/AssetPath.hpp"
+#include "core/ProjectDescriptor.hpp"
+#include "core/ProjectPaths.hpp"
+
 namespace Leon {
 
     class FGameViewportLayer : public FLayer {
@@ -87,61 +91,94 @@ namespace Leon {
         return *s_EngineInstance;
     }
 
-    int UEngine::Run(FApplicationCommandLineArgs InArgs, const std::string& InConfigPath) {
+    int UEngine::Run(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath) {
         UEngine engine;
-        return engine.InternalRun(InArgs, InConfigPath);
+        return engine.InternalRun(InArgs, InProjectOrConfigPath);
     }
 
-    int UEngine::InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InConfigPath) {
+    int UEngine::InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath) {
         LE_CORE_INFO("==================================================");
         LE_CORE_INFO("       LeonEngine2 - Unreal Architecture          ");
         LE_CORE_INFO("==================================================");
 
-        // 1. Load DefaultEngine.ini
-        FConfigFile config;
-        std::string configPath = InConfigPath;
-        if (!std::filesystem::exists(configPath)) {
-            LE_CORE_WARN("UEngine: Config '{0}' not found, checking local directory...", configPath);
-            if (std::filesystem::exists("Config/DefaultEngine.ini")) {
-                configPath = "Config/DefaultEngine.ini";
+        // 1. Resolve Project Descriptor (.lproject) & Project Paths
+        std::string projectOrConfigPath = InProjectOrConfigPath;
+        FProjectDescriptor projectDesc;
+
+        // Auto-discover project file if path is a directory or empty
+        if (projectOrConfigPath.empty() || std::filesystem::is_directory(projectOrConfigPath)) {
+            std::string candidateDir = projectOrConfigPath.empty() ? "." : projectOrConfigPath;
+            for (const auto& entry : std::filesystem::directory_iterator(candidateDir)) {
+                if (entry.path().extension() == ".lproject") {
+                    projectOrConfigPath = entry.path().string();
+                    break;
+                }
             }
         }
 
-        if (std::filesystem::exists(configPath)) {
-            config.Load(configPath);
-            LE_CORE_INFO("UEngine: Successfully parsed config from '{0}'", configPath);
+        if (std::filesystem::exists(projectOrConfigPath) &&
+            projectOrConfigPath.rfind(".lproject") == projectOrConfigPath.length() - 9) {
+            if (projectDesc.Load(projectOrConfigPath)) {
+                LE_CORE_INFO("UEngine: Loaded project descriptor '{0}' (Project: {1}, EngineVersion: {2})",
+                             projectOrConfigPath, projectDesc.ProjectName, projectDesc.EngineVersion);
+            }
+            FProjectPaths::SetProjectRoot(projectOrConfigPath);
         } else {
-            LE_CORE_WARN("UEngine: DefaultEngine.ini not found. Using built-in defaults.");
+            FProjectPaths::SetProjectRoot(projectOrConfigPath);
         }
 
-        // Display & Window Settings
-        std::string windowTitle = config.GetString("/Script/Engine.DisplaySettings", "WindowTitle",
-                                                   config.GetString("Display", "WindowTitle", "LeonEngine2"));
-        uint32_t windowWidth = static_cast<uint32_t>(config.GetInt("/Script/Engine.DisplaySettings", "WindowWidth",
-                                                                    config.GetInt("Display", "WindowWidth", 1280)));
-        uint32_t windowHeight = static_cast<uint32_t>(config.GetInt("/Script/Engine.DisplaySettings", "WindowHeight",
-                                                                     config.GetInt("Display", "WindowHeight", 720)));
-        bool bVSync = config.GetBool("/Script/Engine.DisplaySettings", "VSync",
-                                     config.GetBool("Display", "VSync", true));
-        bool bFullscreen = config.GetBool("/Script/Engine.DisplaySettings", "Fullscreen",
-                                          config.GetBool("Display", "Fullscreen", false));
+        FAssetManager::SetContentRoot(FProjectPaths::ProjectContentDir());
+        LE_CORE_INFO("UEngine: Project Root: '{0}', Content Root: '{1}'",
+                     FProjectPaths::ProjectDir(), FProjectPaths::ProjectContentDir());
 
-        // Maps & Game Mode Settings
-        std::string mapPath = config.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
-                                               config.GetString("Game", "StartupMap", "Projects/Sandbox/Content/Maps/NightScene.lmap"));
-        std::string gameModeClass = config.GetString("/Script/EngineSettings.GameMapsSettings", "GlobalDefaultGameMode",
-                                                     config.GetString("Game", "DefaultGameMode", "AGameModeBase"));
+        // 2. Load Multi-INI Configuration Hierarchy
+        FConfigFile engineConfig;
+        FConfigFile gameConfig;
+        FConfigFile inputConfig;
 
-        std::string defaultPawnClass = config.GetString("/Script/Engine.GameModeBase", "DefaultPawnClass",
-                                                        config.GetString("Game", "DefaultPawnClass", "ADefaultPawn"));
-        std::string playerControllerClass = config.GetString("/Script/Engine.GameModeBase", "PlayerControllerClass",
-                                                             config.GetString("Game", "PlayerControllerClass", "APlayerController"));
-        std::string gameStateClass = config.GetString("/Script/Engine.GameModeBase", "GameStateClass",
-                                                      config.GetString("Game", "GameStateClass", "AGameStateBase"));
-        std::string playerStateClass = config.GetString("/Script/Engine.GameModeBase", "PlayerStateClass",
-                                                        config.GetString("Game", "PlayerStateClass", "APlayerState"));
+        std::string engineIniPath = FAssetPath::Combine(FProjectPaths::ProjectConfigDir(), "DefaultEngine.ini");
+        if (std::filesystem::exists(engineIniPath)) {
+            engineConfig.Load(engineIniPath);
+            LE_CORE_INFO("UEngine: Successfully parsed '{0}'", engineIniPath);
+        }
 
-        // 2. Initialize Application Specification
+        std::string gameIniPath = FAssetPath::Combine(FProjectPaths::ProjectConfigDir(), "DefaultGame.ini");
+        if (std::filesystem::exists(gameIniPath)) {
+            gameConfig.Load(gameIniPath);
+            LE_CORE_INFO("UEngine: Successfully parsed '{0}'", gameIniPath);
+        }
+
+        std::string inputIniPath = FAssetPath::Combine(FProjectPaths::ProjectConfigDir(), "DefaultInput.ini");
+        if (std::filesystem::exists(inputIniPath)) {
+            inputConfig.Load(inputIniPath);
+            LE_CORE_INFO("UEngine: Successfully parsed '{0}'", inputIniPath);
+        }
+
+        // Display & Window Settings (from DefaultEngine.ini)
+        std::string windowTitle = engineConfig.GetString("/Script/Engine.DisplaySettings", "WindowTitle",
+                                                         projectDesc.ProjectName.empty() ? "LeonEngine2" : projectDesc.ProjectName);
+        uint32_t windowWidth = static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowWidth", 1280));
+        uint32_t windowHeight = static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowHeight", 720));
+        bool bVSync = engineConfig.GetBool("/Script/Engine.DisplaySettings", "VSync", true);
+
+        // Map & GameMode Settings (Hierarchy: DefaultEngine.ini -> DefaultGame.ini -> Project Descriptor -> Fallback)
+        std::string rawMapPath = engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
+                                                        projectDesc.DefaultMap.empty() ? "/Game/Maps/MainShowcase" : projectDesc.DefaultMap);
+        std::string physicalMapPath = FProjectPaths::ResolveVirtualPath(rawMapPath);
+
+        std::string gameModeClass = engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GlobalDefaultGameMode",
+                                                           projectDesc.DefaultGameMode.empty() ? "AGameModeBase" : projectDesc.DefaultGameMode);
+
+        std::string defaultPawnClass = gameConfig.GetString("/Script/Engine.GameModeBase", "DefaultPawnClass",
+                                                            engineConfig.GetString("/Script/Engine.GameModeBase", "DefaultPawnClass", "ADefaultPawn"));
+        std::string playerControllerClass = gameConfig.GetString("/Script/Engine.GameModeBase", "PlayerControllerClass",
+                                                                 engineConfig.GetString("/Script/Engine.GameModeBase", "PlayerControllerClass", "APlayerController"));
+        std::string gameStateClass = gameConfig.GetString("/Script/Engine.GameModeBase", "GameStateClass",
+                                                          engineConfig.GetString("/Script/Engine.GameModeBase", "GameStateClass", "AGameStateBase"));
+        std::string playerStateClass = gameConfig.GetString("/Script/Engine.GameModeBase", "PlayerStateClass",
+                                                            engineConfig.GetString("/Script/Engine.GameModeBase", "PlayerStateClass", "APlayerState"));
+
+        // 3. Initialize Application Specification
         FApplicationProps appProps;
         appProps.Name = windowTitle;
         appProps.CommandLineArgs = InArgs;
@@ -151,25 +188,27 @@ namespace Leon {
         auto app = CreateScope<FApplication>(appProps);
         app->GetWindow().SetVSync(bVSync);
 
-        // 3. Create UGameInstance & UWorld
+        // 4. Create UGameInstance & UWorld
         m_GameInstance = CreateRef<UGameInstance>("GameInstance");
         m_ActiveWorld = UWorld::Create("MainWorld");
         m_GameInstance->SetWorld(m_ActiveWorld);
         m_GameInstance->Init();
 
-        // 4. Load Map (.lmap)
-        if (std::filesystem::exists(mapPath)) {
+        // 5. Load Map (.lmap)
+        if (std::filesystem::exists(physicalMapPath)) {
             MapSerializer serializer(m_ActiveWorld);
-            if (serializer.Deserialize(mapPath)) {
-                LE_CORE_INFO("UEngine: Loaded map '{0}' with {1} actors", mapPath, m_ActiveWorld->GetAllActors().size());
+            if (serializer.Deserialize(physicalMapPath)) {
+                LE_CORE_INFO("UEngine: Loaded map '{0}' ({1}) with {2} actors",
+                             rawMapPath, physicalMapPath, m_ActiveWorld->GetAllActors().size());
             } else {
-                LE_CORE_ERROR("UEngine: Failed to parse map '{0}'", mapPath);
+                LE_CORE_ERROR("UEngine: Failed to parse map '{0}'", physicalMapPath);
             }
         } else {
-            LE_CORE_WARN("UEngine: Map path '{0}' does not exist on disk. Proceeding with blank world.", mapPath);
+            LE_CORE_WARN("UEngine: Map path '{0}' resolved to '{1}' not found on disk. Proceeding with blank world.",
+                         rawMapPath, physicalMapPath);
         }
 
-        // 5. Instantiate and Configure GameMode
+        // 6. Instantiate and Configure GameMode
         AGameModeBase* gameMode = nullptr;
         if (!gameModeClass.empty() && UClassRegistry::Get().HasClass(gameModeClass)) {
             gameMode = dynamic_cast<AGameModeBase*>(
@@ -187,15 +226,15 @@ namespace Leon {
             m_ActiveWorld->SetGameMode(gameMode);
         }
 
-        // 6. Initialize Gameplay Simulation
+        // 7. Initialize Gameplay Simulation
         m_ActiveWorld->InitWorld();
         m_ActiveWorld->BeginPlay();
 
-        // 7. Push Viewport Layer and Execute Engine Loop
+        // 8. Push Viewport Layer and Execute Engine Loop
         app->PushLayer(new FGameViewportLayer(m_ActiveWorld));
         app->Run();
 
-        // 8. Shutdown & Cleanup
+        // 9. Shutdown & Cleanup
         m_ActiveWorld->EndPlay();
         m_GameInstance->Shutdown();
 

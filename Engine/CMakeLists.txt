@@ -1,5 +1,7 @@
 add_library(LeonEngineCore STATIC
     src/core/ConfigFile.cpp
+    src/core/ProjectDescriptor.cpp
+    src/core/ProjectPaths.cpp
     src/core/Log.cpp
     src/core/Window.cpp
     src/core/Input.cpp

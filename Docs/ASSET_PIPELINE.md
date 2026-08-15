@@ -25,7 +25,7 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
           │         ├─── Master Material (.lmat) [Declarative Key-Value text]
           │         └─── Material Instance (.lmi) [Sparse overrides]
           │
-          └─── Asset Manifest (manifest.json) [64-bit FNV-1a content hashing & dependency graph]
+          └─── Asset Manifest (Intermediate/AssetManifest.json) [64-bit FNV-1a content hashing & dependency graph]
 ```
 
 ---
@@ -63,6 +63,9 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
 Located at `Tools/LeonAssetTool/`:
 
 ```bash
+# Validate complete project descriptor (.lproject), config hierarchy, and default map assets
+LeonAssetTool validate_project --project <path.lproject>
+
 # Import all raw assets (Textures, Meshes, HDR) incrementally
 LeonAssetTool import --raw <raw_dir> --content <content_dir> [--force]
 
@@ -78,13 +81,14 @@ LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi
 
 ---
 
-## 3. Dependency Graph & Incremental Import (`manifest.json`)
-The pipeline uses 64-bit FNV-1a hashing on source files. On subsequent import runs, unchanged assets are skipped with zero processing overhead.
+## 3. Dependency Graph & Incremental Import (`Intermediate/AssetManifest.json`)
+The pipeline uses 64-bit FNV-1a hashing on source files stored in the project's `Intermediate/` cache directory. On subsequent import runs, unchanged assets are skipped with zero processing overhead, keeping the `Content/` directory 100% clean and free of tracking files.
 
 ---
 
-## 4. Integration with Gameplay Framework & ECS
+## 4. Virtual Paths (`/Game/...`, `/Engine/...`) & Gameplay Framework Integration
+- `FProjectPaths`: Resolves package virtual paths (`/Game/Maps/...`, `/Game/Meshes/...`, `/Game/Materials/...`, `/Game/Textures/...`, `/Game/HDR/...`) dynamically to the active project's physical `Content/` directory.
 - `UWorld`: In-memory runtime world and ECS registry owning `AActor` instances and components.
 - `MapSerializer`: Serializes and deserializes persistent map asset files (`.lmap`).
 - `UStaticMeshComponent`: Component holding a reference to `FStaticMesh`, per-submesh material overrides, shadow flags, and reflection flags.
-- `FAssetManager`: Deduplicates all loaded textures, static meshes, materials, and material instances using virtual path resolution (`Meshes/...`, `Materials/...`, `Textures/...`, `HDR/...`).
+- `FAssetManager`: Deduplicates all loaded textures, static meshes, materials, and material instances using virtual path resolution.

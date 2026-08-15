@@ -23,7 +23,7 @@ namespace Leon {
         static UEngine& Get();
 
         static int Run(FApplicationCommandLineArgs InArgs,
-                       const std::string& InConfigPath = "Projects/Sandbox/Config/DefaultEngine.ini");
+                       const std::string& InProjectOrConfigPath = "Projects/Sandbox/Sandbox.lproject");
 
         TRef<UWorld> GetWorld() const { return m_ActiveWorld; }
         TRef<UGameInstance> GetGameInstance() const { return m_GameInstance; }

@@ -13,6 +13,12 @@ out/
 dist/
 _deps/
 .cache/
+Intermediate/
+Saved/
+DerivedDataCache/
+**/Intermediate/
+**/Saved/
+**/DerivedDataCache/
 
 # CMake Artifacts (when configuring in-source or stray files)
 CMakeCache.txt

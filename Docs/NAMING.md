@@ -12,7 +12,7 @@ LeonEngine2 strictly adheres to the standard Unreal Engine prefixing conventions
 | :--- | :--- | :--- | :--- |
 | **Engine & UObject Objects** | `U` | Engine runtime objects, components, worlds | `UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UStaticMeshComponent`, `UCameraComponent`, `UDirectionalLightComponent`, `UPointLightComponent`, `USpotLightComponent`, `UClassRegistry` |
 | **Actors** | `A` | Spawnable gameplay actors placed in a UWorld | `AActor`, `APawn`, `ADefaultPawn`, `APlayerController`, `APlayerState`, `AGameModeBase`, `AGameStateBase`, `ACameraActor`, `APlayerCameraManager` |
-| **Structs & Value Types** | `F` | Plain C++ classes, structures, and value types | `FApplication`, `FWindow`, `FLayer`, `FLayerStack`, `FRenderer`, `FRenderCommand`, `FShader`, `FVertexBuffer`, `FIndexBuffer`, `FVertexArray`, `FTransformComponent`, `FTagComponent`, `FTimestep`, `FLog`, `FConfigFile` |
+| **Structs & Value Types** | `F` | Plain C++ classes, structures, and value types | `FApplication`, `FWindow`, `FLayer`, `FLayerStack`, `FRenderer`, `FRenderCommand`, `FShader`, `FVertexBuffer`, `FIndexBuffer`, `FVertexArray`, `FTransformComponent`, `FTagComponent`, `FTimestep`, `FLog`, `FConfigFile`, `FProjectDescriptor`, `FProjectPaths` |
 | **Interfaces** | `I` | Pure abstract interfaces & RHI contracts | `IGraphicsContext`, `IRenderAPI`, `IRenderDriver` |
 | **Enumerations** | `E` | Enum classes and scoped enumerations | `EShaderDataType`, `ERenderAPI`, `ELogLevel`, `ETextAlignment`, `EShadowFilterMode`, `EEndPlayReason` |
 | **Templates / Smart Pointers** | `T` | Template classes, smart pointer aliases | `TScope<T>`, `TRef<T>`, `MakeScope<T>`, `MakeRef<T>` |

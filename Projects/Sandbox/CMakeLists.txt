@@ -1,5 +1,5 @@
 add_executable(Sandbox
-    src/Main.cpp
+    Source/Sandbox/Main.cpp
 )
 
 target_include_directories(Sandbox PRIVATE

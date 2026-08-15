@@ -13,6 +13,10 @@
 #include "world/Components.hpp"
 #include "world/MapSerializer.hpp"
 
+#include "core/ProjectDescriptor.hpp"
+#include "core/ProjectPaths.hpp"
+#include "core/ConfigFile.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -28,14 +32,16 @@ void PrintUsage() {
     std::cout << " LeonEngine2 Native Asset Tool\n";
     std::cout << "===============================================================\n\n";
     std::cout << "Usage:\n";
+    std::cout << "  LeonAssetTool validate_project --project <path.lproject>\n";
     std::cout << "  LeonAssetTool import --raw <dir> --content <dir> [--force]\n";
     std::cout << "  LeonAssetTool validate --content <dir>\n";
     std::cout << "  LeonAssetTool validate_map --map <path.lmap>\n";
     std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi>\n\n";
     std::cout << "Options:\n";
+    std::cout << "  --project <path>   Project descriptor file (e.g. Projects/Sandbox/Sandbox.lproject)\n";
     std::cout << "  --raw <dir>        Source raw assets directory (e.g. Assets/Raw)\n";
     std::cout << "  --content <dir>    Output native assets directory (e.g. Assets/Content)\n";
-    std::cout << "  --map <path>     Map file path (e.g. Content/Maps/MainShowcase.lmap)\n";
+    std::cout << "  --map <path>       Map file path (e.g. Content/Maps/MainShowcase.lmap)\n";
     std::cout << "  --force            Force re-importing all assets regardless of hash\n";
     std::cout << "  --help, -h         Show this help information\n";
 }
@@ -61,7 +67,11 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
     fs::create_directories(contentPath / "Meshes");
     fs::create_directories(contentPath / "Materials");
 
-    fs::path manifestPath = contentPath / "manifest.json";
+    // Unreal Engine Architecture: Manifest & Cache live in Intermediate/, NOT in Content/
+    fs::path intermediateDir = contentPath.parent_path() / "Intermediate";
+    fs::create_directories(intermediateDir);
+    fs::path manifestPath = intermediateDir / "AssetManifest.json";
+
     FAssetManifest manifest;
     manifest.LoadFromFile(manifestPath.string());
 
@@ -507,6 +517,92 @@ int ExecuteInspect(const std::string& InFilePath) {
     return 0;
 }
 
+int ExecuteValidateProject(const std::string& InProjectPath) {
+    std::cout << "===============================================================\n";
+    std::cout << " LeonEngine2 Project Validator\n";
+    std::cout << " Project File: " << InProjectPath << "\n";
+    std::cout << "===============================================================\n\n";
+
+    fs::path projPath = InProjectPath;
+    if (!fs::exists(projPath)) {
+        std::cerr << "  [FAIL] Project file not found: " << InProjectPath << "\n";
+        return 1;
+    }
+
+    // 1. Load Descriptor
+    FProjectDescriptor desc;
+    if (!desc.Load(InProjectPath)) {
+        std::cerr << "  [FAIL] Failed to parse .lproject JSON descriptor.\n";
+        return 1;
+    }
+
+    std::cout << "  [PASS] Project Descriptor loaded successfully:\n";
+    std::cout << "         Project Name:     " << desc.ProjectName << "\n";
+    std::cout << "         Engine Version:   " << desc.EngineVersion << "\n";
+    std::cout << "         Default Map:      " << desc.DefaultMap << "\n";
+    std::cout << "         Default GameMode: " << desc.DefaultGameMode << "\n\n";
+
+    FProjectPaths::SetProjectRoot(InProjectPath);
+    std::string projDir = FProjectPaths::ProjectDir();
+    std::string configDir = FProjectPaths::ProjectConfigDir();
+    std::string contentDir = FProjectPaths::ProjectContentDir();
+
+    // 2. Validate Project Directories
+    if (!fs::exists(configDir)) {
+        std::cerr << "  [FAIL] Config directory missing: " << configDir << "\n";
+        return 1;
+    }
+    std::cout << "  [PASS] Config directory verified: " << configDir << "\n";
+
+    if (!fs::exists(contentDir)) {
+        std::cerr << "  [FAIL] Content directory missing: " << contentDir << "\n";
+        return 1;
+    }
+    std::cout << "  [PASS] Content directory verified: " << contentDir << "\n";
+
+    // 3. Validate Configuration Files
+    std::string engineIni = FAssetPath::Combine(configDir, "DefaultEngine.ini");
+    if (fs::exists(engineIni)) {
+        std::cout << "  [PASS] Configuration file verified: " << engineIni << "\n";
+    } else {
+        std::cerr << "  [WARN] DefaultEngine.ini missing in config directory.\n";
+    }
+
+    std::string gameIni = FAssetPath::Combine(configDir, "DefaultGame.ini");
+    if (fs::exists(gameIni)) {
+        std::cout << "  [PASS] Configuration file verified: " << gameIni << "\n";
+    }
+
+    std::string inputIni = FAssetPath::Combine(configDir, "DefaultInput.ini");
+    if (fs::exists(inputIni)) {
+        std::cout << "  [PASS] Configuration file verified: " << inputIni << "\n";
+    }
+
+    // 4. Resolve Default Map
+    std::string physicalMap = FProjectPaths::ResolveVirtualPath(desc.DefaultMap);
+    if (!fs::exists(physicalMap)) {
+        std::cerr << "  [FAIL] Default map '" << desc.DefaultMap << "' resolved to '"
+                  << physicalMap << "' which does NOT exist on disk.\n";
+        return 1;
+    }
+    std::cout << "  [PASS] Virtual path resolved: " << desc.DefaultMap << " -> " << physicalMap << "\n\n";
+
+    // 5. Validate Default Map Assets
+    std::cout << "--- Validating Default Map Contents ---\n";
+    int mapResult = ExecuteValidateMap(physicalMap);
+    if (mapResult != 0) {
+        std::cerr << "\n===============================================================\n";
+        std::cerr << " Status: FAILED (Project has map asset integrity issues)\n";
+        std::cerr << "===============================================================\n";
+        return 1;
+    }
+
+    std::cout << "\n===============================================================\n";
+    std::cout << " Status: PASSED (Project structure and assets verified successfully)\n";
+    std::cout << "===============================================================\n";
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         PrintUsage();
@@ -514,6 +610,7 @@ int main(int argc, char** argv) {
     }
 
     std::string command = argv[1];
+    std::string projectPath = "";
     std::string rawDir = "";
     std::string contentDir = "";
     std::string levelPath = "";
@@ -521,7 +618,9 @@ int main(int argc, char** argv) {
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--raw" && i + 1 < argc) {
+        if (arg == "--project" && i + 1 < argc) {
+            projectPath = argv[++i];
+        } else if (arg == "--raw" && i + 1 < argc) {
             rawDir = argv[++i];
         } else if (arg == "--content" && i + 1 < argc) {
             contentDir = argv[++i];
@@ -532,7 +631,18 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (command == "import") {
+    if (command == "validate_project" || command == "project") {
+        if (projectPath.empty()) {
+            if (argc >= 3 && argv[2][0] != '-') {
+                projectPath = argv[2];
+            } else {
+                std::cerr << "[ERROR] --project <path.lproject> is required for validate_project.\n";
+                PrintUsage();
+                return 1;
+            }
+        }
+        return ExecuteValidateProject(projectPath);
+    } else if (command == "import") {
         if (rawDir.empty() || contentDir.empty()) {
             std::cerr << "[ERROR] --raw <dir> and --content <dir> are required for import.\n";
             PrintUsage();

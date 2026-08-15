@@ -176,25 +176,59 @@ LeonEngine2/
 │       │   └── VertexArray.cpp            # FVertexArray
 │       └── scene/                         # Scene & ECS implementations
 │           ├── Entity.cpp                 # AActor
-│           ├── Scene.cpp                  # UWorld
-│           ├── LevelSerializer.cpp        # MapSerializer
-│           └── MaterialSerializer.cpp     # FMaterialSerializer
-│
-├── Plugins/                               # Hardware Backends and Extensions
-│   └── RHI/
-│       └── OpenGL/                        # OpenGL 4.5 Core + DSA plugin library (Leon::OpenGL)
-│           ├── CMakeLists.txt
-│           ├── include/                   # Exported OpenGL backend headers
-│           │   ├── OpenGLBuffer.hpp       # FOpenGLVertexBuffer, FOpenGLIndexBuffer, FOpenGLUniformBuffer
-│           │   ├── OpenGLContext.hpp      # FOpenGLContext
-│           │   ├── OpenGLFramebuffer.hpp  # FOpenGLFramebuffer
-│           │   ├── OpenGLRenderAPI.hpp    # FOpenGLRenderAPI (CPU State Cache)
-│           │   ├── OpenGLRenderDriver.hpp # FOpenGLRenderDriver
-│           │   ├── OpenGLShader.hpp       # FOpenGLShader
-│           │   ├── OpenGLTexture2D.hpp    # FOpenGLTexture2D (DSA 2D textures)
-│           │   ├── OpenGLTextureCube.hpp  # FOpenGLTextureCube (DSA Cubemaps)
-│           │   └── OpenGLVertexArray.hpp  # FOpenGLVertexArray (DSA VAOs)
-│           └── src/                       # Internal OpenGL implementations
+│           ├── Scene.cpp                  # UWorld└── Projects/                              # Client Applications & Game Projects
+    └── Sandbox/                           # Reference Template Project (Sandbox)
+        ├── Sandbox.lproject               # Project Root Descriptor (.lproject JSON)
+        ├── CMakeLists.txt
+        ├── Config/                        # Multi-INI Configuration Hierarchy
+        │   ├── DefaultEngine.ini          # Renderer, Window, Display, GameMapsSettings
+        │   ├── DefaultGame.ini            # GameMode defaults & gameplay settings
+        │   └── DefaultInput.ini           # Input action & axis bindings
+        ├── Content/                       # Project Virtual Asset Root (/Game/...)
+        │   ├── HDR/                       # Native HDR Environment Maps (.lhdr)
+        │   ├── Maps/                      # World Maps (.lmap)
+        │   │   ├── MainShowcase.lmap
+        │   │   └── NightScene.lmap
+        │   ├── Materials/                 # PBR Materials & Instances (.lmat / .lmi)
+        │   ├── Meshes/                    # Native Binary Meshes (.lmesh)
+        │   └── Textures/                  # Native Binary Textures (.ltex)
+        └── Source/
+            └── Sandbox/
+                ├── Public/                # Project Header Files
+                ├── Private/               # Project Implementation Files
+                └── Main.cpp               # Minimal entry point invoking UEngine::Run
+```
+
+---
+
+## 3. Project Architecture & Virtual Paths (`.lproject`, `/Game/...`, `/Engine/...`)
+
+LeonEngine2 implements an Unreal Engine-aligned project workflow designed for indie and small-team development:
+
+### 3.1 Project Descriptor (`.lproject`)
+Every project is defined by a root `.lproject` JSON descriptor:
+```json
+{
+  "FileVersion": 1,
+  "EngineVersion": "0.8.0",
+  "ProjectName": "Sandbox",
+  "DefaultMap": "/Game/Maps/MainShowcase",
+  "DefaultGameMode": "AGameModeBase"
+}
+```
+
+### 3.2 Virtual Path Resolution (`FProjectPaths`)
+The engine core and runtime operate exclusively through virtual package paths, ensuring zero hardcoding of physical paths:
+* `/Game/Maps/MainShowcase` $\rightarrow$ resolves to `<ProjectRoot>/Content/Maps/MainShowcase.lmap`.
+* `/Game/Textures/T_Car_Body_D` $\rightarrow$ resolves to `<ProjectRoot>/Content/Textures/T_Car_Body_D.ltex`.
+* `/Game/Materials/M_FloorTiles` $\rightarrow$ resolves to `<ProjectRoot>/Content/Materials/M_FloorTiles.lmat`.
+* `/Engine/Shaders/PBR_Lit.glsl` $\rightarrow$ resolves to `Engine/Assets/Shaders/PBR_Lit.glsl`.
+
+### 3.3 Multi-INI Configuration System
+Configuration is cleanly partitioned across three standard files:
+1. **`Config/DefaultEngine.ini`**: Window resolution, VSync, renderer settings (exposure, shadow resolution, planar reflections), and startup map settings (`[/Script/EngineSettings.GameMapsSettings]`).
+2. **`Config/DefaultGame.ini`**: Gameplay framework defaults (`DefaultPawnClass`, `PlayerControllerClass`, `GameStateClass`, `PlayerStateClass`).
+3. **`Config/DefaultInput.ini`**: Mouse look toggles, WASD navigation, and action keybindings. OpenGL implementations
 │               ├── OpenGLBuffer.cpp
 │               ├── OpenGLContext.cpp
 │               ├── OpenGLFramebuffer.cpp

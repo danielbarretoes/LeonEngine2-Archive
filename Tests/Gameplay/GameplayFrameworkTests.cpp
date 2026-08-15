@@ -16,6 +16,8 @@
 #include "world/MapSerializer.hpp"
 #include "world/UGameInstance.hpp"
 #include "world/UWorld.hpp"
+#include "core/ProjectDescriptor.hpp"
+#include "core/ProjectPaths.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -335,6 +337,87 @@ namespace Leon {
             const glm::mat4& viewProj = viewCamera.GetViewProjectionMatrix();
             CHECK(viewProj[3][3] != 1.0f); // Standard perspective projection marker
             CHECK(viewCamera.GetPosition().y == doctest::Approx(3.5f));
+        }
+
+        TEST_CASE("19. FProjectDescriptor JSON serialization & roundtrip") {
+            FProjectDescriptor desc;
+            desc.FileVersion = 1;
+            desc.EngineVersion = "0.8.0";
+            desc.ProjectName = "TestGame";
+            desc.DefaultMap = "/Game/Maps/TestMap";
+            desc.DefaultGameMode = "AGameModeBase";
+
+            std::string serialized = desc.SerializeJson();
+            CHECK(serialized.find("\"ProjectName\": \"TestGame\"") != std::string::npos);
+            CHECK(serialized.find("\"DefaultMap\": \"/Game/Maps/TestMap\"") != std::string::npos);
+
+            FProjectDescriptor restored;
+            REQUIRE(restored.DeserializeJson(serialized));
+            CHECK(restored.FileVersion == 1);
+            CHECK(restored.EngineVersion == "0.8.0");
+            CHECK(restored.ProjectName == "TestGame");
+            CHECK(restored.DefaultMap == "/Game/Maps/TestMap");
+            CHECK(restored.DefaultGameMode == "AGameModeBase");
+        }
+
+        TEST_CASE("20. FProjectPaths virtual path resolution (/Game/..., /Engine/...)") {
+            FProjectPaths::SetProjectRoot("Projects/TestProject/TestProject.lproject");
+            CHECK(FProjectPaths::ProjectDir() == "Projects/TestProject");
+            CHECK(FProjectPaths::ProjectContentDir() == "Projects/TestProject/Content");
+            CHECK(FProjectPaths::ProjectConfigDir() == "Projects/TestProject/Config");
+
+            // Test /Game/ resolution
+            std::string resolvedGame = FProjectPaths::ResolveVirtualPath("/Game/Maps/TestMap.lmap");
+            CHECK(resolvedGame == "Projects/TestProject/Content/Maps/TestMap.lmap");
+
+            // Test /Engine/ resolution
+            std::string resolvedEngine = FProjectPaths::ResolveVirtualPath("/Engine/Shaders/PBR_Lit.glsl");
+            CHECK(resolvedEngine == "Engine/Assets/Shaders/PBR_Lit.glsl");
+
+            // Test MakeVirtualPath
+            std::string virtGame = FProjectPaths::MakeVirtualPath("Projects/TestProject/Content/Textures/T_Test.ltex");
+            CHECK(virtGame == "/Game/Textures/T_Test.ltex");
+        }
+
+        TEST_CASE("21. Multi-INI Configuration System (Engine, Game, Input)") {
+            std::string tempDir = "build/TestConfigs";
+            std::filesystem::create_directories(tempDir);
+
+            std::string engineIniPath = tempDir + "/DefaultEngine.ini";
+            std::string gameIniPath = tempDir + "/DefaultGame.ini";
+            std::string inputIniPath = tempDir + "/DefaultInput.ini";
+
+            {
+                std::ofstream f(engineIniPath);
+                f << "[/Script/EngineSettings.GameMapsSettings]\n"
+                  << "GameDefaultMap=/Game/Maps/MyMap\n"
+                  << "GlobalDefaultGameMode=AGameModeBase\n\n"
+                  << "[/Script/Engine.DisplaySettings]\n"
+                  << "WindowTitle=Multi-Config Project\n"
+                  << "WindowWidth=1920\n";
+            }
+            {
+                std::ofstream f(gameIniPath);
+                f << "[/Script/Engine.GameModeBase]\n"
+                  << "DefaultPawnClass=ADefaultPawn\n"
+                  << "PlayerControllerClass=APlayerController\n";
+            }
+            {
+                std::ofstream f(inputIniPath);
+                f << "[/Script/Engine.InputSettings]\n"
+                  << "bEnableMouseLook=True\n"
+                  << "MoveForwardKey=W\n";
+            }
+
+            FConfigFile engineConfig(engineIniPath);
+            FConfigFile gameConfig(gameIniPath);
+            FConfigFile inputConfig(inputIniPath);
+
+            CHECK(engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap", "") == "/Game/Maps/MyMap");
+            CHECK(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowWidth", 0) == 1920);
+            CHECK(gameConfig.GetString("/Script/Engine.GameModeBase", "DefaultPawnClass", "") == "ADefaultPawn");
+            CHECK(inputConfig.GetBool("/Script/Engine.InputSettings", "bEnableMouseLook", false) == true);
+            CHECK(inputConfig.GetString("/Script/Engine.InputSettings", "MoveForwardKey", "") == "W");
         }
 
     } // TEST_SUITE
