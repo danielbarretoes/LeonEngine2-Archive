@@ -59,6 +59,10 @@ namespace Leon::TestGPU {
             glViewport(0, 0, width, height);
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
+            glDisable(GL_BLEND);
+            if (GLAD_GL_ARB_framebuffer_sRGB || GLAD_GL_EXT_framebuffer_sRGB) {
+                glDisable(GL_FRAMEBUFFER_SRGB);
+            }
             glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_CameraUBO);
             glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_LightingUBO);
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);

@@ -6,7 +6,7 @@
 #include "renderer/Shader.hpp"
 #include "renderer/Texture.hpp"
 #include "renderer/VertexArray.hpp"
-#include "scene/Components.hpp"
+#include "world/Components.hpp"
 
 #include <glm/glm.hpp>
 #include <string>

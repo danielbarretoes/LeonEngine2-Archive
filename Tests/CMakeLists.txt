@@ -48,6 +48,7 @@ add_executable(RendererTests
     Asset/HDRAssetTests.cpp
     Asset/MeshImportTests.cpp
     Asset/AssetValidationTests.cpp
+    Gameplay/GameplayFrameworkTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE

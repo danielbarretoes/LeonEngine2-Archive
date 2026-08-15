@@ -9,9 +9,9 @@
 #include "asset/HDRImporter.hpp"
 #include "renderer/StaticMesh.hpp"
 #include "renderer/AssetManager.hpp"
-#include "scene/Scene.hpp"
-#include "scene/Components.hpp"
-#include "scene/LevelSerializer.hpp"
+#include "world/UWorld.hpp"
+#include "world/Components.hpp"
+#include "world/MapSerializer.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -30,12 +30,12 @@ void PrintUsage() {
     std::cout << "Usage:\n";
     std::cout << "  LeonAssetTool import --raw <dir> --content <dir> [--force]\n";
     std::cout << "  LeonAssetTool validate --content <dir>\n";
-    std::cout << "  LeonAssetTool validate_level --level <path.llevel>\n";
+    std::cout << "  LeonAssetTool validate_map --map <path.lmap>\n";
     std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi>\n\n";
     std::cout << "Options:\n";
     std::cout << "  --raw <dir>        Source raw assets directory (e.g. Assets/Raw)\n";
     std::cout << "  --content <dir>    Output native assets directory (e.g. Assets/Content)\n";
-    std::cout << "  --level <path>     Level file path (e.g. Content/Maps/MainShowcase.llevel)\n";
+    std::cout << "  --map <path>     Map file path (e.g. Content/Maps/MainShowcase.lmap)\n";
     std::cout << "  --force            Force re-importing all assets regardless of hash\n";
     std::cout << "  --help, -h         Show this help information\n";
 }
@@ -131,7 +131,18 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
     std::vector<std::string> allAvailableTexturePaths;
     for (const auto& texPath : textureFiles) {
         std::string stem = texPath.stem().string();
+        std::string fn = texPath.filename().string();
         allAvailableTexturePaths.push_back("Textures/" + stem + ".ltex");
+        allAvailableTexturePaths.push_back("Projects/Sandbox/Content/Textures/" + fn);
+        allAvailableTexturePaths.push_back("Projects/Sandbox/Content/Textures/" + stem + ".ltex");
+    }
+    if (fs::exists(contentPath / "Textures")) {
+        for (const auto& entry : fs::directory_iterator(contentPath / "Textures")) {
+            if (entry.is_regular_file()) {
+                allAvailableTexturePaths.push_back("Textures/" + entry.path().filename().string());
+                allAvailableTexturePaths.push_back("Projects/Sandbox/Content/Textures/" + entry.path().filename().string());
+            }
+        }
     }
 
     // 3. Import Textures
@@ -203,10 +214,15 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
 
                 auto staticMesh = importResult.StaticMesh;
                 for (const auto& extMat : importResult.ExtractedMaterials) {
-                    std::string matRelPath = "Materials/" + extMat.Name + ".lmat";
+                    std::string formattedName = extMat.Name;
+                    if (formattedName.rfind("M_", 0) != 0) {
+                        formattedName = "M_" + formattedName;
+                    }
+                    std::string matRelPath = "Materials/" + formattedName + ".lmat";
                     fs::path matFilePath = contentPath / matRelPath;
 
-                    if (!fs::exists(matFilePath)) {
+                    bool bMatNeedsImport = bForce || manifest.NeedsReimport(matFilePath.string()) || !fs::exists(matFilePath);
+                    if (bMatNeedsImport) {
                         auto builtMat = FMaterialImporter::BuildMaterial(extMat, allAvailableTexturePaths);
                         if (builtMat && FMaterialImporter::SaveMaterialToFile(builtMat, matFilePath.string())) {
                             std::cout << "    [AUTO-MATERIAL] Created: " << matRelPath << "\n";
@@ -327,20 +343,20 @@ int ExecuteValidate(const std::string& InContentDir) {
     return (errorCount == 0) ? 0 : 1;
 }
 
-int ExecuteValidateLevel(const std::string& InLevelPath) {
-    if (!fs::exists(InLevelPath)) {
-        std::cerr << "[ERROR] Level file not found: " << InLevelPath << "\n";
+int ExecuteValidateMap(const std::string& InMapPath) {
+    if (!fs::exists(InMapPath)) {
+        std::cerr << "[ERROR] Map file not found: " << InMapPath << "\n";
         return 1;
     }
 
     std::cout << "===============================================================\n";
-    std::cout << " LeonEngine2 Level Validator\n";
-    std::cout << " Level:   " << InLevelPath << "\n";
+    std::cout << " LeonEngine2 Map Validator\n";
+    std::cout << " Map:   " << InMapPath << "\n";
     std::cout << "===============================================================\n\n";
 
-    std::ifstream file(InLevelPath);
+    std::ifstream file(InMapPath);
     if (!file.is_open()) {
-        std::cerr << "[FAIL] Failed to open level file: " << InLevelPath << "\n";
+        std::cerr << "[FAIL] Failed to open map file: " << InMapPath << "\n";
         return 1;
     }
 
@@ -396,7 +412,7 @@ int ExecuteValidateLevel(const std::string& InLevelPath) {
         }
     }
 
-    std::cout << "\n--- Level Statistics ---\n";
+    std::cout << "\n--- Map Statistics ---\n";
     std::cout << "  Actors:             " << actorCount << "\n";
     std::cout << "  Static Mesh Actors: " << staticMeshCount << "\n";
     std::cout << "  Directional Lights: " << dirLightCount << "\n";
@@ -405,12 +421,12 @@ int ExecuteValidateLevel(const std::string& InLevelPath) {
     std::cout << "  Cameras:            " << cameraCount << "\n\n";
 
     if (missingAssets > 0) {
-        std::cerr << "[FAIL] Level validation completed with " << missingAssets << " missing asset references.\n";
+        std::cerr << "[FAIL] Map validation completed with " << missingAssets << " missing asset references.\n";
         return 1;
     }
 
     std::cout << "===============================================================\n";
-    std::cout << " Status: PASSED (Level validated successfully with 0 missing assets)\n";
+    std::cout << " Status: PASSED (Map validated successfully with 0 missing assets)\n";
     std::cout << "===============================================================\n";
     return 0;
 }
@@ -509,7 +525,7 @@ int main(int argc, char** argv) {
             rawDir = argv[++i];
         } else if (arg == "--content" && i + 1 < argc) {
             contentDir = argv[++i];
-        } else if (arg == "--level" && i + 1 < argc) {
+        } else if (arg == "--map" && i + 1 < argc) {
             levelPath = argv[++i];
         } else if (arg == "--force") {
             bForce = true;
@@ -530,13 +546,13 @@ int main(int argc, char** argv) {
             return 1;
         }
         return ExecuteValidate(contentDir);
-    } else if (command == "validate_level" || command == "level") {
+    } else if (command == "validate_map" || command == "level") {
         if (levelPath.empty()) {
-            std::cerr << "[ERROR] --level <path> is required for validate_level.\n";
+            std::cerr << "[ERROR] --map <path> is required for validate_map.\n";
             PrintUsage();
             return 1;
         }
-        return ExecuteValidateLevel(levelPath);
+        return ExecuteValidateMap(levelPath);
     } else if (command == "inspect") {
         if (argc < 3) {
             std::cerr << "[ERROR] File path is required for inspect.\n";

@@ -15,10 +15,10 @@ namespace Leon {
         /** Get file extension without dot in lowercase (e.g. "lmesh", "ltex") */
         static std::string GetExtension(const std::string& InPath);
 
-        /** Get filename with extension (e.g. "Corals.lmesh") */
+        /** Get filename with extension (e.g. "House.lmesh") */
         static std::string GetFileName(const std::string& InPath);
 
-        /** Get filename without extension (e.g. "Corals") */
+        /** Get filename without extension (e.g. "House") */
         static std::string GetFileNameWithoutExtension(const std::string& InPath);
 
         /** Get parent directory path */

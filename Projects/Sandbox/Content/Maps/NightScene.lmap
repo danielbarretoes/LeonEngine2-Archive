@@ -1,0 +1,408 @@
+# LeonEngine2 Map Asset File (.lmap)
+# Scene: Nocturnal Suburban Showcase (Night Scene with Dynamic PBR Lights)
+Map:
+  Name: "Nocturnal Suburban Showcase"
+  Version: "2.0"
+  Skybox:
+    EnvironmentMap: "Projects/Sandbox/Content/HDR/AutumnField1k.lhdr"
+
+Entities:
+  # =========================================================================
+  # Primary Showcase Camera
+  # =========================================================================
+  - Name: "Main Cinematic Camera"
+    Transform:
+      Translation: [0.0, 3.2, 11.5]
+      Rotation: [-12.0, -90.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Camera:
+      Primary: true
+      ProjectionType: "Perspective"
+      FOV: 45.0
+      NearClip: 0.1
+      FarClip: 1000.0
+
+  # =========================================================================
+  # Celestial Moonlight (Night Directional Light)
+  # =========================================================================
+  - Name: "Night Moonlight"
+    Transform:
+      Translation: [0.0, 15.0, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    DirectionalLight:
+      Enabled: true
+      Direction: [-0.35, -0.85, 0.40]
+      Color: [0.45, 0.55, 0.85]
+      Intensity: 0.45
+
+  # =========================================================================
+  # Street Lamp Point Lights
+  # =========================================================================
+  - Name: "Street Lamp Light 1"
+    Transform:
+      Translation: [-5.5, 3.85, 5.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.88, 0.58]
+      Intensity: 8.5
+      Radius: 14.0
+
+  - Name: "Street Lamp Light 2"
+    Transform:
+      Translation: [6.5, 3.85, 5.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.88, 0.58]
+      Intensity: 8.5
+      Radius: 14.0
+
+  - Name: "Street Lamp Light 3"
+    Transform:
+      Translation: [-5.5, 3.85, -3.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.88, 0.58]
+      Intensity: 8.5
+      Radius: 14.0
+
+  - Name: "Street Lamp Light 4"
+    Transform:
+      Translation: [6.5, 3.85, -3.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.88, 0.58]
+      Intensity: 8.5
+      Radius: 14.0
+
+  # =========================================================================
+  # House Lighting
+  # =========================================================================
+  - Name: "House Porch Lantern Light"
+    Transform:
+      Translation: [0.0, 2.4, -3.8]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.80, 0.40]
+      Intensity: 6.5
+      Radius: 10.0
+
+  - Name: "House Facade Wash Spotlight"
+    Transform:
+      Translation: [0.0, 4.2, -1.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    SpotLight:
+      Enabled: true
+      Direction: [0.0, -0.40, -0.92]
+      Color: [1.0, 0.92, 0.78]
+      Intensity: 25.0
+      Radius: 18.0
+      CutOff: 26.0
+      OuterCutOff: 38.0
+
+  # =========================================================================
+  # Car Dynamic Lights (Headlight High-Beams & Taillights)
+  # =========================================================================
+  - Name: "Car Headlight Beam Left"
+    Transform:
+      Translation: [2.15, 0.65, 3.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    SpotLight:
+      Enabled: true
+      Direction: [-0.42, -0.15, 0.90]
+      Color: [1.0, 0.98, 0.92]
+      Intensity: 65.0
+      Radius: 28.0
+      CutOff: 16.0
+      OuterCutOff: 26.0
+
+  - Name: "Car Headlight Beam Right"
+    Transform:
+      Translation: [3.45, 0.65, 2.9]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    SpotLight:
+      Enabled: true
+      Direction: [-0.42, -0.15, 0.90]
+      Color: [1.0, 0.98, 0.92]
+      Intensity: 65.0
+      Radius: 28.0
+      CutOff: 16.0
+      OuterCutOff: 26.0
+
+  - Name: "Car Taillight Glow Left"
+    Transform:
+      Translation: [2.15, 0.65, -0.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.05, 0.05]
+      Intensity: 4.5
+      Radius: 4.5
+
+  - Name: "Car Taillight Glow Right"
+    Transform:
+      Translation: [3.45, 0.65, -1.1]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    PointLight:
+      Enabled: true
+      Color: [1.0, 0.05, 0.05]
+      Intensity: 4.5
+      Radius: 4.5
+
+  # =========================================================================
+  # Garden Palm Uplight Spot
+  # =========================================================================
+  - Name: "Garden Palm Uplight"
+    Transform:
+      Translation: [-7.0, 0.2, -5.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    SpotLight:
+      Enabled: true
+      Direction: [0.0, 0.90, -0.40]
+      Color: [0.25, 0.95, 0.55]
+      Intensity: 22.0
+      Radius: 15.0
+      CutOff: 22.0
+      OuterCutOff: 35.0
+
+  # =========================================================================
+  # Ground Plane (Driveway / Street)
+  # =========================================================================
+  - Name: "Night Ground Plane"
+    Transform:
+      Translation: [0.0, 0.0, 0.0]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Type: "Plane"
+      Width: 40.0
+      Depth: 36.0
+      SubdivisionsX: 40
+      SubdivisionsZ: 36
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: false
+    Material:
+      Asset: "Projects/Sandbox/Content/Materials/M_FloorTiles.lmat"
+
+  # =========================================================================
+  # One-Story Suburban House
+  # =========================================================================
+  - Name: "Suburban House"
+    Transform:
+      Translation: [0.0, 0.0, -6.5]
+      Rotation: [0.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/House.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_House_Stone.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_House_Walls.lmat"
+        - Slot: 2
+          Asset: "Projects/Sandbox/Content/Materials/M_House_Roof.lmat"
+        - Slot: 3
+          Asset: "Projects/Sandbox/Content/Materials/M_House_Wood.lmat"
+        - Slot: 4
+          Asset: "Projects/Sandbox/Content/Materials/M_House_Windows.lmat"
+
+  # =========================================================================
+  # Sports Car in Driveway
+  # =========================================================================
+  - Name: "Sports Car"
+    Transform:
+      Translation: [2.8, 0.0, 1.2]
+      Rotation: [0.0, 25.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/Car.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_Car_Body.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_Car_Windows.lmat"
+        - Slot: 2
+          Asset: "Projects/Sandbox/Content/Materials/M_Car_Chrome.lmat"
+        - Slot: 3
+          Asset: "Projects/Sandbox/Content/Materials/M_Car_Headlights.lmat"
+        - Slot: 4
+          Asset: "Projects/Sandbox/Content/Materials/M_Car_Taillights.lmat"
+        - Slot: 5
+          Asset: "Projects/Sandbox/Content/Materials/M_Car_Tires.lmat"
+
+  # =========================================================================
+  # Street Lamps
+  # =========================================================================
+  - Name: "Street Lamp 1"
+    Transform:
+      Translation: [-5.5, 0.0, 5.5]
+      Rotation: [0.0, 45.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/StreetLamp.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Metal.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Glass.lmat"
+
+  - Name: "Street Lamp 2"
+    Transform:
+      Translation: [6.5, 0.0, 5.5]
+      Rotation: [0.0, -45.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/StreetLamp.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Metal.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Glass.lmat"
+
+  - Name: "Street Lamp 3"
+    Transform:
+      Translation: [-5.5, 0.0, -3.5]
+      Rotation: [0.0, 30.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/StreetLamp.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Metal.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Glass.lmat"
+
+  - Name: "Street Lamp 4"
+    Transform:
+      Translation: [6.5, 0.0, -3.5]
+      Rotation: [0.0, -30.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/StreetLamp.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Metal.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_StreetLamp_Glass.lmat"
+
+  # =========================================================================
+  # Tropical Palm Trees
+  # =========================================================================
+  - Name: "Palm Tree Front Left"
+    Transform:
+      Translation: [-7.5, 0.0, 2.5]
+      Rotation: [0.0, 35.0, 0.0]
+      Scale: [1.1, 1.1, 1.1]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/PalmTree.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Trunk.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Crown.lmat"
+        - Slot: 2
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Coconuts.lmat"
+        - Slot: 3
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Leaves.lmat"
+
+  - Name: "Palm Tree Front Right"
+    Transform:
+      Translation: [8.5, 0.0, 2.0]
+      Rotation: [0.0, -110.0, 0.0]
+      Scale: [0.95, 0.95, 0.95]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/PalmTree.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Trunk.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Crown.lmat"
+        - Slot: 2
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Coconuts.lmat"
+        - Slot: 3
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Leaves.lmat"
+
+  - Name: "Palm Tree Garden"
+    Transform:
+      Translation: [-7.0, 0.0, -7.0]
+      Rotation: [0.0, 75.0, 0.0]
+      Scale: [1.2, 1.2, 1.2]
+    StaticMesh:
+      Asset: "Projects/Sandbox/Content/Meshes/PalmTree.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Trunk.lmat"
+        - Slot: 1
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Crown.lmat"
+        - Slot: 2
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Coconuts.lmat"
+        - Slot: 3
+          Asset: "Projects/Sandbox/Content/Materials/M_Palm_Leaves.lmat"
+
+  # =========================================================================
+  # 3D Scene Titles
+  # =========================================================================
+  - Name: "Label Scene Title"
+    Transform:
+      Translation: [0.0, 0.15, 8.5]
+      Rotation: [-20.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "NOCTURNAL SUBURBAN SHOWCASE"
+      Color: [1.0, 0.88, 0.50, 0.95]
+      Scale: 0.20
+
+  - Name: "Label Scene Subtitle"
+    Transform:
+      Translation: [0.0, 0.15, 7.8]
+      Rotation: [-20.0, 0.0, 0.0]
+      Scale: [1.0, 1.0, 1.0]
+    Text:
+      Content: "PBR DYNAMIC NIGHT LIGHTING - HEADLIGHTS, STREET LAMPS & EMISSIVE WINDOWS"
+      Color: [0.45, 0.85, 1.0, 0.85]
+      Scale: 0.13

@@ -5,6 +5,7 @@ add_library(LeonEngineCore STATIC
     src/core/Input.cpp
     src/core/LayerStack.cpp
     src/core/Application.cpp
+    src/core/UEngine.cpp
     src/core/PlatformMemory.cpp
     src/renderer/GraphicsContext.cpp
     src/renderer/RenderDriver.cpp
@@ -36,10 +37,20 @@ add_library(LeonEngineCore STATIC
     src/asset/MaterialImporter.cpp
     src/asset/AssetManifest.cpp
     src/renderer/StaticMesh.cpp
-    src/scene/Entity.cpp
-    src/scene/Scene.cpp
-    src/scene/LevelSerializer.cpp
-    src/scene/MaterialSerializer.cpp
+    src/world/UWorld.cpp
+    src/world/UGameInstance.cpp
+    src/world/MapSerializer.cpp
+    src/world/MaterialSerializer.cpp
+    src/gameplay/AActor.cpp
+    src/gameplay/APawn.cpp
+    src/gameplay/ADefaultPawn.cpp
+    src/gameplay/APlayerController.cpp
+    src/gameplay/APlayerState.cpp
+    src/gameplay/AGameStateBase.cpp
+    src/gameplay/AGameModeBase.cpp
+    src/gameplay/ACameraActor.cpp
+    src/gameplay/APlayerCameraManager.cpp
+    src/gameplay/UClassRegistry.cpp
 )
 
 add_library(Leon::Core ALIAS LeonEngineCore)

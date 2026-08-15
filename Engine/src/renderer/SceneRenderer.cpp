@@ -8,9 +8,10 @@
 #include "renderer/RenderCommand.hpp"
 #include "renderer/Renderer.hpp"
 #include "renderer/TextRenderer.hpp"
-#include "scene/Components.hpp"
-#include "scene/Entity.hpp"
-#include "scene/Scene.hpp"
+#include "renderer/VertexArray.hpp"
+#include "gameplay/AActor.hpp"
+#include "world/Components.hpp"
+#include "world/UWorld.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -20,7 +21,7 @@
 
 namespace Leon {
 
-    FSceneRenderer::FSceneRenderer(FScene* InScene) : m_Scene(InScene) {
+    FSceneRenderer::FSceneRenderer(UWorld* InWorld) : m_World(InWorld) {
         // -----------------------------------------------------------------------
         // 1. Shadow framebuffers — DEPTH32F (Texture2DArray for 4-Cascade CSM, 2D for Spot)
         // -----------------------------------------------------------------------
@@ -117,10 +118,10 @@ namespace Leon {
     // Main Render — frame entry point
     // =========================================================================
     void FSceneRenderer::Render(const FPerspectiveCamera& InCamera) {
-        if (!m_Scene)
+        if (!m_World)
             return;
 
-        auto& reg = m_Scene->GetRegistry();
+        auto& reg = m_World->GetRegistry();
 
         // Audit fix FASE-8: track FBO in CPU instead of querying with glGetIntegerv per frame
         m_PreviousFBO = FRenderCommand::GetFramebufferBinding();
@@ -132,11 +133,11 @@ namespace Leon {
         // Gather lights
         // ------------------------------------------------------------------
         bool bHasDirLight = false;
-        FDirectionalLightComponent dirLightComp;
+        UDirectionalLightComponent dirLightComp;
         {
-            auto view = reg.view<FDirectionalLightComponent>();
+            auto view = reg.view<UDirectionalLightComponent>();
             for (auto entity : view) {
-                const auto& comp = view.get<FDirectionalLightComponent>(entity);
+                const auto& comp = view.get<UDirectionalLightComponent>(entity);
                 if (comp.bEnabled) {
                     dirLightComp = comp;
                     bHasDirLight = true;
@@ -147,9 +148,9 @@ namespace Leon {
 
         std::vector<FPointLight> pointLights;
         {
-            auto view = reg.view<FPointLightComponent>();
+            auto view = reg.view<UPointLightComponent>();
             for (auto entity : view) {
-                const auto& comp = view.get<FPointLightComponent>(entity);
+                const auto& comp = view.get<UPointLightComponent>(entity);
                 if (comp.bEnabled && pointLights.size() < 16) {
                     FPointLight pl = comp.Light;
                     if (reg.all_of<FTransformComponent>(entity))
@@ -160,13 +161,13 @@ namespace Leon {
         }
 
         bool bHasSpotLight = false;
-        FSpotLightComponent firstSpotComp;
+        USpotLightComponent firstSpotComp;
         glm::vec3 firstSpotPos{0.0f};
         std::vector<FSpotLight> spotLights;
         {
-            auto view = reg.view<FSpotLightComponent>();
+            auto view = reg.view<USpotLightComponent>();
             for (auto entity : view) {
-                const auto& comp = view.get<FSpotLightComponent>(entity);
+                const auto& comp = view.get<USpotLightComponent>(entity);
                 if (comp.bEnabled && spotLights.size() < 8) {
                     FSpotLight sl = comp.Light;
                     if (reg.all_of<FTransformComponent>(entity))
@@ -281,7 +282,7 @@ namespace Leon {
             RenderSkyboxPass(InCamera, &skybox, bHasDirLight, dirLightComp.Light);
 
         // 3D World Text
-        auto textView = m_Scene->GetRegistry().view<FTransformComponent, FTextComponent>();
+        auto textView = m_World->GetRegistry().view<FTransformComponent, FTextComponent>();
         FTextRenderer::BeginScene(InCamera);
         for (auto entity : textView) {
             auto [transform, textComp] = textView.get<FTransformComponent, FTextComponent>(entity);
@@ -304,7 +305,7 @@ namespace Leon {
     // PASS 1: Cascaded Shadow Pass (OpenGL 4.5 Texture2DArray)
     // =========================================================================
     void FSceneRenderer::RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
-                                                  const FDirectionalLightComponent* InDirLightComp,
+                                                  const UDirectionalLightComponent* InDirLightComp,
                                                   FCameraBufferData& OutCamData) {
         if (!InDirLightComp || !InDirLightComp->bEnabled || !m_ShadowDepthShader || !m_CascadeShadowFramebuffer)
             return;
@@ -351,7 +352,7 @@ namespace Leon {
 
             m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
 
-            auto meshView = m_Scene->GetRegistry().view<FTransformComponent, FMeshComponent>();
+            auto meshView = m_World->GetRegistry().view<FTransformComponent, FMeshComponent>();
             for (auto entity : meshView) {
                 auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
                 if (!mesh.VertexArray || !mesh.bCastShadows)
@@ -361,8 +362,8 @@ namespace Leon {
                 m_ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
 
                 // Support alpha-masked shadow casters
-                if (m_Scene->GetRegistry().all_of<FMaterialComponent>(entity)) {
-                    const auto& matComp = m_Scene->GetRegistry().get<FMaterialComponent>(entity);
+                if (m_World->GetRegistry().all_of<FMaterialComponent>(entity)) {
+                    const auto& matComp = m_World->GetRegistry().get<FMaterialComponent>(entity);
                     if (matComp.MaterialInstance) {
                         auto alphaMode = matComp.MaterialInstance->GetAlphaMode();
                         auto albedoTex = matComp.MaterialInstance->GetTexture(0);
@@ -391,10 +392,10 @@ namespace Leon {
             }
 
             // Static Mesh Entities in CSM
-            auto staticMeshView = m_Scene->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
+            auto staticMeshView = m_World->GetRegistry().view<FTransformComponent, UStaticMeshComponent>();
             for (auto entity : staticMeshView) {
                 auto [transform, staticMeshComp] =
-                    staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+                    staticMeshView.get<FTransformComponent, UStaticMeshComponent>(entity);
                 if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
                     !staticMeshComp.bCastShadows)
                     continue;
@@ -420,7 +421,7 @@ namespace Leon {
     // =========================================================================
     // PASS 2: Spot Shadow Pass
     // =========================================================================
-    void FSceneRenderer::RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp,
+    void FSceneRenderer::RenderSpotShadowPass(const USpotLightComponent* InSpotLightComp,
                                               const glm::vec3& InSpotLightPos, FCameraBufferData& OutCamData) {
         if (!InSpotLightComp || !InSpotLightComp->bEnabled || !m_SpotShadowFramebuffer || !m_ShadowDepthShader)
             return;
@@ -445,7 +446,7 @@ namespace Leon {
         m_ShadowDepthShader->Bind();
         m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));
 
-        auto meshView = m_Scene->GetRegistry().view<FTransformComponent, FMeshComponent>();
+        auto meshView = m_World->GetRegistry().view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
             if (!mesh.VertexArray || !mesh.bCastShadows)
@@ -456,9 +457,9 @@ namespace Leon {
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
 
-        auto staticMeshView = m_Scene->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
+        auto staticMeshView = m_World->GetRegistry().view<FTransformComponent, UStaticMeshComponent>();
         for (auto entity : staticMeshView) {
-            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, UStaticMeshComponent>(entity);
             if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
                 !staticMeshComp.bCastShadows)
                 continue;
@@ -566,7 +567,7 @@ namespace Leon {
             m_DefaultBlackTexture->Bind(5);
 
         // Visible meshes in reflection (minimal material binding, no shadows)
-        auto& reg = m_Scene->GetRegistry();
+        auto& reg = m_World->GetRegistry();
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
@@ -593,9 +594,9 @@ namespace Leon {
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
 
-        auto staticMeshView = reg.view<FTransformComponent, FStaticMeshComponent>();
+        auto staticMeshView = reg.view<FTransformComponent, UStaticMeshComponent>();
         for (auto entity : staticMeshView) {
-            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, UStaticMeshComponent>(entity);
             if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
                 !staticMeshComp.bVisibleInReflection)
                 continue;
@@ -646,7 +647,7 @@ namespace Leon {
     // =========================================================================
     void FSceneRenderer::RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
                                             uint32_t InVpWidth, uint32_t InVpHeight) {
-        auto& reg = m_Scene->GetRegistry();
+        auto& reg = m_World->GetRegistry();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
         // Bind shadow depth maps to slots 10-11
@@ -733,9 +734,9 @@ namespace Leon {
         }
 
         // Static Mesh Component Rendering
-        auto staticMeshView = reg.view<FTransformComponent, FStaticMeshComponent>();
+        auto staticMeshView = reg.view<FTransformComponent, UStaticMeshComponent>();
         for (auto entity : staticMeshView) {
-            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, UStaticMeshComponent>(entity);
             if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray())
                 continue;
 

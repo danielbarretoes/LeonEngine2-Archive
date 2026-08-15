@@ -1,0 +1,17 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [0.15, 0.48, 0.12]
+  Metallic: 0.05
+  Roughness: 0.42
+  AO: 1
+  NormalScale: 1
+  OcclusionStrength: 1
+  AlphaMode: "Opaque"
+  AlphaCutoff: 0.5
+  DoubleSided: true
+  UVTiling: [1, 1]
+  UVOffset: [0, 0]
+  AlbedoMap: "Textures/T_Palm_Leaves_D.ltex"
+  NormalMap: "Textures/T_Palm_Leaves_N.ltex"
+  UsePlanarReflection: false

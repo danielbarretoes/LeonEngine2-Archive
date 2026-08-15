@@ -1,13 +1,52 @@
 #include "asset/MaterialImporter.hpp"
 #include "asset/AssetPath.hpp"
 #include "core/Log.hpp"
-#include "scene/MaterialSerializer.hpp"
+#include "world/MaterialSerializer.hpp"
 
 #include <algorithm>
 #include <fstream>
 #include <sstream>
 
 namespace Leon {
+
+    static std::string ResolveTextureName(const std::string& InTexName,
+                                          const std::vector<std::string>& InAvailableTextureVirtualPaths) {
+        if (InTexName.empty())
+            return "";
+
+        std::string targetStem = FAssetPath::GetFileNameWithoutExtension(InTexName);
+        std::string targetStemLower = targetStem;
+        std::transform(targetStemLower.begin(), targetStemLower.end(), targetStemLower.begin(), ::tolower);
+
+        for (const auto& path : InAvailableTextureVirtualPaths) {
+            std::string pathStem = FAssetPath::GetFileNameWithoutExtension(path);
+            std::string pathStemLower = pathStem;
+            std::transform(pathStemLower.begin(), pathStemLower.end(), pathStemLower.begin(), ::tolower);
+
+            if (pathStemLower == targetStemLower) {
+                return path;
+            }
+        }
+        return "";
+    }
+
+    static bool MatchSlotKeyword(const std::string& pathLower, const std::string& kw) {
+        if (kw.empty()) return false;
+        if (kw.length() <= 3 && kw[0] == '_') {
+            // Suffix pattern like "_d", "_n", "_r", "_m", "_e", "_ao"
+            // Must be followed by '.', '_', or end of string
+            size_t pos = pathLower.find(kw);
+            while (pos != std::string::npos) {
+                size_t nextPos = pos + kw.length();
+                if (nextPos >= pathLower.length() || pathLower[nextPos] == '.' || pathLower[nextPos] == '_') {
+                    return true;
+                }
+                pos = pathLower.find(kw, pos + 1);
+            }
+            return false;
+        }
+        return pathLower.find(kw) != std::string::npos;
+    }
 
     std::string FMaterialImporter::FindMatchingTexture(const std::string& InMaterialName,
                                                        const std::string& InSlotKeyword1,
@@ -30,27 +69,27 @@ namespace Leon {
         if (matLower.find("material_") == 0)
             matLower = matLower.substr(9);
 
+        // First pass: look for exact slot keyword + material name match
         for (const auto& path : InAvailableTextureVirtualPaths) {
             std::string pathLower = path;
             std::transform(pathLower.begin(), pathLower.end(), pathLower.begin(), ::tolower);
 
-            bool matchesSlot = (!kw1.empty() && pathLower.find(kw1) != std::string::npos) ||
-                               (!kw2.empty() && pathLower.find(kw2) != std::string::npos);
+            bool matchesSlot = MatchSlotKeyword(pathLower, kw1) || MatchSlotKeyword(pathLower, kw2);
 
             if (matchesSlot) {
-                // If material token is in texture name
+                // If full material token is in texture name
                 if (pathLower.find(matLower) != std::string::npos) {
                     return path;
                 }
             }
         }
 
-        // Second pass: try partial token matching (split by '_')
+        // Second pass: split material name into sub-tokens (e.g. "car_body" -> "car", "body")
         std::stringstream ss(matLower);
         std::string token;
         std::vector<std::string> tokens;
         while (std::getline(ss, token, '_')) {
-            if (!token.empty() && token.length() > 2) {
+            if (!token.empty() && token.length() >= 2) {
                 tokens.push_back(token);
             }
         }
@@ -59,14 +98,18 @@ namespace Leon {
             std::string pathLower = path;
             std::transform(pathLower.begin(), pathLower.end(), pathLower.begin(), ::tolower);
 
-            bool matchesSlot = (!kw1.empty() && pathLower.find(kw1) != std::string::npos) ||
-                               (!kw2.empty() && pathLower.find(kw2) != std::string::npos);
+            bool matchesSlot = MatchSlotKeyword(pathLower, kw1) || MatchSlotKeyword(pathLower, kw2);
 
             if (matchesSlot) {
+                bool allTokensMatch = !tokens.empty();
                 for (const auto& t : tokens) {
-                    if (pathLower.find(t) != std::string::npos) {
-                        return path;
+                    if (pathLower.find(t) == std::string::npos) {
+                        allTokensMatch = false;
+                        break;
                     }
+                }
+                if (allTokensMatch) {
+                    return path;
                 }
             }
         }
@@ -76,8 +119,11 @@ namespace Leon {
 
     TRef<FMaterial> FMaterialImporter::BuildMaterial(const FExtractedMaterial& InExtracted,
                                                      const std::vector<std::string>& InAvailableTextureVirtualPaths) {
-        std::string matName = InExtracted.Name.empty() ? "M_Extracted" : ("M_" + InExtracted.Name);
-        auto material = FMaterial::Create(matName);
+        std::string formattedName = InExtracted.Name;
+        if (formattedName.rfind("M_", 0) != 0) {
+            formattedName = "M_" + formattedName;
+        }
+        auto material = FMaterial::Create(formattedName);
 
         material->SetAlbedoColor(InExtracted.BaseColor);
         material->SetMetallic(InExtracted.Metallic);
@@ -90,37 +136,74 @@ namespace Leon {
         material->SetAlphaCutoff(InExtracted.AlphaCutoff);
         material->SetDoubleSided(InExtracted.bDoubleSided);
 
-        // Resolve Textures
-        std::string albedoTex = FindMatchingTexture(InExtracted.Name, "diff", "color", InAvailableTextureVirtualPaths);
+        std::string nameLower = InExtracted.Name;
+        std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+
+        // Auto planar reflection for glass, windows, mirrors, chrome
+        if (nameLower.find("glass") != std::string::npos || nameLower.find("window") != std::string::npos ||
+            nameLower.find("chrome") != std::string::npos || nameLower.find("mirror") != std::string::npos ||
+            (InExtracted.Metallic >= 0.85f && InExtracted.Roughness <= 0.1f)) {
+            material->SetUsePlanarReflection(true);
+        }
+
+        // 1. Resolve Albedo / Diffuse Map
+        std::string albedoTex = ResolveTextureName(InExtracted.DiffuseTextureName, InAvailableTextureVirtualPaths);
+        if (albedoTex.empty())
+            albedoTex = FindMatchingTexture(InExtracted.Name, "diff", "color", InAvailableTextureVirtualPaths);
         if (albedoTex.empty())
             albedoTex = FindMatchingTexture(InExtracted.Name, "albedo", "basecolor", InAvailableTextureVirtualPaths);
+        if (albedoTex.empty())
+            albedoTex = FindMatchingTexture(InExtracted.Name, "_d", "diffuse", InAvailableTextureVirtualPaths);
         if (!albedoTex.empty()) {
             material->SetTexturePath(0, albedoTex);
         }
 
-        std::string normalTex = FindMatchingTexture(InExtracted.Name, "normal", "nmap", InAvailableTextureVirtualPaths);
+        // 2. Resolve Normal Map
+        std::string normalTex = ResolveTextureName(InExtracted.NormalTextureName, InAvailableTextureVirtualPaths);
+        if (normalTex.empty())
+            normalTex = FindMatchingTexture(InExtracted.Name, "normal", "nmap", InAvailableTextureVirtualPaths);
+        if (normalTex.empty())
+            normalTex = FindMatchingTexture(InExtracted.Name, "_n", "norm", InAvailableTextureVirtualPaths);
         if (!normalTex.empty()) {
             material->SetTexturePath(1, normalTex);
         }
 
-        std::string roughTex = FindMatchingTexture(InExtracted.Name, "gloss", "rough", InAvailableTextureVirtualPaths);
-        if (!roughTex.empty()) {
-            material->SetTexturePath(3, roughTex);
-        }
-
-        std::string metalTex =
-            FindMatchingTexture(InExtracted.Name, "metal", "metallic", InAvailableTextureVirtualPaths);
+        // 3. Resolve Metallic Map
+        std::string metalTex = ResolveTextureName(InExtracted.MetallicTextureName, InAvailableTextureVirtualPaths);
+        if (metalTex.empty())
+            metalTex = FindMatchingTexture(InExtracted.Name, "metal", "metallic", InAvailableTextureVirtualPaths);
+        if (metalTex.empty())
+            metalTex = FindMatchingTexture(InExtracted.Name, "_m", "met", InAvailableTextureVirtualPaths);
         if (!metalTex.empty()) {
             material->SetTexturePath(2, metalTex);
         }
 
-        std::string aoTex = FindMatchingTexture(InExtracted.Name, "ao", "occlusion", InAvailableTextureVirtualPaths);
+        // 4. Resolve Roughness Map
+        std::string roughTex = ResolveTextureName(InExtracted.RoughnessTextureName, InAvailableTextureVirtualPaths);
+        if (roughTex.empty())
+            roughTex = FindMatchingTexture(InExtracted.Name, "gloss", "rough", InAvailableTextureVirtualPaths);
+        if (roughTex.empty())
+            roughTex = FindMatchingTexture(InExtracted.Name, "_r", "roughness", InAvailableTextureVirtualPaths);
+        if (!roughTex.empty()) {
+            material->SetTexturePath(3, roughTex);
+        }
+
+        // 5. Resolve AO Map
+        std::string aoTex = ResolveTextureName(InExtracted.AOTextureName, InAvailableTextureVirtualPaths);
+        if (aoTex.empty())
+            aoTex = FindMatchingTexture(InExtracted.Name, "ao", "occlusion", InAvailableTextureVirtualPaths);
+        if (aoTex.empty())
+            aoTex = FindMatchingTexture(InExtracted.Name, "_ao", "ambient", InAvailableTextureVirtualPaths);
         if (!aoTex.empty()) {
             material->SetTexturePath(4, aoTex);
         }
 
-        std::string emissiveTex =
-            FindMatchingTexture(InExtracted.Name, "illum", "emissive", InAvailableTextureVirtualPaths);
+        // 6. Resolve Emissive Map
+        std::string emissiveTex = ResolveTextureName(InExtracted.EmissiveTextureName, InAvailableTextureVirtualPaths);
+        if (emissiveTex.empty())
+            emissiveTex = FindMatchingTexture(InExtracted.Name, "illum", "emissive", InAvailableTextureVirtualPaths);
+        if (emissiveTex.empty())
+            emissiveTex = FindMatchingTexture(InExtracted.Name, "_e", "emit", InAvailableTextureVirtualPaths);
         if (!emissiveTex.empty()) {
             material->SetTexturePath(5, emissiveTex);
             if (material->GetEmissiveIntensity() <= 0.0f) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-LeonEngine2 - Renderer Mathematical Regression Test Runner
-Compiles and executes the RendererTests suite with detailed metrics.
+LeonEngine2 - Test Runner
+Compiles and executes the test suite with detailed metrics.
 """
 
 import os
@@ -14,9 +14,8 @@ def main():
     project_root = os.path.dirname(script_dir)
     build_dir = os.path.join(project_root, "build")
     
-    # 1. Compile RendererTests target
     print("=" * 80)
-    print("   LeonEngine2 - Renderer Mathematical Regression Tests")
+    print("   LeonEngine2 - Comprehensive Regression & Gameplay Test Suite")
     print("=" * 80)
     print("[BUILD] Compiling RendererTests suite...")
     
@@ -32,7 +31,6 @@ def main():
         
     print(f"[SUCCESS] Built RendererTests in {t_build:.1f} ms\n")
     
-    # 2. Locate and execute test binary
     exe_path = os.path.join(build_dir, "Tests", "RendererTests.exe")
     if not os.path.exists(exe_path):
         exe_path = os.path.join(build_dir, "Tests", "RendererTests")
@@ -45,19 +43,62 @@ def main():
     print("-" * 80)
     
     t_run0 = time.perf_counter()
-    # Pass any forwarded command line arguments (e.g. -tc="*IBL*")
-    run_cmd = [exe_path] + sys.argv[1:]
-    test_proc = subprocess.run(run_cmd, cwd=project_root)
-    t_run = (time.perf_counter() - t_run0) * 1000.0
     
-    print("-" * 80)
-    if test_proc.returncode == 0:
-        print(f"[PASSED] All mathematical regression tests passed in {t_run:.1f} ms!")
+    # If specific arguments passed, forward them directly
+    if len(sys.argv) > 1:
+        run_cmd = [exe_path] + sys.argv[1:]
+        test_proc = subprocess.run(run_cmd, cwd=project_root)
+        t_run = (time.perf_counter() - t_run0) * 1000.0
+        print("-" * 80)
+        if test_proc.returncode == 0:
+            print(f"[PASSED] Tests passed in {t_run:.1f} ms!")
+        else:
+            print(f"[FAILED] Test run failed with exit code {test_proc.returncode} in {t_run:.1f} ms.")
+        print("=" * 80)
+        sys.exit(test_proc.returncode)
     else:
-        print(f"[FAILED] Test run failed with exit code {test_proc.returncode} in {t_run:.1f} ms.")
-    print("=" * 80)
-    
-    sys.exit(test_proc.returncode)
+        # Run test cases
+        list_proc = subprocess.run([exe_path, "--list-test-cases"], capture_output=True, text=True, cwd=project_root)
+        lines = list_proc.stdout.splitlines()
+        test_cases = []
+        start = False
+        for line in lines:
+            if "listing all test case names" in line:
+                start = True
+                continue
+            if "========" in line:
+                continue
+            if "unskipped test cases" in line:
+                break
+            if start and line.strip():
+                test_cases.append(line.strip())
+                
+        passed = 0
+        failed = 0
+        for idx, tc in enumerate(test_cases):
+            p = subprocess.run([exe_path, f"-tc={tc}"], capture_output=True, text=True, cwd=project_root)
+            if p.returncode == 0:
+                print(f"  [{idx+1:02d}/{len(test_cases):02d}] PASS: {tc}")
+                passed += 1
+            else:
+                print(f"  [{idx+1:02d}/{len(test_cases):02d}] FAIL: {tc}")
+                if p.stdout:
+                    print(p.stdout)
+                if p.stderr:
+                    print(p.stderr)
+                failed += 1
+                
+        t_run = (time.perf_counter() - t_run0) * 1000.0
+        print("-" * 80)
+        print(f"Results: {passed} passed, {failed} failed out of {len(test_cases)} tests in {t_run:.1f} ms")
+        if failed == 0:
+            print(f"[PASSED] All {passed} test cases passed successfully!")
+            print("=" * 80)
+            sys.exit(0)
+        else:
+            print(f"[FAILED] {failed} test cases failed.")
+            print("=" * 80)
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

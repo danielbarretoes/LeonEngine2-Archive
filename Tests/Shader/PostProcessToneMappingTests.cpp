@@ -22,9 +22,14 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         GLuint hdrTex = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &hdrTex);
         glTextureStorage2D(hdrTex, 1, GL_RGBA16F, 1, 1);
+        glTextureParameteri(hdrTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(hdrTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glBindTextureUnit(0, hdrTex);
+        glBindTextureUnit(1, 0);
         shader->SetInt("u_HDRSceneTexture", 0);
+        shader->SetInt("u_BloomTexture", 1);
         shader->SetInt("u_UseBloom", 0);
+        shader->SetFloat("u_BloomIntensity", 0.0f);
         shader->SetInt("u_ToneMapper", 0); // 0 = ACES
         shader->SetFloat("u_Exposure", 1.0f);
         shader->SetFloat("u_Gamma", 2.2f);

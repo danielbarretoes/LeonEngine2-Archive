@@ -3,7 +3,7 @@
 #include "core/Base.hpp"
 #include "renderer/Texture.hpp"
 #include "renderer/TextureCube.hpp"
-#include "scene/Components.hpp"
+#include "world/Components.hpp"
 
 namespace Leon {
 

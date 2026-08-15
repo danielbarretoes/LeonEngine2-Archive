@@ -10,11 +10,13 @@ LeonEngine2 strictly adheres to the standard Unreal Engine prefixing conventions
 
 | Category | Prefix / Convention | Description | Examples in LeonEngine2 |
 | :--- | :--- | :--- | :--- |
-| **Classes & Structs** | `F` | Plain C++ classes and structures | `FApplication`, `FWindow`, `FLayer`, `FLayerStack`, `FRenderer`, `FRenderCommand`, `FShader`, `FVertexBuffer`, `FIndexBuffer`, `FVertexArray`, `FBufferElement`, `FBufferLayout`, `FWindowProps`, `FApplicationProps`, `FTimestep`, `FLog` |
+| **Engine & UObject Objects** | `U` | Engine runtime objects, components, worlds | `UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UStaticMeshComponent`, `UCameraComponent`, `UDirectionalLightComponent`, `UPointLightComponent`, `USpotLightComponent`, `UClassRegistry` |
+| **Actors** | `A` | Spawnable gameplay actors placed in a UWorld | `AActor`, `APawn`, `ADefaultPawn`, `APlayerController`, `APlayerState`, `AGameModeBase`, `AGameStateBase`, `ACameraActor`, `APlayerCameraManager` |
+| **Structs & Value Types** | `F` | Plain C++ classes, structures, and value types | `FApplication`, `FWindow`, `FLayer`, `FLayerStack`, `FRenderer`, `FRenderCommand`, `FShader`, `FVertexBuffer`, `FIndexBuffer`, `FVertexArray`, `FTransformComponent`, `FTagComponent`, `FTimestep`, `FLog`, `FConfigFile` |
 | **Interfaces** | `I` | Pure abstract interfaces & RHI contracts | `IGraphicsContext`, `IRenderAPI`, `IRenderDriver` |
-| **Enumerations** | `E` | Enum classes and scoped enumerations | `EShaderDataType`, `ERenderAPI`, `ELogLevel`, `EEventType`, `EEventCategory` |
+| **Enumerations** | `E` | Enum classes and scoped enumerations | `EShaderDataType`, `ERenderAPI`, `ELogLevel`, `ETextAlignment`, `EShadowFilterMode`, `EEndPlayReason` |
 | **Templates / Smart Pointers** | `T` | Template classes, smart pointer aliases | `TScope<T>`, `TRef<T>`, `MakeScope<T>`, `MakeRef<T>` |
-| **Booleans** | `b` | Boolean variables and flags | `bRunning`, `bMinimized`, `bVSync`, `bHandled`, `bIsRepeat`, `bNormalized` |
+| **Booleans** | `b` | Boolean variables and flags | `bRunning`, `bMinimized`, `bVSync`, `bHandled`, `bIsRepeat`, `bNormalized`, `bCastShadows` |
 | **Function Parameters** | `In` (`PascalCase`) | Input parameters to functions/methods | `InProps`, `InWidth`, `InHeight`, `InDeltaTime`, `InShader`, `InVertexArray`, `InName` |
 | **Member Variables** | `m_` / `b` (`PascalCase`) | Private/protected member variables | `m_Window`, `m_LayerStack`, `m_Data`, `bRunning`, `bMinimized` |
 | **Static Variables** | `s_` (`PascalCase`) | Static/global internal variables | `s_Instance`, `s_API`, `s_GLFWWindowCount`, `s_Drivers` |
@@ -85,7 +87,7 @@ Tooling and build automation scripts follow the official naming standards of the
   - `Buffer.cpp` / `Buffer.hpp`
   - `OpenGLShader.cpp` / `OpenGLShader.hpp`
   - `OpenGLRenderDriver.cpp` / `OpenGLRenderDriver.hpp`
-  - `SandboxApp.cpp`
+  - `Main.cpp`
 ### 4.2 Asset Naming Standards (Unreal Engine Standard)
 - **Shaders (`.glsl`)**: Use `PascalCase` with descriptive purpose and standard lighting models:
   - `PBR_Lit.glsl` (Cook-Torrance PBR multi-light model with IBL & ACES)

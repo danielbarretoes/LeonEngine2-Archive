@@ -1,2 +1,16 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
+#include "renderer/AssetManager.hpp"
+#include "renderer/Renderer.hpp"
+#include <cstdlib>
+
+int main(int argc, char** argv) {
+    doctest::Context context;
+    context.applyCommandLine(argc, argv);
+    int res = context.run();
+    Leon::FAssetManager::Shutdown();
+    Leon::FRenderer::Shutdown();
+    if (context.shouldExit())
+        return res;
+    std::quick_exit(res);
+}

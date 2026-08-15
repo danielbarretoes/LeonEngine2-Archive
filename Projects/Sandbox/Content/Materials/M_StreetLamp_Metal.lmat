@@ -1,0 +1,18 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [0.18, 0.19, 0.2]
+  Metallic: 0.92
+  Roughness: 0.22
+  AO: 1
+  NormalScale: 1
+  OcclusionStrength: 1
+  AlphaMode: "Opaque"
+  AlphaCutoff: 0.5
+  DoubleSided: false
+  UVTiling: [1, 1]
+  UVOffset: [0, 0]
+  AlbedoMap: "Textures/T_StreetLamp_Metal_D.ltex"
+  NormalMap: "Textures/T_StreetLamp_Metal_N.ltex"
+  MetallicMap: "Textures/T_StreetLamp_Metal_D.ltex"
+  UsePlanarReflection: false

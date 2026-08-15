@@ -69,8 +69,8 @@ LeonAssetTool import --raw <raw_dir> --content <content_dir> [--force]
 # Validate all native assets in content directory
 LeonAssetTool validate --content <content_dir>
 
-# Validate level asset links, actors, lights, camera, and static meshes
-LeonAssetTool validate_level --level <path.llevel>
+# Validate map asset links, actors, lights, camera, and static meshes
+LeonAssetTool validate_map --map <path.lmap>
 
 # Inspect native binary header and metadata
 LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi>
@@ -83,8 +83,8 @@ The pipeline uses 64-bit FNV-1a hashing on source files. On subsequent import ru
 
 ---
 
-## 4. Integration with Scene & ECS
-- `FScene`: In-memory runtime world and ECS registry owning entities and components.
-- `FLevelSerializer`: Serializes and deserializes persistent level asset files (`.llevel`).
-- `FStaticMeshComponent`: Component holding a reference to `FStaticMesh`, per-submesh material overrides, shadow flags, and reflection flags.
+## 4. Integration with Gameplay Framework & ECS
+- `UWorld`: In-memory runtime world and ECS registry owning `AActor` instances and components.
+- `MapSerializer`: Serializes and deserializes persistent map asset files (`.lmap`).
+- `UStaticMeshComponent`: Component holding a reference to `FStaticMesh`, per-submesh material overrides, shadow flags, and reflection flags.
 - `FAssetManager`: Deduplicates all loaded textures, static meshes, materials, and material instances using virtual path resolution (`Meshes/...`, `Materials/...`, `Textures/...`, `HDR/...`).

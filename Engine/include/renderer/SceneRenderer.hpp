@@ -16,9 +16,9 @@
 
 namespace Leon {
 
-    class FScene;
-    struct FDirectionalLightComponent;
-    struct FSpotLightComponent;
+    class UWorld;
+    struct UDirectionalLightComponent;
+    struct USpotLightComponent;
     struct FSkyboxComponent;
     struct FDirectionalLight;
 
@@ -79,14 +79,11 @@ namespace Leon {
     // =========================================================================
 
     /**
-     * @brief Owns the full rendering pipeline for a FScene.
-     *
-     * FScene is data (ECS). FSceneRenderer is behaviour (rendering).
-     * Responsible for all framebuffers, UBOs, render passes, and shader orchestration.
+     * @brief Owns the full rendering pipeline for a UWorld.
      */
     class FSceneRenderer {
     public:
-        explicit FSceneRenderer(FScene* InScene);
+        explicit FSceneRenderer(UWorld* InWorld);
         ~FSceneRenderer() = default;
 
         // Non-copyable
@@ -98,6 +95,7 @@ namespace Leon {
          * Order: Shadow CSM → Spot Shadow → Planar Reflection → Geometry → Skybox → PostProcess
          */
         void Render(const FPerspectiveCamera& InCamera);
+        void RenderScene(const FPerspectiveCamera& InCamera) { Render(InCamera); }
 
         /**
          * @brief Called when the viewport dimensions change. Resizes viewport-dependent FBOs.
@@ -120,9 +118,9 @@ namespace Leon {
     private:
         // ----- Render Passes -------------------------------------------------
         void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
-                                      const FDirectionalLightComponent* InDirLightComp, FCameraBufferData& OutCamData);
+                                      const UDirectionalLightComponent* InDirLightComp, FCameraBufferData& OutCamData);
 
-        void RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp, const glm::vec3& InSpotLightPos,
+        void RenderSpotShadowPass(const USpotLightComponent* InSpotLightComp, const glm::vec3& InSpotLightPos,
                                   FCameraBufferData& OutCamData);
 
         void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
@@ -139,7 +137,7 @@ namespace Leon {
         void UpdateIBL(const FSkyboxComponent& InSkybox);
 
         // ----- Members -------------------------------------------------------
-        FScene* m_Scene = nullptr;
+        UWorld* m_World = nullptr;
 
         uint32_t m_ViewportWidth = 1280;
         uint32_t m_ViewportHeight = 720;

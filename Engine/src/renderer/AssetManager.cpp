@@ -1,7 +1,7 @@
 #include "renderer/AssetManager.hpp"
 #include "asset/AssetPath.hpp"
 #include "core/Log.hpp"
-#include "scene/MaterialSerializer.hpp"
+#include "world/MaterialSerializer.hpp"
 
 #include <filesystem>
 #include <fstream>

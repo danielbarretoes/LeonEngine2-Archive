@@ -47,22 +47,72 @@ namespace Leon {
                 mat.BaseColor = glm::vec3(static_cast<float>(uMat->pbr.base_color.value_vec4.x),
                                           static_cast<float>(uMat->pbr.base_color.value_vec4.y),
                                           static_cast<float>(uMat->pbr.base_color.value_vec4.z));
+            } else if (uMat->fbx.diffuse_color.has_value) {
+                mat.BaseColor = glm::vec3(static_cast<float>(uMat->fbx.diffuse_color.value_vec4.x),
+                                          static_cast<float>(uMat->fbx.diffuse_color.value_vec4.y),
+                                          static_cast<float>(uMat->fbx.diffuse_color.value_vec4.z));
             }
+
             if (uMat->pbr.roughness.has_value) {
                 mat.Roughness = static_cast<float>(uMat->pbr.roughness.value_real);
+            } else if (uMat->fbx.specular_exponent.has_value) {
+                float shininess = static_cast<float>(uMat->fbx.specular_exponent.value_real);
+                mat.Roughness = glm::clamp(std::sqrt(2.0f / (shininess + 2.0f)), 0.0f, 1.0f);
             }
+
             if (uMat->pbr.metalness.has_value) {
                 mat.Metallic = static_cast<float>(uMat->pbr.metalness.value_real);
+            } else if (uMat->fbx.reflection_factor.has_value) {
+                mat.Metallic = static_cast<float>(uMat->fbx.reflection_factor.value_real);
+            } else if (uMat->fbx.specular_factor.has_value && uMat->fbx.specular_factor.value_real > 0.8) {
+                mat.Metallic = static_cast<float>(uMat->fbx.specular_factor.value_real);
             }
-            if (uMat->pbr.emission_color.has_value) {
+
+            // Custom props
+            ufbx_prop* pMetallic = ufbx_find_prop(&uMat->props, "Metallic");
+            if (pMetallic && pMetallic->type == UFBX_PROP_NUMBER) {
+                mat.Metallic = static_cast<float>(pMetallic->value_real);
+            }
+            ufbx_prop* pRoughness = ufbx_find_prop(&uMat->props, "Roughness");
+            if (pRoughness && pRoughness->type == UFBX_PROP_NUMBER) {
+                mat.Roughness = static_cast<float>(pRoughness->value_real);
+            }
+
+            if (uMat->pbr.emission_color.has_value && uMat->pbr.emission_factor.has_value && uMat->pbr.emission_factor.value_real > 0.0) {
                 mat.EmissiveColor = glm::vec3(static_cast<float>(uMat->pbr.emission_color.value_vec4.x),
                                               static_cast<float>(uMat->pbr.emission_color.value_vec4.y),
                                               static_cast<float>(uMat->pbr.emission_color.value_vec4.z));
                 mat.EmissiveIntensity = static_cast<float>(uMat->pbr.emission_factor.value_real);
-                if (mat.EmissiveIntensity <= 0.0f &&
-                    (mat.EmissiveColor.r > 0.f || mat.EmissiveColor.g > 0.f || mat.EmissiveColor.b > 0.f)) {
-                    mat.EmissiveIntensity = 1.0f;
+            } else if (uMat->fbx.emission_color.has_value && uMat->fbx.emission_factor.has_value && uMat->fbx.emission_factor.value_real > 0.0) {
+                mat.EmissiveColor = glm::vec3(static_cast<float>(uMat->fbx.emission_color.value_vec4.x),
+                                              static_cast<float>(uMat->fbx.emission_color.value_vec4.y),
+                                              static_cast<float>(uMat->fbx.emission_color.value_vec4.z));
+                mat.EmissiveIntensity = static_cast<float>(uMat->fbx.emission_factor.value_real);
+            }
+
+            // Semantic heuristic fallbacks
+            std::string matNameLower = mat.Name;
+            std::transform(matNameLower.begin(), matNameLower.end(), matNameLower.begin(), ::tolower);
+            if (matNameLower.find("chrome") != std::string::npos) {
+                if (mat.Metallic == 0.0f) mat.Metallic = 0.96f;
+                if (mat.Roughness >= 0.5f) mat.Roughness = 0.06f;
+            } else if (matNameLower.find("glass") != std::string::npos || matNameLower.find("window") != std::string::npos) {
+                if (mat.Roughness >= 0.5f) mat.Roughness = 0.08f;
+                if (mat.Metallic == 0.0f) mat.Metallic = 0.2f;
+            } else if (matNameLower.find("tire") != std::string::npos || matNameLower.find("rubber") != std::string::npos) {
+                if (mat.Roughness < 0.7f) mat.Roughness = 0.82f;
+            } else if (matNameLower.find("headlight") != std::string::npos || matNameLower.find("taillight") != std::string::npos || matNameLower.find("emissive") != std::string::npos || matNameLower.find("neon") != std::string::npos) {
+                if (mat.EmissiveIntensity <= 0.0f) {
+                    mat.EmissiveIntensity = (matNameLower.find("headlight") != std::string::npos) ? 6.0f : 5.0f;
+                    if (mat.EmissiveColor == glm::vec3(0.0f)) {
+                        mat.EmissiveColor = mat.BaseColor;
+                    }
                 }
+            }
+            if (matNameLower.find("leaf") != std::string::npos || matNameLower.find("leaves") != std::string::npos ||
+                matNameLower.find("frond") != std::string::npos || matNameLower.find("foliage") != std::string::npos ||
+                matNameLower.find("plant") != std::string::npos) {
+                mat.bDoubleSided = true;
             }
 
             // Extract textures from material maps
@@ -103,7 +153,8 @@ namespace Leon {
 
             FStaticMaterialSlot slot;
             slot.SlotName = mat.Name;
-            slot.DefaultMaterialPath = "Materials/M_" + mat.Name + ".lmat";
+            std::string formattedMatName = (mat.Name.rfind("M_", 0) == 0) ? mat.Name : ("M_" + mat.Name);
+            slot.DefaultMaterialPath = "Materials/" + formattedMatName + ".lmat";
             uint32_t slotIdx = static_cast<uint32_t>(staticMesh->GetMaterialSlots().size());
             staticMesh->GetMaterialSlots().push_back(slot);
             matToSlotIndex[uMat] = slotIdx;
@@ -161,7 +212,7 @@ namespace Leon {
                     submesh.IndexOffset = static_cast<uint32_t>(allIndices.size());
                     submesh.VertexOffset = static_cast<uint32_t>(allVertices.size());
                     submesh.MaterialSlotIndex = slotIdx;
-                    submesh.LocalTransform = localMat;
+                    submesh.LocalTransform = glm::mat4(1.0f);
 
                     uint32_t submeshVertexStart = static_cast<uint32_t>(allVertices.size());
 
@@ -251,7 +302,7 @@ namespace Leon {
                 submesh.IndexOffset = static_cast<uint32_t>(allIndices.size());
                 submesh.VertexOffset = static_cast<uint32_t>(allVertices.size());
                 submesh.MaterialSlotIndex = 0;
-                submesh.LocalTransform = localMat;
+                submesh.LocalTransform = glm::mat4(1.0f);
 
                 uint32_t submeshVertexStart = static_cast<uint32_t>(allVertices.size());
 

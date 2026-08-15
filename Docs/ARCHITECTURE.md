@@ -113,7 +113,7 @@ LeonEngine2/
 │   │   │   ├── RenderDriver.hpp           # IRenderDriver & FRenderDriverRegistry
 │   │   │   ├── RenderStats.hpp            # FRenderStats (DrawCalls, Tris, Vertices)
 │   │   │   ├── Renderer.hpp               # FRenderer
-│   │   │   ├── SceneRenderer.hpp          # FSceneRenderer (Multi-Pass Rendering Pipeline)
+│   │   │   ├── SceneRenderer.hpp          # UWorldRenderer (Multi-Pass Rendering Pipeline)
 │   │   │   ├── Shader.hpp                 # FShader
 │   │   │   ├── ShadowMath.hpp             # FShadowMath (CSM Practical Splits, Bounding Spheres, Texel Snapping)
 │   │   │   ├── ShadowTypes.hpp            # EShadowFilterMode, ECascadeSplitScheme, FShadowSettings, FShadowCascade
@@ -130,9 +130,9 @@ LeonEngine2/
 │   │   │   └── TextureImporter.hpp        # FTextureImporter (.ltex)
 │   │   └── scene/                         # Scene & Entity Component System (ECS)
 │   │       ├── Components.hpp             # FTag, FTransform, FMesh, FMaterialComponent, FSkybox, FLights
-│   │       ├── Entity.hpp                 # FEntity wrapper around EnTT handles
-│   │       ├── Scene.hpp                  # FScene runtime world container
-│   │       ├── LevelSerializer.hpp        # FLevelSerializer (.llevel level deserializer)
+│   │       ├── Entity.hpp                 # AActor wrapper around EnTT handles
+│   │       ├── Scene.hpp                  # UWorld runtime world container
+│   │       ├── MapSerializer.hpp        # MapSerializer (.lmap level deserializer)
 │   │       └── MaterialSerializer.hpp     # FMaterialSerializer (.lmat / .lmi serializer)
 │   │
 │   └── src/                               # Internal engine implementations
@@ -168,16 +168,16 @@ LeonEngine2/
 │       │   ├── RenderCommand.cpp          # FRenderCommand
 │       │   ├── RenderDriver.cpp           # FRenderDriverRegistry
 │       │   ├── Renderer.cpp               # FRenderer
-│       │   ├── SceneRenderer.cpp          # FSceneRenderer (Multi-Pass Engine Pipeline)
+│       │   ├── SceneRenderer.cpp          # UWorldRenderer (Multi-Pass Engine Pipeline)
 │       │   ├── Shader.cpp                 # FShader
 │       │   ├── StaticMesh.cpp             # FStaticMesh
 │       │   ├── TextRenderer.cpp           # FTextRenderer 3D batching
 │       │   ├── Texture.cpp                # FTexture2D & FTextureCube
 │       │   └── VertexArray.cpp            # FVertexArray
 │       └── scene/                         # Scene & ECS implementations
-│           ├── Entity.cpp                 # FEntity
-│           ├── Scene.cpp                  # FScene
-│           ├── LevelSerializer.cpp        # FLevelSerializer
+│           ├── Entity.cpp                 # AActor
+│           ├── Scene.cpp                  # UWorld
+│           ├── LevelSerializer.cpp        # MapSerializer
 │           └── MaterialSerializer.cpp     # FMaterialSerializer
 │
 ├── Plugins/                               # Hardware Backends and Extensions
@@ -230,7 +230,7 @@ LeonEngine2/
         │   │   │   └── Cache/AutumnField1k.libl
         │   │   └── Textures/              # PBR Albedo, Normal, AO textures
         │   ├── Maps/
-        │   │   └── MainShowcase.llevel    # Primary showcase level asset
+        │   │   └── MainShowcase.lmap    # Primary showcase level asset
         │   └── Materials/                 # First-Class Material Assets (.lmat)
         │       ├── M_BrushedIron.lmat
         │       ├── M_ContainerCube.lmat
@@ -243,7 +243,7 @@ LeonEngine2/
         │       ├── M_RubyDielectric.lmat
         │       └── M_WhitePlastic.lmat
         └── src/
-            └── SandboxApp.cpp             # FLightingShowcaseLayer & FSandboxApp
+            └── Main.cpp                   # Minimal entry point invoking UEngine::Run
 ```
 
 ---
@@ -350,7 +350,7 @@ Provides physical Cook-Torrance ambient lighting using the Split-Sum approximati
 
 ---
 
-## 7. Multi-Pass Scene Rendering Pipeline (`FSceneRenderer`)
+## 7. Multi-Pass Scene Rendering Pipeline (`UWorldRenderer`)
 
 The frame rendering loop executes 6 distinct passes:
 
@@ -371,3 +371,38 @@ PASS 7: Post-Process Pass           ──► ACES Filmic Tone Mapping + Gamma 2
 * **HUD Overlay (`F1`)**: Real-time diagnostic panel rendering FPS, Frame Time (CPU/GPU), VRAM allocation, RAM usage, triangle counts, and draw call metrics.
 * **Light Gizmos (`F2`)**: 3D wireframe cones for Spot Lights, bounding attenuation spheres for Point Lights, and directional sunlight vectors.
 * **Material & Lighting Debug Views (`Shift + F1 .. F12`, `Shift + N`, `Shift + R`)**: Interactive hotkeys to isolate individual cubemap mips, diffuse irradiance, BRDF LUT, direct lighting, specular IBL, world normals, and reflection vectors in real time.
+
+---
+
+## 3. LeonEngine2 Gameplay Framework (Unreal Engine Architecture)
+
+LeonEngine2 implements a strict, faithful Unreal Engine gameplay framework architecture:
+
+```text
+UEngine
+  │
+  ├── UGameInstance (High-level persistent game state)
+  │
+  └── UWorld (Active loaded map)
+        │
+        ├── AGameModeBase (Match rules, player login flow, spawn rules)
+        │     │
+        │     ├── AGameStateBase (Global match state, PlayerArray)
+        │     │
+        │     ├── APlayerController (Player input, possession, camera manager)
+        │     │     │
+        │     │     ├── APlayerState (Persistent player data: Name, ID, Score)
+        │     │     ├── APawn / ADefaultPawn (Possessed 6-DOF actor)
+        │     │     └── APlayerCameraManager (Resolves ViewTarget, Pawn camera & Fallback)
+        │     │
+        │     └── AActor* (All world actors with attached UActorComponents)
+        │
+        └── FSceneRenderer (Consumes UWorld data and renders PBR, CSM, IBL, Post-Processing)
+```
+
+### Unreal Naming & Prefix Standards:
+- **`U`** = Engine objects, worlds, components, assets (`UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UStaticMeshComponent`, `UCameraComponent`, `UDirectionalLightComponent`, `UPointLightComponent`, `USpotLightComponent`, `UClassRegistry`).
+- **`A`** = Spawnable world actors (`AActor`, `APawn`, `ADefaultPawn`, `APlayerController`, `APlayerState`, `AGameModeBase`, `AGameStateBase`, `ACameraActor`, `APlayerCameraManager`).
+- **`F`** = Structs and value types (`FTransformComponent`, `FVector`, `FRotator`, `FConfigFile`, `FTimestep`).
+- **`E`** = Enumerations (`ETextAlignment`, `EShadowFilterMode`, `EEndPlayReason`).
+- **`T`** = Templates and container wrappers (`TRef`, `TScope`).

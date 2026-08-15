@@ -1,0 +1,19 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [1, 0.85, 0.5]
+  Metallic: 0.1
+  Roughness: 0.1
+  AO: 1
+  NormalScale: 1
+  OcclusionStrength: 1
+  EmissiveColor: [1, 0.85, 0.45]
+  EmissiveIntensity: 6
+  AlphaMode: "Opaque"
+  AlphaCutoff: 0.5
+  DoubleSided: false
+  UVTiling: [1, 1]
+  UVOffset: [0, 0]
+  AlbedoMap: "Textures/T_House_Windows_D.ltex"
+  NormalMap: "Textures/T_House_Windows_N.ltex"
+  UsePlanarReflection: true
