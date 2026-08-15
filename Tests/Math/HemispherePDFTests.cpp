@@ -6,7 +6,12 @@ TEST_SUITE("Math - Hemisphere PDF & Integration Invariants") {
     TEST_CASE("Cosine-Weighted PDF Non-Negativity and Analytical Normalization") {
         const float eps = 1e-6f;
 
-        // 1. Non-negativity test
+        // 1. Exact Analytical Point Value checks (distinguishes from uniform 1/(2*PI))
+        CHECK(Leon::CosineHemispherePDF(1.0f) == doctest::Approx(1.0f / Leon::PI).epsilon(1e-5f));
+        CHECK(Leon::CosineHemispherePDF(0.5f) == doctest::Approx(0.5f / Leon::PI).epsilon(1e-5f));
+        CHECK(Leon::CosineHemispherePDF(0.0f) == doctest::Approx(0.0f).epsilon(1e-5f));
+
+        // 2. Non-negativity test
         for (float theta = 0.0f; theta <= Leon::PI * 0.5f; theta += 0.05f) {
             float cosTheta = std::cos(theta);
             float pdf = Leon::CosineHemispherePDF(cosTheta);

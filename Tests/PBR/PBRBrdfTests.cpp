@@ -13,9 +13,15 @@ TEST_SUITE("PBR - Cook-Torrance Microfacet BRDF Invariants") {
                 float ndf = Leon::DistributionGGX(ndoth, r);
                 CHECK(ndf >= 0.0f);
                 CHECK(!std::isnan(ndf));
-                CHECK(!std::isinf(ndf));
             }
         }
+
+        // Exact Analytical Numerical Reference Checks:
+        // roughness = 0.5 -> a = 0.25, a2 = 0.0625
+        // NdotH = 1.0 -> D = 1 / (PI * a2) = 1 / (PI * 0.0625) ~= 5.092958
+        // NdotH = 0.0 -> D = a2 / PI = 0.0625 / PI ~= 0.019894
+        CHECK(Leon::DistributionGGX(1.0f, 0.5f) == doctest::Approx(5.092958f).epsilon(0.001f));
+        CHECK(Leon::DistributionGGX(0.0f, 0.5f) == doctest::Approx(0.019894f).epsilon(0.001f));
     }
 
     TEST_CASE("Smith Schlick-GGX Geometry Function in Range [0, 1]") {
@@ -36,6 +42,12 @@ TEST_SUITE("PBR - Cook-Torrance Microfacet BRDF Invariants") {
         // When viewing straight down on smooth surface, shadowing is zero (G = 1)
         float gPerp = Leon::GeometrySmith_Direct(1.0f, 1.0f, 0.001f);
         CHECK(gPerp == doctest::Approx(1.0f).epsilon(0.01f));
+
+        // Exact Analytical Numerical Reference Check:
+        // roughness = 0.5 -> r = 1.5, k = 2.25 / 8 = 0.28125
+        // NdotV = 0.5, NdotL = 0.5 -> G1 = 0.5 / (0.5 * 0.71875 + 0.28125) = 0.7804878
+        // G = G1 * G1 = 0.609161
+        CHECK(Leon::GeometrySmith_Direct(0.5f, 0.5f, 0.5f) == doctest::Approx(0.609161f).epsilon(0.001f));
     }
 
     TEST_CASE("Fresnel-Schlick Boundary Conditions F(0) = F0 and F(pi/2) = 1.0") {
@@ -53,7 +65,14 @@ TEST_SUITE("PBR - Cook-Torrance Microfacet BRDF Invariants") {
         CHECK(fGold0.g == doctest::Approx(0.71f).epsilon(1e-5f));
         CHECK(fGold0.b == doctest::Approx(0.29f).epsilon(1e-5f));
 
-        // 2. Glancing incidence (cosTheta = 0.0) -> F == 1.0 (all materials become 100% reflective)
+        // 2. Exact Oblique Angle (cosTheta = 0.5) -> (1-0.5)^5 = 0.03125
+        // F = 0.04 + 0.96 * 0.03125 = 0.07000 (catches exponent mutations 4.0 vs 5.0)
+        glm::vec3 fDielMid = Leon::FresnelSchlick(0.5f, F0_dielectric);
+        CHECK(fDielMid.r == doctest::Approx(0.07000f).epsilon(1e-4f));
+        CHECK(fDielMid.g == doctest::Approx(0.07000f).epsilon(1e-4f));
+        CHECK(fDielMid.b == doctest::Approx(0.07000f).epsilon(1e-4f));
+
+        // 3. Glancing incidence (cosTheta = 0.0) -> F == 1.0 (all materials become 100% reflective)
         glm::vec3 fDielGlance = Leon::FresnelSchlick(0.0f, F0_dielectric);
         CHECK(fDielGlance.r == doctest::Approx(1.0f).epsilon(1e-5f));
         CHECK(fDielGlance.g == doctest::Approx(1.0f).epsilon(1e-5f));

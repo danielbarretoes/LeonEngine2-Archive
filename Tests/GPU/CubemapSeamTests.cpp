@@ -21,13 +21,20 @@ TEST_SUITE("GPU & Geometry - Cubemap Face Boundary Seams") {
             CHECK(std::abs(glm::length(dirPosZ) - 1.0f) < eps);
         }
 
-        // Test that all corner directions of all 6 faces point to the 8 cube corners
+        // 1. Cardinal Face Center Directions and Signed Axes
+        CHECK(Leon::GetCubeDirection(0, 0.0f, 0.0f).x == doctest::Approx( 1.0f).epsilon(1e-5f)); // +X
+        CHECK(Leon::GetCubeDirection(1, 0.0f, 0.0f).x == doctest::Approx(-1.0f).epsilon(1e-5f)); // -X
+        CHECK(Leon::GetCubeDirection(2, 0.0f, 0.0f).y == doctest::Approx( 1.0f).epsilon(1e-5f)); // +Y
+        CHECK(Leon::GetCubeDirection(3, 0.0f, 0.0f).y == doctest::Approx(-1.0f).epsilon(1e-5f)); // -Y
+        CHECK(Leon::GetCubeDirection(4, 0.0f, 0.0f).z == doctest::Approx( 1.0f).epsilon(1e-5f)); // +Z
+        CHECK(Leon::GetCubeDirection(5, 0.0f, 0.0f).z == doctest::Approx(-1.0f).epsilon(1e-5f)); // -Z
+
+        // 2. Corner directions for all 6 faces
         for (int face = 0; face < 6; ++face) {
             for (float u : {-1.0f, 1.0f}) {
                 for (float v : {-1.0f, 1.0f}) {
                     glm::vec3 corner = Leon::GetCubeDirection(face, u, v);
                     CHECK(std::abs(glm::length(corner) - 1.0f) < eps);
-                    // Each coordinate of a corner in unit cube must have magnitude 1/sqrt(3) ~= 0.5773503
                     CHECK(std::abs(std::abs(corner.x) - 0.5773503f) < eps);
                     CHECK(std::abs(std::abs(corner.y) - 0.5773503f) < eps);
                     CHECK(std::abs(std::abs(corner.z) - 0.5773503f) < eps);

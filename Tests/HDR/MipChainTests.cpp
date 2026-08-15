@@ -39,10 +39,22 @@ TEST_SUITE("HDR - Mipmap Pyramid & 360 Wrap Invariants") {
 
     TEST_CASE("360 Equirectangular Horizontal Seam Continuity (u = 0.0 vs u = 1.0)") {
         const int W = 128, H = 64;
-        auto stepData = Leon::TestFixtures::CreateHemisphereStepHDR(W, H, glm::vec3(3.0f, 1.0f, 0.5f), glm::vec3(0.2f, 0.4f, 0.8f));
+        // Azimuth-varying continuous sinusoidal HDR fixture: sin(2*PI*u)
+        std::vector<float> azimuthData(static_cast<size_t>(W) * H * 4, 0.0f);
+        for (int y = 0; y < H; ++y) {
+            for (int x = 0; x < W; ++x) {
+                float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(W);
+                float val = 2.0f + std::sin(Leon::TWO_PI * u);
+                size_t idx = (static_cast<size_t>(y) * W + x) * 4;
+                azimuthData[idx + 0] = val;
+                azimuthData[idx + 1] = val * 0.5f;
+                azimuthData[idx + 2] = val * 0.25f;
+                azimuthData[idx + 3] = 1.0f;
+            }
+        }
 
         Leon::FHDREquirectangularMipChain mipChain;
-        mipChain.Build(stepData.data(), W, H);
+        mipChain.Build(azimuthData.data(), W, H);
 
         // Direction at phi = -pi (u = 0.0) vs phi = +pi (u = 1.0)
         glm::vec3 dirWest(-1.0f, 0.0f, -0.0001f);
