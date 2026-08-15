@@ -84,7 +84,12 @@ namespace Leon {
         m_DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
 
         // -----------------------------------------------------------------------
-        // 6. Initial IBL state (deferred until first skybox evaluation)
+        // 6. Post-Processing Pipeline
+        // -----------------------------------------------------------------------
+        m_PostProcessPipeline.Init();
+
+        // -----------------------------------------------------------------------
+        // 7. Initial IBL state (deferred until first skybox evaluation)
         // -----------------------------------------------------------------------
         m_bEnvironmentGenerated = false;
     }
@@ -105,6 +110,7 @@ namespace Leon {
                  m_PlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
                 m_PlanarReflectionFramebuffer->Resize(InWidth, InHeight);
             }
+            m_PostProcessPipeline.OnViewportResize(InWidth, InHeight);
         }
     }
 
@@ -693,27 +699,14 @@ namespace Leon {
     }
 
     // =========================================================================
-    // Post-Process Pass (ACES tonemapping + gamma correction)
+    // Post-Process Pass (Bloom + ACES Tonemapping + FXAA)
     // =========================================================================
     void FSceneRenderer::RenderPostProcessPass(float InExposure, uint32_t InTargetFBO,
                                                 uint32_t InVpWidth, uint32_t InVpHeight) {
-        if (!m_HDRSceneFramebuffer || !m_PostProcessShader || !m_FullscreenQuadVA) return;
+        if (!m_HDRSceneFramebuffer) return;
 
-        FRenderCommand::BindFramebuffer(InTargetFBO);
-        FRenderCommand::SetViewport(0, 0, InVpWidth, InVpHeight);
-        FRenderCommand::SetDepthTesting(false);
-        FRenderCommand::SetDepthMask(false);
-
-        m_PostProcessShader->Bind();
-        m_HDRSceneFramebuffer->BindTexture(0, 0);
-        m_PostProcessShader->SetInt("u_SceneTexture", 0);
-        m_PostProcessShader->SetFloat("u_Exposure", InExposure);
-
-        m_FullscreenQuadVA->Bind();
-        FRenderCommand::DrawIndexed(m_FullscreenQuadVA);
-
-        FRenderCommand::SetDepthTesting(true);
-        FRenderCommand::SetDepthMask(true);
+        m_PostProcessSettings.Exposure = InExposure;
+        m_PostProcessPipeline.Render(m_PostProcessSettings, m_HDRSceneFramebuffer, InTargetFBO, InVpWidth, InVpHeight);
     }
 
     // =========================================================================

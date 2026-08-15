@@ -203,23 +203,27 @@ De las **8.098.870 aserciones**:
 | **IBL Binary Cache (.libl)** | `IBLGenerator.cpp` / `IBLMath.hpp` | Sí (2 suites) | Sí (FNV-1a / Disk) | No | Sí (Header magic & version) | **SÍ** | **HIGH (SAFE)** |
 | **HDR Decoding & Mip Chain** | `AssetManager.cpp` / `IBLMath.hpp` | Sí (2 suites) | No | No | Sí (360 wrap) | **SÍ** | **HIGH (SAFE)** |
 | **GPU Texture Upload & RHI** | `OpenGLTexture.cpp` / GL Core | Sí (1 suite) | Sí (Readback) | **SÍ (Offscreen)** | Sí | **SÍ** | **HIGH (SAFE)** |
-| **PBR Cook-Torrance BRDF** | `PBR_Lit.glsl` | Sí (4 suites GPU) | Sí (Analytical) | **SÍ (Offscreen GL 4.5)** | **Sí (15/15 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
-| **Direct Lighting Loop** | `PBR_Lit.glsl` | Sí (3 suites GPU) | Sí (UE4 / Angles) | **SÍ (Offscreen GL 4.5)** | **Sí (15/15 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
-| **Planar Reflections & IBL GPU**| `PBR_Lit.glsl` | Sí (2 suites GPU) | Sí | **SÍ (Offscreen GL 4.5)** | **Sí (15/15 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **PBR Cook-Torrance BRDF** | `PBR_Lit.glsl` | Sí (4 suites GPU) | Sí (Analytical) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **Direct Lighting Loop** | `PBR_Lit.glsl` | Sí (3 suites GPU) | Sí (UE4 / Angles) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **Planar Reflections & IBL GPU**| `PBR_Lit.glsl` | Sí (2 suites GPU) | Sí | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **Bloom Bright Pass & Pyramid** | `Bloom*.glsl` | Sí (2 suites GPU) | Sí (Quadratic/Jimenez) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **Tone Mapping & Operators** | `ToneMapping.glsl` | Sí (2 suites GPU) | Sí (ACES/Reinhard) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **FXAA 3.11 Anti-Aliasing** | `FXAA.glsl` | Sí (3 suites GPU) | Sí (Edge/Subpixel) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
+| **Post-Process Pipeline E2E** | `PostProcessPipeline.cpp` | Sí (2 suites GPU) | Sí (Resize/Passes) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
 
 ---
 
 ## 12. Respuestas a las Preguntas Estratégicas
 
 ### 1. ¿Los tests realmente protegen el renderer?
-**SÍ de forma total y completa tanto en CPU como en GPU real.** Toda modificación indebida en el código C++ de generación/caché de IBL o en el código GLSL del shader `PBR_Lit.glsl` dispara fallos inmediatos y reproducibles en la suite de tests.
+**SÍ de forma total y completa tanto en CPU como en GPU real.** Toda modificación indebida en el código C++ de generación/caché de IBL, en el código GLSL del shader `PBR_Lit.glsl`, o en el pipeline de post-procesado (`BloomBrightPass.glsl`, `BloomDownsample.glsl`, `BloomUpsample.glsl`, `ToneMapping.glsl`, `FXAA.glsl`) dispara fallos inmediatos y reproducibles en la suite de tests.
 
 ### 2. ¿Qué tests prueban helpers y cuáles production code?
-* **Production Code & GPU Shaders Directos:** Las suites `IBL/*`, `HDR/*`, `Cache/*`, `GPU/*` y `Shader/*` compilan y ejecutan las funciones y archivos de shader reales del proyecto.
+* **Production Code & GPU Shaders Directos:** Las suites `IBL/*`, `HDR/*`, `Cache/*`, `GPU/*` y `Shader/*` (incluyendo `PostProcessBloomTests`, `PostProcessToneMappingTests`, `PostProcessFXAATests`, y `PostProcessPipelineTests`) compilan y ejecutan las funciones y archivos de shader reales del proyecto.
 * **Modelo Referencia CPU:** `PBR/PBRBrdfTests.cpp` y `PBR/EnergyConservationTests.cpp` prueban `PBRMath.hpp` como modelo analítico de referencia pura.
 
 ### 3. ¿Qué partes de GLSL han quedado protegidas?
-Fresnel Schlick (incluyendo ángulos rasantes y oblicuos a $\cos\theta=0.5$), GGX NDF, Smith Geometry ($G_1 \cdot G_2$), atenuación inversa cuadrática de UE4 para Point Lights, conos y penumbras con smoothstep para Spot Lights, pipelines IBL con cubemaps reales y BRDF LUT, cascadas de sombras, planar reflections y acumulador HDR final.
+Fresnel Schlick (incluyendo ángulos rasantes y oblicuos a $\cos\theta=0.5$), GGX NDF, Smith Geometry ($G_1 \cdot G_2$), atenuación inversa cuadrática de UE4 para Point Lights, conos y penumbras con smoothstep para Spot Lights, pipelines IBL con cubemaps reales y BRDF LUT, cascadas de sombras, planar reflections, acumulador HDR, extracción soft-knee de Bloom, downsampling de 13 taps Jimenez con ponderación Karis, upsampling tent 9-tap con mezcla aditiva, operadores de tone mapping (ACES Filmic, Reinhard Extendido, Neutral, Uncharted 2), corrección gamma 2.2, y el algoritmo completo FXAA 3.11 Quality con preservación de campos uniformes y alisado subpixel.
 
 ### 4. ¿Qué bugs conocidos consiguen detectar?
 1. Pérdida del factor $\pi$ o normalización de irradiancia.
@@ -231,6 +235,9 @@ Fresnel Schlick (incluyendo ángulos rasantes y oblicuos a $\cos\theta=0.5$), GG
 7. Alteración de la atenuación de radio en fuentes de luz puntuales o focales.
 8. Omisión o fallo de lectura de la BRDF LUT en materiales metálicos.
 9. Desconexión de reflexiones planares o del acumulador HDR.
+10. Rotura de conservación de energía en downsample/upsample de Bloom (pesos > 1.0).
+11. Inversión de curva de exposición en Tone Mapping o desviación de curva ACES.
+12. Omisión de umbral de contraste o inversión de orientación de bordes en FXAA.
 
 ### 5. ¿Cuál es el comando único para ejecutar toda la suite?
 ```powershell
@@ -246,7 +253,7 @@ python Scripts/run_mutation_audit.py
 ```
 
 ### 6. ¿Cuál es la cobertura GPU real?
-11 tests de integración directa en GPU que levantan un contexto OpenGL 4.5 Core offscreen, compilan shaders de producción (`PBR_Lit.glsl`), gestionan FBOs flotantes y texturas `GL_RGBA32F` / `GL_RGBA16F`, y validan en hardware cada término físico de iluminación e IBL.
+20 tests de integración directa en GPU que levantan un contexto OpenGL 4.5 Core offscreen, compilan shaders de producción (`PBR_Lit.glsl`, `BloomBrightPass.glsl`, `BloomDownsample.glsl`, `BloomUpsample.glsl`, `ToneMapping.glsl`, `FXAA.glsl`), gestionan FBOs flotantes y pirámides de mips, y validan en hardware cada término físico de iluminación, IBL y post-procesado.
 
 ### 7. ¿Está el renderer considerado matemáticamente blindado?
-**SÍ.** La combinación de 38 casos de prueba, más de 8 millones de aserciones, y una tasa del 100% de detección en mutation testing sobre `PBR_Lit.glsl` y 86.7% en algoritmos C++ garantiza que ninguna regresión pase inadvertida.
+**SÍ.** La combinación de 47 casos de prueba, más de 8.1 millones de aserciones, y una tasa del 100% de detección en mutation testing sobre shaders GLSL (24/24 mutaciones capturadas) y 86.7% en algoritmos C++ garantiza que ninguna regresión pase inadvertida.

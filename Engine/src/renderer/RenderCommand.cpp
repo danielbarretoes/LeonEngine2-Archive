@@ -19,7 +19,7 @@ namespace Leon {
             if (count == 0 && InVertexArray->GetIndexBuffer()) {
                 count = InVertexArray->GetIndexBuffer()->GetCount();
             }
-            s_RenderAPI->DrawIndexed(InVertexArray, InIndexCount);
+            s_RenderAPI->DrawIndexed(InVertexArray, count);
             FRenderer::RecordDrawIndexed(count, count);
         }
     }

@@ -57,12 +57,16 @@ LeonEngine2/
 │   │   │   ├── Inter-Bold.ttf             # 3D In-World text TrueType font
 │   │   │   └── Inter-Regular.ttf          # Diagnostics HUD TrueType font
 │   │   ├── Shaders/                       # Core engine multi-stage shaders
+│   │   │   ├── BloomBrightPass.glsl       # Soft-knee HDR luminance extraction pass
+│   │   │   ├── BloomDownsample.glsl       # Jimenez 13-tap downsampling filter with Karis luma weighting
+│   │   │   ├── BloomUpsample.glsl         # 9-tap tent upsampling filter with additive blending
 │   │   │   ├── DebugFont.glsl             # 2D orthographic font & HUD panel shader
 │   │   │   ├── DebugLine.glsl             # 3D line & wireframe gizmo shader
+│   │   │   ├── FXAA.glsl                  # FXAA 3.11 Quality anti-aliasing shader
 │   │   │   ├── PBR_Lit.glsl               # Cook-Torrance PBR multi-light shader with IBL, CSM & Debug Views
-│   │   │   ├── PostProcess.glsl           # HDR ACES Tonemapping and Gamma correction pass
 │   │   │   ├── ShadowDepth.glsl           # High-speed depth pass for Directional CSM & Spot Shadows
 │   │   │   ├── Skybox.glsl                # Atmospheric physical HDR skybox shader (Rayleigh/Mie)
+│   │   │   ├── ToneMapping.glsl           # Multi-operator tone mapper (ACES, Reinhard, Neutral, UC2) + Gamma 2.2
 │   │   │   └── WorldText.glsl             # 3D in-world text geometry shader
 │   │   └── Textures/                      # Precomputed offline textures
 │   │       └── BRDF_LUT.bin               # Pre-baked 2D Cook-Torrance BRDF Look-Up Table (RG16F, 256x256)
@@ -100,6 +104,7 @@ LeonEngine2/
 │   │   │   ├── MeshPrimitives.hpp         # FMeshPrimitives (Cube, Sphere, Cylinder, Plane, Ramp, Pyramid)
 │   │   │   ├── PerspectiveCamera.hpp      # FPerspectiveCamera
 │   │   │   ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
+│   │   │   ├── PostProcessPipeline.hpp    # FPostProcessPipeline & FPostProcessSettings
 │   │   │   ├── RenderAPI.hpp              # IRenderAPI & ERenderAPI
 │   │   │   ├── RenderCommand.hpp          # FRenderCommand
 │   │   │   ├── RenderDriver.hpp           # IRenderDriver & FRenderDriverRegistry

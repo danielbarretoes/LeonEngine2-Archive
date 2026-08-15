@@ -48,7 +48,6 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthTesting(bool InEnabled) {
-        if (m_DepthTestEnabled == InEnabled) return;
         m_DepthTestEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_DEPTH_TEST);
@@ -57,13 +56,11 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthMask(bool InEnabled) {
-        if (m_DepthMaskEnabled == InEnabled) return;
         m_DepthMaskEnabled = InEnabled;
         glDepthMask(InEnabled ? GL_TRUE : GL_FALSE);
     }
 
     void FOpenGLRenderAPI::SetDepthFunc(EDepthFunc InFunc) {
-        if (m_DepthFunc == InFunc) return;
         m_DepthFunc = InFunc;
         switch (InFunc) {
         case EDepthFunc::Less:
@@ -83,15 +80,13 @@ namespace Leon {
 
     void FOpenGLRenderAPI::SetCulling(bool InEnabled, ECullMode InMode) {
         bool bEffectiveEnable = InEnabled && (InMode != ECullMode::None);
-        if (m_CullEnabled != bEffectiveEnable) {
-            m_CullEnabled = bEffectiveEnable;
-            if (bEffectiveEnable)
-                glEnable(GL_CULL_FACE);
-            else
-                glDisable(GL_CULL_FACE);
-        }
+        m_CullEnabled = bEffectiveEnable;
+        if (bEffectiveEnable)
+            glEnable(GL_CULL_FACE);
+        else
+            glDisable(GL_CULL_FACE);
 
-        if (bEffectiveEnable && m_CullMode != InMode) {
+        if (bEffectiveEnable) {
             m_CullMode = InMode;
             switch (InMode) {
             case ECullMode::Back:
@@ -110,7 +105,6 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetBlendState(bool InEnabled) {
-        if (m_BlendEnabled == InEnabled) return;
         m_BlendEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_BLEND);
@@ -192,7 +186,6 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::BindFramebuffer(uint32_t InRendererID) {
-        if (m_CurrentFBO == InRendererID) return;
         m_CurrentFBO = InRendererID;
         glBindFramebuffer(GL_FRAMEBUFFER, InRendererID);
     }

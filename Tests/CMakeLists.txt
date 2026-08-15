@@ -26,6 +26,10 @@ add_executable(RendererTests
     Shader/PBRShaderShadowTests.cpp
     Shader/PBRShaderPlanarReflectionTests.cpp
     Shader/PBRShaderDeterminismTests.cpp
+    Shader/PostProcessBloomTests.cpp
+    Shader/PostProcessToneMappingTests.cpp
+    Shader/PostProcessFXAATests.cpp
+    Shader/PostProcessPipelineTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE

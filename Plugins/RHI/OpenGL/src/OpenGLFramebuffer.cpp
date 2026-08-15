@@ -173,6 +173,10 @@ namespace Leon {
             LE_CORE_ASSERT(m_ColorAttachments.size() <= 4, "Only up to 4 color attachments are supported!");
             GLenum buffers[4] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
             glNamedFramebufferDrawBuffers(m_RendererID, static_cast<GLsizei>(m_ColorAttachments.size()), buffers);
+            glNamedFramebufferReadBuffer(m_RendererID, GL_COLOR_ATTACHMENT0);
+        } else if (m_ColorAttachments.size() == 1) {
+            glNamedFramebufferDrawBuffer(m_RendererID, GL_COLOR_ATTACHMENT0);
+            glNamedFramebufferReadBuffer(m_RendererID, GL_COLOR_ATTACHMENT0);
         } else if (m_ColorAttachments.empty()) {
             glNamedFramebufferDrawBuffer(m_RendererID, GL_NONE);
             glNamedFramebufferReadBuffer(m_RendererID, GL_NONE);

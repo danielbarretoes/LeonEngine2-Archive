@@ -11,6 +11,7 @@
 #include <vector>
 #include "renderer/SceneRenderer.hpp"
 #include "renderer/Shader.hpp"
+#include "renderer/RenderCommand.hpp"
 
 #include "OpenGLRenderDriver.hpp"
 
@@ -152,6 +153,7 @@ namespace Leon::TestGPU {
             // Register and activate OpenGL RenderDriver for FShader/FRenderCommand
             IRenderAPI::SetAPI(ERenderAPI::OpenGL);
             FRenderDriverRegistry::RegisterDriver(ERenderAPI::OpenGL, MakeScope<FOpenGLRenderDriver>());
+            FRenderCommand::Init();
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_LEQUAL);

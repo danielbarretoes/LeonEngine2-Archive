@@ -7,6 +7,7 @@
 #include "renderer/PerspectiveCamera.hpp"
 #include "renderer/Shader.hpp"
 #include "renderer/VertexArray.hpp"
+#include "renderer/PostProcessPipeline.hpp"
 
 #include <glm/glm.hpp>
 #include <string>
@@ -93,8 +94,15 @@ namespace Leon {
          */
         void OnViewportResize(uint32_t InWidth, uint32_t InHeight);
 
+        TRef<FFramebuffer> GetHDRSceneFramebuffer() const { return m_HDRSceneFramebuffer; }
+        TRef<FFramebuffer> GetPlanarReflectionFramebuffer() const { return m_PlanarReflectionFramebuffer; }
+
         void SetDebugMode(int InMode) { m_DebugMode = InMode; }
         int  GetDebugMode() const { return m_DebugMode; }
+
+        FPostProcessSettings& GetPostProcessSettings() { return m_PostProcessSettings; }
+        const FPostProcessSettings& GetPostProcessSettings() const { return m_PostProcessSettings; }
+        FPostProcessPipeline& GetPostProcessPipeline() { return m_PostProcessPipeline; }
 
     private:
         // ----- Render Passes -------------------------------------------------
@@ -168,6 +176,10 @@ namespace Leon {
         bool   m_bUseIBL              = true;
         bool   m_bEnvironmentGenerated = false;
         std::string m_LoadedHDRPath;
+
+        // Post-Processing Pipeline
+        FPostProcessPipeline m_PostProcessPipeline;
+        FPostProcessSettings m_PostProcessSettings;
     };
 
 } // namespace Leon

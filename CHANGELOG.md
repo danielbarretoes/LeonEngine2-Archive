@@ -10,10 +10,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Post-Processing & Anti-Aliasing Stack (Dual-Kawase Bloom pyramid + FXAA 3.11).
 - Frustum Culling with AABB / Bounding Sphere hierarchy.
 - Render Queue sorting (Opaque front-to-back, Transparent back-to-front).
 - GPU Dynamic Instancing (`glDrawElementsInstanced` / SSBOs).
+
+---
+
+## [0.7.0] - 2026-08-15
+
+### Post-Processing & Anti-Aliasing Pipeline Stack (Dual-Kawase Bloom, ACES Tone Mapping, FXAA 3.11, Multi-Debug Views & 100% GPU Mutation Coverage)
+This milestone introduces a professional, physically accurate, and headless-tested post-processing architecture to LeonEngine2. It seamlessly bridges HDR linear radiance output from the PBR/IBL pass into sRGB display space through a multi-pass pipeline featuring a Dual-Kawase/Jimenez Bloom pyramid, customizable Tone Mapping operators with gamma 2.2 correction, and FXAA 3.11 subpixel edge anti-aliasing.
+
+#### Added & Improved
+- **Post-Processing Pipeline (`FPostProcessPipeline` & `FPostProcessSettings`)**:
+  - Modular, multi-pass GPU pipeline orchestrated via `FRenderCommand` and Direct State Access (DSA).
+  - Dynamic viewport resizing (`OnViewportResize`) with automatic framebuffer and mip chain reallocation.
+  - Interactive runtime control over Exposure, Bloom Threshold/Soft Knee/Intensity, and FXAA toggles.
+- **Dual-Kawase / Jimenez Bloom Pyramid (`BloomBrightPass.glsl`, `BloomDownsample.glsl`, `BloomUpsample.glsl`)**:
+  - **Soft-Knee Bright Pass Extraction**: Continuous quadratic threshold curve eliminating harsh cutoff boundaries.
+  - **13-Tap Downsampling**: Jorge Jimenez filter kernel with Karis luma weighting on Mip 0 to prevent subpixel fireflies and energy-conserving box weights strictly summing to $1.0$.
+  - **9-Tap Tent Upsampling**: Progressive additive blur expansion with configurable filter radius.
+- **Tone Mapping & Color Grading (`ToneMapping.glsl`)**:
+  - **ACES Filmic (Narkowicz Fit)**: Industry-standard photographic S-curve tone mapper.
+  - **Multi-Operator Support**: Extended Reinhard, Neutral clamp, and Uncharted 2 operators.
+  - **Gamma 2.2 Correction**: Accurate linear-to-sRGB display space mapping.
+  - **Luma Alpha Encoding**: Packs perceptual Rec. 601 luma in the Alpha channel for single-pass FXAA consumption.
+- **FXAA 3.11 Anti-Aliasing (`FXAA.glsl`)**:
+  - Complete Timothy Lottes FXAA 3.11 Quality implementation.
+  - Contrast threshold early-exit, horizontal vs. vertical edge detection, tangent endpoint search (up to 12 quality iterations), and subpixel blending.
+- **Interactive Post-Process Debug System & Hotkeys (`SandboxApp.cpp`)**:
+  - `F3`: Master toggle for post-processing pipeline.
+  - `F4`: Toggle FXAA anti-aliasing.
+  - `F5`: Cycle post-processing debug views (0: Full Composite, 1: Raw HDR Radiance, 2: Bloom Glow Only, 3: Bright Pass Extract, 4: Tone Map Only without Bloom).
+  - `F6` / `F7`: Decrease / Increase camera exposure ($\pm 0.1$).
+  - `F8` / `F9`: Decrease / Increase bloom glow intensity ($\pm 0.01$).
+- **Headless GPU Testing & Shader Mutation Suite Expansion**:
+  - Expanded test suite to **47 test cases** and **8,102,248 assertions** (100% passing).
+  - Added dedicated GPU tests for Bloom quadratic thresholding, Jimenez/Tent energy conservation, ACES numerical curve monotonicity, FXAA contrast threshold invariants, and full pipeline resize lifetimes.
+  - Expanded automated GLSL mutation testing to 24 mutations across `PBR_Lit.glsl`, `BloomBrightPass.glsl`, `BloomDownsample.glsl`, `BloomUpsample.glsl`, `ToneMapping.glsl`, and `FXAA.glsl` with **100.0% detection rate (24/24 caught)**.
 
 ---
 

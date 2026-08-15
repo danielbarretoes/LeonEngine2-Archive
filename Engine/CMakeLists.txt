@@ -20,6 +20,7 @@ add_library(LeonEngineCore STATIC
     src/renderer/Material.cpp
     src/renderer/MaterialInstance.cpp
     src/renderer/MeshPrimitives.cpp
+    src/renderer/PostProcessPipeline.cpp
     src/renderer/SceneRenderer.cpp
     src/renderer/Shader.cpp
     src/renderer/Texture.cpp

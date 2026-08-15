@@ -31,6 +31,11 @@ public:
         LE_INFO("  - Left Trigger (LT) / B: Fly Down");
         LE_INFO("  - F1: Toggle Real-time Performance HUD Stats (FPS, RAM, GPU, Tris, Draw Calls)");
         LE_INFO("  - F2: Toggle 3D Light Debug Gizmos (Spot Cones, Point Attenuation Sphere, Sun Vector)");
+        LE_INFO("  - F3: Toggle Full Post-Processing Pipeline (ON / OFF)");
+        LE_INFO("  - F4: Toggle FXAA Anti-Aliasing (ON / OFF)");
+        LE_INFO("  - F5: Cycle Post-Process Debug Mode (Full -> Raw HDR -> Bloom -> Bright-Pass -> Tone Mapping Only)");
+        LE_INFO("  - F6 / F7: Adjust Exposure Down / Up (-0.10 / +0.10)");
+        LE_INFO("  - F8 / F9: Adjust Bloom Intensity Down / Up (-0.01 / +0.01)");
         LE_INFO("  - Shift + F1:  Full Composite PBR Lit (Default)");
         LE_INFO("  - Shift + F2:  Environment Cubemap (LOD 0)");
         LE_INFO("  - Shift + F3:  Prefilter Cubemap Mip 0 (Roughness 0.0)");
@@ -245,6 +250,44 @@ public:
                 } else if (key == Leon::Key::R) {
                     renderer->SetDebugMode(12);
                     LE_INFO("[DEBUG VIEW] World-Space Reflection Vector R");
+                    return true;
+                }
+            } else {
+                auto& ppSettings = renderer->GetPostProcessSettings();
+                if (key == Leon::Key::F3) {
+                    ppSettings.bEnabled = !ppSettings.bEnabled;
+                    LE_INFO("[POST-PROCESS] Pipeline {0}", ppSettings.bEnabled ? "ENABLED" : "DISABLED (Raw Linear Pass-through)");
+                    return true;
+                } else if (key == Leon::Key::F4) {
+                    ppSettings.bFXAAEnabled = !ppSettings.bFXAAEnabled;
+                    LE_INFO("[POST-PROCESS] FXAA Anti-Aliasing {0}", ppSettings.bFXAAEnabled ? "ENABLED" : "DISABLED");
+                    return true;
+                } else if (key == Leon::Key::F5) {
+                    ppSettings.DebugMode = (ppSettings.DebugMode + 1) % 5;
+                    const char* modeNames[] = {
+                        "Full Composite Post-Process (Bloom + ACES + FXAA)",
+                        "Raw HDR Scene (Before Post-Processing)",
+                        "Bloom Glow Output Only",
+                        "Bright-Pass High-Luminance Extract Only",
+                        "Tone Mapping Output Only (No FXAA)"
+                    };
+                    LE_INFO("[POST-PROCESS DEBUG] Mode {0}: {1}", ppSettings.DebugMode, modeNames[ppSettings.DebugMode]);
+                    return true;
+                } else if (key == Leon::Key::F6) {
+                    ppSettings.Exposure = std::max(ppSettings.Exposure - 0.1f, 0.1f);
+                    LE_INFO("[POST-PROCESS] Exposure: {0:.2f}", ppSettings.Exposure);
+                    return true;
+                } else if (key == Leon::Key::F7) {
+                    ppSettings.Exposure += 0.1f;
+                    LE_INFO("[POST-PROCESS] Exposure: {0:.2f}", ppSettings.Exposure);
+                    return true;
+                } else if (key == Leon::Key::F8) {
+                    ppSettings.BloomIntensity = std::max(ppSettings.BloomIntensity - 0.01f, 0.0f);
+                    LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", ppSettings.BloomIntensity);
+                    return true;
+                } else if (key == Leon::Key::F9) {
+                    ppSettings.BloomIntensity += 0.01f;
+                    LE_INFO("[POST-PROCESS] Bloom Intensity: {0:.3f}", ppSettings.BloomIntensity);
                     return true;
                 }
             }
