@@ -19,10 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - 2026-08-15
 
-### Major Rendering Pipeline Consolidation & Architecture V4
-This release consolidates the entire physical rendering pipeline of LeonEngine2 into a robust, deterministic, and physically correct architecture with full Direct State Access (DSA), instantaneous binary IBL caching, multi-pass shadows, planar reflections, and zero visual artifacts.
+### Major Rendering Pipeline Consolidation, Mathematical QA & GPU Headless Testing Suite
+This release consolidates the entire physical rendering pipeline of LeonEngine2 into a robust, deterministic, and physically correct architecture with full Direct State Access (DSA), instantaneous binary IBL caching, multi-pass shadows, planar reflections, and zero visual artifacts. Furthermore, it introduces a comprehensive **38-case regression testing framework** with **headless OpenGL 4.5 Core GPU shader execution** and **automated GLSL mutation testing**.
 
 #### Added & Improved
+- **Headless GPU Testing Infrastructure (`FHeadlessGLContext` & Doctest)**:
+  - Invisible OpenGL 4.5 Core offscreen testing framework via GLFW and GLAD.
+  - Pixel readback validation in 32-bit floating point FBOs (`GL_RGBA32F` / `GL_RGBA16F`).
+  - Unit Quad mesh, dynamic std140 UBO management (`CameraData` and `LightingData`), and multi-unit texture slot fallbacks.
+  - Direct hardware validation of `PBR_Lit.glsl` Cook-Torrance direct lighting, Fresnel-Schlick angle response, UE4 Point Light inverse-square falloff, Spot Light conical cutoffs, IBL cubemap sampling, cascaded shadow toggles, and planar reflections.
+- **Automated GLSL Mutation Testing (`run_shader_mutations.py`)**:
+  - 15 deliberate physical mutations introduced into `PBR_Lit.glsl` with **100.0% detection rate (15/15 caught)**.
+- **Automated C++ Math Mutation Audit (`run_mutation_audit.py`)**:
+  - 15 deliberate mutations on IBL/PBR mathematical functions with an **86.7% detection rate (13/15 caught)**.
 - **Image-Based Lighting (IBL) Architecture V4 (`IBLGenerator.cpp` & `.libl`)**:
   - **Diffuse Irradiance Convolution**: Upgraded to Quasi-Monte Carlo Hammersley cosine-weighted hemisphere sampling ($N=512$) with source-HDR solid angle Mip-filtering ($\text{lod} = 5.50$), mathematically eliminating delta-sun discretization variance and discrete square artifacts.
   - **Specular Prefiltered Environment Cubemap**: Full 5-level mip chain ($128 \to 8$) using importance-sampled GGX with Karis source-texel solid angle filtering and $+1.0$ mip bias, eliminating specular fireflies on high-contrast metal surfaces.

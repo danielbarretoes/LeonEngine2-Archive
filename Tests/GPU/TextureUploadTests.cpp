@@ -1,34 +1,14 @@
 #include <doctest/doctest.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "GPU/HeadlessGLContext.hpp"
 #include <vector>
 #include <cmath>
 
 TEST_SUITE("GPU - Texture Upload, Half-Float & Seamless Cubemap Integration") {
 
     TEST_CASE("Headless OpenGL Context - Float Texture Upload & Readback Invariants") {
-        if (!glfwInit()) {
-            MESSAGE("GLFW init failed — skipping GPU integration test.");
-            return;
-        }
-
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-        GLFWwindow* window = glfwCreateWindow(64, 64, "HeadlessRendererTests", nullptr, nullptr);
-        if (!window) {
-            MESSAGE("Could not create headless OpenGL 4.5 context — skipping GPU integration test.");
-            glfwTerminate();
-            return;
-        }
-
-        glfwMakeContextCurrent(window);
-        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            MESSAGE("GLAD failed to load OpenGL 4.5 entry points.");
-            glfwDestroyWindow(window);
-            glfwTerminate();
+        auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
+        if (!gl.IsValid()) {
+            MESSAGE("Headless OpenGL context not available — skipping GPU integration test.");
             return;
         }
 
@@ -59,7 +39,5 @@ TEST_SUITE("GPU - Texture Upload, Half-Float & Seamless Cubemap Integration") {
         }
 
         glDeleteTextures(1, &cubeTex);
-        glfwDestroyWindow(window);
-        glfwTerminate();
     }
 }
