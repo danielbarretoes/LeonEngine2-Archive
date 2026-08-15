@@ -86,16 +86,19 @@ namespace Leon {
     }
 
     bool FApplication::OnKeyPressed(FKeyPressedEvent& InEvent) {
-        if (InEvent.GetKeyCode() == Key::F1 && !InEvent.IsRepeat()) {
-            m_bShowHUD = !m_bShowHUD;
-            LE_CORE_INFO("Diagnostics HUD: {0}", m_bShowHUD ? "ENABLED" : "DISABLED");
-            return false;
-        }
+        bool bShift = FInput::IsKeyPressed(Key::LeftShift) || FInput::IsKeyPressed(Key::RightShift);
+        if (!bShift) {
+            if (InEvent.GetKeyCode() == Key::F1 && !InEvent.IsRepeat()) {
+                m_bShowHUD = !m_bShowHUD;
+                LE_CORE_INFO("Diagnostics HUD: {0}", m_bShowHUD ? "ENABLED" : "DISABLED");
+                return false;
+            }
 
-        if (InEvent.GetKeyCode() == Key::F2 && !InEvent.IsRepeat()) {
-            m_bShowLightGizmos = !m_bShowLightGizmos;
-            LE_CORE_INFO("Light Debug Gizmos: {0}", m_bShowLightGizmos ? "ENABLED" : "DISABLED");
-            return false;
+            if (InEvent.GetKeyCode() == Key::F2 && !InEvent.IsRepeat()) {
+                m_bShowLightGizmos = !m_bShowLightGizmos;
+                LE_CORE_INFO("Light Debug Gizmos: {0}", m_bShowLightGizmos ? "ENABLED" : "DISABLED");
+                return false;
+            }
         }
 
         return false;
