@@ -1,23 +1,23 @@
 #include <doctest/doctest.h>
-#include "core/ConfigFile.hpp"
-#include "core/Timestep.hpp"
-#include "gameplay/AActor.hpp"
-#include "gameplay/ACameraActor.hpp"
-#include "gameplay/ADefaultPawn.hpp"
-#include "gameplay/AGameModeBase.hpp"
-#include "gameplay/AGameStateBase.hpp"
-#include "gameplay/APawn.hpp"
-#include "gameplay/APlayerCameraManager.hpp"
-#include "gameplay/APlayerController.hpp"
-#include "gameplay/APlayerState.hpp"
-#include "gameplay/UClassRegistry.hpp"
-#include "gameplay/UObject.hpp"
-#include "world/Components.hpp"
-#include "world/MapSerializer.hpp"
-#include "world/UGameInstance.hpp"
-#include "world/UWorld.hpp"
-#include "core/ProjectDescriptor.hpp"
-#include "core/ProjectPaths.hpp"
+#include "Core/FConfigFile.hpp"
+#include "Core/FTimestep.hpp"
+#include "Gameplay/AActor.hpp"
+#include "Gameplay/ACameraActor.hpp"
+#include "Gameplay/ADefaultPawn.hpp"
+#include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AGameStateBase.hpp"
+#include "Gameplay/APawn.hpp"
+#include "Gameplay/APlayerCameraManager.hpp"
+#include "Gameplay/APlayerController.hpp"
+#include "Gameplay/APlayerState.hpp"
+#include "Gameplay/UClassRegistry.hpp"
+#include "Gameplay/UObject.hpp"
+#include "Engine/Components.hpp"
+#include "Engine/FMapSerializer.hpp"
+#include "Engine/UGameInstance.hpp"
+#include "Engine/UWorld.hpp"
+#include "Core/FProjectDescriptor.hpp"
+#include "Core/FProjectPaths.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -67,6 +67,7 @@ namespace Leon {
             CHECK(registry.HasClass("AGameModeBase"));
             CHECK(registry.HasClass("ACameraActor"));
             CHECK(registry.HasClass("APlayerCameraManager"));
+            CHECK(registry.HasClass("AHUD"));
 
             registry.RegisterClass<ATestLifecycleActor>("ATestLifecycleActor");
             CHECK(registry.HasClass("ATestLifecycleActor"));
@@ -108,6 +109,7 @@ namespace Leon {
 
             CHECK(gm->DefaultPawnClass == "ADefaultPawn");
             CHECK(gm->PlayerControllerClass == "APlayerController");
+            CHECK(gm->HUDClass == "AHUD");
             CHECK(gm->GameStateClass == "AGameStateBase");
             CHECK(gm->PlayerStateClass == "APlayerState");
             CHECK(gm->DefaultSpawnLocation.y == doctest::Approx(3.5f));
@@ -241,12 +243,12 @@ namespace Leon {
             actor2->SetActorLocation({5.0f, 3.0f, 5.0f});
             actor2->AddComponent<UPointLightComponent>();
 
-            MapSerializer serializer(srcWorld);
+            FMapSerializer serializer(srcWorld);
             std::string serialized;
             REQUIRE(serializer.SerializeText(serialized));
 
             auto dstWorld = UWorld::Create("ReconstructedMap");
-            MapSerializer deserializer(dstWorld);
+            FMapSerializer deserializer(dstWorld);
             REQUIRE(deserializer.DeserializeText(serialized));
 
             CHECK(dstWorld->GetAllActors().size() >= 2);
@@ -379,7 +381,7 @@ namespace Leon {
             CHECK(virtGame == "/Game/Textures/T_Test.ltex");
         }
 
-        TEST_CASE("21. Multi-INI Configuration System (Engine, Game, Input)") {
+        TEST_CASE("21. Multi-INI Configuration System (Engine, Game, FInput)") {
             std::string tempDir = "build/TestConfigs";
             std::filesystem::create_directories(tempDir);
 

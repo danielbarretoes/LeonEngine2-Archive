@@ -19,7 +19,7 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
                 ▼ (uses engine)               ▼ (links backend)
 ┌──────────────────────────────┐     ┌────────────────────────┐
 │            ENGINE            │     │      PLUGINS (RHI)     │
-│   (Core, Window, Lifecycle,  │◄────┤  (OpenGL, Vulkan, etc.)│
+│   (Core, FWindow, Lifecycle,  │◄────┤  (OpenGL, Vulkan, etc.)│
 │   Renderer Interfaces, RHI)  │     │                        │
 └──────────────────────────────┘     └────────────────────────┘
 ```
@@ -28,7 +28,7 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
 
 1. **Engine $\rightarrow$ Projects**: **FORBIDDEN.** The engine is an agnostic reusable library. It must never reference or include any code from `Projects/`.
 2. **Plugins $\rightarrow$ Projects**: **FORBIDDEN.** Hardware plugins/drivers are low-level rendering backends. They must never know about client applications.
-3. **Plugins $\rightarrow$ Engine (`include/`)**: **ALLOWED & REQUIRED.** Plugins depend on the abstract interfaces defined in `Engine/include/` (such as `renderer/GraphicsContext.hpp`, `renderer/Buffer.hpp`, `renderer/RenderDriver.hpp`, `core/Base.hpp`) in order to implement them.
+3. **Plugins $\rightarrow$ Engine Runtime Public headers**: **ALLOWED & REQUIRED.** Plugins depend on the abstract interfaces under `Engine/Source/Runtime/*/Public/` (such as `RHI/IGraphicsContext.hpp`, `RHI/FBuffer.hpp`, `RHI/IRenderDriver.hpp`, `Core/Base.hpp`) in order to implement them.
 4. **Engine $\rightarrow$ Plugins**: **FORBIDDEN.** The `Engine` core contains **zero `#include` directives** pointing to plugin implementation headers (e.g., `opengl/...`). All hardware object instantiation is mediated via the **`FRenderDriverRegistry`** factory registry.
 
 ---
@@ -37,262 +37,74 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
 
 ```text
 LeonEngine2/
-├── CMakeLists.txt                         # Root CMake build orchestrator
-├── .clang-format                          # C++20 code formatting rules
-├── .clangd                                # Clangd language server config
-├── Docs/                                  # Technical specifications
-│   ├── ARCHITECTURE.md                    # System architecture guide (this file)
-│   ├── IBL_CACHE_DESIGN.md                # Image-Based Lighting cache specification (.libl v4)
-│   ├── NAMING.md                          # UE-inspired naming conventions & coding standard
-│   ├── RENDERER_FEATURE_AUDIT.md          # Comprehensive renderer capabilities & milestones audit
-│   ├── RENDERER_MATERIALS.md              # Advanced Materials & Surface Detail Architecture (v0.8.0)
-│   ├── RENDERER_POSTPROCESSING.md         # Post-Processing Pipeline Architecture (v0.7.0)
-│   └── RENDERER_TEST_COVERAGE.md          # Renderer mathematical test coverage & mutation report
-│
-├── Scripts/                               # Developer build and run scripts (Python 3.14 / Ninja)
-│   ├── build_incremental.py               # Fast incremental build runner
-│   └── run_sandbox.py                     # Build & launch executable runner
-│
-├── Engine/                                # Core Engine Subsystems (Leon::Core)
-│   ├── CMakeLists.txt
-│   ├── Assets/                            # Built-in Engine Assets
-│   │   ├── Fonts/                         # Engine typography assets
-│   │   │   ├── Inter-Bold.ttf             # 3D In-World text TrueType font
-│   │   │   └── Inter-Regular.ttf          # Diagnostics HUD TrueType font
-│   │   ├── Shaders/                       # Core engine multi-stage shaders
-│   │   │   ├── BloomBrightPass.glsl       # Soft-knee HDR luminance extraction pass
-│   │   │   ├── BloomDownsample.glsl       # Jimenez 13-tap downsampling filter with Karis luma weighting
-│   │   │   ├── BloomUpsample.glsl         # 9-tap tent upsampling filter with additive blending
-│   │   │   ├── DebugFont.glsl             # 2D orthographic font & HUD panel shader
-│   │   │   ├── DebugLine.glsl             # 3D line & wireframe gizmo shader
-│   │   │   ├── FXAA.glsl                  # FXAA 3.11 Quality anti-aliasing shader
-│   │   │   ├── PBR_Lit.glsl               # Cook-Torrance PBR multi-light shader with IBL, CSM & Debug Views
-│   │   │   ├── ShadowDepth.glsl           # High-speed depth pass for Directional CSM & Spot Shadows
-│   │   │   ├── Skybox.glsl                # Atmospheric physical HDR skybox shader (Rayleigh/Mie)
-│   │   │   ├── ToneMapping.glsl           # Multi-operator tone mapper (ACES, Reinhard, Neutral, UC2) + Gamma 2.2
-│   │   │   └── WorldText.glsl             # 3D in-world text geometry shader
-│   │   └── Textures/                      # Precomputed offline textures
-│   │       └── BRDF_LUT.bin               # Pre-baked 2D Cook-Torrance BRDF Look-Up Table (RG16F, 256x256)
-│   │
-│   ├── include/                           # Public exported headers
-│   │   ├── LeonEngine.hpp                 # Master include header
-│   │   ├── core/                          # Application foundation
-│   │   │   ├── Application.hpp            # FApplication & FApplicationProps
-│   │   │   ├── Base.hpp                   # TScope, TRef, MakeScope, MakeRef
-│   │   │   ├── ConfigFile.hpp             # FConfigFile (.ini parser)
-│   │   │   ├── EntryPoint.hpp             # Standard main() execution entry point
-│   │   │   ├── Input.hpp                  # FInput polling (Keyboard, Mouse, Gamepad)
-│   │   │   ├── Layer.hpp                  # FLayer base class
-│   │   │   ├── LayerStack.hpp             # FLayerStack container
-│   │   │   ├── Log.hpp                    # FLog & ELogLevel
-│   │   │   ├── PlatformMemory.hpp         # FPlatformMemory (RAM, GPU queries)
-│   │   │   ├── Timestep.hpp               # FTimestep delta-time wrapper
-│   │   │   ├── Window.hpp                 # FWindow & FWindowProps
-│   │   │   └── events/                    # Event dispatching subsystem
-│   │   │       ├── ApplicationEvent.hpp
-│   │   │       ├── Event.hpp
-│   │   │       ├── KeyEvent.hpp
-│   │   │       └── MouseEvent.hpp
-│   │   ├── renderer/                      # Hardware abstraction interfaces
-│   │   │   ├── AssetManager.hpp           # FAssetManager (Shaders, Textures, Materials)
-│   │   │   ├── Buffer.hpp                 # FVertexBuffer, FIndexBuffer, FBufferLayout, FUniformBuffer
-│   │   │   ├── DebugOverlay.hpp           # FDebugOverlay (F1 Performance & Stats HUD)
-│   │   │   ├── DebugRenderer.hpp          # FDebugRenderer (F2 3D Light Gizmos & Lines)
-│   │   │   ├── Framebuffer.hpp            # FFramebuffer RHI & offscreen render targets
-│   │   │   ├── GraphicsContext.hpp        # IGraphicsContext
-│   │   │   ├── IBLGenerator.hpp           # FIBLGenerator (Environment, Irradiance, Prefilter, .libl Cache)
-│   │   │   ├── Light.hpp                  # FDirectionalLight, FPointLight, FSpotLight
-│   │   │   ├── Material.hpp               # FMaterial & MaterialSerializer
-│   │   │   ├── MaterialInstance.hpp       # FMaterialInstance & FPipelineState
-│   │   │   ├── MeshPrimitives.hpp         # FMeshPrimitives (Cube, Sphere, Cylinder, Plane, Ramp, Pyramid)
-│   │   │   ├── PerspectiveCamera.hpp      # FPerspectiveCamera
-│   │   │   ├── PerspectiveCameraController.hpp # FPerspectiveCameraController
-│   │   │   ├── PostProcessPipeline.hpp    # FPostProcessPipeline & FPostProcessSettings
-│   │   │   ├── RenderAPI.hpp              # IRenderAPI & ERenderAPI
-│   │   │   ├── RenderCommand.hpp          # FRenderCommand
-│   │   │   ├── RenderDriver.hpp           # IRenderDriver & FRenderDriverRegistry
-│   │   │   ├── RenderStats.hpp            # FRenderStats (DrawCalls, Tris, Vertices)
-│   │   │   ├── Renderer.hpp               # FRenderer
-│   │   │   ├── SceneRenderer.hpp          # UWorldRenderer (Multi-Pass Rendering Pipeline)
-│   │   │   ├── Shader.hpp                 # FShader
-│   │   │   ├── ShadowMath.hpp             # FShadowMath (CSM Practical Splits, Bounding Spheres, Texel Snapping)
-│   │   │   ├── ShadowTypes.hpp            # EShadowFilterMode, ECascadeSplitScheme, FShadowSettings, FShadowCascade
-│   │   │   ├── TextRenderer.hpp           # FTextRenderer (3D In-World Text Batching)
-│   │   │   ├── Texture.hpp                # FTexture, FTexture2D, FTextureCube
-│   │   │   └── VertexArray.hpp            # FVertexArray
-│   │   ├── asset/                         # Native Binary Asset Pipeline
-│   │   │   ├── AssetManifest.hpp          # FAssetManifest
-│   │   │   ├── AssetPath.hpp              # FAssetPath
-│   │   │   ├── AssetTypes.hpp             # EAssetType, FUUID, FAssetMetadata
-│   │   │   ├── HDRImporter.hpp            # FHDRImporter & FNativeHDRData (.lhdr)
-│   │   │   ├── MaterialImporter.hpp       # FMaterialImporter (.lmat, .lmi)
-│   │   │   ├── MeshImporter.hpp           # FMeshImporter (.lmesh)
-│   │   │   └── TextureImporter.hpp        # FTextureImporter (.ltex)
-│   │   └── scene/                         # Scene & Entity Component System (ECS)
-│   │       ├── Components.hpp             # FTag, FTransform, FMesh, FMaterialComponent, FSkybox, FLights
-│   │       ├── Entity.hpp                 # AActor wrapper around EnTT handles
-│   │       ├── Scene.hpp                  # UWorld runtime world container
-│   │       ├── MapSerializer.hpp        # MapSerializer (.lmap level deserializer)
-│   │       └── MaterialSerializer.hpp     # FMaterialSerializer (.lmat / .lmi serializer)
-│   │
-│   └── src/                               # Internal engine implementations
-│       ├── core/                          # Core subsystem implementations
-│       │   ├── Application.cpp            # FApplication (Main loop & input routing)
-│       │   ├── ConfigFile.cpp             # FConfigFile
-│       │   ├── Input.cpp                  # FInput
-│       │   ├── LayerStack.cpp             # FLayerStack
-│       │   ├── Log.cpp                    # FLog
-│       │   ├── PlatformMemory.cpp         # FPlatformMemory (Win32 & OpenGL queries)
-│       │   └── Window.cpp                 # FWindow
-│       ├── asset/                         # Asset Pipeline implementations
-│       │   ├── AssetManifest.cpp          # FAssetManifest
-│       │   ├── AssetPath.cpp              # FAssetPath
-│       │   ├── HDRImporter.cpp            # FHDRImporter
-│       │   ├── MaterialImporter.cpp       # FMaterialImporter
-│       │   ├── MeshImporter.cpp           # FMeshImporter
-│       │   └── TextureImporter.cpp        # FTextureImporter
-│       ├── renderer/                      # Renderer & RHI implementations
-│       │   ├── AssetManager.cpp           # FAssetManager
-│       │   ├── Buffer.cpp                 # FVertexBuffer, FIndexBuffer, FUniformBuffer
-│       │   ├── DebugOverlay.cpp           # FDebugOverlay HUD batcher
-│       │   ├── DebugRenderer.cpp          # FDebugRenderer 3D line & gizmo batcher
-│       │   ├── Framebuffer.cpp            # FFramebuffer
-│       │   ├── GraphicsContext.cpp        # IGraphicsContext
-│       │   ├── IBLGenerator.cpp           # FIBLGenerator (Quasi-Monte Carlo & Mip Filtering)
-│       │   ├── Material.cpp               # FMaterial
-│       │   ├── MaterialInstance.cpp       # FMaterialInstance
-│       │   ├── MeshPrimitives.cpp         # FMeshPrimitives procedural generation
-│       │   ├── PerspectiveCamera.cpp      # FPerspectiveCamera
-│       │   ├── PerspectiveCameraController.cpp # FPerspectiveCameraController
-│       │   ├── RenderAPI.cpp              # IRenderAPI
-│       │   ├── RenderCommand.cpp          # FRenderCommand
-│       │   ├── RenderDriver.cpp           # FRenderDriverRegistry
-│       │   ├── Renderer.cpp               # FRenderer
-│       │   ├── SceneRenderer.cpp          # UWorldRenderer (Multi-Pass Engine Pipeline)
-│       │   ├── Shader.cpp                 # FShader
-│       │   ├── StaticMesh.cpp             # FStaticMesh
-│       │   ├── TextRenderer.cpp           # FTextRenderer 3D batching
-│       │   ├── Texture.cpp                # FTexture2D & FTextureCube
-│       │   └── VertexArray.cpp            # FVertexArray
-│       └── scene/                         # Scene & ECS implementations
-│           ├── Entity.cpp                 # AActor
-│           ├── Scene.cpp                  # UWorld└── Projects/                              # Client Applications & Game Projects
-    └── Sandbox/                           # Reference Template Project (Sandbox)
-        ├── Sandbox.lproject               # Project Root Descriptor (.lproject JSON)
-        ├── CMakeLists.txt
-        ├── Config/                        # Multi-INI Configuration Hierarchy
-        │   ├── DefaultEngine.ini          # Renderer, Window, Display, GameMapsSettings
-        │   ├── DefaultGame.ini            # GameMode defaults & gameplay settings
-        │   └── DefaultInput.ini           # Input action & axis bindings
-        ├── Content/                       # Project Virtual Asset Root (/Game/...)
-        │   ├── HDR/                       # Native HDR Environment Maps (.lhdr)
-        │   ├── Maps/                      # World Maps (.lmap)
-        │   │   ├── MainShowcase.lmap
-        │   │   └── NightScene.lmap
-        │   ├── Materials/                 # PBR Materials & Instances (.lmat / .lmi)
-        │   ├── Meshes/                    # Native Binary Meshes (.lmesh)
-        │   └── Textures/                  # Native Binary Textures (.ltex)
-        └── Source/
-            └── Sandbox/
-                ├── Public/                # Project Header Files
-                ├── Private/               # Project Implementation Files
-                └── Main.cpp               # Minimal entry point invoking UEngine::Run
+├── Docs/                                  # Technical specifications (NAMING, ARCHITECTURE, …)
+├── Scripts/                               # Python build / migrate / verify helpers
+├── Engine/
+│   ├── Assets/                            # Engine shaders, fonts, BRDF LUT
+│   ├── CMakeLists.txt                     # LeonEngineCore (single link unit today)
+│   └── Source/Runtime/                    # Unreal-style modules (Public + Private)
+│       ├── Core/Public/Core/             # FApplication, FWindow, FLog, …
+│       ├── RHI/Public/RHI/                # IGraphicsContext, IRenderAPI, FBuffer, …
+│       ├── Assets/Public/Assets/         # UAssetManager, UStaticMesh, importers
+│       ├── Renderer/Public/Renderer/     # FWorldRenderer, FMaterial, IBL, post
+│       ├── UMG/Public/UMG/               # UWidget hierarchy, FUIRenderer
+│       ├── Engine/Public/Engine/         # UEngine, UWorld, serializers
+│       └── Gameplay/Public/Gameplay/     # AActor, APawn, UGameplayStatics, …
+├── Plugins/RHI/OpenGL/                    # FOpenGL* backend
+├── Projects/Sandbox/
+├── Tests/
+└── ThirdParty/
 ```
+
+> **Include form:** `#include "Engine/UWorld.hpp"`, `#include "Renderer/FWorldRenderer.hpp"`.  
+> Namespace remains `Leon::`. Module folders are short (`Core`, not `LeonCore`).  
+> CMake still links one `LeonEngineCore` static lib; Public trees are the modular contract.
+
+> **Naming contract:** UE-style `U`/`A`/`F` prefixes are used without Unreal GC or reflection.
+> `AActor` wraps an EnTT entity; render components are POD structs on the registry.
+> There is no separate `Scene` / `Entity` type — use `UWorld` + `AActor`.
 
 ---
 
 ## 3. Project Architecture & Virtual Paths (`.lproject`, `/Game/...`, `/Engine/...`)
 
-LeonEngine2 implements an Unreal Engine-aligned project workflow designed for indie and small-team development:
-
 ### 3.1 Project Descriptor (`.lproject`)
-Every project is defined by a root `.lproject` JSON descriptor:
 ```json
 {
   "FileVersion": 1,
   "EngineVersion": "0.8.0",
   "ProjectName": "Sandbox",
   "DefaultMap": "/Game/Maps/MainShowcase",
-  "DefaultGameMode": "AGameModeBase"
+  "DefaultGameMode": "ASandboxGameMode"
 }
 ```
 
 ### 3.2 Virtual Path Resolution (`FProjectPaths`)
-The engine core and runtime operate exclusively through virtual package paths, ensuring zero hardcoding of physical paths:
-* `/Game/Maps/MainShowcase` $\rightarrow$ resolves to `<ProjectRoot>/Content/Maps/MainShowcase.lmap`.
-* `/Game/Textures/T_Car_Body_D` $\rightarrow$ resolves to `<ProjectRoot>/Content/Textures/T_Car_Body_D.ltex`.
-* `/Game/Materials/M_FloorTiles` $\rightarrow$ resolves to `<ProjectRoot>/Content/Materials/M_FloorTiles.lmat`.
-* `/Engine/Shaders/PBR_Lit.glsl` $\rightarrow$ resolves to `Engine/Assets/Shaders/PBR_Lit.glsl`.
+* `/Game/Maps/MainShowcase` → `<ProjectRoot>/Content/Maps/MainShowcase.lmap`
+* `/Game/Textures/T_Car_Body_D` → `<ProjectRoot>/Content/Textures/T_Car_Body_D.ltex`
+* `/Engine/Shaders/PBR_Lit.glsl` → `Engine/Assets/Shaders/PBR_Lit.glsl`
 
-### 3.3 Multi-INI Configuration System
-Configuration is cleanly partitioned across three standard files:
-1. **`Config/DefaultEngine.ini`**: Window resolution, VSync, renderer settings (exposure, shadow resolution, planar reflections), and startup map settings (`[/Script/EngineSettings.GameMapsSettings]`).
-2. **`Config/DefaultGame.ini`**: Gameplay framework defaults (`DefaultPawnClass`, `PlayerControllerClass`, `GameStateClass`, `PlayerStateClass`).
-3. **`Config/DefaultInput.ini`**: Mouse look toggles, WASD navigation, and action keybindings. OpenGL implementations
-│               ├── OpenGLBuffer.cpp
-│               ├── OpenGLContext.cpp
-│               ├── OpenGLFramebuffer.cpp
-│               ├── OpenGLRenderAPI.cpp
-│               ├── OpenGLRenderDriver.cpp
-│               ├── OpenGLShader.cpp
-│               ├── OpenGLTexture2D.cpp
-│               ├── OpenGLTextureCube.cpp
-│               └── OpenGLVertexArray.cpp
-│
-├── ThirdParty/                            # External Dependencies
-│   ├── glad/                              # OpenGL loader (Leon::Glad)
-│   │   ├── CMakeLists.txt
-│   │   ├── include/
-│   │   │   ├── KHR/khrplatform.h
-│   │   │   └── glad/glad.h
-│   │   └── src/glad.c
-│   └── stb/                               # stb image and font utilities (Leon::Stb)
-│       ├── CMakeLists.txt
-│       ├── stb_image.h
-│       ├── stb_image.cpp
-│       └── stb_truetype.h
-│
-└── Projects/                              # Client Applications & Demos
-    └── Sandbox/                           # Interactive demo application (Sandbox)
-        ├── CMakeLists.txt
-        ├── Config/
-        │   └── DefaultEngine.ini          # Sandbox configuration file
-        ├── Content/                       # Project Asset Directory
-        │   ├── Assets/
-        │   │   ├── Hdr/                   # HDR Maps & Binary Caches (.libl)
-        │   │   │   ├── AutumnField1k.hdr
-        │   │   │   └── Cache/AutumnField1k.libl
-        │   │   └── Textures/              # PBR Albedo, Normal, AO textures
-        │   ├── Maps/
-        │   │   └── MainShowcase.lmap    # Primary showcase level asset
-        │   └── Materials/                 # First-Class Material Assets (.lmat)
-        │       ├── M_BrushedIron.lmat
-        │       ├── M_ContainerCube.lmat
-        │       ├── M_EmeraldRamp.lmat
-        │       ├── M_Emissive.lmat
-        │       ├── M_FloorTiles.lmat
-        │       ├── M_GoldMetal.lmat
-        │       ├── M_PolishedGold.lmat
-        │       ├── M_RedPlastic.lmat
-        │       ├── M_RubyDielectric.lmat
-        │       └── M_WhitePlastic.lmat
-        └── src/
-            └── Main.cpp                   # Minimal entry point invoking UEngine::Run
-```
+### 3.3 Multi-INI Configuration
+1. **`DefaultEngine.ini`**: FWindow, renderer, `GameDefaultMap`, `GlobalDefaultGameMode`.
+2. **`DefaultGame.ini`**: `DefaultPawnClass` (use `ADefaultPawn` fly spectator or `ACharacter` ground), PC/HUD/GameState classes.
+3. **`DefaultInput.ini`**: Loaded into `FInputSettings` (`bEnableMouseLook`, Move*/Sprint keys) and applied by pawns.
+
+### 3.4 Entry point
+Projects call `UEngine::Run(args, "Projects/Sandbox/Sandbox.lproject")` after registering the OpenGL driver and project classes. There is no `EntryPoint.hpp`.
 
 ---
 
-## 3. Core Engine Subsystems
+## 4. Core Engine Subsystems
 
-### 3.1 Application & Lifecycle (`Application.hpp`)
+### 3.1 FApplication & Lifecycle (`FApplication.hpp`)
 * Orchestrates the main loop, frame delta timing (`FTimestep`), and top-level window events.
 * Manages the `FLayerStack`, calling `OnUpdate()` and routing input `OnEvent()` through active layers.
 
-### 3.2 Modular Layer System (`Layer.hpp`, `LayerStack.hpp`)
+### 3.2 Modular FLayer System (`FLayer.hpp`, `FLayerStack.hpp`)
 * Allows game logic, debug tools, and UI systems to be isolated into distinct `FLayer` instances.
 * Updates flow forward through the stack (`Layer 0 -> Layer N`), while events flow backwards from overlays down to base layers until marked handled (`bHandled = true`).
 
-### 3.3 Window & Graphics Context (`Window.hpp`, `GraphicsContext.hpp`)
+### 3.3 FWindow & Graphics Context (`FWindow.hpp`, `IGraphicsContext.hpp`)
 * `FWindow` creates the GLFW window surface and instantiates a `TScope<IGraphicsContext>` via `IGraphicsContext::Create()`.
 * Graphics context initialization and buffer swap (`SwapBuffers()`) are owned and executed automatically by `FWindow`.
 
@@ -384,18 +196,18 @@ Provides physical Cook-Torrance ambient lighting using the Split-Sum approximati
 
 ---
 
-## 7. Multi-Pass Scene Rendering Pipeline (`UWorldRenderer`)
+## 7. Multi-Pass World Rendering Pipeline (`FWorldRenderer`)
 
-The frame rendering loop executes 6 distinct passes:
+Runtime path: `UEngine` → viewport layer → `UWorld::OnRender` → `FWorldRenderer::Render`.
 
 ```text
-PASS 1: Cascaded Shadow Pass (CSM)  ──► 4 Cascades in OpenGL Texture2DArray
-PASS 2: Spot Shadow Pass            ──► 2D Depth Framebuffer (1024x1024)
-PASS 3: Planar Reflection Pass      ──► Mirrored Camera Offscreen FBO (1280x720)
-PASS 4: Main Geometry Pass          ──► HDR Scene Framebuffer (GL_RGBA16F)
-PASS 5: Atmospheric Skybox Pass     ──► Rayleigh/Mie Procedural Sky or HDR Cubemap
-PASS 6: 3D In-World Text Pass       ──► Batched Inter-Bold Typography with Depth
-PASS 7: Post-Process Pass           ──► ACES Filmic Tone Mapping + Gamma 2.2
+PASS 1: Cascaded Shadow Pass (CSM)
+PASS 2: Spot Shadow Pass
+PASS 3: Planar Reflection Pass
+PASS 4: Main Geometry Pass (HDR RGBA16F) + CPU frustum cull
+PASS 5: Atmospheric Skybox Pass
+PASS 6: 3D In-World Text Pass
+PASS 7: Post-Process (Bloom + Tone Map + FXAA + Gamma)
 ```
 
 ---
@@ -436,20 +248,73 @@ UEngine
         │     │
         │     ├── AGameStateBase (Global match state, PlayerArray)
         │     │
-        │     ├── APlayerController (Player input, possession, camera manager)
+        │     ├── APlayerController (Player input, possession, camera manager, InputMode)
         │     │     │
         │     │     ├── APlayerState (Persistent player data: Name, ID, Score)
         │     │     ├── APawn / ADefaultPawn (Possessed 6-DOF actor)
-        │     │     └── APlayerCameraManager (Resolves ViewTarget, Pawn camera & Fallback)
+        │     │     ├── APlayerCameraManager (Resolves ViewTarget, Pawn camera & Fallback)
+        │     │     └── AHUD (Viewport widgets + DrawHUD + PrintString paint)
+        │     │           │
+        │     │           └── UUserWidget → UWidget tree (UCanvasPanel, UButton, UTextBlock, …)
         │     │
         │     └── AActor* (All world actors with attached UActorComponents)
         │
-        └── FSceneRenderer (Consumes UWorld data and renders PBR, CSM, IBL, Post-Processing)
+        └── FWorldRenderer (Consumes UWorld data and renders PBR, CSM, IBL, Post-Processing)
 ```
 
+### HUD / UI Framework
+
+LeonEngine ships a minimal Unreal-aligned UMG-style UI layer (not full Slate/UMG):
+
+```text
+UObject
+  ├── UWidget
+  │     ├── UUserWidget          (AddToViewport / RemoveFromParent)
+  │     ├── UButton              (OnClicked, hover/pressed/disabled)
+  │     ├── UTextBlock           (SetText / color / scale / alignment)
+  │     └── UPanelWidget
+  │           └── UCanvasPanel   (absolute layout + optional background)
+  └── AActor
+        └── AHUD                 (owned by APlayerController)
+```
+
+**Lifecycle**
+
+```text
+UWorld → GameMode → PlayerController → HUD → UserWidget → Viewport → FUIRenderer
+```
+
+**Critical BeginPlay ordering:** During `UWorld::BeginPlay`, `StartPlay`/`Login` runs with deferred actor `BeginPlay`. PC ↔ HUD wiring (`SetPlayerController`) completes before `AHUD::BeginPlay`, so `CreateWidget` / `AddToViewport` can succeed. Spawning HUD without this deferral called `BeginPlay` inside `SpawnActor` with a null PlayerController (widgets never registered).
+
+**Frame render order**
+
+```text
+World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics Overlay → Present
+```
+
+**Engine vs Sandbox responsibilities**
+
+| Engine | Sandbox project |
+|--------|-----------------|
+| `AHUD`, widgets, `FUIRenderer`, `PrintString`, `OpenLevel`, InputMode, F1–F12 | `ASandboxGameMode`, `ASandboxHUD`, `USandboxMainMenuWidget`, INI / `.lproject` config |
+
+**PrintString** (`UGameplayStatics::PrintString` / `Leon::PrintString`) queues on-screen debug messages via `FOnScreenDebugMessageManager`. Messages are distinct from `FLog` and are painted inside the viewport by `AHUD::DrawHUD`.
+
+**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/NightScene")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay.
+
+**FInput modes** (`APlayerController`): `SetInputModeGameOnly`, `SetInputModeUIOnly`, `SetInputModeGameAndUI`. GameAndUI allows pawn movement and UI mouse interaction simultaneously.
+
+**Debug hotkeys (coexist with gameplay HUD)**
+
+| Key | Behavior |
+|-----|----------|
+| F1 | Diagnostics performance overlay (`FDebugOverlay`) |
+| F2 | 3D light gizmos (`FDebugRenderer`) |
+| F3–F12 | Existing render debug views / wireframe (unchanged) |
+
 ### Unreal Naming & Prefix Standards:
-- **`U`** = Engine objects, worlds, components, assets (`UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UStaticMeshComponent`, `UCameraComponent`, `UDirectionalLightComponent`, `UPointLightComponent`, `USpotLightComponent`, `UClassRegistry`).
-- **`A`** = Spawnable world actors (`AActor`, `APawn`, `ADefaultPawn`, `APlayerController`, `APlayerState`, `AGameModeBase`, `AGameStateBase`, `ACameraActor`, `APlayerCameraManager`).
-- **`F`** = Structs and value types (`FTransformComponent`, `FVector`, `FRotator`, `FConfigFile`, `FTimestep`).
-- **`E`** = Enumerations (`ETextAlignment`, `EShadowFilterMode`, `EEndPlayReason`).
+- **`U`** = Engine objects, worlds, components, assets, widgets (`UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UWidget`, `UUserWidget`, `UButton`, `UTextBlock`, `UPanelWidget`, `UCanvasPanel`, `UGameplayStatics`, `UClassRegistry`).
+- **`A`** = Spawnable world actors (`AActor`, `APawn`, `ADefaultPawn`, `APlayerController`, `APlayerState`, `AGameModeBase`, `AGameStateBase`, `ACameraActor`, `APlayerCameraManager`, `AHUD`).
+- **`F`** = Structs and value types (`FTransformComponent`, `FUIRenderer`, `FOnScreenDebugMessage`, `FGameModeConfig`, `FTimestep`).
+- **`E`** = Enumerations (`ETextAlignment`, `ESlateVisibility`, `EInputMode`, `EButtonState`, `EShadowFilterMode`).
 - **`T`** = Templates and container wrappers (`TRef`, `TScope`).

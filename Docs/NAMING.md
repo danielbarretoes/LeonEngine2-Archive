@@ -1,109 +1,112 @@
-# Naming Conventions and Coding Standards (Unreal Engine Inspired) - LeonEngine2
+# Naming Conventions — LeonEngine2 (Unreal Engine Standard)
 
-This document establishes the official conventions for naming, directory hierarchy, and coding standards for **LeonEngine2**, directly inspired by the **Unreal Engine C++ Coding Standard**. For in-depth architectural principles, refer to [ARCHITECTURE.md](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Docs/ARCHITECTURE.md).
-
----
-
-## 1. Unreal Engine Inspired Type & Symbol Naming Standards
-
-LeonEngine2 strictly adheres to the standard Unreal Engine prefixing conventions to ensure clean readability, explicit type contracts, and professional consistency:
-
-| Category | Prefix / Convention | Description | Examples in LeonEngine2 |
-| :--- | :--- | :--- | :--- |
-| **Engine & UObject Objects** | `U` | Engine runtime objects, components, worlds | `UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UStaticMeshComponent`, `UCameraComponent`, `UDirectionalLightComponent`, `UPointLightComponent`, `USpotLightComponent`, `UClassRegistry` |
-| **Actors** | `A` | Spawnable gameplay actors placed in a UWorld | `AActor`, `APawn`, `ADefaultPawn`, `APlayerController`, `APlayerState`, `AGameModeBase`, `AGameStateBase`, `ACameraActor`, `APlayerCameraManager` |
-| **Structs & Value Types** | `F` | Plain C++ classes, structures, and value types | `FApplication`, `FWindow`, `FLayer`, `FLayerStack`, `FRenderer`, `FRenderCommand`, `FShader`, `FVertexBuffer`, `FIndexBuffer`, `FVertexArray`, `FTransformComponent`, `FTagComponent`, `FTimestep`, `FLog`, `FConfigFile`, `FProjectDescriptor`, `FProjectPaths` |
-| **Interfaces** | `I` | Pure abstract interfaces & RHI contracts | `IGraphicsContext`, `IRenderAPI`, `IRenderDriver` |
-| **Enumerations** | `E` | Enum classes and scoped enumerations | `EShaderDataType`, `ERenderAPI`, `ELogLevel`, `ETextAlignment`, `EShadowFilterMode`, `EEndPlayReason` |
-| **Templates / Smart Pointers** | `T` | Template classes, smart pointer aliases | `TScope<T>`, `TRef<T>`, `MakeScope<T>`, `MakeRef<T>` |
-| **Booleans** | `b` | Boolean variables and flags | `bRunning`, `bMinimized`, `bVSync`, `bHandled`, `bIsRepeat`, `bNormalized`, `bCastShadows` |
-| **Function Parameters** | `In` (`PascalCase`) | Input parameters to functions/methods | `InProps`, `InWidth`, `InHeight`, `InDeltaTime`, `InShader`, `InVertexArray`, `InName` |
-| **Member Variables** | `m_` / `b` (`PascalCase`) | Private/protected member variables | `m_Window`, `m_LayerStack`, `m_Data`, `bRunning`, `bMinimized` |
-| **Static Variables** | `s_` (`PascalCase`) | Static/global internal variables | `s_Instance`, `s_API`, `s_GLFWWindowCount`, `s_Drivers` |
-| **Macros & Constants** | `LE_` (`SCREAMING_SNAKE_CASE`)| Logging, assertion, event binding macros | `LE_CORE_INFO`, `LE_BIND_EVENT_FN`, `BIT(x)` |
-| **Namespaces** | `PascalCase` | Top-level engine namespace | `Leon`, `Leon::Key`, `Leon::Mouse` |
+Official naming, directory layout, and coding standards for **LeonEngine2**, aligned with the
+**Unreal Engine C++ Coding Standard**. Architecture details: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-## 2. Automation & Scripting Naming Standards (`scripts/`)
+## 0. Language
 
-Tooling and build automation scripts follow the official naming standards of their respective ecosystems:
-
-### 2.1 Python Scripts (`.py`): `snake_case` (PEP 8)
-- **Convention**: `<action>_<modifier_or_target>.py`
-- **Rule**: All lowercase, words separated by underscores (`_`). Names must be explicit and self-explanatory.
-- **Inventory**:
-  - `build_incremental.py`: Compiles only modified files since the last build (ultra-fast).
-  - `clean_rebuild.py`: Cleans all previously compiled binaries and rebuilds 100% of the project from zero.
-  - `run_sandbox.py`: Compiles pending changes and launches `Sandbox.exe`.
-  - `format_code.py`: Automatically formats all C++ sources and headers using `clang-format`.
-
-### 2.2 PowerShell Scripts (`.ps1`): `PascalCase` / `VerbNoun` (Microsoft PowerShell Standard)
-- **Convention**: `<Verb><ModifierOrTarget>.ps1`
-- **Rule**: Capitalized words without separators (`PascalCase`). Matches standard PowerShell command structure.
-- **Inventory**:
-  - `BuildIncremental.ps1`: Compiles only modified files since the last build (ultra-fast).
-  - `CleanRebuild.ps1`: Cleans all previously compiled binaries and rebuilds 100% of the project from zero.
-  - `RunSandbox.ps1`: Compiles pending changes and launches `Sandbox.exe`.
-  - `FormatCode.ps1`: Automatically formats all C++ sources and headers using `clang-format`.
+- **English only** for identifiers, comments, log messages, and in-repo technical docs.
+- Comments must be **relevant**: intent, invariants, trade-offs, non-obvious flows — never narrate the next line.
+- Spanish is reserved for user-facing chat only, not for source code.
 
 ---
 
-## 3. Directory Naming Standards
+## 1. Type & Symbol Prefixes
 
-### 3.1 General Rule: `PascalCase`
-- **All module, subsystem, and layer directories must be named in `PascalCase`**, with the explicit exception of standard source/header directories (`include` and `src`).
-- Examples:
-  - `Engine/`
-  - `Engine/Core/`
-  - `Engine/Renderer/`
-  - `Plugins/`
-  - `Plugins/RHI/`
-  - `Plugins/RHI/OpenGL/`
-  - `ThirdParty/`
-  - `Projects/`
-  - `Projects/Sandbox/`
-  - `Docs/`
-  - `scripts/`
+| Category | Prefix | Examples |
+| :--- | :--- | :--- |
+| Engine / UObject-style objects | `U` | `UWorld`, `UEngine`, `UWidget`, `UGameplayStatics` |
+| Actors | `A` | `AActor`, `APawn`, `AGameModeBase`, `AHUD` |
+| Structs / value types | `F` | `FApplication`, `FWindow`, `FWorldRenderer`, `FTimestep` |
+| Interfaces | `I` | `IGraphicsContext`, `IRenderAPI`, `IRenderDriver` |
+| Enums | `E` | `EShaderDataType`, `EInputMode`, `EAlphaMode` |
+| Templates / smart pointers | `T` | `TRef<T>`, `TScope<T>` |
+| Booleans | `b` | `bRunning`, `bCastShadows`, `bWireframeEnabled` |
+| Parameters | `In` + PascalCase | `InDeltaTime`, `InWidth` |
+| Members | PascalCase / `b*` | **No** `m_` or `s_` — e.g. `AppWindow`, `NativeWindow`, `bMinimized`, static `Instance` |
+| Macros | `LE_` | `LE_CORE_INFO`, `LE_BIND_EVENT_FN` |
+| Namespace | `Leon` | `Leon::`, `Leon::Key` |
 
-### 3.2 Source and Header Folders: `minúsculas` / `lowercase`
-- Standard source/header folders within each module are named in lowercase:
-  - `src/`: Implementation files (`.cpp`, `.c`).
-  - `include/`: Public/exported header files (`.hpp`, `.h`).
-- Namespace subdirectories inside `include/` follow module conventions (e.g., `include/engine/core/`, `include/engine/renderer/`, `include/opengl/`).
+**Forbidden:** unprefixed aliases (`using Application = FApplication`), legacy `Scene` API names (`FSceneRenderer`, `GetSceneRenderer`). Member names must not collide with their type (`TScope<FWindow> AppWindow`, not `TScope<FWindow> FWindow`).
+
+**File name = primary type:** `UWorld.hpp` / `UWorld.cpp`, `FWorldRenderer.hpp`, `IRenderAPI.hpp`.
 
 ---
 
-## 4. File Naming Standards
+## 2. Runtime Module Layout (Unreal-style)
 
-### 4.1 C++ / C Source Files (`.cpp`, `.hpp`, `.h`)
-- All C++ source and header files use **`PascalCase`**, matching the primary subsystem or class they define:
-  - `Application.cpp` / `Application.hpp`
-  - `Window.cpp` / `Window.hpp`
-  - `Layer.hpp` / `LayerStack.hpp`
-  - `GraphicsContext.hpp` / `GraphicsContext.cpp`
-  - `RenderDriver.hpp` / `RenderDriver.cpp`
-  - `RenderAPI.cpp` / `RenderAPI.hpp`
-  - `Buffer.cpp` / `Buffer.hpp`
-  - `OpenGLShader.cpp` / `OpenGLShader.hpp`
-  - `OpenGLRenderDriver.cpp` / `OpenGLRenderDriver.hpp`
-  - `Main.cpp`
-### 4.2 Asset Naming Standards (Unreal Engine Standard)
-- **Shaders (`.glsl`)**: Use `PascalCase` with descriptive purpose and standard lighting models:
-  - `PBR_Lit.glsl` (Cook-Torrance PBR multi-light model with IBL & ACES)
-  - `DebugLine.glsl` (3D debug wireframe gizmo rendering)
-  - `DebugFont.glsl` (2D orthographic text & HUD overlay)
-- **Textures (`.png`, `.jpg`)**: Use `T_<Asset>_<Suffix>` prefix:
-  - `T_Container_D.png` (`_D` for Diffuse/Albedo)
-  - `T_Container_N.png` (`_N` for Normal map)
-  - `T_Container_S.png` (`_S` for Specular/Roughness)
-- **Fonts (`.ttf`, `.otf`)**: Use `<FontFamily>-<Weight>.ttf`:
-  - `Inter-Regular.ttf`
+```text
+Engine/
+├── Assets/                          # Engine shaders, fonts, LUTs
+└── Source/
+    └── Runtime/
+        ├── Core/Public/Core/       # FWindow, FLog, FInput, FLayer, …
+        ├── Core/Private/
+        ├── Engine/Public/Engine/   # UEngine, UWorld, UGameInstance, serializers
+        ├── Engine/Private/
+        ├── Gameplay/Public/Gameplay/
+        ├── Gameplay/Private/
+        ├── UMG/Public/UMG/         # UWidget hierarchy, FUIRenderer
+        ├── UMG/Private/
+        ├── Renderer/Public/Renderer/
+        ├── Renderer/Private/
+        ├── RHI/Public/RHI/
+        ├── RHI/Private/
+        ├── Assets/Public/Assets/
+        └── Assets/Private/
+```
+
+Module folder names are **short** (`Core`, `Engine`, …) — no `Leon` prefix on modules.
+CMake exposes aliases `Leon::Core`, `Leon::Engine`, … for linking.
+C++ code stays in namespace `Leon`.
+
+Includes:
+
+```cpp
+#include "Core/FWindow.hpp"
+#include "Engine/UWorld.hpp"
+#include "Gameplay/AActor.hpp"
+#include "Renderer/FWorldRenderer.hpp"
+```
+
+ECS POD components (EnTT): `F*Component` / `FTag`.
+`U*Component` only when the type inherits `UActorComponent` / `UObject`.
 
 ---
 
-## 5. Architectural Directory Hierarchy
+## 3. Scripts
 
-For the official, single-source-of-truth directory tree and module dependency specifications, refer to:
-👉 [**`Docs/ARCHITECTURE.md` — Section 2: Directory Hierarchy**](ARCHITECTURE.md#2-directory-hierarchy)
+| Ecosystem | Convention | Example |
+| :--- | :--- | :--- |
+| Python | `snake_case` | `build_incremental.py`, `verify_ue_naming.py` |
+| PowerShell | `VerbNoun` | `BuildIncremental.ps1` |
 
+---
+
+## 4. Assets
+
+| Kind | Convention | Example |
+| :--- | :--- | :--- |
+| Shaders | PascalCase | `PBR_Lit.glsl` |
+| Textures | `T_<Name>_<Suffix>` | `T_Tiles_N.png` |
+| Fonts | `Family-Weight` | `Inter-Regular.ttf` |
+
+---
+
+## 5. Member Variables (Unreal style)
+
+```cpp
+// Correct
+bool bRunning = true;
+TRef<FWindow> MainWindow;
+static FApplication* Instance;
+
+// Forbidden
+bool m_bRunning;
+TRef<FWindow> m_Window;
+static FApplication* s_Instance;
+```
+
+If a member name collides with a type (`FWindow` vs `FWindow`), prefer a clear UE-style name (`MainWindow`, `GameWindow`).

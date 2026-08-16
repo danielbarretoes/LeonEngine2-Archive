@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 #include "Fixtures/GenerateFixtures.hpp"
 
 TEST_SUITE("HDR - Mipmap Pyramid & 360 Wrap Invariants") {

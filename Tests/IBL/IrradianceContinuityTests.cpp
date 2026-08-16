@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
-#include "asset/HDRImporter.hpp"
-#include "renderer/IBLMath.hpp"
+#include "Assets/FHDRImporter.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("IBL - Irradiance Cubemap Spatial Continuity") {
 

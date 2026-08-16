@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 #include <cstring>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 #include "Fixtures/GenerateFixtures.hpp"
 
 TEST_SUITE("IBL - Algorithm Determinism Tests") {

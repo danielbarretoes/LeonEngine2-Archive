@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("Cache - Invalidation & FNV-1a 64-bit Content Hashing") {
 

@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("Math - Hammersley & Quasi-Monte Carlo") {
 

@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
-#include "asset/AssetPath.hpp"
-#include "asset/AssetTypes.hpp"
+#include "Assets/FAssetPath.hpp"
+#include "Assets/FAssetTypes.hpp"
 
 using namespace Leon;
 

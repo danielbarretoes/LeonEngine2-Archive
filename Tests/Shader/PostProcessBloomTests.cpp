@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
-#include "renderer/PostProcessPipeline.hpp"
+#include "Renderer/FPostProcessPipeline.hpp"
 #include <vector>
 #include <cmath>
 
@@ -20,7 +20,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
         gl.BindDefaultTextures();
         gl.BindFramebuffer(1, 1);
 
-        // 1. Create a 1x1 HDR Input Texture
+        // 1. Create a 1x1 HDR FInput Texture
         GLuint hdrTex = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &hdrTex);
         glTextureStorage2D(hdrTex, 1, GL_RGBA16F, 1, 1);
@@ -92,7 +92,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
         gl.BindDefaultTextures();
         gl.BindFramebuffer(1, 1);
 
-        // 4x4 Constant Input Texture of value 2.0f
+        // 4x4 Constant FInput Texture of value 2.0f
         GLuint srcTex = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &srcTex);
         glTextureStorage2D(srcTex, 1, GL_RGBA16F, 4, 4);

@@ -42,7 +42,7 @@ The pipeline executes in three sequential GPU rendering passes:
                             │
                             ▼
 ┌────────────────────────────────────────────────────────┐
-│           Target Framebuffer / LDR Backbuffer          │
+│           Target FFramebuffer / LDR Backbuffer          │
 │                (RGBA8, sRGB Presented)                 │
 └────────────────────────────────────────────────────────┘
 ```

@@ -21,19 +21,19 @@ Para evitar la ilusión de que "probar un helper equivale a probar el renderer",
 
 | Archivo | Función / Símbolo | Categoría | Uso en Producción | Uso en Tests | Nivel de Confianza |
 | :--- | :--- | :---: | :--- | :--- | :---: |
-| `IBLMath.hpp` | `RadicalInverse_VdC` | **[B]** | `IBLGenerator.cpp` | `HammersleyTests.cpp` | **HIGH** |
-| `IBLMath.hpp` | `Hammersley` | **[B]** | `IBLGenerator.cpp` | `HammersleyTests.cpp` | **HIGH** |
-| `IBLMath.hpp` | `CosineSampleHemisphere` | **[B]** | `IBLGenerator.cpp` (Irradiancia) | `IrradianceConvolutionTests` | **HIGH** |
-| `IBLMath.hpp` | `ImportanceSampleGGX` | **[B]** | `IBLGenerator.cpp` (Prefilter & LUT) | `SpecularPrefilterTests` | **HIGH** |
-| `IBLMath.hpp` | `GeometrySmith_IBL` | **[B]** | `IBLGenerator.cpp` (LUT Bake) | `BRDFLUTTests.cpp` | **HIGH** |
-| `IBLMath.hpp` | `IntegrateBRDF` | **[B]** | `IBLGenerator.cpp` (LUT Disk Bake) | `BRDFLUTTests.cpp` | **HIGH** |
-| `IBLMath.hpp` | `FHDREquirectangularMipChain` | **[B]** | `IBLGenerator.cpp` (LOD filtering) | `MipChainTests.cpp` | **HIGH** |
-| `IBLMath.hpp` | `FIBLCacheHeader` | **[B]** | `IBLGenerator.cpp` (Load/Save `.libl`) | `SerializationTests.cpp` | **HIGH** |
-| `IBLMath.hpp` | `ComputeFileHash64` | **[B]** | `IBLGenerator.cpp` (Caché hit/miss) | `CacheInvalidationTests` | **HIGH** |
-| `PBRMath.hpp` | `DistributionGGX` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
-| `PBRMath.hpp` | `GeometrySmith_Direct` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
-| `PBRMath.hpp` | `FresnelSchlick` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
-| `PBRMath.hpp` | `EvaluateCookTorrance` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
+| `FIBLMath.hpp` | `RadicalInverse_VdC` | **[B]** | `IBLGenerator.cpp` | `HammersleyTests.cpp` | **HIGH** |
+| `FIBLMath.hpp` | `Hammersley` | **[B]** | `IBLGenerator.cpp` | `HammersleyTests.cpp` | **HIGH** |
+| `FIBLMath.hpp` | `CosineSampleHemisphere` | **[B]** | `IBLGenerator.cpp` (Irradiancia) | `IrradianceConvolutionTests` | **HIGH** |
+| `FIBLMath.hpp` | `ImportanceSampleGGX` | **[B]** | `IBLGenerator.cpp` (Prefilter & LUT) | `SpecularPrefilterTests` | **HIGH** |
+| `FIBLMath.hpp` | `GeometrySmith_IBL` | **[B]** | `IBLGenerator.cpp` (LUT Bake) | `BRDFLUTTests.cpp` | **HIGH** |
+| `FIBLMath.hpp` | `IntegrateBRDF` | **[B]** | `IBLGenerator.cpp` (LUT Disk Bake) | `BRDFLUTTests.cpp` | **HIGH** |
+| `FIBLMath.hpp` | `FHDREquirectangularMipChain` | **[B]** | `IBLGenerator.cpp` (LOD filtering) | `MipChainTests.cpp` | **HIGH** |
+| `FIBLMath.hpp` | `FIBLCacheHeader` | **[B]** | `IBLGenerator.cpp` (Load/Save `.libl`) | `SerializationTests.cpp` | **HIGH** |
+| `FIBLMath.hpp` | `ComputeFileHash64` | **[B]** | `IBLGenerator.cpp` (Caché hit/miss) | `CacheInvalidationTests` | **HIGH** |
+| `FPBRMath.hpp` | `DistributionGGX` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
+| `FPBRMath.hpp` | `GeometrySmith_Direct` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
+| `FPBRMath.hpp` | `FresnelSchlick` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
+| `FPBRMath.hpp` | `EvaluateCookTorrance` | **[C]** | *Ninguno (Corre en `PBR_Lit.glsl`)* | `PBRBrdfTests.cpp` | **LOW (Shaders)** |
 | `ReferenceIntegrator` | `IntegrateHemisphereRiemann` | **[D]** | *Ninguno (Solo ground truth)* | `ReferenceIntegratorTests` | **HIGH** |
 
 ---
@@ -46,7 +46,7 @@ TEST                                   | PRODUCCIÓN (CPP/GLSL)              | A
 ===========================================================================================================================================
 TBN Orthonormality                     | TBN Gram-Schmidt                   | IBLMath / PBR_Lit    | Cardinal/Oblique vec3 | |T.N|=0, |B.N|=0, Isometría
 Hammersley Distribution                | RadicalInverse & Hammersley        | IBLGenerator.cpp     | Sintético N=1024      | xi in [0,1)^2, E[cos]=2/3
-Hemisphere PDF Normalization           | CosineHemispherePDF                | IBLMath.hpp          | Riemann 500x1000      | Integral(p dOmega) = 1.0
+Hemisphere PDF Normalization           | CosineHemispherePDF                | FIBLMath.hpp          | Riemann 500x1000      | Integral(p dOmega) = 1.0
 Constant Irradiance (L=1 -> E=PI)      | Irradiance Convolution Kernel      | IBLGenerator.cpp     | Constant 64x32 L=1.0  | E = PI exacto
 RGB Channel Isolation                  | Irradiance Convolution Kernel      | IBLGenerator.cpp     | Isolated R, G, B HDR  | Cero contaminación cruzada
 Riemann Ground Truth Integrator        | Solid-Angle LOD Irradiance         | IBLGenerator.cpp     | SmoothGradientHDR     | RelErr < 8% vs Riemann
@@ -54,16 +54,16 @@ AutumnField1k Solar Irradiance         | Karis Solid-Angle Mip Filtering    | IB
 Irradiance Spatial Continuity          | Full Cubemap 6x32x32 Baker         | IBLGenerator.cpp     | AutumnField1k.hdr     | Vecindad ratio <= 1.25x
 Specular Prefilter Roughness Mips      | GGX Importance Sampled Prefilter   | IBLGenerator.cpp     | AutumnField1k.hdr     | Dispersión monótona mips
 Split-Sum BRDF LUT File                | FIBLGenerator::GenerateBRDFLUT     | IBLGenerator.cpp     | BRDF_LUT.bin (disco)  | A,B in [0,1], 524KB exactos
-Cook-Torrance Analytical CPU           | PBR Formulas C++ Model             | PBRMath.hpp          | PBR Parametric grid   | D>=0, G in [0,1], F(0)=F0
+Cook-Torrance Analytical CPU           | PBR Formulas C++ Model             | FPBRMath.hpp          | PBR Parametric grid   | D>=0, G in [0,1], F(0)=F0
 Energy Conservation                    | kD = (1-kS)(1-metallic)            | PBRMath / PBR_Lit    | Parameter sweep       | kD + kS <= 1.0001
-AutumnField1k RGBE Solar Pixel         | stbi_loadf RGBE Decoder            | AssetManager.cpp     | AutumnField1k.hdr     | Pixel (615,173) ~ 114033
+AutumnField1k RGBE Solar Pixel         | stbi_loadf RGBE Decoder            | UAssetManager.cpp     | AutumnField1k.hdr     | Pixel (615,173) ~ 114033
 Mipmap Pyramid 11 Levels               | FHDREquirectangularMipChain::Build | IBLGenerator.cpp     | 1024x512 down to 1x1  | 11 mips generados
 Equirectangular 360 Wrap Continuity    | FHDREquirectangularMipChain::Sample| IBLGenerator.cpp     | Step HDR u=0 vs u=1   | Continuidad en la costura
 .libl Binary Disk Serialization        | FIBLCacheHeader read/write         | IBLGenerator.cpp     | TempTestCache.libl    | Bitwise memcmp == 0
 FNV-1a 64-bit Cache Invalidation       | ComputeFileHash64                  | IBLGenerator.cpp     | TempHashTest.bin      | Avalanche: 1 byte -> miss
 GPU RGBA16F Upload & Readback          | FOpenGLTextureCube / RHI           | OpenGLTexture.cpp    | Headless GL 4.5 FBO   | Subida/bajada 16F sin NaN
 GL_TEXTURE_CUBE_MAP_SEAMLESS           | Hardware Seamless Filtering        | OpenGLRendererAPI    | Headless GL 4.5       | Enable flag == GL_TRUE
-Cubemap Seam Geometric Vectors         | GetCubeDirection                   | IBLMath.hpp          | 12 Cube Edges         | Vectores unitarios en bordes
+Cubemap Seam Geometric Vectors         | GetCubeDirection                   | FIBLMath.hpp          | 12 Cube Edges         | Vectores unitarios en bordes
 IBL Algorithm Determinism              | IBL Pipeline execution             | IBLGenerator.cpp     | Identical input runs  | memcmp == 0 exacto
 ===========================================================================================================================================
 ```
@@ -95,7 +95,7 @@ IBL Algorithm Determinism              | IBL Pipeline execution             | IB
 > [!WARNING]
 > **HALLAZGO CRÍTICO DE AUDITORÍA — "FALSE CONFIDENCE" EN PBR DIRECTO**  
 > `LeonEngine2` ejecuta la evaluación de Cook-Torrance (GGX, Smith, Schlick Fresnel, cálculo de sombras y composición directa) **exclusivamente dentro de [`PBR_Lit.glsl`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Assets/Shaders/PBR_Lit.glsl) en la GPU**.  
-> Las funciones en `PBRMath.hpp` son un **modelo analítico CPU**. Si un desarrollador introduce un bug en `PBR_Lit.glsl`, la suite de tests en C++ **no lo detectará**.
+> Las funciones en `FPBRMath.hpp` son un **modelo analítico CPU**. Si un desarrollador introduce un bug en `PBR_Lit.glsl`, la suite de tests en C++ **no lo detectará**.
 
 ### Estrategia de Mitigación Recomendada
 Para cerrar esta brecha sin sobrecargar el pipeline, se recomienda:
@@ -104,12 +104,12 @@ Para cerrar esta brecha sin sobrecargar el pipeline, se recomienda:
 
 ---
 
-## 5. Auditoría de IBL: `IBLMath.hpp` vs `IBLGenerator.cpp`
+## 5. Auditoría de IBL: `FIBLMath.hpp` vs `IBLGenerator.cpp`
 
 A diferencia del shader PBR, en el subsistema IBL:
-* `IBLGenerator.cpp` **incluye directamente y ejecuta** `IBLMath.hpp`.
+* `IBLGenerator.cpp` **incluye directamente y ejecuta** `FIBLMath.hpp`.
 * Las rutinas de generación de la BRDF LUT, convolución de irradiancia, pirámide de mipmaps HDR, importancia de muestreo de Karis y serialización `.libl` son **exactamente el mismo código binario** que corre en producción.
-* La cobertura de `IBLMath.hpp` es por tanto **cobertura directa de `IBLGenerator.cpp`**.
+* La cobertura de `FIBLMath.hpp` es por tanto **cobertura directa de `IBLGenerator.cpp`**.
 
 ---
 
@@ -197,11 +197,11 @@ De las **8.098.870 aserciones**:
 
 | Subsistema | Código Producción | Tests Unitarios | Ref. Independiente | GPU Real | Mutation Tested | Protegido contra Regresión | Confianza |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **IBL Irradiance Convolution** | `IBLGenerator.cpp` / `IBLMath.hpp` | Sí (4 suites) | Sí (Riemann) | No (CPU Baker) | Sí (13/15 caught) | **SÍ** | **HIGH (SAFE)** |
-| **IBL Specular Prefilter** | `IBLGenerator.cpp` / `IBLMath.hpp` | Sí (1 suite) | No | No (CPU Baker) | Sí | **SÍ** | **HIGH (SAFE)** |
-| **BRDF LUT Pre-Bake** | `IBLGenerator.cpp` / `IBLMath.hpp` | Sí (1 suite) | No | No (CPU Baker) | Sí | **SÍ** | **HIGH (SAFE)** |
-| **IBL Binary Cache (.libl)** | `IBLGenerator.cpp` / `IBLMath.hpp` | Sí (2 suites) | Sí (FNV-1a / Disk) | No | Sí (Header magic & version) | **SÍ** | **HIGH (SAFE)** |
-| **HDR Decoding & Mip Chain** | `AssetManager.cpp` / `IBLMath.hpp` | Sí (2 suites) | No | No | Sí (360 wrap) | **SÍ** | **HIGH (SAFE)** |
+| **IBL Irradiance Convolution** | `IBLGenerator.cpp` / `FIBLMath.hpp` | Sí (4 suites) | Sí (Riemann) | No (CPU Baker) | Sí (13/15 caught) | **SÍ** | **HIGH (SAFE)** |
+| **IBL Specular Prefilter** | `IBLGenerator.cpp` / `FIBLMath.hpp` | Sí (1 suite) | No | No (CPU Baker) | Sí | **SÍ** | **HIGH (SAFE)** |
+| **BRDF LUT Pre-Bake** | `IBLGenerator.cpp` / `FIBLMath.hpp` | Sí (1 suite) | No | No (CPU Baker) | Sí | **SÍ** | **HIGH (SAFE)** |
+| **IBL Binary Cache (.libl)** | `IBLGenerator.cpp` / `FIBLMath.hpp` | Sí (2 suites) | Sí (FNV-1a / Disk) | No | Sí (Header magic & version) | **SÍ** | **HIGH (SAFE)** |
+| **HDR Decoding & Mip Chain** | `UAssetManager.cpp` / `FIBLMath.hpp` | Sí (2 suites) | No | No | Sí (360 wrap) | **SÍ** | **HIGH (SAFE)** |
 | **GPU Texture Upload & RHI** | `OpenGLTexture.cpp` / GL Core | Sí (1 suite) | Sí (Readback) | **SÍ (Offscreen)** | Sí | **SÍ** | **HIGH (SAFE)** |
 | **PBR Cook-Torrance BRDF** | `PBR_Lit.glsl` | Sí (4 suites GPU) | Sí (Analytical) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
 | **Direct Lighting Loop** | `PBR_Lit.glsl` | Sí (3 suites GPU) | Sí (UE4 / Angles) | **SÍ (Offscreen GL 4.5)** | **Sí (24/24 GLSL caught)** | **SÍ** | **HIGH (SAFE)** |
@@ -231,7 +231,7 @@ De las **8.098.870 aserciones**:
 
 ### 2. ¿Qué tests prueban helpers y cuáles production code?
 * **Production Code & GPU Shaders Directos:** Las suites `IBL/*`, `HDR/*`, `Cache/*`, `GPU/*` y `Shader/*` (incluyendo `ShadowCascadeTests`, `ShadowPCFTests`, `ShadowBiasTests`, `ShadowAtlasTests`, `ShadowSelectionTests`, `ShadowContactTests`, `PBRShaderNormalMappingTests`, `PBRShaderMaterialTextureTests`, `PBRShaderEmissiveTests`, `PBRShaderAlphaTests`, `PBRShaderUVTransformTests`, `PBRShaderColorSpaceTests`, `PBRShaderTangentSpaceTests`, `PostProcessBloomTests`, `PostProcessToneMappingTests`, `PostProcessFXAATests`, y `PostProcessPipelineTests`) compilan y ejecutan las funciones y archivos de shader reales del proyecto.
-* **Modelo Referencia CPU:** `PBR/PBRBrdfTests.cpp` y `PBR/EnergyConservationTests.cpp` prueban `PBRMath.hpp` como modelo analítico de referencia pura.
+* **Modelo Referencia CPU:** `PBR/PBRBrdfTests.cpp` y `PBR/EnergyConservationTests.cpp` prueban `FPBRMath.hpp` como modelo analítico de referencia pura.
 
 ### 3. ¿Qué partes de GLSL han quedado protegidas?
 Fresnel Schlick, GGX NDF, Smith Geometry, atenuación inversa cuadrática UE4, conos y penumbras Spot Lights, IBL con cubemaps reales y BRDF LUT, 4 cascadas de sombras estabilizadas con Practical Split Scheme ($\lambda = 0.85$), snapping de texels sub-píxel, filtrado Hard, PCF 3x3, PCF 5x5 y Poisson Disk de 16 taps con rotación por Interleaved Gradient Noise, sesgo compuesto (constante + pendiente + normal offset bias), fundido suave entre cascadas, desvanecimiento a distancia máxima, sombras de contacto en espacio de pantalla con trazado de rayos, descarte por canal alfa en casters, planar reflections, normal mapping con escala, ortogonalización Gram-Schmidt en fragment shader, canales de texturas PBR (Albedo, Normal, Metallic, Roughness, AO, Emissive), fallbacks deterministas, descompresión sRGB $\to$ lineal, preservación de canales lineales, emisión desacoplada HDR $> 1.0$, modos alfa con descarte por cutoff, transformaciones UV (tiling/offset), extracción soft-knee de Bloom, downsampling de 13 taps Jimenez con Karis, upsampling tent 9-tap, operadores de tone mapping (ACES Filmic, Reinhard Extendido, Neutral, Uncharted 2), corrección gamma 2.2, y FXAA 3.11 Quality.

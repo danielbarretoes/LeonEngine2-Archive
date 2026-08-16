@@ -7,7 +7,7 @@ Este documento detalla la arquitectura de pruebas de integración de **shaders r
 ## 1. Motivación y Cierre de Brecha Arquitectónica
 
 Antes de esta fase, existía una discrepancia entre:
-* **Modelo Matemático CPU ([`PBRMath.hpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/include/renderer/PBRMath.hpp)):** Validado mediante pruebas unitarias en C++.
+* **Modelo Matemático CPU ([`FPBRMath.hpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Public/Renderer/FFPBRMath.hpp)):** Validado mediante pruebas unitarias en C++.
 * **Shader Real de Producción ([`PBR_Lit.glsl`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Assets/Shaders/PBR_Lit.glsl)):** Ejecutado exclusivamente por el hardware gráfico durante el renderizado.
 
 Para eliminar cualquier "falsa confianza", se ha construido un arnés de pruebas que compila el código GLSL real desde disco, inicializa un contexto OpenGL 4.5 Core invisible, dibuja fragmentos en FBOs de punto flotante de alta precisión (`GL_RGBA32F` / `GL_RGBA16F`) y compara los píxeles leídos de vuelta vía `glReadPixels` contra formulaciones físicas independientes.

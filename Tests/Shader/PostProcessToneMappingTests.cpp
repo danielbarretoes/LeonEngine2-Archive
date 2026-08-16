@@ -35,7 +35,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         shader->SetFloat("u_Gamma", 2.2f);
         shader->SetInt("u_DebugMode", 0);
 
-        // 1. Black Input (0.0) -> Output strictly 0.0
+        // 1. Black FInput (0.0) -> Output strictly 0.0
         float val0[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, val0);
         gl.DrawQuad();

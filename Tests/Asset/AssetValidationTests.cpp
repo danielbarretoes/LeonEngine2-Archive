@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include "asset/AssetManifest.hpp"
+#include "Assets/FAssetManifest.hpp"
 
 #include <filesystem>
 #include <fstream>

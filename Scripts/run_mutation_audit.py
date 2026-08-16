@@ -49,7 +49,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_B",
         "name": "Use uniform hemisphere PDF (1/2PI) instead of cosine PDF (cosTheta/PI)",
-        "file": "Engine/include/renderer/IBLMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FIBLMath.hpp",
         "target": "return std::max(cosTheta, 0.0f) / PI;",
         "mutated": "return 0.5f / PI;",
         "expected_test": "Math - Hemisphere PDF & Integration Invariants"
@@ -57,7 +57,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_C",
         "name": "Invert normal vector in Cosine Hemisphere Sampling",
-        "file": "Engine/include/renderer/IBLMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FIBLMath.hpp",
         "target": "glm::vec3 sampleVec = tangent * tangentSample.x + bitangent * tangentSample.y + N * tangentSample.z;",
         "mutated": "glm::vec3 sampleVec = tangent * tangentSample.x + bitangent * tangentSample.y - N * tangentSample.z;",
         "expected_test": "Math - Hammersley & Quasi-Monte Carlo / Cosine-Weighted Hemisphere"
@@ -65,7 +65,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_D",
         "name": "Use roughness instead of alpha = roughness^2 in GGX Importance Sampling",
-        "file": "Engine/include/renderer/IBLMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FIBLMath.hpp",
         "target": "float a = roughness * roughness;",
         "mutated": "float a = roughness;",
         "expected_test": "IBL - Specular Prefilter Regression Tests"
@@ -89,7 +89,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_G",
         "name": "Break 360 Horizontal Wrapping (omit modulo)",
-        "file": "Engine/include/renderer/IBLMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FIBLMath.hpp",
         "target": "int x1 = (x0 + 1) % mip.Width;",
         "mutated": "int x1 = std::min(x0 + 1, mip.Width - 1);",
         "expected_test": "HDR - Mipmap Pyramid & 360 Wrap Invariants"
@@ -97,7 +97,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_H",
         "name": "Alter Fresnel Equation (Exponent 4.0 instead of 5.0)",
-        "file": "Engine/include/renderer/PBRMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FPBRMath.hpp",
         "target": "return F0 + (glm::vec3(1.0f) - F0) * std::pow(std::clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);",
         "mutated": "return F0 + (glm::vec3(1.0f) - F0) * std::pow(std::clamp(1.0f - cosTheta, 0.0f, 1.0f), 4.0f);",
         "expected_test": "PBR - Cook-Torrance Microfacet BRDF Invariants / Fresnel"
@@ -105,7 +105,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_I",
         "name": "Break GGX NDF Denominator Power (drop outer square)",
-        "file": "Engine/include/renderer/PBRMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FPBRMath.hpp",
         "target": "denom = 3.14159265358979323846f * denom * denom;",
         "mutated": "denom = 3.14159265358979323846f * denom;",
         "expected_test": "PBR - Cook-Torrance Microfacet BRDF Invariants / GGX"
@@ -113,7 +113,7 @@ MUTATIONS = [
     {
         "id": "MUTATION_J",
         "name": "Eliminate Smith Geometry Masking (G1 only)",
-        "file": "Engine/include/renderer/PBRMath.hpp",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FPBRMath.hpp",
         "target": "return ggx1 * ggx2;",
         "mutated": "return ggx1;",
         "expected_test": "PBR - Cook-Torrance Microfacet BRDF Invariants / Smith"
@@ -153,9 +153,9 @@ MUTATIONS = [
     {
         "id": "MUTATION_O",
         "name": "Invert Cubemap Face +X Direction Mapping",
-        "file": "Engine/include/renderer/IBLMath.hpp",
-        "target": "case 0: return glm::normalize(glm::vec3( 1.0f,   -v,   -u)); // +X",
-        "mutated": "case 0: return glm::normalize(glm::vec3(-1.0f,   -v,   -u)); // +X (broken sign)",
+        "file": "Engine/Source/Runtime/Renderer/Public/Renderer/FIBLMath.hpp",
+        "target": "return glm::normalize(glm::vec3(1.0f, -v, -u)); // +X",
+        "mutated": "return glm::normalize(glm::vec3(-1.0f, -v, -u)); // +X (broken sign)",
         "expected_test": "GPU & Geometry - Cubemap Face Boundary Seams"
     }
 ]

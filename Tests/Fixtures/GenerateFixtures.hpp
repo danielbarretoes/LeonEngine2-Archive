@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <cmath>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 namespace Leon::TestFixtures {
 

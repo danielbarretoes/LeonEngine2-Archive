@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
+#include <cmath>
 #include <filesystem>
 #include <vector>
 
@@ -32,7 +33,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Planar Reflections") {
         lightData.EnvSkyColor   = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         gl.UpdateLightingUBO(lightData);
 
-        // Smooth surface (roughness = 0.05) to maximize reflection strength
+        // Metallic mirror: Fresnel≈1 so planar radiance replaces IBL specular (not BRDF LUT).
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
         Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", glm::mat3(1.0f));
         shader->SetInt("u_UseIBL", 0);
@@ -48,15 +49,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Planar Reflections") {
         shader->SetFloat("u_AO", 1.0f);
         Leon::TestGPU::SetFloat3(shader, "u_EmissiveColor", glm::vec3(0.0f));
         Leon::TestGPU::SetFloat3(shader, "u_AlbedoColor", glm::vec3(1.0f));
-        shader->SetFloat("u_Metallic", 0.0f);
+        shader->SetFloat("u_Metallic", 1.0f);
         shader->SetFloat("u_Roughness", 0.05f);
 
-        // Create a custom bright blue planar reflection texture on Unit 5
+        // HDR planar sample on unit 5 (strong blue channel)
         GLuint planarTex = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &planarTex);
-        glTextureStorage2D(planarTex, 1, GL_RGBA8, 1, 1);
-        uint32_t bluePixel = 0xFFFF0000; // Blue in ABGR
-        glTextureSubImage2D(planarTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &bluePixel);
+        glTextureStorage2D(planarTex, 1, GL_RGBA16F, 1, 1);
+        float blueHdr[4] = {0.2f, 0.2f, 6.0f, 1.0f};
+        glTextureSubImage2D(planarTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, blueHdr);
 
         glActiveTexture(GL_TEXTURE5);
         glBindTexture(GL_TEXTURE_2D, planarTex);
@@ -71,10 +72,12 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Planar Reflections") {
         gl.DrawQuad();
         glm::vec4 pixelEnabled = gl.ReadPixel(0, 0);
 
-        // Output must change when planar reflections are mixed in
         CHECK(!std::isnan(pixelEnabled.r));
         CHECK(!std::isnan(pixelEnabled.b));
-        CHECK(pixelEnabled.b >= pixelDisabled.b);
+        CHECK(!std::isinf(pixelEnabled.b));
+        // Planar mix must pull specular toward the blue HDR sample
+        CHECK(pixelEnabled.b > pixelDisabled.b);
+        CHECK(pixelEnabled.b > 1.0f);
 
         glDeleteTextures(1, &planarTex);
     }

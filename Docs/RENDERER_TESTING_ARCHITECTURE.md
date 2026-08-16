@@ -46,7 +46,7 @@ Las pruebas de regresión se dividen formalmente en:
 
 Para garantizar que los tests prueben **la implementación de producción real** sin duplicar código ni requerir un contexto OpenGL para evaluar fórmulas matemáticas, se extrae la lógica analítica a cabeceras de utilidad matemática pura:
 
-1. **[`Engine/include/renderer/IBLMath.hpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/include/renderer/IBLMath.hpp)**:
+1. **[`Engine/Source/Runtime/Renderer/Public/Renderer/FFIBLMath.hpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Public/Renderer/FFIBLMath.hpp)**:
    - `RadicalInverse_VdC(uint32_t bits)`
    - `Hammersley(uint32_t i, uint32_t N)`
    - `ImportanceSampleGGX(glm::vec2 Xi, glm::vec3 N, float roughness)`
@@ -58,7 +58,7 @@ Para garantizar que los tests prueben **la implementación de producción real**
    - `GetCubeDirection(int face, float u, float v)`
    - `FHDREquirectangularMipChain` (Construcción, interpolación bilineal y muestreo trilineal con wrap horizontal)
    - `FIBLCacheHeader` y `ComputeFileHash64(const std::string& path)`
-2. **[`Engine/include/renderer/PBRMath.hpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/include/renderer/PBRMath.hpp)**:
+2. **[`Engine/Source/Runtime/Renderer/Public/Renderer/FFPBRMath.hpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Public/Renderer/FFPBRMath.hpp)**:
    - `DistributionGGX(float NdotH, float roughness)`
    - `GeometrySchlickGGX_Direct(float NdotV, float roughness)`
    - `GeometrySmith_Direct(float NdotV, float NdotL, float roughness)`

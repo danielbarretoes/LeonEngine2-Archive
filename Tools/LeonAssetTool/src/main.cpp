@@ -1,21 +1,21 @@
-#include "core/Base.hpp"
-#include "core/Log.hpp"
-#include "asset/AssetTypes.hpp"
-#include "asset/AssetPath.hpp"
-#include "asset/TextureImporter.hpp"
-#include "asset/MeshImporter.hpp"
-#include "asset/MaterialImporter.hpp"
-#include "asset/AssetManifest.hpp"
-#include "asset/HDRImporter.hpp"
-#include "renderer/StaticMesh.hpp"
-#include "renderer/AssetManager.hpp"
-#include "world/UWorld.hpp"
-#include "world/Components.hpp"
-#include "world/MapSerializer.hpp"
+#include "Core/Base.hpp"
+#include "Core/FLog.hpp"
+#include "Assets/FAssetTypes.hpp"
+#include "Assets/FAssetPath.hpp"
+#include "Assets/FTextureImporter.hpp"
+#include "Assets/FMeshImporter.hpp"
+#include "Assets/FMaterialImporter.hpp"
+#include "Assets/FAssetManifest.hpp"
+#include "Assets/FHDRImporter.hpp"
+#include "Assets/UStaticMesh.hpp"
+#include "Assets/UAssetManager.hpp"
+#include "Engine/UWorld.hpp"
+#include "Engine/Components.hpp"
+#include "Engine/FMapSerializer.hpp"
 
-#include "core/ProjectDescriptor.hpp"
-#include "core/ProjectPaths.hpp"
-#include "core/ConfigFile.hpp"
+#include "Core/FProjectDescriptor.hpp"
+#include "Core/FProjectPaths.hpp"
+#include "Core/FConfigFile.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -325,7 +325,7 @@ int ExecuteValidate(const std::string& InContentDir) {
             }
         } else if (ext == "lmesh") {
             validatedCount++;
-            auto mesh = FStaticMesh::Create(entry.path().stem().string());
+            auto mesh = UStaticMesh::Create(entry.path().stem().string());
             if (!mesh->LoadFromFile(entry.path().string())) {
                 std::cerr << "  [FAIL] Invalid or corrupt mesh: " << entry.path().string() << "\n";
                 errorCount++;
@@ -411,7 +411,7 @@ int ExecuteValidateMap(const std::string& InMapPath) {
             }
 
             if (!assetPath.empty()) {
-                std::string resolved = FAssetManager::ResolveVirtualPath(assetPath);
+                std::string resolved = UAssetManager::ResolveVirtualPath(assetPath);
                 if (!fs::exists(resolved) && !fs::exists(assetPath)) {
                     std::cerr << "  [WARNING] Referenced asset not found on disk: " << assetPath << "\n";
                     missingAssets++;
@@ -482,7 +482,7 @@ int ExecuteInspect(const std::string& InFilePath) {
                       << " (" << tex.Mips[m].Pixels.size() << " bytes)\n";
         }
     } else if (ext == "lmesh") {
-        auto mesh = FStaticMesh::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
+        auto mesh = UStaticMesh::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
         if (!mesh->LoadFromFile(InFilePath)) {
             std::cerr << "[ERROR] Failed to load .lmesh file\n";
             return 1;

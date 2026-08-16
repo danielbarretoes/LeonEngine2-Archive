@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
-#include "asset/HDRImporter.hpp"
-#include "core/Base.hpp"
+#include "Assets/FHDRImporter.hpp"
+#include "Core/Base.hpp"
 #include <filesystem>
 #include <fstream>
 #include <vector>

@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — 0.15.0
+
+### Unreal Runtime layout & naming sweep
+
+#### Added
+- `Engine/Source/Runtime/{Core,RHI,Assets,Renderer,UMG,Engine,Gameplay}` with `Public/` + `Private/` (UE-style).
+- `Scripts/verify_ue_naming.py` CI guard against legacy naming regressions.
+- English-only code rule documented in `Docs/NAMING.md`.
+
+#### Changed
+- Headers/sources renamed to match primary types (`FWorldRenderer`, `UAssetManager`, `UStaticMesh`, `UGameplayStatics`, `FMapSerializer`, …).
+- Includes use module prefixes (`#include "Engine/UWorld.hpp"`).
+- Removed legacy `Engine/include` + `Engine/src` trees and `GetSceneRenderer` / `FSceneRenderer` API.
+- OpenGL plugin files/types use `FOpenGL*` names; Sandbox gameplay files use `ASandbox*` / `USandboxMainMenuWidget`.
+- Stripped remaining unprefixed `using` aliases; fixed type/member name collisions (`AppWindow`, `NativeWindow`, `LayerStack`, dispatcher `Event`).
+- CI runs `Scripts/verify_ue_naming.py` before configure.
+
+#### Removed
+- One-shot migration helpers (`migrate_runtime_layout.py`, `rename_ue_members.py`, `finish_ue_naming.py`, `fix_member_type_collisions.py`) after the sweep completed.
+
+#### Notes
+- CMake still links a single `LeonEngineCore` (folder modules first; split link units later).
+- Member `m_`/`s_` stripped to Unreal-style members (`bFlag`, `PascalCase`); collisions fixed (`CurrentAPI`, `CachedProjectDir`, `bIsLoaded`).
+
+---
+
+## [Unreleased] — 0.14.0
+
+### Runtime shell (P0–P3)
+
+Historical notes below (0.11–0.13) may mention earlier project layouts (`Coral`, `.llevel`, `FScene`). The **current** tree uses `Projects/Sandbox`, `.lmap`, and `UWorld` under `Engine/Source/Runtime/Engine/`.
+
+#### Added
+- `FInputSettings` loaded from `DefaultInput.ini` and consumed by pawns.
+- Canvas anchors / margins (`FAnchors`, `FMargin`) with resize-safe Sandbox menu.
+- Thin `ACharacter` (ground XZ movement); `ADefaultPawn` remains fly spectator.
+- CPU frustum culling for static/procedural meshes + render stats.
+- Lite `UActorComponent` lifecycle on `AActor`.
+- `UImage` textured UI widget.
+- `FWorldRenderer` (renamed from `FSceneRenderer`).
+- `Scripts/validate_sandbox.py` and GitHub Actions validate workflow.
+
+#### Changed
+- Docs (`ARCHITECTURE`, `RENDERER_FEATURE_AUDIT`, README) aligned to `world/` + Sandbox.
+- Post-process audit entries updated (Bloom + FXAA already shipped).
+- **Planar reflections**: FBO corrected from LDR `RGBA8` → HDR `RGBA16F`; specular mix uses Fresnel only (no split-sum BRDF LUT re-weight), fixing white blob clamps on wet/mirror surfaces.
+- **Planar reflections (follow-up)**: mip chain + `textureLod(roughness)` blur; Karis composition `mix(IBL, planarLi) * (F*scale+bias)` so wet-floor emissive stamps are BRDF-scaled instead of raw Li.
+- **Planar reflections (materials)**: static-mesh reflection pass now resolves `MaterialOverrides` + textures (house/car/lamps were drawn untextured).
+
+---
+
 ## [0.13.0] - 2026-08-15
 
 ### Project Runtime, Coral Preview & HDR Asset Pipeline

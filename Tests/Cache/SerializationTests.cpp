@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <vector>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("Cache - IBL .libl Binary Serialization") {
 

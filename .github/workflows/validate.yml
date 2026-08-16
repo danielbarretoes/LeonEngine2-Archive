@@ -1,0 +1,32 @@
+name: Validate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Verify Unreal naming
+        run: python Scripts/verify_ue_naming.py
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build tests and tools
+        run: cmake --build build --config Release --target RendererTests LeonAssetTool
+
+      - name: Run unit tests
+        run: python Scripts/run_tests.py
+
+      - name: Validate Sandbox project
+        run: python Scripts/validate_sandbox.py
+        env:
+          LEON_BUILD_CONFIG: Release

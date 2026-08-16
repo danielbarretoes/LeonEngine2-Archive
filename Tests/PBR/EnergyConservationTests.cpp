@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 #include <vector>
-#include "renderer/PBRMath.hpp"
+#include "Renderer/FPBRMath.hpp"
 
 TEST_SUITE("PBR - Energy Conservation Invariants") {
 

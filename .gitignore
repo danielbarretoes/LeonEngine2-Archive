@@ -115,3 +115,8 @@ $RECYCLE.BIN/
 *.log
 *.dmp
 *.crash
+
+# Generated IBL binary cache
+**/Content/HDR/Cache/
+*.libl
+

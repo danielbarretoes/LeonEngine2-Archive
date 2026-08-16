@@ -25,6 +25,7 @@ add_executable(RendererTests
     Shader/PBRShaderIBLTests.cpp
     Shader/PBRShaderShadowTests.cpp
     Shader/PBRShaderPlanarReflectionTests.cpp
+    Shader/PBRShaderPlanarHDRTests.cpp
     Shader/PBRShaderDeterminismTests.cpp
     Shader/PostProcessBloomTests.cpp
     Shader/PostProcessToneMappingTests.cpp
@@ -49,11 +50,13 @@ add_executable(RendererTests
     Asset/MeshImportTests.cpp
     Asset/AssetValidationTests.cpp
     Gameplay/GameplayFrameworkTests.cpp
+    Gameplay/UIHUDTests.cpp
+    Gameplay/InputSettingsTests.cpp
+    Gameplay/CharacterComponentFrustumTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/Engine/include
     ${CMAKE_SOURCE_DIR}/Plugins/RHI/OpenGL/include
     ${CMAKE_SOURCE_DIR}/ThirdParty/glad/include
     ${CMAKE_SOURCE_DIR}/ThirdParty/stb

@@ -622,7 +622,7 @@ void main() {
     kD_IBL *= 1.0 - metallic;
 
     vec3 diffuseIBL;
-    vec3 specularIBL;
+    vec3 reflectionLi;
     vec2 envBRDF;
 
     if (u_UseIBL == 1) {
@@ -630,27 +630,35 @@ void main() {
         diffuseIBL = irradiance * albedo;
 
         const float MAX_REFLECTION_LOD = 4.0;
-        vec3 prefilteredColor = textureLod(u_PrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb * u_EnvSkyColor.w;
+        reflectionLi = textureLod(u_PrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb * u_EnvSkyColor.w;
         envBRDF = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
-        specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
     } else {
         vec3 irradiance = GetHemisphereIrradiance(N);
         diffuseIBL = irradiance * albedo;
 
-        vec3 prefilteredColor = SampleEnvironmentAtmosphere(R, roughness);
+        reflectionLi = SampleEnvironmentAtmosphere(R, roughness);
         envBRDF = vec2(1.0 - roughness, roughness * 0.5);
-        specularIBL = prefilteredColor * (F_IBL * envBRDF.x + envBRDF.y);
     }
 
-    // 7. Real-Time Planar Reflections
+    // 7. Real-Time Planar Reflections (Karis split-sum)
+    // Planar FBO is linear HDR scene radiance Li along an approximate mirror ray.
+    // Blur Li with roughness via the planar mip chain (same LOD convention as prefilter: roughness * 4).
+    // Then apply the split-sum BRDF factor once — do NOT replace specularIBL with planar*F alone
+    // (that skipped the LUT scale/bias and kept sharp emissive peaks at full intensity).
     if (u_UsePlanarReflection == 1) {
         vec2 screenUV = gl_FragCoord.xy / u_ScreenSize;
         vec2 perturbedUV = clamp(screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness), 0.001, 0.999);
-        vec3 planarColor = texture(u_PlanarReflectionMap, perturbedUV).rgb;
-        
-        float reflectStrength = clamp((1.0 - roughness * 1.1), 0.0, 1.0) * (0.7 + 0.3 * F_IBL.r);
-        specularIBL = mix(specularIBL, planarColor * (F_IBL * envBRDF.x + envBRDF.y), reflectStrength);
+
+        const float MAX_PLANAR_LOD = 4.0;
+        float planarLod = roughness * MAX_PLANAR_LOD;
+        vec3 planarLi = textureLod(u_PlanarReflectionMap, perturbedUV, planarLod).rgb;
+
+        // Wide GGX lobes cannot be represented by a single planar ray — fade toward IBL with roughness.
+        float reflectStrength = clamp(1.0 - roughness * 1.1, 0.0, 1.0);
+        reflectionLi = mix(reflectionLi, planarLi, reflectStrength);
     }
+
+    vec3 specularIBL = reflectionLi * (F_IBL * envBRDF.x + envBRDF.y);
 
     // Indirect ambient radiance occluded by AO
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;

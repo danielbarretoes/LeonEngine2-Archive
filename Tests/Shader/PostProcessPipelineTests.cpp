@@ -1,8 +1,8 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
-#include "renderer/PostProcessPipeline.hpp"
-#include "renderer/MeshPrimitives.hpp"
-#include "renderer/RenderCommand.hpp"
+#include "Renderer/FPostProcessPipeline.hpp"
+#include "Renderer/FMeshPrimitives.hpp"
+#include "RHI/FRenderCommand.hpp"
 #include <vector>
 #include <cmath>
 
@@ -24,7 +24,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
         pipeline.Init();
         pipeline.OnViewportResize(width, height);
 
-        // 1. Create a Synthetic HDR Scene Framebuffer (32x32 RGBA16F)
+        // 1. Create a Synthetic HDR Scene FFramebuffer (32x32 RGBA16F)
         Leon::FFramebufferSpecification hdrSpec;
         hdrSpec.Width  = width;
         hdrSpec.Height = height;
@@ -32,7 +32,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
         auto hdrSceneFBO = Leon::FFramebuffer::Create(hdrSpec);
         REQUIRE(hdrSceneFBO != nullptr);
 
-        // 2. Create Target Output Framebuffer (32x32 RGBA8)
+        // 2. Create Target Output FFramebuffer (32x32 RGBA8)
         Leon::FFramebufferSpecification outSpec;
         outSpec.Width  = width;
         outSpec.Height = height;
@@ -53,7 +53,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
         settings.bFXAAEnabled   = true;
         settings.DebugMode      = 0;
 
-        // Case A: Pure Black Scene Input -> Must produce strictly black output
+        // Case A: Pure Black Scene FInput -> Must produce strictly black output
         std::vector<float> blackPixels(width * height * 4, 0.0f);
         GLuint hdrTexID = hdrSceneFBO->GetColorAttachmentRendererID(0);
         glTextureSubImage2D(hdrTexID, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, blackPixels.data());
@@ -107,7 +107,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
         CHECK(outHotspot[neighborIdx + 2] > 0);
     }
 
-    TEST_CASE("Pipeline Dynamic Viewport Resize & Framebuffer Lifetime Invariants") {
+    TEST_CASE("Pipeline Dynamic Viewport Resize & FFramebuffer Lifetime Invariants") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         if (!gl.IsValid()) {
             MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");

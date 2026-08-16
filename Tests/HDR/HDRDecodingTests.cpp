@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include "asset/HDRImporter.hpp"
+#include "Assets/FHDRImporter.hpp"
 #include <filesystem>
 #include <vector>
 #include <cmath>

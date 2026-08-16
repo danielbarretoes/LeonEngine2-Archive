@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
 #include <fstream>
-#include "renderer/IBLMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("PBR - BRDF LUT Invariants") {
 

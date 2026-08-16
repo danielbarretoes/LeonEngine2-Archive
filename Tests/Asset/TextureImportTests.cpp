@@ -1,6 +1,6 @@
 #include <doctest/doctest.h>
-#include "asset/TextureImporter.hpp"
-#include "asset/AssetPath.hpp"
+#include "Assets/FTextureImporter.hpp"
+#include "Assets/FAssetPath.hpp"
 
 #include <filesystem>
 #include <vector>

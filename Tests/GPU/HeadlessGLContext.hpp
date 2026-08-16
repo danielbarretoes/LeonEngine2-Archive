@@ -9,11 +9,11 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "renderer/SceneRenderer.hpp"
-#include "renderer/Shader.hpp"
-#include "renderer/RenderCommand.hpp"
+#include "Renderer/FWorldRenderer.hpp"
+#include "RHI/FShader.hpp"
+#include "RHI/FRenderCommand.hpp"
 
-#include "OpenGLRenderDriver.hpp"
+#include "FOpenGLRenderDriver.hpp"
 
 namespace Leon::TestGPU {
 
@@ -46,16 +46,16 @@ namespace Leon::TestGPU {
             return instance;
         }
 
-        bool IsValid() const { return m_bInitialized; }
+        bool IsValid() const { return bInitialized; }
 
-        GLuint GetFBO() const { return m_FBO; }
-        GLuint GetColorTexture() const { return m_ColorTexture; }
-        GLuint GetVAO() const { return m_VAO; }
-        GLuint GetCameraUBO() const { return m_CameraUBO; }
-        GLuint GetLightingUBO() const { return m_LightingUBO; }
+        GLuint GetFBO() const { return FBO; }
+        GLuint GetColorTexture() const { return ColorTexture; }
+        GLuint GetVAO() const { return VAO; }
+        GLuint GetCameraUBO() const { return CameraUBO; }
+        GLuint GetLightingUBO() const { return LightingUBO; }
 
         void BindFramebuffer(int width = 1, int height = 1) {
-            glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
+            glBindFramebuffer(GL_FRAMEBUFFER, FBO);
             glViewport(0, 0, width, height);
             glDisable(GL_DEPTH_TEST);
             glDisable(GL_CULL_FACE);
@@ -63,26 +63,26 @@ namespace Leon::TestGPU {
             if (GLAD_GL_ARB_framebuffer_sRGB || GLAD_GL_EXT_framebuffer_sRGB) {
                 glDisable(GL_FRAMEBUFFER_SRGB);
             }
-            glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_CameraUBO);
-            glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_LightingUBO);
+            glBindBufferBase(GL_UNIFORM_BUFFER, 0, CameraUBO);
+            glBindBufferBase(GL_UNIFORM_BUFFER, 1, LightingUBO);
             glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         }
 
         void UpdateCameraUBO(const FCameraBufferData& data) {
-            glBindBuffer(GL_UNIFORM_BUFFER, m_CameraUBO);
+            glBindBuffer(GL_UNIFORM_BUFFER, CameraUBO);
             glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(FCameraBufferData), &data);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
         }
 
         void UpdateLightingUBO(const FLightingBufferData& data) {
-            glBindBuffer(GL_UNIFORM_BUFFER, m_LightingUBO);
+            glBindBuffer(GL_UNIFORM_BUFFER, LightingUBO);
             glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(FLightingBufferData), &data);
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
         }
 
         void DrawQuad() {
-            glBindVertexArray(m_VAO);
+            glBindVertexArray(VAO);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
             glBindVertexArray(0);
         }
@@ -98,34 +98,34 @@ namespace Leon::TestGPU {
             for (int unit = 0; unit < 6; ++unit) {
                 glActiveTexture(GL_TEXTURE0 + unit);
                 if (unit == 1) {
-                    glBindTexture(GL_TEXTURE_2D, m_DefaultFlatNormalTex);
+                    glBindTexture(GL_TEXTURE_2D, DefaultFlatNormalTex);
                 } else if (unit == 3) {
-                    glBindTexture(GL_TEXTURE_2D, m_DefaultWhiteTex); // AO default 1.0
+                    glBindTexture(GL_TEXTURE_2D, DefaultWhiteTex); // AO default 1.0
                 } else {
-                    glBindTexture(GL_TEXTURE_2D, m_DefaultWhiteTex);
+                    glBindTexture(GL_TEXTURE_2D, DefaultWhiteTex);
                 }
             }
             // Unit 6: BRDF LUT
             glActiveTexture(GL_TEXTURE6);
-            glBindTexture(GL_TEXTURE_2D, m_DefaultWhiteTex);
+            glBindTexture(GL_TEXTURE_2D, DefaultWhiteTex);
 
             // Unit 7 & 8: Irradiance & Prefilter cubemaps
             glActiveTexture(GL_TEXTURE7);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, m_DefaultCubeTex);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, DefaultCubeTex);
             glActiveTexture(GL_TEXTURE8);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, m_DefaultCubeTex);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, DefaultCubeTex);
 
             // Unit 9: Emissive
             glActiveTexture(GL_TEXTURE9);
-            glBindTexture(GL_TEXTURE_2D, m_DefaultBlackTex);
+            glBindTexture(GL_TEXTURE_2D, DefaultBlackTex);
 
             // Unit 10: Cascade Shadow Map (Texture2DArrayShadow)
             glActiveTexture(GL_TEXTURE10);
-            glBindTexture(GL_TEXTURE_2D_ARRAY, m_DefaultShadowArrayTex);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, DefaultShadowArrayTex);
 
             // Unit 11: Spot Shadow Map (Texture2DShadow)
             glActiveTexture(GL_TEXTURE11);
-            glBindTexture(GL_TEXTURE_2D, m_DefaultShadowTex);
+            glBindTexture(GL_TEXTURE_2D, DefaultShadowTex);
         }
 
         void ResetShaderUniforms(const TRef<FShader>& shader) {
@@ -156,8 +156,8 @@ namespace Leon::TestGPU {
             shader->SetFloat2("u_UVOffset", 0.0f, 0.0f);
         }
 
-        GLuint GetDefaultShadowArrayTex() const { return m_DefaultShadowArrayTex; }
-        GLuint GetDefaultShadowTex() const { return m_DefaultShadowTex; }
+        GLuint GetDefaultShadowArrayTex() const { return DefaultShadowArrayTex; }
+        GLuint GetDefaultShadowTex() const { return DefaultShadowTex; }
 
         GLuint Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
             GLuint tex = 0;
@@ -215,18 +215,18 @@ namespace Leon::TestGPU {
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
             glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-            m_Window = glfwCreateWindow(64, 64, "LeonHeadlessContext", nullptr, nullptr);
-            if (!m_Window) {
+            NativeWindow = glfwCreateWindow(64, 64, "LeonHeadlessContext", nullptr, nullptr);
+            if (!NativeWindow) {
                 std::cerr << "[TEST ERROR] Could not create headless GLFW window!\n";
                 glfwTerminate();
                 return;
             }
 
-            glfwMakeContextCurrent(m_Window);
+            glfwMakeContextCurrent(NativeWindow);
 
             if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
                 std::cerr << "[TEST ERROR] GLAD loader failed!\n";
-                glfwDestroyWindow(m_Window);
+                glfwDestroyWindow(NativeWindow);
                 glfwTerminate();
                 return;
             }
@@ -245,49 +245,49 @@ namespace Leon::TestGPU {
             InitUBOs();
             InitDefaultTextures();
 
-            m_bInitialized = true;
+            bInitialized = true;
         }
 
         ~FHeadlessGLContext() {
-            if (m_bInitialized) {
-                glDeleteFramebuffers(1, &m_FBO);
-                glDeleteTextures(1, &m_ColorTexture);
-                glDeleteRenderbuffers(1, &m_DepthRBO);
+            if (bInitialized) {
+                glDeleteFramebuffers(1, &FBO);
+                glDeleteTextures(1, &ColorTexture);
+                glDeleteRenderbuffers(1, &DepthRBO);
 
-                glDeleteVertexArrays(1, &m_VAO);
-                glDeleteBuffers(1, &m_VBO);
-                glDeleteBuffers(1, &m_EBO);
+                glDeleteVertexArrays(1, &VAO);
+                glDeleteBuffers(1, &VBO);
+                glDeleteBuffers(1, &EBO);
 
-                glDeleteBuffers(1, &m_CameraUBO);
-                glDeleteBuffers(1, &m_LightingUBO);
+                glDeleteBuffers(1, &CameraUBO);
+                glDeleteBuffers(1, &LightingUBO);
 
-                glDeleteTextures(1, &m_DefaultWhiteTex);
-                glDeleteTextures(1, &m_DefaultBlackTex);
-                glDeleteTextures(1, &m_DefaultFlatNormalTex);
-                glDeleteTextures(1, &m_DefaultCubeTex);
-                glDeleteTextures(1, &m_DefaultShadowTex);
-                glDeleteTextures(1, &m_DefaultShadowArrayTex);
+                glDeleteTextures(1, &DefaultWhiteTex);
+                glDeleteTextures(1, &DefaultBlackTex);
+                glDeleteTextures(1, &DefaultFlatNormalTex);
+                glDeleteTextures(1, &DefaultCubeTex);
+                glDeleteTextures(1, &DefaultShadowTex);
+                glDeleteTextures(1, &DefaultShadowArrayTex);
 
-                glfwDestroyWindow(m_Window);
+                glfwDestroyWindow(NativeWindow);
                 glfwTerminate();
             }
         }
 
         void InitFBO() {
-            glCreateFramebuffers(1, &m_FBO);
-            glBindFramebuffer(GL_FRAMEBUFFER, m_FBO);
+            glCreateFramebuffers(1, &FBO);
+            glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
-            glCreateTextures(GL_TEXTURE_2D, 1, &m_ColorTexture);
-            glBindTexture(GL_TEXTURE_2D, m_ColorTexture);
+            glCreateTextures(GL_TEXTURE_2D, 1, &ColorTexture);
+            glBindTexture(GL_TEXTURE_2D, ColorTexture);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_FLOAT, nullptr);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ColorTexture, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ColorTexture, 0);
 
-            glCreateRenderbuffers(1, &m_DepthRBO);
-            glBindRenderbuffer(GL_RENDERBUFFER, m_DepthRBO);
+            glCreateRenderbuffers(1, &DepthRBO);
+            glBindRenderbuffer(GL_RENDERBUFFER, DepthRBO);
             glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 1, 1);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_DepthRBO);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthRBO);
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
@@ -303,15 +303,15 @@ namespace Leon::TestGPU {
 
             std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
 
-            glCreateVertexArrays(1, &m_VAO);
-            glBindVertexArray(m_VAO);
+            glCreateVertexArrays(1, &VAO);
+            glBindVertexArray(VAO);
 
-            glCreateBuffers(1, &m_VBO);
-            glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+            glCreateBuffers(1, &VBO);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
             glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(FTestVertex), vertices.data(), GL_STATIC_DRAW);
 
-            glCreateBuffers(1, &m_EBO);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+            glCreateBuffers(1, &EBO);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
             // layout(location = 0) in vec3 aPos
@@ -343,16 +343,16 @@ namespace Leon::TestGPU {
 
         void InitUBOs() {
             // Camera UBO: Binding 0
-            glCreateBuffers(1, &m_CameraUBO);
-            glBindBuffer(GL_UNIFORM_BUFFER, m_CameraUBO);
+            glCreateBuffers(1, &CameraUBO);
+            glBindBuffer(GL_UNIFORM_BUFFER, CameraUBO);
             glBufferData(GL_UNIFORM_BUFFER, sizeof(FCameraBufferData), nullptr, GL_DYNAMIC_DRAW);
-            glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_CameraUBO);
+            glBindBufferBase(GL_UNIFORM_BUFFER, 0, CameraUBO);
 
             // Lighting UBO: Binding 1
-            glCreateBuffers(1, &m_LightingUBO);
-            glBindBuffer(GL_UNIFORM_BUFFER, m_LightingUBO);
+            glCreateBuffers(1, &LightingUBO);
+            glBindBuffer(GL_UNIFORM_BUFFER, LightingUBO);
             glBufferData(GL_UNIFORM_BUFFER, sizeof(FLightingBufferData), nullptr, GL_DYNAMIC_DRAW);
-            glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_LightingUBO);
+            glBindBufferBase(GL_UNIFORM_BUFFER, 1, LightingUBO);
 
             glBindBuffer(GL_UNIFORM_BUFFER, 0);
         }
@@ -360,65 +360,65 @@ namespace Leon::TestGPU {
         void InitDefaultTextures() {
             // White 1x1
             uint32_t white = 0xFFFFFFFF;
-            glCreateTextures(GL_TEXTURE_2D, 1, &m_DefaultWhiteTex);
-            glTextureStorage2D(m_DefaultWhiteTex, 1, GL_RGBA8, 1, 1);
-            glTextureSubImage2D(m_DefaultWhiteTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+            glCreateTextures(GL_TEXTURE_2D, 1, &DefaultWhiteTex);
+            glTextureStorage2D(DefaultWhiteTex, 1, GL_RGBA8, 1, 1);
+            glTextureSubImage2D(DefaultWhiteTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &white);
 
             // Black 1x1
             uint32_t black = 0xFF000000;
-            glCreateTextures(GL_TEXTURE_2D, 1, &m_DefaultBlackTex);
-            glTextureStorage2D(m_DefaultBlackTex, 1, GL_RGBA8, 1, 1);
-            glTextureSubImage2D(m_DefaultBlackTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &black);
+            glCreateTextures(GL_TEXTURE_2D, 1, &DefaultBlackTex);
+            glTextureStorage2D(DefaultBlackTex, 1, GL_RGBA8, 1, 1);
+            glTextureSubImage2D(DefaultBlackTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &black);
 
             // Flat normal 1x1 (128, 128, 255, 255)
             uint32_t normal = 0xFFFF8080;
-            glCreateTextures(GL_TEXTURE_2D, 1, &m_DefaultFlatNormalTex);
-            glTextureStorage2D(m_DefaultFlatNormalTex, 1, GL_RGBA8, 1, 1);
-            glTextureSubImage2D(m_DefaultFlatNormalTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &normal);
+            glCreateTextures(GL_TEXTURE_2D, 1, &DefaultFlatNormalTex);
+            glTextureStorage2D(DefaultFlatNormalTex, 1, GL_RGBA8, 1, 1);
+            glTextureSubImage2D(DefaultFlatNormalTex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &normal);
 
             // Default Cubemap 1x1
-            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &m_DefaultCubeTex);
-            glTextureStorage2D(m_DefaultCubeTex, 1, GL_RGBA8, 1, 1);
+            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &DefaultCubeTex);
+            glTextureStorage2D(DefaultCubeTex, 1, GL_RGBA8, 1, 1);
             for (int f = 0; f < 6; ++f) {
-                glTextureSubImage3D(m_DefaultCubeTex, 0, 0, 0, f, 1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &black);
+                glTextureSubImage3D(DefaultCubeTex, 0, 0, 0, f, 1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &black);
             }
 
             // Default Shadow 2D (Compare mode)
-            glCreateTextures(GL_TEXTURE_2D, 1, &m_DefaultShadowTex);
-            glTextureStorage2D(m_DefaultShadowTex, 1, GL_DEPTH_COMPONENT24, 1, 1);
-            glTextureParameteri(m_DefaultShadowTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-            glTextureParameteri(m_DefaultShadowTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+            glCreateTextures(GL_TEXTURE_2D, 1, &DefaultShadowTex);
+            glTextureStorage2D(DefaultShadowTex, 1, GL_DEPTH_COMPONENT24, 1, 1);
+            glTextureParameteri(DefaultShadowTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+            glTextureParameteri(DefaultShadowTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
             float clearDepth = 1.0f;
-            glClearTexImage(m_DefaultShadowTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
+            glClearTexImage(DefaultShadowTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
 
             // Default Shadow 2D Array
-            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_DefaultShadowArrayTex);
-            glTextureStorage3D(m_DefaultShadowArrayTex, 1, GL_DEPTH_COMPONENT24, 1, 1, 4);
-            glTextureParameteri(m_DefaultShadowArrayTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-            glTextureParameteri(m_DefaultShadowArrayTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-            glClearTexImage(m_DefaultShadowArrayTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
+            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &DefaultShadowArrayTex);
+            glTextureStorage3D(DefaultShadowArrayTex, 1, GL_DEPTH_COMPONENT24, 1, 1, 4);
+            glTextureParameteri(DefaultShadowArrayTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+            glTextureParameteri(DefaultShadowArrayTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+            glClearTexImage(DefaultShadowArrayTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
         }
 
-        GLFWwindow* m_Window = nullptr;
-        bool m_bInitialized = false;
+        GLFWwindow* NativeWindow = nullptr;
+        bool bInitialized = false;
 
-        GLuint m_FBO = 0;
-        GLuint m_ColorTexture = 0;
-        GLuint m_DepthRBO = 0;
+        GLuint FBO = 0;
+        GLuint ColorTexture = 0;
+        GLuint DepthRBO = 0;
 
-        GLuint m_VAO = 0;
-        GLuint m_VBO = 0;
-        GLuint m_EBO = 0;
+        GLuint VAO = 0;
+        GLuint VBO = 0;
+        GLuint EBO = 0;
 
-        GLuint m_CameraUBO = 0;
-        GLuint m_LightingUBO = 0;
+        GLuint CameraUBO = 0;
+        GLuint LightingUBO = 0;
 
-        GLuint m_DefaultWhiteTex = 0;
-        GLuint m_DefaultBlackTex = 0;
-        GLuint m_DefaultFlatNormalTex = 0;
-        GLuint m_DefaultCubeTex = 0;
-        GLuint m_DefaultShadowTex = 0;
-        GLuint m_DefaultShadowArrayTex = 0;
+        GLuint DefaultWhiteTex = 0;
+        GLuint DefaultBlackTex = 0;
+        GLuint DefaultFlatNormalTex = 0;
+        GLuint DefaultCubeTex = 0;
+        GLuint DefaultShadowTex = 0;
+        GLuint DefaultShadowArrayTex = 0;
     };
 
 } // namespace Leon::TestGPU

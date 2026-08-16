@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""
+Verify LeonEngine2 has no forbidden legacy naming patterns.
+
+Checks (Engine / Plugins / Projects / Tests / Tools — skips ThirdParty/build):
+  - Unprefixed using-aliases (using Application = FApplication, etc.)
+  - FSceneRenderer / GetSceneRenderer / SceneRenderer.hpp leftovers
+  - Member prefixes m_ and s_ on typical C++ identifiers
+  - OpenGL plugin files still named OpenGL*.hpp/.cpp (must be FOpenGL*)
+  - Sandbox gameplay files still named SandboxGameMode* (must be A/U prefixed)
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCAN_ROOTS = ("Engine", "Plugins", "Projects", "Tests", "Tools")
+SKIP_DIR_NAMES = {".git", "build", "ThirdParty", "Content", "Intermediate", "Cache"}
+
+# Unprefixed aliases that must not remain after the UE naming sweep
+RE_USING_ALIAS = re.compile(
+    r"^\s*using\s+(?:Application|ApplicationProps|Window|WindowProps|Layer|LayerStack|Log|LogLevel|"
+    r"Timestep|Input|ConfigFile|Event|EventType|EventCategory|EventDispatcher|"
+    r"WindowResizeEvent|WindowCloseEvent|KeyEvent|KeyPressedEvent|KeyReleasedEvent|"
+    r"MouseMovedEvent|MouseScrolledEvent|MouseButtonEvent|MouseButtonPressedEvent|"
+    r"MouseButtonReleasedEvent|ShaderDataType|BufferElement|BufferLayout|"
+    r"VertexBuffer|IndexBuffer|UniformBuffer|Framebuffer|FramebufferTextureFormat|"
+    r"FramebufferTextureSpecification|FramebufferAttachmentSpecification|"
+    r"FramebufferSpecification|GraphicsContext|RenderAPI|AssetManager|"
+    r"OpenGLContext|OpenGLRenderAPI|OpenGLFramebuffer|OpenGLShader|OpenGLTexture2D|"
+    r"OpenGLTextureCube|OpenGLVertexArray|OpenGLVertexBuffer|OpenGLIndexBuffer|"
+    r"OpenGLUniformBuffer|OpenGLRenderDriver)\s*=",
+    re.MULTILINE,
+)
+RE_SCENE = re.compile(r"\b(FSceneRenderer|GetSceneRenderer|class SceneRenderer)\b")
+RE_MEMBER_M = re.compile(r"\bm_[A-Za-z]\w*")
+RE_MEMBER_S = re.compile(r"\bs_[A-Za-z]\w*")
+RE_EXT = {".hpp", ".h", ".cpp", ".c", ".inl"}
+
+FORBIDDEN_FILENAMES = {
+    "OpenGLBuffer.hpp",
+    "OpenGLBuffer.cpp",
+    "OpenGLContext.hpp",
+    "OpenGLContext.cpp",
+    "OpenGLFramebuffer.hpp",
+    "OpenGLFramebuffer.cpp",
+    "OpenGLRenderAPI.hpp",
+    "OpenGLRenderAPI.cpp",
+    "OpenGLRenderDriver.hpp",
+    "OpenGLRenderDriver.cpp",
+    "OpenGLShader.hpp",
+    "OpenGLShader.cpp",
+    "OpenGLTexture2D.hpp",
+    "OpenGLTexture2D.cpp",
+    "OpenGLTextureCube.hpp",
+    "OpenGLTextureCube.cpp",
+    "OpenGLUniformBuffer.hpp",
+    "OpenGLUniformBuffer.cpp",
+    "OpenGLVertexArray.hpp",
+    "OpenGLVertexArray.cpp",
+    "SandboxGameMode.hpp",
+    "SandboxGameMode.cpp",
+    "SandboxHUD.hpp",
+    "SandboxHUD.cpp",
+    "SandboxMainMenuWidget.hpp",
+    "SandboxMainMenuWidget.cpp",
+    "SceneRenderer.hpp",
+    "SceneRenderer.cpp",
+}
+
+
+def should_skip_dir(name: str) -> bool:
+    return name in SKIP_DIR_NAMES or name.startswith(".")
+
+
+def iter_sources():
+    for top in SCAN_ROOTS:
+        base = os.path.join(ROOT, top)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if not should_skip_dir(d)]
+            for fn in filenames:
+                yield os.path.join(dirpath, fn)
+
+
+def main() -> int:
+    violations: list[str] = []
+    for path in iter_sources():
+        rel = os.path.relpath(path, ROOT).replace("\\", "/")
+        fn = os.path.basename(path)
+        if fn in FORBIDDEN_FILENAMES:
+            violations.append(f"{rel}: forbidden legacy filename (use UE-prefixed name)")
+        ext = os.path.splitext(fn)[1].lower()
+        if ext not in RE_EXT:
+            continue
+        try:
+            text = open(path, encoding="utf-8", errors="replace").read()
+        except OSError as exc:
+            violations.append(f"{rel}: read error {exc}")
+            continue
+        for m in RE_USING_ALIAS.finditer(text):
+            violations.append(f"{rel}: unprefixed using-alias `{m.group(0).strip()}`")
+        for m in RE_SCENE.finditer(text):
+            violations.append(f"{rel}: legacy Scene API `{m.group(1)}`")
+        for m in RE_MEMBER_M.finditer(text):
+            violations.append(f"{rel}: member prefix `{m.group(0)}`")
+        for m in RE_MEMBER_S.finditer(text):
+            if len(m.group(0)) > 2 and (m.group(0)[2].isupper() or m.group(0)[2] == "b"):
+                violations.append(f"{rel}: static prefix `{m.group(0)}`")
+
+    if violations:
+        print(f"[verify_ue_naming] {len(violations)} violation(s):")
+        for line in violations[:80]:
+            print(f"  {line}")
+        if len(violations) > 80:
+            print(f"  ... and {len(violations) - 80} more")
+        return 1
+
+    print("[verify_ue_naming] OK — no legacy naming violations found.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

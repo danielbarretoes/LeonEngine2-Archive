@@ -104,7 +104,7 @@ TOTALES                     | 18 Archivos de Prueba          | 27 Tests|  8,098,
 ## 4. Cómo Interpretar y Diagnosticar un Fallo
 
 ### A. Fallo en `Constant Environment L = 1.0 Produces Exactly E = PI`
-* **Causa**: Alguien modificó la ponderación por coseno, el factor de normalización $\frac{\pi}{N}$, la base ortonormal TBN o la PDF en `IBLMath.hpp` / `IBLGenerator.cpp`.
+* **Causa**: Alguien modificó la ponderación por coseno, el factor de normalización $\frac{\pi}{N}$, la base ortonormal TBN o la PDF en `FIBLMath.hpp` / `IBLGenerator.cpp`.
 * **Solución**: Verificar que la acumulación de muestras use $\frac{\pi}{N} \sum L_i$ y que el marco tangente no altere la longitud del vector.
 
 ### B. Fallo en `All 6 Faces x 32x32 Spatial Neighbor Outlier Ratio <= 1.25x`
@@ -112,7 +112,7 @@ TOTALES                     | 18 Archivos de Prueba          | 27 Tests|  8,098,
 * **Solución**: Restaurar el cálculo de LOD $\text{lod} = \max(0.5 \log_2(\Omega_s / \Omega_p) + 1.0, 0.0)$.
 
 ### C. Fallo en `Diffuse and Specular Fractions Satisfy kD + kS <= 1.0`
-* **Causa**: Se alteró la conservación de energía en `PBRMath.hpp` o `PBR_Lit.glsl` permitiendo que $k_D = 1 - k_S$ sin multiplicar por $(1 - \text{metallic})$.
+* **Causa**: Se alteró la conservación de energía en `FPBRMath.hpp` o `PBR_Lit.glsl` permitiendo que $k_D = 1 - k_S$ sin multiplicar por $(1 - \text{metallic})$.
 * **Solución**: Asegurar $k_D = (1 - k_S)(1 - \text{metallic})$ y $k_S = F$.
 
 ### D. Fallo en `Round-Trip Bitwise Identical Serialization`
