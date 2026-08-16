@@ -4,7 +4,9 @@
 namespace Leon {
 
     AActor::AActor(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : UObject(InName), EntityHandle(InHandle), World(InWorld) {}
+        : UObject(InName), EntityHandle(InHandle), World(InWorld) {
+        ActorGuid = FUUID::Generate();
+    }
 
     void AActor::ExecuteBeginPlay() {
         BeginPlay();
@@ -33,6 +35,7 @@ namespace Leon {
         }
         EndPlay();
         ActorComponents.clear();
+        bHasBegunPlay = false;
     }
 
     void AActor::SetName(const std::string& InName) {

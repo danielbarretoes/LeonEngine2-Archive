@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
+#include "Renderer/FColorSpace.hpp"
 #include <vector>
 #include <cmath>
 
@@ -47,7 +48,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, valMid);
         gl.DrawQuad();
         glm::vec4 pixelMid = gl.ReadPixel(0, 0);
-        CHECK(pixelMid.r == doctest::Approx(0.54807f).epsilon(0.015f));
+        CHECK(pixelMid.r == doctest::Approx(Leon::LinearToSRGB(0.266876f)).epsilon(0.015f));
         // Luma in alpha must equal grayscale channel value
         CHECK(pixelMid.a == doctest::Approx(pixelMid.r).epsilon(0.01f));
 
@@ -56,7 +57,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, val1);
         gl.DrawQuad();
         glm::vec4 pixel1 = gl.ReadPixel(0, 0);
-        CHECK(pixel1.r == doctest::Approx(0.90561f).epsilon(0.015f));
+        CHECK(pixel1.r == doctest::Approx(Leon::LinearToSRGB(0.803797f)).epsilon(0.015f));
 
         // 4. Extreme HDR Brightness (1000.0) -> Bounded strictly <= 1.0
         float val1000[4] = { 1000.0f, 1000.0f, 1000.0f, 1.0f };

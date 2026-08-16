@@ -38,7 +38,7 @@ void PrintUsage() {
     std::cout << "  LeonAssetTool import --raw <dir> --content <dir> [--force]\n";
     std::cout << "  LeonAssetTool validate --content <dir>\n";
     std::cout << "  LeonAssetTool validate_map --map <path.lmap>\n";
-    std::cout << "  LeonAssetTool bake_lightmaps --map <path.lmap> [--force]\n";
+    std::cout << "  LeonAssetTool bake_lightmaps --map <path.lmap> [--force] [--quality=Preview|Draft|Production]\n";
     std::cout << "  LeonAssetTool validate_lightmaps --map <path.lmap>\n";
     std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi | file.llightmap>\n\n";
     std::cout << "Options:\n";
@@ -46,6 +46,7 @@ void PrintUsage() {
     std::cout << "  --raw <dir>        Source raw assets directory (e.g. Assets/Raw)\n";
     std::cout << "  --content <dir>    Output native assets directory (e.g. Assets/Content)\n";
     std::cout << "  --map <path>       Map file path (e.g. Content/Maps/ShowcaseLevel.lmap)\n";
+    std::cout << "  --quality=<name>   Lighting build quality: Preview, Draft, Production\n";
     std::cout << "  --force            Force re-importing all assets regardless of hash\n";
     std::cout << "  --help, -h         Show this help information\n";
 }
@@ -445,7 +446,7 @@ int ExecuteValidateMap(const std::string& InMapPath) {
     return 0;
 }
 
-int ExecuteBakeLightmaps(const std::string& InMapPath, bool bForce) {
+int ExecuteBakeLightmaps(const std::string& InMapPath, bool bForce, const std::string& InQuality) {
     if (InMapPath.empty() || !fs::exists(InMapPath)) {
         std::cerr << "[ERROR] --map <path.lmap> is required and must exist.\n";
         return 1;
@@ -454,7 +455,6 @@ int ExecuteBakeLightmaps(const std::string& InMapPath, bool bForce) {
     FLog::Init();
     UAssetManager::Init();
 
-    // Content root = parent of Maps/ folder
     fs::path mapPath = InMapPath;
     fs::path contentRoot = mapPath.parent_path();
     if (contentRoot.filename() == "Maps")
@@ -463,9 +463,12 @@ int ExecuteBakeLightmaps(const std::string& InMapPath, bool bForce) {
     FProjectPaths::SetProjectRoot(contentRoot.parent_path().string());
 
     FLightmassSettings settings;
-    settings.SamplesPerTexel = 4;
-    settings.LightmapResolution = 32;
-    settings.NumIndirectBounces = 2;
+    ELightingBuildQuality quality = ELightingBuildQuality::Draft;
+    if (InQuality == "Preview")
+        quality = ELightingBuildQuality::Preview;
+    else if (InQuality == "Production")
+        quality = ELightingBuildQuality::Production;
+    ApplyLightingBuildQuality(quality, settings);
 
     auto result = FLightmass::BakeMap(InMapPath, settings, bForce);
     UAssetManager::Shutdown();
@@ -674,10 +677,15 @@ int main(int argc, char** argv) {
     }
 
     std::string command = argv[1];
+    if (command == "--help" || command == "-h") {
+        PrintUsage();
+        return 0;
+    }
     std::string projectPath = "";
     std::string rawDir = "";
     std::string contentDir = "";
     std::string levelPath = "";
+    std::string quality = "Draft";
     bool bForce = false;
 
     for (int i = 2; i < argc; ++i) {
@@ -690,6 +698,10 @@ int main(int argc, char** argv) {
             contentDir = argv[++i];
         } else if (arg == "--map" && i + 1 < argc) {
             levelPath = argv[++i];
+        } else if (arg.rfind("--quality=", 0) == 0) {
+            quality = arg.substr(10);
+        } else if (arg == "--quality" && i + 1 < argc) {
+            quality = argv[++i];
         } else if (arg == "--force") {
             bForce = true;
         }
@@ -733,7 +745,7 @@ int main(int argc, char** argv) {
             PrintUsage();
             return 1;
         }
-        return ExecuteBakeLightmaps(levelPath, bForce);
+        return ExecuteBakeLightmaps(levelPath, bForce, quality);
     } else if (command == "validate_lightmaps") {
         if (levelPath.empty()) {
             std::cerr << "[ERROR] --map <path> is required for validate_lightmaps.\n";

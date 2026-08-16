@@ -32,7 +32,7 @@ El subsistema desacopla formalmente el **Baking de Iluminación** (operación co
 ## 2. Formato Binario del BRDF LUT (`BRDF_LUT.bin`)
 
 Ubicación: [`Engine/Assets/Textures/BRDF_LUT.bin`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Assets/Textures/BRDF_LUT.bin)  
-Tamaño: 16-byte `LEONBRDF` header + $524,288$ float payload ($256 \times 256 \times 2$ RG).
+Tamaño: 24-byte `LEONBRDF` header v2 (`Size` + `SampleCount`) + $524,288$ float payload ($256 \times 256 \times 2$ RG).
 
 La tabla contiene la integración precalculada de los términos $A$ (escala) y $B$ (sesgo) de la aproximación *Split-Sum* de Cook-Torrance GGX Smith:
 $$\text{envBRDF}(N \cdot V, \alpha) = \int_0^1 \frac{G(N, V, L, \alpha) (V \cdot H)}{(N \cdot V)(N \cdot H)} (1 - (1 - V \cdot H)^5) d\xi$$
@@ -51,7 +51,7 @@ Tamaño Total: $\approx 1.88\text{ MB}$.
 ```cpp
 struct FIBLCacheHeader {
     char     Magic[8]               = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-    uint32_t Version                = 4;     // Versión 4: Muestreo de hemisferio con ponderación por coseno + Mip filtering
+    uint32_t Version                = 6;     // v6: Karis cubemap saTexel; exposure not baked
     uint64_t HDRSourceHash          = 0;     // Hash FNV-1a de 64 bits del archivo fuente .hdr
     uint32_t EnvSize                = 128;   // Resolución de cara del cubemap de entorno
     uint32_t IrradSize              = 32;    // Resolución de cara del cubemap de irradiancia
@@ -76,7 +76,7 @@ Un archivo de caché `.libl` se considera válido y se carga directamente en mem
 
 1. El archivo `<HDR_Stem>.libl` existe en el disco.
 2. `header.Magic == "LEONIBL"`.
-3. `header.Version == 3` (la versión actual del generador). Si se actualiza el algoritmo matemático en el código, el cambio de versión invalida automáticamente cachés antiguas.
+3. `header.Version == kIBLCacheVersion` (actualmente **6**). Si se actualiza el algoritmo matemático en el código, el cambio de versión invalida automáticamente cachés antiguas.
 4. `header.HDRSourceHash == ComputeFileHash64(hdrPath)` (se calcula el hash FNV-1a de 64 bits del contenido del `.hdr`). Si el archivo HDR se modifica o se reemplaza, el hash cambia e invalida la caché.
 5. Las dimensiones (`EnvSize`, `IrradSize`, `PrefilterBaseSize`, `PrefilterMips`) coinciden exactamente con la configuración solicitada por el renderer.
 6. El tamaño total del archivo en disco coincide con `sizeof(FIBLCacheHeader) + TotalPayloadBytes`.

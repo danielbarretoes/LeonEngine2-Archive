@@ -268,9 +268,6 @@ namespace Leon {
         material->SetAssetPath(resolved);
         if (FMaterialSerializer::Deserialize(resolved, *material)) {
             MaterialCache[resolved] = material;
-            if (resolved != InPath) {
-                MaterialCache[InPath] = material;
-            }
             return material;
         }
 
@@ -294,20 +291,15 @@ namespace Leon {
 
         std::string resolved = ResolveVirtualPath(InPath);
 
-        auto it = MaterialInstanceCache.find(resolved);
-        if (it != MaterialInstanceCache.end() && it->second) {
-            return it->second;
-        }
-
-        // If path ends with .lmat, load parent material and create instance
+        // Each .lmat request gets a unique instance; only the parent FMaterial is cached.
         if (FAssetPath::GetExtension(resolved) == "lmat") {
             auto parentMat = GetMaterial(resolved);
-            auto instance = parentMat->CreateInstance();
-            MaterialInstanceCache[resolved] = instance;
-            return instance;
+            if (!parentMat)
+                parentMat = GetDefaultMaterial();
+            return parentMat->CreateInstance();
         }
 
-        // Parse .lmi text file
+        // Parse .lmi text file — also unique per call so overrides do not leak across actors.
         std::ifstream file(resolved);
         if (file.is_open()) {
             std::string line;
@@ -347,8 +339,6 @@ namespace Leon {
                 instance->SetMetallic(metallic);
             if (normalScale >= 0.0f)
                 instance->SetNormalScale(normalScale);
-
-            MaterialInstanceCache[resolved] = instance;
             return instance;
         }
 
@@ -400,6 +390,23 @@ namespace Leon {
         DefaultWhiteTexture = nullptr;
         DefaultBlackTexture = nullptr;
         DefaultFlatNormalTexture = nullptr;
+    }
+
+    void UAssetManager::UnloadUnused() {
+        auto dropIfOnlyCached = [](auto& cache) {
+            for (auto it = cache.begin(); it != cache.end();) {
+                if (!it->second || it->second.use_count() <= 1)
+                    it = cache.erase(it);
+                else
+                    ++it;
+            }
+        };
+        dropIfOnlyCached(TextureCache);
+        dropIfOnlyCached(StaticMeshCache);
+        dropIfOnlyCached(LightmapCache);
+        dropIfOnlyCached(MaterialCache);
+        dropIfOnlyCached(MaterialInstanceCache);
+        // Shaders and engine defaults stay resident across travel.
     }
 
 } // namespace Leon

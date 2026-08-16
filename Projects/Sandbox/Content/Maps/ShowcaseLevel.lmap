@@ -2,9 +2,23 @@
 # Human-Readable & Deterministic Serialization
 Map:
   Name: "ShowcaseLevel"
-  Version: "2.0"
+  Version: "2.1"
 
 Environment:
+  WorldSettings:
+    StaticLighting: true
+    LightingBuildQuality: Draft
+    LightmapResolution: 64
+    NumIndirectBounces: 2
+    SamplesPerTexel: 8
+    IndirectIntensity: 1
+    AmbientOcclusion: false
+    AOIntensity: 1
+    AORadius: 0.35
+    TexelPadding: 2
+    WorldScale: 1
+    LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    LightmapBakeHash: "8dd1f2c9be155f8b"
   Skybox:
     Enabled: true
     Exposure: 0.9
@@ -16,21 +30,18 @@ Environment:
     HorizonColor: [0.78, 0.84, 0.95]
     GroundColor: [0.22, 0.24, 0.28]
     SunColor: [1, 0.98, 0.92]
-    StaticLighting: true
-    LightmapResolution: 64
-    NumIndirectBounces: 2
-    SamplesPerTexel: 8
-    IndirectIntensity: 1
-    AmbientOcclusion: false
-    AOIntensity: 1
-    AORadius: 0.35
-    TexelPadding: 2
-    WorldScale: 1
-    LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
-    LightmapBakeHash: "6467857ce1d6786e"
 
 Actors:
+  - Name: "PlayerStart"
+    Class: "APlayerStart"
+    GUID: "4c454f4e00000000c0ffee0000000001"
+    Transform:
+      Translation: [0, 3.5, 10.5]
+      Rotation: [0, -90, 0]
+      Scale: [1, 1, 1]
   - Name: "Main Camera"
+    Class: "AActor"
+    GUID: "4c454f4eac22a5fcac22a5fce4481ebd"
     Transform:
       Translation: [0, 3.2, 9.5]
       Rotation: [-12, 0, 0]
@@ -41,6 +52,8 @@ Actors:
       NearClip: 0.1
       FarClip: 1000
   - Name: "Directional Sunlight"
+    Class: "AActor"
+    GUID: "4c454f4e1060913110609131719c37c5"
     Transform:
       Translation: [0, 4.5, 0]
       Rotation: [0, 0, 0]
@@ -52,6 +65,8 @@ Actors:
       Intensity: 3.5
       Mobility: Stationary
   - Name: "Orbiting Point Light"
+    Class: "AActor"
+    GUID: "4c454f4efe50f7b6fe50f7b68decfcd1"
     Transform:
       Translation: [3.5, 1.5, 0]
       Rotation: [0, 0, 0]
@@ -63,6 +78,8 @@ Actors:
       Radius: 12
       Mobility: Movable
   - Name: "Accent Magenta Point Light"
+    Class: "AActor"
+    GUID: "4c454f4e8e1862ef8e1862ef2b4e5ec4"
     Transform:
       Translation: [-3.5, 1.5, 0]
       Rotation: [0, 0, 0]
@@ -74,6 +91,8 @@ Actors:
       Radius: 10
       Mobility: Static
   - Name: "Dramatic Spotlight"
+    Class: "AActor"
+    GUID: "4c454f4eb963cbc7b963cbc71391f19a"
     Transform:
       Translation: [0, 4.5, 0]
       Rotation: [0, 0, 0]
@@ -88,6 +107,8 @@ Actors:
       OuterCutOff: 30
       Mobility: Stationary
   - Name: "Golden Raking Spotlight"
+    Class: "AActor"
+    GUID: "4c454f4ebfc30820bfc308209c7705c4"
     Transform:
       Translation: [-6, 3.8, 3.5]
       Rotation: [0, 0, 0]
@@ -102,6 +123,8 @@ Actors:
       OuterCutOff: 28
       Mobility: Static
   - Name: "PBR Ground Plane"
+    Class: "AActor"
+    GUID: "4c454f4e03f810f903f810f9c8af3e46"
     Transform:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -128,6 +151,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_StudioFloor.lmat"
   - Name: "PBR Emerald Ramp"
+    Class: "AActor"
+    GUID: "4c454f4ea456b9a9a456b9a9df2b0b57"
     Transform:
       Translation: [-5, 0.5, 2]
       Rotation: [0, 0, 0]
@@ -154,6 +179,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_EmeraldRamp.lmat"
   - Name: "PBR Textured Cube"
+    Class: "AActor"
+    GUID: "4c454f4e8a377d268a377d26dc6c99b3"
     Transform:
       Translation: [-3, 0.5, 2]
       Rotation: [0, 0, 0]
@@ -180,6 +207,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_ContainerCube.lmat"
   - Name: "PBR Polished Gold Sphere"
+    Class: "AActor"
+    GUID: "4c454f4eae4a4097ae4a40977ea652e8"
     Transform:
       Translation: [-1, 0.5, 2]
       Rotation: [0, 0, 0]
@@ -206,6 +235,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_PolishedGold.lmat"
   - Name: "PBR Glossy Ruby Sphere"
+    Class: "AActor"
+    GUID: "4c454f4e221d1ee9221d1ee9aec2ccfb"
     Transform:
       Translation: [1, 0.5, 2]
       Rotation: [0, 0, 0]
@@ -232,6 +263,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_RubyDielectric.lmat"
   - Name: "PBR Brushed Iron Cylinder"
+    Class: "AActor"
+    GUID: "4c454f4e6d7bd1856d7bd18500610ff4"
     Transform:
       Translation: [3, 0.5, 2]
       Rotation: [0, 0, 0]
@@ -258,6 +291,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_BrushedIron.lmat"
   - Name: "PBR Cobalt Pyramid"
+    Class: "AActor"
+    GUID: "4c454f4e206dcfd6206dcfd6a1906d20"
     Transform:
       Translation: [5, 0.5, 2]
       Rotation: [0, 0, 0]
@@ -284,6 +319,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_CobaltPyramid.lmat"
   - Name: "PBR Mirror Chrome Sphere"
+    Class: "AActor"
+    GUID: "4c454f4e57ff300f57ff300f7670d2eb"
     Transform:
       Translation: [-5, 0.5, 0]
       Rotation: [0, 0, 0]
@@ -310,6 +347,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_ChromeMirror.lmat"
   - Name: "PBR Polished Brass Cone"
+    Class: "AActor"
+    GUID: "4c454f4ebeac9ae2beac9ae2889fbd31"
     Transform:
       Translation: [-3, 0.5, 0]
       Rotation: [0, 0, 0]
@@ -336,6 +375,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_PolishedBrass.lmat"
   - Name: "PBR Pure Copper Cube"
+    Class: "AActor"
+    GUID: "4c454f4eb2cbc42ab2cbc42aa59829e3"
     Transform:
       Translation: [-1, 0.5, 0]
       Rotation: [0, 0, 0]
@@ -362,6 +403,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_PureCopper.lmat"
   - Name: "PBR Satin Titanium Sphere"
+    Class: "AActor"
+    GUID: "4c454f4eaf326adfaf326adf05364d3e"
     Transform:
       Translation: [1, 0.5, 0]
       Rotation: [0, 0, 0]
@@ -388,6 +431,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_SatinTitanium.lmat"
   - Name: "PBR Rough Cast Iron Cylinder"
+    Class: "AActor"
+    GUID: "4c454f4e33e47f6733e47f671db6740f"
     Transform:
       Translation: [3, 0.5, 0]
       Rotation: [0, 0, 0]
@@ -414,6 +459,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_RoughCastIron.lmat"
   - Name: "PBR Matte Obsidian Pyramid"
+    Class: "AActor"
+    GUID: "4c454f4eaa07eaa2aa07eaa23a7fe00d"
     Transform:
       Translation: [5, 0.5, 0]
       Rotation: [0, 0, 0]
@@ -440,6 +487,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_MatteObsidian.lmat"
   - Name: "PBR Neon Cyan Emissive Cube"
+    Class: "AActor"
+    GUID: "4c454f4eedb5de7cedb5de7ce33a633e"
     Transform:
       Translation: [-5, 0.5, -2]
       Rotation: [0, 0, 0]
@@ -466,6 +515,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_NeonCyanEmissive.lmat"
   - Name: "PBR Amber Core Emissive Sphere"
+    Class: "AActor"
+    GUID: "4c454f4ec47b35e5c47b35e570c12cf5"
     Transform:
       Translation: [-3, 0.5, -2]
       Rotation: [0, 0, 0]
@@ -492,6 +543,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_AmberEmissive.lmat"
   - Name: "PBR Clean White Plastic Cylinder"
+    Class: "AActor"
+    GUID: "4c454f4e045e6d2a045e6d2a2fc69579"
     Transform:
       Translation: [-1, 0.5, -2]
       Rotation: [0, 0, 0]
@@ -518,6 +571,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_WoodFloor.lmat"
   - Name: "PBR Glossy Red Plastic Ramp"
+    Class: "AActor"
+    GUID: "4c454f4e81d9f1e181d9f1e1598a4d4f"
     Transform:
       Translation: [1, 0.5, -2]
       Rotation: [0, 0, 0]
@@ -544,6 +599,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_RedPlastic.lmat"
   - Name: "PBR Sapphire Crystal Cone"
+    Class: "AActor"
+    GUID: "4c454f4ede25d3c2de25d3c20d350612"
     Transform:
       Translation: [3, 0.5, -2]
       Rotation: [0, 0, 0]
@@ -570,6 +627,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_SapphireCrystal.lmat"
   - Name: "PBR Industrial Metal Cube"
+    Class: "AActor"
+    GUID: "4c454f4e0275118f0275118f5cce0148"
     Transform:
       Translation: [5, 0.5, -2]
       Rotation: [0, 0, 0]
@@ -596,6 +655,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_IndustrialMetal.lmat"
   - Name: "Transparent Glass Sphere"
+    Class: "AActor"
+    GUID: "4c454f4ed80fee72d80fee72fe6aa144"
     Transform:
       Translation: [7.2, 0.7, 0]
       Rotation: [0, 0, 0]
@@ -618,6 +679,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_GlassTransparent.lmat"
   - Name: "Mirrored Scale Cube"
+    Class: "AActor"
+    GUID: "4c454f4e3260f7073260f707228c7444"
     Transform:
       Translation: [7.2, 0.45, 2]
       Rotation: [0, 25, 0]
@@ -640,6 +703,8 @@ Actors:
     Material:
       Asset: "/Game/Materials/M_RedPlastic.lmat"
   - Name: "Row 1 Header"
+    Class: "AActor"
+    GUID: "4c454f4efaeb613bfaeb613b756dfb2b"
     Transform:
       Translation: [-7, 0.25, 2]
       Rotation: [-20, 0, 0]
@@ -652,6 +717,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Row 2 Header"
+    Class: "AActor"
+    GUID: "4c454f4e5baeb86a5baeb86a7974b5bc"
     Transform:
       Translation: [-7, 0.25, 0]
       Rotation: [-20, 0, 0]
@@ -664,6 +731,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Row 3 Header"
+    Class: "AActor"
+    GUID: "4c454f4ef9a22888f9a228882907f275"
     Transform:
       Translation: [-7, 0.25, -2]
       Rotation: [-20, 0, 0]
@@ -676,6 +745,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Emerald Ramp"
+    Class: "AActor"
+    GUID: "4c454f4e0ff17ff50ff17ff5033462e5"
     Transform:
       Translation: [-5, 0.15, 2.8]
       Rotation: [-20, 0, 0]
@@ -688,6 +759,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Container Cube"
+    Class: "AActor"
+    GUID: "4c454f4e6e7647f76e7647f7dabfef59"
     Transform:
       Translation: [-3, 0.15, 2.8]
       Rotation: [-20, 0, 0]
@@ -700,6 +773,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Gold Sphere"
+    Class: "AActor"
+    GUID: "4c454f4e6c80c4b26c80c4b254d05288"
     Transform:
       Translation: [-1, 0.15, 2.8]
       Rotation: [-20, 0, 0]
@@ -712,6 +787,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Ruby Sphere"
+    Class: "AActor"
+    GUID: "4c454f4ee7e5eedce7e5eedcb425a2c6"
     Transform:
       Translation: [1, 0.15, 2.8]
       Rotation: [-20, 0, 0]
@@ -724,6 +801,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Brushed Iron"
+    Class: "AActor"
+    GUID: "4c454f4e7cc3e18e7cc3e18efd5916f4"
     Transform:
       Translation: [3, 0.15, 2.8]
       Rotation: [-20, 0, 0]
@@ -736,6 +815,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Cobalt Pyramid"
+    Class: "AActor"
+    GUID: "4c454f4ebfb7e864bfb7e864c89a2c9e"
     Transform:
       Translation: [5, 0.15, 2.8]
       Rotation: [-20, 0, 0]
@@ -748,6 +829,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Chrome Sphere"
+    Class: "AActor"
+    GUID: "4c454f4e799801ff799801ff8727d4d0"
     Transform:
       Translation: [-5, 0.15, 0.8]
       Rotation: [-20, 0, 0]
@@ -760,6 +843,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Brass Cone"
+    Class: "AActor"
+    GUID: "4c454f4ee9b179ede9b179ed21a94b51"
     Transform:
       Translation: [-3, 0.15, 0.8]
       Rotation: [-20, 0, 0]
@@ -772,6 +857,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Copper Cube"
+    Class: "AActor"
+    GUID: "4c454f4edbbb03bcdbbb03bc7c4d02fd"
     Transform:
       Translation: [-1, 0.15, 0.8]
       Rotation: [-20, 0, 0]
@@ -784,6 +871,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Titanium Sphere"
+    Class: "AActor"
+    GUID: "4c454f4e800c8af9800c8af999697f93"
     Transform:
       Translation: [1, 0.15, 0.8]
       Rotation: [-20, 0, 0]
@@ -796,6 +885,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Cast Iron"
+    Class: "AActor"
+    GUID: "4c454f4ee65ccccbe65ccccba2ca2c90"
     Transform:
       Translation: [3, 0.15, 0.8]
       Rotation: [-20, 0, 0]
@@ -808,6 +899,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Obsidian Pyramid"
+    Class: "AActor"
+    GUID: "4c454f4e5ceddb1e5ceddb1e870eee68"
     Transform:
       Translation: [5, 0.15, 0.8]
       Rotation: [-20, 0, 0]
@@ -820,6 +913,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Cyan Cube"
+    Class: "AActor"
+    GUID: "4c454f4e123cd6ee123cd6ee32cd955f"
     Transform:
       Translation: [-5, 0.15, -1.2]
       Rotation: [-20, 0, 0]
@@ -832,6 +927,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Amber Sphere"
+    Class: "AActor"
+    GUID: "4c454f4e4968127649681276c1c3eb39"
     Transform:
       Translation: [-3, 0.15, -1.2]
       Rotation: [-20, 0, 0]
@@ -844,6 +941,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label White Plastic"
+    Class: "AActor"
+    GUID: "4c454f4e552196855521968518a5d162"
     Transform:
       Translation: [-1, 0.15, -1.2]
       Rotation: [-20, 0, 0]
@@ -856,6 +955,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Red Plastic"
+    Class: "AActor"
+    GUID: "4c454f4e73c7816773c78167a2195f90"
     Transform:
       Translation: [1, 0.15, -1.2]
       Rotation: [-20, 0, 0]
@@ -868,6 +969,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Sapphire Cone"
+    Class: "AActor"
+    GUID: "4c454f4e11a0c5e111a0c5e1a414b16a"
     Transform:
       Translation: [3, 0.15, -1.2]
       Rotation: [-20, 0, 0]
@@ -880,6 +983,8 @@ Actors:
       Alignment: 1
       DoubleSided: true
   - Name: "Label Industrial Metal"
+    Class: "AActor"
+    GUID: "4c454f4e057b91ec057b91ec7b4ff331"
     Transform:
       Translation: [5, 0.15, -1.2]
       Rotation: [-20, 0, 0]

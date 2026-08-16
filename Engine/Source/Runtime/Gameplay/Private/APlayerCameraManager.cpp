@@ -7,6 +7,7 @@ namespace Leon {
 
     APlayerCameraManager::APlayerCameraManager(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : AActor(InHandle, InWorld, InName) {
+        SetClass("APlayerCameraManager");
         Camera.SetPosition({0.0f, 3.5f, 10.5f});
         Camera.SetRotation(-10.0f, -90.0f);
     }

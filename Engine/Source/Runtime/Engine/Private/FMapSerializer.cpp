@@ -1,6 +1,18 @@
 #include "Engine/FMapSerializer.hpp"
 #include "Core/FLog.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/ACameraActor.hpp"
+#include "Gameplay/ACharacter.hpp"
+#include "Gameplay/ADefaultPawn.hpp"
+#include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AGameStateBase.hpp"
+#include "Gameplay/AHUD.hpp"
+#include "Gameplay/APlayerCameraManager.hpp"
+#include "Gameplay/APlayerController.hpp"
+#include "Gameplay/APlayerStart.hpp"
+#include "Gameplay/APlayerState.hpp"
+#include "Gameplay/AWorldSettings.hpp"
+#include "Gameplay/UClassRegistry.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "Engine/Components.hpp"
@@ -35,6 +47,68 @@ namespace Leon {
             return s.substr(1, s.size() - 2);
         }
         return s;
+    }
+
+    static std::string LightingQualityToString(ELightingBuildQuality InQuality) {
+        switch (InQuality) {
+        case ELightingBuildQuality::Preview:
+            return "Preview";
+        case ELightingBuildQuality::Production:
+            return "Production";
+        default:
+            return "Draft";
+        }
+    }
+
+    static ELightingBuildQuality StringToLightingQuality(const std::string& InStr) {
+        if (InStr == "Preview")
+            return ELightingBuildQuality::Preview;
+        if (InStr == "Production")
+            return ELightingBuildQuality::Production;
+        return ELightingBuildQuality::Draft;
+    }
+
+    static bool IsRuntimeFrameworkActor(const AActor& InActor) {
+        return dynamic_cast<const AGameModeBase*>(&InActor) || dynamic_cast<const AGameStateBase*>(&InActor) ||
+               dynamic_cast<const APlayerController*>(&InActor) || dynamic_cast<const APlayerState*>(&InActor) ||
+               dynamic_cast<const AHUD*>(&InActor) || dynamic_cast<const APlayerCameraManager*>(&InActor) ||
+               dynamic_cast<const ADefaultPawn*>(&InActor) || dynamic_cast<const ACharacter*>(&InActor) ||
+               dynamic_cast<const AWorldSettings*>(&InActor);
+    }
+
+    static void WriteWorldSettings(std::stringstream& ss, const FWorldSettingsComponent& ws) {
+        Indent(ss, 1);
+        ss << "WorldSettings:\n";
+        Indent(ss, 2);
+        ss << "StaticLighting: " << (ws.bStaticLighting ? "true" : "false") << "\n";
+        Indent(ss, 2);
+        ss << "LightingBuildQuality: " << LightingQualityToString(ws.LightingBuildQuality) << "\n";
+        Indent(ss, 2);
+        ss << "LightmapResolution: " << ws.LightmapResolution << "\n";
+        Indent(ss, 2);
+        ss << "NumIndirectBounces: " << ws.NumIndirectBounces << "\n";
+        Indent(ss, 2);
+        ss << "SamplesPerTexel: " << ws.SamplesPerTexel << "\n";
+        Indent(ss, 2);
+        ss << "IndirectIntensity: " << ws.IndirectIntensity << "\n";
+        Indent(ss, 2);
+        ss << "AmbientOcclusion: " << (ws.bAmbientOcclusion ? "true" : "false") << "\n";
+        Indent(ss, 2);
+        ss << "AOIntensity: " << ws.AOIntensity << "\n";
+        Indent(ss, 2);
+        ss << "AORadius: " << ws.AORadius << "\n";
+        Indent(ss, 2);
+        ss << "TexelPadding: " << ws.TexelPadding << "\n";
+        Indent(ss, 2);
+        ss << "WorldScale: " << ws.WorldScale << "\n";
+        if (!ws.LightmapAssetPath.empty()) {
+            Indent(ss, 2);
+            ss << "LightmapAsset: \"" << ws.LightmapAssetPath << "\"\n";
+        }
+        if (ws.LightmapBakeHash != 0) {
+            Indent(ss, 2);
+            ss << "LightmapBakeHash: \"" << std::hex << ws.LightmapBakeHash << std::dec << "\"\n";
+        }
     }
 
     static std::vector<float> ParseFloatArray(const std::string& valStr) {
@@ -89,74 +163,51 @@ namespace Leon {
         Indent(ss, 1);
         ss << "Name: \"" << World->GetName() << "\"\n";
         Indent(ss, 1);
-        ss << "Version: \"2.0\"\n\n";
+        ss << "Version: \"2.1\"\n\n";
 
         // 1. Environment / Global Settings
         ss << "Environment:\n";
-        bool bSkyboxFound = false;
+        const FWorldSettingsComponent* worldSettings = nullptr;
+        const FSkyboxComponent* skyboxComp = nullptr;
         for (const auto& actorRef : World->GetAllActors()) {
             if (!actorRef)
                 continue;
-            if (actorRef->HasComponent<FSkyboxComponent>()) {
-                const auto& sky = actorRef->GetComponent<FSkyboxComponent>();
-                bSkyboxFound = true;
-                Indent(ss, 1);
-                ss << "Skybox:\n";
-                Indent(ss, 2);
-                ss << "Enabled: " << (sky.bEnabled ? "true" : "false") << "\n";
-                Indent(ss, 2);
-                ss << "Exposure: " << sky.Exposure << "\n";
-                Indent(ss, 2);
-                ss << "SunIntensity: " << sky.SunIntensity << "\n";
-                Indent(ss, 2);
-                ss << "EnvironmentIntensity: " << sky.EnvironmentIntensity << "\n";
-                Indent(ss, 2);
-                ss << "UseHDREnvironmentMap: " << (sky.bUseHDREnvironmentMap ? "true" : "false") << "\n";
-                Indent(ss, 2);
-                ss << "HDREnvironmentMap: \"" << sky.HDREnvironmentMapPath << "\"\n";
-                Indent(ss, 2);
-                ss << "SkyZenithColor: [" << sky.SkyZenithColor.r << ", " << sky.SkyZenithColor.g << ", "
-                   << sky.SkyZenithColor.b << "]\n";
-                Indent(ss, 2);
-                ss << "HorizonColor: [" << sky.HorizonColor.r << ", " << sky.HorizonColor.g << ", "
-                   << sky.HorizonColor.b << "]\n";
-                Indent(ss, 2);
-                ss << "GroundColor: [" << sky.GroundColor.r << ", " << sky.GroundColor.g << ", " << sky.GroundColor.b
-                   << "]\n";
-                Indent(ss, 2);
-                ss << "SunColor: [" << sky.SunColor.r << ", " << sky.SunColor.g << ", " << sky.SunColor.b << "]\n";
-                Indent(ss, 2);
-                ss << "StaticLighting: " << (sky.bStaticLighting ? "true" : "false") << "\n";
-                Indent(ss, 2);
-                ss << "LightmapResolution: " << sky.LightmapResolution << "\n";
-                Indent(ss, 2);
-                ss << "NumIndirectBounces: " << sky.NumIndirectBounces << "\n";
-                Indent(ss, 2);
-                ss << "SamplesPerTexel: " << sky.SamplesPerTexel << "\n";
-                Indent(ss, 2);
-                ss << "IndirectIntensity: " << sky.IndirectIntensity << "\n";
-                Indent(ss, 2);
-                ss << "AmbientOcclusion: " << (sky.bAmbientOcclusion ? "true" : "false") << "\n";
-                Indent(ss, 2);
-                ss << "AOIntensity: " << sky.AOIntensity << "\n";
-                Indent(ss, 2);
-                ss << "AORadius: " << sky.AORadius << "\n";
-                Indent(ss, 2);
-                ss << "TexelPadding: " << sky.TexelPadding << "\n";
-                Indent(ss, 2);
-                ss << "WorldScale: " << sky.WorldScale << "\n";
-                if (!sky.LightmapAssetPath.empty()) {
-                    Indent(ss, 2);
-                    ss << "LightmapAsset: \"" << sky.LightmapAssetPath << "\"\n";
-                }
-                if (sky.LightmapBakeHash != 0) {
-                    Indent(ss, 2);
-                    ss << "LightmapBakeHash: \"" << std::hex << sky.LightmapBakeHash << std::dec << "\"\n";
-                }
-                break;
-            }
+            if (!worldSettings && actorRef->HasComponent<FWorldSettingsComponent>())
+                worldSettings = &actorRef->GetComponent<FWorldSettingsComponent>();
+            if (!skyboxComp && actorRef->HasComponent<FSkyboxComponent>())
+                skyboxComp = &actorRef->GetComponent<FSkyboxComponent>();
         }
-        if (!bSkyboxFound) {
+        if (worldSettings) {
+            WriteWorldSettings(ss, *worldSettings);
+        }
+        if (skyboxComp) {
+            const auto& sky = *skyboxComp;
+            Indent(ss, 1);
+            ss << "Skybox:\n";
+            Indent(ss, 2);
+            ss << "Enabled: " << (sky.bEnabled ? "true" : "false") << "\n";
+            Indent(ss, 2);
+            ss << "Exposure: " << sky.Exposure << "\n";
+            Indent(ss, 2);
+            ss << "SunIntensity: " << sky.SunIntensity << "\n";
+            Indent(ss, 2);
+            ss << "EnvironmentIntensity: " << sky.EnvironmentIntensity << "\n";
+            Indent(ss, 2);
+            ss << "UseHDREnvironmentMap: " << (sky.bUseHDREnvironmentMap ? "true" : "false") << "\n";
+            Indent(ss, 2);
+            ss << "HDREnvironmentMap: \"" << sky.HDREnvironmentMapPath << "\"\n";
+            Indent(ss, 2);
+            ss << "SkyZenithColor: [" << sky.SkyZenithColor.r << ", " << sky.SkyZenithColor.g << ", "
+               << sky.SkyZenithColor.b << "]\n";
+            Indent(ss, 2);
+            ss << "HorizonColor: [" << sky.HorizonColor.r << ", " << sky.HorizonColor.g << ", "
+               << sky.HorizonColor.b << "]\n";
+            Indent(ss, 2);
+            ss << "GroundColor: [" << sky.GroundColor.r << ", " << sky.GroundColor.g << ", " << sky.GroundColor.b
+               << "]\n";
+            Indent(ss, 2);
+            ss << "SunColor: [" << sky.SunColor.r << ", " << sky.SunColor.g << ", " << sky.SunColor.b << "]\n";
+        } else {
             Indent(ss, 1);
             ss << "Skybox:\n";
             Indent(ss, 2);
@@ -171,7 +222,10 @@ namespace Leon {
                 continue;
             const AActor& entity = *actorRef;
 
-            if (entity.HasComponent<FSkyboxComponent>()) {
+            if (entity.HasComponent<FSkyboxComponent>() || entity.HasComponent<FWorldSettingsComponent>()) {
+                continue;
+            }
+            if (IsRuntimeFrameworkActor(entity)) {
                 continue;
             }
 
@@ -179,6 +233,16 @@ namespace Leon {
             ss << "- Name: \""
                << (entity.HasComponent<FTagComponent>() ? entity.GetComponent<FTagComponent>().Tag : entity.GetName())
                << "\"\n";
+            Indent(ss, 2);
+            ss << "Class: \"" << entity.GetClass() << "\"\n";
+            Indent(ss, 2);
+            ss << "GUID: \"" << entity.GetActorGuid().ToString() << "\"\n";
+            if (const auto* start = dynamic_cast<const APlayerStart*>(&entity)) {
+                if (!start->GetPlayerStartTag().empty()) {
+                    Indent(ss, 2);
+                    ss << "PlayerStartTag: \"" << start->GetPlayerStartTag() << "\"\n";
+                }
+            }
 
             // Transform
             if (entity.HasComponent<FTransformComponent>()) {
@@ -416,6 +480,9 @@ namespace Leon {
 
     struct FActorDeserializationData {
         std::string Name = "Actor";
+        std::string ClassName = "AActor";
+        FUUID Guid;
+        std::string PlayerStartTag;
         glm::vec3 Translation{0.0f};
         glm::vec3 Rotation{0.0f};
         glm::vec3 Scale{1.0f};
@@ -483,7 +550,7 @@ namespace Leon {
         std::stringstream ss(InYamlString);
         std::string line;
 
-        enum class EParserSection { None, Map, Environment, Skybox, Actors, InActor };
+        enum class EParserSection { None, Map, Environment, WorldSettings, Skybox, Actors, InActor };
         enum class EActorComponentSection {
             None,
             Transform,
@@ -504,6 +571,9 @@ namespace Leon {
 
         FSkyboxComponent skybox;
         bool bHasSkybox = false;
+        FWorldSettingsComponent worldSettings;
+        bool bHasWorldSettings = false;
+        bool bLegacyBakeOnSkybox = false;
 
         std::vector<FActorDeserializationData> actors;
         FActorDeserializationData currentActor;
@@ -554,10 +624,58 @@ namespace Leon {
             }
 
             // Parse Environment block
-            if (currentSection == EParserSection::Environment || currentSection == EParserSection::Skybox) {
+            if (currentSection == EParserSection::Environment || currentSection == EParserSection::Skybox ||
+                currentSection == EParserSection::WorldSettings) {
+                if (trimmed == "WorldSettings:") {
+                    currentSection = EParserSection::WorldSettings;
+                    bHasWorldSettings = true;
+                    continue;
+                }
                 if (trimmed == "Skybox:") {
                     currentSection = EParserSection::Skybox;
                     bHasSkybox = true;
+                    continue;
+                }
+
+                auto applyBakeKey = [&](FWorldSettingsComponent& ws, const std::string& key, const std::string& val) {
+                    if (key == "StaticLighting")
+                        ws.bStaticLighting = (val == "true");
+                    else if (key == "LightingBuildQuality")
+                        ws.LightingBuildQuality = StringToLightingQuality(val);
+                    else if (key == "LightmapResolution")
+                        ws.LightmapResolution = static_cast<uint32_t>(std::stoul(val));
+                    else if (key == "NumIndirectBounces")
+                        ws.NumIndirectBounces = static_cast<uint32_t>(std::stoul(val));
+                    else if (key == "SamplesPerTexel")
+                        ws.SamplesPerTexel = static_cast<uint32_t>(std::stoul(val));
+                    else if (key == "IndirectIntensity")
+                        ws.IndirectIntensity = std::stof(val);
+                    else if (key == "AmbientOcclusion")
+                        ws.bAmbientOcclusion = (val == "true");
+                    else if (key == "AOIntensity")
+                        ws.AOIntensity = std::stof(val);
+                    else if (key == "AORadius")
+                        ws.AORadius = std::stof(val);
+                    else if (key == "TexelPadding")
+                        ws.TexelPadding = std::stof(val);
+                    else if (key == "WorldScale")
+                        ws.WorldScale = std::stof(val);
+                    else if (key == "LightmapAsset")
+                        ws.LightmapAssetPath = val;
+                    else if (key == "LightmapBakeHash")
+                        ws.LightmapBakeHash = std::strtoull(val.c_str(), nullptr, 16);
+                    else
+                        return false;
+                    return true;
+                };
+
+                if (currentSection == EParserSection::WorldSettings) {
+                    size_t colon = trimmed.find(':');
+                    if (colon != std::string::npos) {
+                        std::string key = Trim(trimmed.substr(0, colon));
+                        std::string val = StripQuotes(trimmed.substr(colon + 1));
+                        applyBakeKey(worldSettings, key, val);
+                    }
                     continue;
                 }
 
@@ -600,30 +718,8 @@ namespace Leon {
                             auto v = ParseFloatArray(val);
                             if (v.size() >= 3)
                                 skybox.SunColor = {v[0], v[1], v[2]};
-                        } else if (key == "StaticLighting") {
-                            skybox.bStaticLighting = (val == "true");
-                        } else if (key == "LightmapResolution") {
-                            skybox.LightmapResolution = static_cast<uint32_t>(std::stoul(val));
-                        } else if (key == "NumIndirectBounces") {
-                            skybox.NumIndirectBounces = static_cast<uint32_t>(std::stoul(val));
-                        } else if (key == "SamplesPerTexel") {
-                            skybox.SamplesPerTexel = static_cast<uint32_t>(std::stoul(val));
-                        } else if (key == "IndirectIntensity") {
-                            skybox.IndirectIntensity = std::stof(val);
-                        } else if (key == "AmbientOcclusion") {
-                            skybox.bAmbientOcclusion = (val == "true");
-                        } else if (key == "AOIntensity") {
-                            skybox.AOIntensity = std::stof(val);
-                        } else if (key == "AORadius") {
-                            skybox.AORadius = std::stof(val);
-                        } else if (key == "TexelPadding") {
-                            skybox.TexelPadding = std::stof(val);
-                        } else if (key == "WorldScale") {
-                            skybox.WorldScale = std::stof(val);
-                        } else if (key == "LightmapAsset") {
-                            skybox.LightmapAssetPath = val;
-                        } else if (key == "LightmapBakeHash") {
-                            skybox.LightmapBakeHash = std::strtoull(val.c_str(), nullptr, 16);
+                        } else if (applyBakeKey(worldSettings, key, val)) {
+                            bLegacyBakeOnSkybox = true;
                         }
                     }
                 }
@@ -708,6 +804,15 @@ namespace Leon {
                     std::string val = StripQuotes(trimmed.substr(colon + 1));
 
                     switch (currentCompSection) {
+                    case EActorComponentSection::None:
+                        if (key == "Class")
+                            currentActor.ClassName = val;
+                        else if (key == "GUID" || key == "Guid")
+                            currentActor.Guid = FUUID::FromString(val);
+                        else if (key == "PlayerStartTag")
+                            currentActor.PlayerStartTag = val;
+                        break;
+
                     case EActorComponentSection::Transform:
                         if (key == "Translation" || key == "Position") {
                             auto v = ParseFloatArray(val);
@@ -949,15 +1054,40 @@ namespace Leon {
         // 3. Populate World
         World->Clear();
 
-        // Environment / Skybox Entity
-        if (bHasSkybox) {
+        // Environment / Skybox / WorldSettings
+        if (bLegacyBakeOnSkybox && !bHasWorldSettings)
+            bHasWorldSettings = true;
+
+        if (bHasSkybox || bHasWorldSettings) {
             AActor* envEntity = World->SpawnActor("Environment Skybox");
-            envEntity->AddComponent<FSkyboxComponent>(skybox);
+            if (bHasSkybox)
+                envEntity->AddComponent<FSkyboxComponent>(skybox);
+            if (bHasWorldSettings)
+                envEntity->AddComponent<FWorldSettingsComponent>(worldSettings);
         }
 
         // Spawn actors
         for (const auto& actorData : actors) {
-            AActor* entity = World->SpawnActor(actorData.Name);
+            AActor* entity = nullptr;
+            std::string className = actorData.ClassName.empty() ? "AActor" : actorData.ClassName;
+            if (UClassRegistry::Get().HasClass(className)) {
+                entity = UClassRegistry::Get().CreateActorOfClass(className, World.get(), actorData.Name);
+            }
+            if (!entity)
+                entity = World->SpawnActor(actorData.Name);
+            if (!entity)
+                continue;
+
+            entity->SetClass(className);
+            if (actorData.Guid.IsValid())
+                entity->SetActorGuid(actorData.Guid);
+            else
+                entity->SetActorGuid(FUUID::FromPath(World->GetName() + "/" + actorData.Name));
+
+            if (auto* start = dynamic_cast<APlayerStart*>(entity)) {
+                if (!actorData.PlayerStartTag.empty())
+                    start->SetPlayerStartTag(actorData.PlayerStartTag);
+            }
 
             // Transform
             auto& transform = entity->GetComponent<FTransformComponent>();
@@ -971,8 +1101,14 @@ namespace Leon {
                                           actorData.CameraFar);
                 camera.SetPosition(actorData.Translation);
                 camera.SetRotation(actorData.Rotation.x, actorData.Rotation.y);
-                auto& cam = entity->AddComponent<UCameraComponent>(camera);
-                cam.bPrimary = actorData.bCameraPrimary;
+                if (entity->HasComponent<UCameraComponent>()) {
+                    auto& cam = entity->GetComponent<UCameraComponent>();
+                    cam.Camera = camera;
+                    cam.bPrimary = actorData.bCameraPrimary;
+                } else {
+                    auto& cam = entity->AddComponent<UCameraComponent>(camera);
+                    cam.bPrimary = actorData.bCameraPrimary;
+                }
             }
 
             // Static Mesh Component (Asset-based)

@@ -19,8 +19,11 @@ namespace Leon {
         static UClassRegistry& Get();
 
         template <typename T> void RegisterClass(const std::string& InClassName) {
-            Factories[InClassName] = [](UWorld* InWorld, const std::string& InName) -> AActor* {
-                return InWorld->SpawnActor<T>(InName);
+            Factories[InClassName] = [InClassName](UWorld* InWorld, const std::string& InName) -> AActor* {
+                AActor* actor = InWorld->SpawnActor<T>(InName);
+                if (actor)
+                    actor->SetClass(InClassName);
+                return actor;
             };
         }
 

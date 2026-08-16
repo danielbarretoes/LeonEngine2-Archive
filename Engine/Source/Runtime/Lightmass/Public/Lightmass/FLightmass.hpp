@@ -3,6 +3,7 @@
 #include "Assets/FLightmapAsset.hpp"
 #include "Engine/EMobility.hpp"
 #include "Renderer/FLight.hpp"
+#include "Engine/Components.hpp"
 
 #include <glm/glm.hpp>
 #include <string>
@@ -23,7 +24,30 @@ namespace Leon {
         float WorldScale = 1.0f;
         uint64_t DeterministicSeed = 0x4C454F4E4C4D4153ull; // "LEONLMAS"
         float TexelPadding = 2.0f;
+        ELightingBuildQuality LightingBuildQuality = ELightingBuildQuality::Draft;
     };
+
+    inline void ApplyLightingBuildQuality(ELightingBuildQuality InQuality, FLightmassSettings& OutSettings) {
+        OutSettings.LightingBuildQuality = InQuality;
+        switch (InQuality) {
+        case ELightingBuildQuality::Preview:
+            OutSettings.LightmapResolution = 32;
+            OutSettings.SamplesPerTexel = 4;
+            OutSettings.NumIndirectBounces = 1;
+            break;
+        case ELightingBuildQuality::Production:
+            OutSettings.LightmapResolution = 128;
+            OutSettings.SamplesPerTexel = 32;
+            OutSettings.NumIndirectBounces = 3;
+            break;
+        case ELightingBuildQuality::Draft:
+        default:
+            OutSettings.LightmapResolution = 64;
+            OutSettings.SamplesPerTexel = 8;
+            OutSettings.NumIndirectBounces = 2;
+            break;
+        }
+    }
 
     struct FLightmassBakeResult {
         bool bSuccess = false;

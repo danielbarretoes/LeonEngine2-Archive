@@ -1,6 +1,8 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Renderer/FRenderingMath.hpp"
+#include "Engine/UWorld.hpp"
+#include "Engine/Components.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -8,7 +10,72 @@
 namespace Leon {
 
     ACharacter::ACharacter(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : APawn(InHandle, InWorld, InName) {}
+        : APawn(InHandle, InWorld, InName) {
+        SetClass("ACharacter");
+    }
+
+    void ACharacter::GetCapsuleAABB(glm::vec3& OutMin, glm::vec3& OutMax) const {
+        const glm::vec3 pos = GetActorLocation();
+        const float r = CapsuleRadius;
+        OutMin = glm::vec3(pos.x - r, pos.y - EyeHeight, pos.z - r);
+        OutMax = glm::vec3(pos.x + r, pos.y + 0.2f, pos.z + r);
+    }
+
+    glm::vec3 ACharacter::MoveBlocked(const glm::vec3& InWorldDelta) {
+        if (!World || glm::dot(InWorldDelta, InWorldDelta) < 1e-12f)
+            return glm::vec3(0.0f);
+
+        glm::vec3 minB, maxB;
+        GetCapsuleAABB(minB, maxB);
+        glm::vec3 delta = InWorldDelta;
+        delta.y = 0.0f;
+
+        UWorld::FHitResult hit;
+        glm::vec3 applied = delta;
+        if (World->SweepAABB(minB, maxB, delta, this, hit) && hit.bBlockingHit) {
+            float safe = glm::length(delta) > 1e-6f ? std::max(0.0f, hit.Distance - 0.01f) / glm::length(delta) : 0.0f;
+            applied = delta * std::min(safe, 1.0f);
+        }
+
+        auto& transform = GetTransform();
+        transform.Translation += applied;
+        SnapToFloor();
+        return applied;
+    }
+
+    void ACharacter::SnapToFloor() {
+        auto& transform = GetTransform();
+        float standY = FloorZ;
+        if (World) {
+            glm::vec3 feetMin, feetMax;
+            GetCapsuleAABB(feetMin, feetMax);
+            glm::vec3 probeMin = feetMin;
+            glm::vec3 probeMax = feetMax;
+            probeMin.y = FloorZ - 4.0f;
+            probeMax.y = transform.Translation.y - EyeHeight + 0.05f;
+            UWorld::FHitResult floorHit;
+            if (World->OverlapAABB(probeMin, probeMax, this, floorHit) && floorHit.Actor) {
+                if (floorHit.Actor->HasComponent<FBoxCollisionComponent>()) {
+                    const auto& box = floorHit.Actor->GetComponent<FBoxCollisionComponent>();
+                    glm::vec3 wmax =
+                        floorHit.Actor->GetActorLocation() + box.LocalMax * floorHit.Actor->GetActorScale();
+                    standY = std::max(standY, wmax.y);
+                } else if (floorHit.Actor->HasComponent<UStaticMeshComponent>() &&
+                           floorHit.Actor->GetComponent<UStaticMeshComponent>().StaticMesh) {
+                    const auto& sm = *floorHit.Actor->GetComponent<UStaticMeshComponent>().StaticMesh;
+                    glm::vec3 s = floorHit.Actor->GetActorScale();
+                    standY = std::max(standY, floorHit.Actor->GetActorLocation().y + sm.GetBoundsMax().y * s.y);
+                } else if (floorHit.Actor->HasComponent<FMeshComponent>()) {
+                    const auto& mesh = floorHit.Actor->GetComponent<FMeshComponent>();
+                    float top = mesh.MeshSize * 0.5f;
+                    if (mesh.MeshType == "Plane")
+                        top = 0.05f;
+                    standY = std::max(standY, floorHit.Actor->GetActorLocation().y + top);
+                }
+            }
+        }
+        transform.Translation.y = standY + EyeHeight;
+    }
 
     void ACharacter::PostInitializeComponents() {
         if (!HasComponent<UCameraComponent>()) {
@@ -20,12 +87,13 @@ namespace Leon {
     }
 
     void ACharacter::Tick(float DeltaSeconds) {
+        if (GetLocalRole() == ENetRole::SimulatedProxy)
+            return;
         if (IsControlled()) {
             SetupPlayerInputComponent(DeltaSeconds);
         }
-        // Always stick to floor plane (no physics).
+        SnapToFloor();
         auto& transform = GetTransform();
-        transform.Translation.y = FloorZ + EyeHeight;
         if (HasComponent<UCameraComponent>()) {
             GetComponent<UCameraComponent>().Camera.SetPosition(transform.Translation);
         }
@@ -41,7 +109,6 @@ namespace Leon {
 
         const FInputSettings& input = FInputSettings::Get();
         auto& transform = GetTransform();
-        glm::vec3& position = transform.Translation;
 
         if (input.bEnableMouseLook && FInput::IsMouseButtonPressed(Mouse::ButtonRight)) {
             auto [mx, my] = FInput::GetMousePosition();
@@ -84,15 +151,15 @@ namespace Leon {
         float delta = speed * DeltaSeconds;
 
         if (FInput::IsKeyPressed(input.MoveForwardKey))
-            position += forward * delta;
+            MoveBlocked(forward * delta);
         if (FInput::IsKeyPressed(input.MoveBackwardKey))
-            position -= forward * delta;
+            MoveBlocked(-forward * delta);
         if (FInput::IsKeyPressed(input.MoveLeftKey))
-            position -= right * delta;
+            MoveBlocked(-right * delta);
         if (FInput::IsKeyPressed(input.MoveRightKey))
-            position += right * delta;
+            MoveBlocked(right * delta);
 
-        position.y = FloorZ + EyeHeight;
+        glm::vec3& position = transform.Translation;
 
         if (HasComponent<UCameraComponent>()) {
             auto& camComp = GetComponent<UCameraComponent>();

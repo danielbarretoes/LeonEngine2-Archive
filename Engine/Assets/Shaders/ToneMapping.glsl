@@ -99,8 +99,17 @@ void main() {
         ldrColor = ACESFilm(exposedColor);
     }
 
-    // Gamma Correction: Linear Color Space -> sRGB Display Space
-    vec3 srgbColor = pow(ldrColor, vec3(1.0 / max(u_Gamma, 0.0001)));
+    // Gamma Correction: Linear -> IEC 61966-2-1 sRGB (u_Gamma ≈ 2.2). Other values stay power-law.
+    vec3 srgbColor;
+    if (abs(u_Gamma - 2.2) < 0.05) {
+        vec3 c = max(ldrColor, vec3(0.0));
+        bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+        vec3 lo = c * 12.92;
+        vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+        srgbColor = mix(hi, lo, vec3(cutoff));
+    } else {
+        srgbColor = pow(ldrColor, vec3(1.0 / max(u_Gamma, 0.0001)));
+    }
 
     // Encode Perceptual Luma into Alpha channel for FXAA Pass
     float luma = dot(srgbColor, vec3(0.299, 0.587, 0.114));

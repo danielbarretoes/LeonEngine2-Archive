@@ -85,4 +85,51 @@ namespace Leon {
 
     constexpr uint32_t kCanonicalVertexFloats = 17;
 
+    /**
+     * Lengyel tangent generation from UV0. Overwrites Tangent (xyz + handedness).
+     * Degenerate UV triangles are skipped; those vertices keep an orthogonal fallback.
+     */
+    inline void GenerateLengyelTangents(std::vector<FCanonicalMeshVertex>& InOutVertices,
+                                        const std::vector<uint32_t>& InIndices) {
+        const size_t n = InOutVertices.size();
+        if (n == 0 || InIndices.size() < 3)
+            return;
+
+        std::vector<glm::vec3> tanAcc(n, glm::vec3(0.0f));
+        std::vector<glm::vec3> bitAcc(n, glm::vec3(0.0f));
+
+        for (size_t i = 0; i + 2 < InIndices.size(); i += 3) {
+            uint32_t i0 = InIndices[i];
+            uint32_t i1 = InIndices[i + 1];
+            uint32_t i2 = InIndices[i + 2];
+            if (i0 >= n || i1 >= n || i2 >= n)
+                continue;
+
+            const FCanonicalMeshVertex& v0 = InOutVertices[i0];
+            const FCanonicalMeshVertex& v1 = InOutVertices[i1];
+            const FCanonicalMeshVertex& v2 = InOutVertices[i2];
+
+            glm::vec3 e1 = v1.Position - v0.Position;
+            glm::vec3 e2 = v2.Position - v0.Position;
+            glm::vec2 d1 = v1.TexCoord - v0.TexCoord;
+            glm::vec2 d2 = v2.TexCoord - v0.TexCoord;
+            float det = d1.x * d2.y - d2.x * d1.y;
+            if (std::abs(det) < kRenderingEpsilon)
+                continue;
+            float r = 1.0f / det;
+            glm::vec3 t = (e1 * d2.y - e2 * d1.y) * r;
+            glm::vec3 b = (e2 * d1.x - e1 * d2.x) * r;
+            tanAcc[i0] += t;
+            tanAcc[i1] += t;
+            tanAcc[i2] += t;
+            bitAcc[i0] += b;
+            bitAcc[i1] += b;
+            bitAcc[i2] += b;
+        }
+
+        for (size_t i = 0; i < n; ++i) {
+            InOutVertices[i].Tangent = PackTangent(tanAcc[i], InOutVertices[i].Normal, bitAcc[i]);
+        }
+    }
+
 } // namespace Leon

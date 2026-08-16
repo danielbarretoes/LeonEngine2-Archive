@@ -33,8 +33,10 @@ namespace Leon {
 
         void PushQuad(std::vector<float>& Out, const glm::vec3 InP[4], const glm::vec2 InUV[4], const glm::vec3& InN,
                       const glm::vec3& InT, const glm::vec3& InB) {
-            for (int i = 0; i < 4; ++i)
-                AppendCanonicalVertex(Out, InP[i], InN, InUV[i], InT, InB);
+            for (int i = 0; i < 4; ++i) {
+                glm::vec2 lm = InUV[i] * 0.96f + glm::vec2(0.02f);
+                AppendCanonicalVertex(Out, InP[i], InN, InUV[i], InT, InB, glm::vec3(1.0f), lm);
+            }
         }
 
     } // namespace
@@ -120,7 +122,8 @@ namespace Leon {
                 glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
 
                 AppendCanonicalVertex(vertices, glm::vec3(InRadius * nx, InRadius * ny, InRadius * nz), normal,
-                                      glm::vec2(u, v), tangent, bitangent);
+                                      glm::vec2(u, v), tangent, bitangent, glm::vec3(1.0f),
+                                      glm::vec2(u * 0.96f + 0.02f, v * 0.96f + 0.02f));
             }
         }
 
@@ -166,7 +169,10 @@ namespace Leon {
             for (unsigned int x = 0; x <= InSubdivisionsX; ++x) {
                 float posX = -hx + x * dx;
                 float u = (static_cast<float>(x) / static_cast<float>(InSubdivisionsX)) * (InWidth / 4.0f);
-                AppendCanonicalVertex(vertices, glm::vec3(posX, 0.0f, posZ), n, glm::vec2(u, v), t, b);
+                float u1 = (static_cast<float>(x) / static_cast<float>(InSubdivisionsX)) * 0.96f + 0.02f;
+                float v1 = (static_cast<float>(z) / static_cast<float>(InSubdivisionsZ)) * 0.96f + 0.02f;
+                AppendCanonicalVertex(vertices, glm::vec3(posX, 0.0f, posZ), n, glm::vec2(u, v), t, b, glm::vec3(1.0f),
+                                      glm::vec2(u1, v1));
             }
         }
 

@@ -21,6 +21,44 @@
 
 namespace Leon {
 
+    /**
+     * @brief Local-space AABB used by UWorld Sweep/Overlap queries (no physics engine).
+     */
+    struct FBoxCollisionComponent {
+        glm::vec3 LocalMin{-0.5f};
+        glm::vec3 LocalMax{0.5f};
+        bool bBlockMovement = true;
+
+        FBoxCollisionComponent() = default;
+        FBoxCollisionComponent(const FBoxCollisionComponent&) = default;
+        FBoxCollisionComponent(const glm::vec3& InLocalMin, const glm::vec3& InLocalMax, bool bInBlock = true)
+            : LocalMin(InLocalMin), LocalMax(InLocalMax), bBlockMovement(bInBlock) {}
+    };
+
+    /**
+     * @brief World bake / Lightmass settings. Lives on the Environment actor (not the skybox).
+     */
+    enum class ELightingBuildQuality : uint8_t { Preview = 0, Draft = 1, Production = 2 };
+
+    struct FWorldSettingsComponent {
+        bool bStaticLighting = false;
+        ELightingBuildQuality LightingBuildQuality = ELightingBuildQuality::Draft;
+        uint32_t LightmapResolution = 64;
+        uint32_t NumIndirectBounces = 2;
+        uint32_t SamplesPerTexel = 16;
+        float IndirectIntensity = 1.0f;
+        bool bAmbientOcclusion = true;
+        float AOIntensity = 1.0f;
+        float AORadius = 1.0f;
+        float TexelPadding = 2.0f;
+        float WorldScale = 1.0f;
+        std::string LightmapAssetPath;
+        uint64_t LightmapBakeHash = 0;
+
+        FWorldSettingsComponent() = default;
+        FWorldSettingsComponent(const FWorldSettingsComponent&) = default;
+    };
+
     struct FTagComponent {
         std::string Tag;
 
@@ -171,20 +209,6 @@ namespace Leon {
         glm::vec3 HorizonColor{0.78f, 0.84f, 0.95f};
         glm::vec3 GroundColor{0.22f, 0.24f, 0.28f};
         glm::vec3 SunColor{1.0f, 0.98f, 0.92f};
-
-        // Static lighting / Lightmass world settings (serialized under Environment)
-        bool bStaticLighting = false;
-        uint32_t LightmapResolution = 64;
-        uint32_t NumIndirectBounces = 2;
-        uint32_t SamplesPerTexel = 16;
-        float IndirectIntensity = 1.0f;
-        bool bAmbientOcclusion = true;
-        float AOIntensity = 1.0f;
-        float AORadius = 1.0f;     ///< World-space AO ray length (scaled by WorldScale in bake)
-        float TexelPadding = 2.0f; ///< Atlas chart padding in texels
-        float WorldScale = 1.0f;   ///< Multiplier applied to AORadius during bake
-        std::string LightmapAssetPath; ///< Atlas for this map, e.g. Lightmaps/MyMap.llightmap
-        uint64_t LightmapBakeHash = 0;
 
         FSkyboxComponent() = default;
         FSkyboxComponent(const FSkyboxComponent&) = default;

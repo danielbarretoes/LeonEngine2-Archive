@@ -4,7 +4,9 @@
 namespace Leon {
 
     AGameStateBase::AGameStateBase(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {}
+        : AActor(InHandle, InWorld, InName) {
+        SetClass("AGameStateBase");
+    }
 
     void AGameStateBase::AddPlayerState(APlayerState* InPlayerState) {
         if (InPlayerState &&
@@ -21,6 +23,8 @@ namespace Leon {
     }
 
     void AGameStateBase::Tick(float DeltaSeconds) {
+        if (GetLocalRole() == ENetRole::SimulatedProxy)
+            return;
         ElapsedTime += DeltaSeconds;
     }
 

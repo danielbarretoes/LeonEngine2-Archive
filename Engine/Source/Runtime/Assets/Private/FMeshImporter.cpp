@@ -1,6 +1,7 @@
 #include "Assets/FMeshImporter.hpp"
 #include "Assets/FAssetPath.hpp"
 #include "Core/FLog.hpp"
+#include "Renderer/FVertexLayout.hpp"
 #include <ufbx.h>
 
 #include <algorithm>
@@ -284,7 +285,7 @@ namespace Leon {
                                     bitangent = glm::normalize(glm::cross(v.Normal, tangent));
                                 }
                                 v.Tangent = PackTangent(tangent, v.Normal, bitangent);
-                                v.LightmapUV = v.TexCoord;
+                                v.LightmapUV = glm::vec2(0.0f);
 
                                 // Color
                                 if (uMesh->vertex_color.exists) {
@@ -370,7 +371,7 @@ namespace Leon {
                                 bitangent = glm::normalize(glm::cross(v.Normal, tangent));
                             }
                             v.Tangent = PackTangent(tangent, v.Normal, bitangent);
-                            v.LightmapUV = v.TexCoord;
+                            v.LightmapUV = glm::vec2(0.0f);
 
                             if (uMesh->vertex_color.exists) {
                                 ufbx_vec4 col = ufbx_get_vertex_vec4(&uMesh->vertex_color, indexInMesh);
@@ -393,6 +394,9 @@ namespace Leon {
                 }
             }
         }
+
+        if (InSettings.bGenerateTangents)
+            GenerateLengyelTangents(allVertices, allIndices);
 
         staticMesh->CalculateBounds();
         ufbx_free_scene(scene);

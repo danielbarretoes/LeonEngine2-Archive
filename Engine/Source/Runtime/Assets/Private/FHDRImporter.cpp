@@ -1,5 +1,6 @@
 #include "Assets/FHDRImporter.hpp"
 #include "Core/FLog.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 #include <stb_image.h>
 #include <filesystem>
@@ -102,8 +103,16 @@ namespace Leon {
         size_t totalFloats = static_cast<size_t>(width * height * 4);
         OutData.Pixels.resize(totalFloats);
         std::memcpy(OutData.Pixels.data(), rawData, totalFloats * sizeof(float));
-
         stbi_image_free(rawData);
+
+        float bias = InSettings.ExposureBias;
+        if (std::abs(bias - 1.0f) > 1e-6f) {
+            for (size_t i = 0; i < totalFloats; i += 4) {
+                OutData.Pixels[i + 0] *= bias;
+                OutData.Pixels[i + 1] *= bias;
+                OutData.Pixels[i + 2] *= bias;
+            }
+        }
 
         LE_CORE_INFO("FHDRImporter: Imported raw HDR '{0}' -> Native .lhdr ({1}x{2}, RGBA32F)", InSourcePath, width,
                      height);
@@ -144,29 +153,13 @@ namespace Leon {
         OutData.Pixels.resize(InWidth * InHeight * 4);
 
         glm::vec3 sunNorm = glm::normalize(InSunDir);
-        constexpr float PI = 3.14159265358979323846f;
 
         for (uint32_t y = 0; y < InHeight; ++y) {
             float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(InHeight);
-            float theta = (1.0f - v) * PI; // [0, PI] (0 = North Pole/Zenith, PI = South Pole/Nadir)
-            float sinTheta = std::sin(theta);
-            float cosTheta = std::cos(theta);
-
             for (uint32_t x = 0; x < InWidth; ++x) {
                 float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(InWidth);
-                float phi = (u - 0.5f) * 2.0f * PI; // [-PI, PI]
-
-                glm::vec3 dir(sinTheta * std::sin(phi), cosTheta, sinTheta * std::cos(phi));
-                dir = glm::normalize(dir);
-
-                glm::vec3 sky;
-                if (dir.y >= 0.0f) {
-                    float horizonFactor = std::pow(1.0f - dir.y, 4.0f);
-                    sky = glm::mix(InZenith, InHorizon, horizonFactor);
-                } else {
-                    float groundFactor = std::clamp(-dir.y * 3.0f, 0.0f, 1.0f);
-                    sky = glm::mix(InHorizon, InGround, groundFactor);
-                }
+                glm::vec3 dir = EquirectDirectionFromUV(u, v);
+                glm::vec3 sky = SampleAtmosphericSky(dir, InZenith, InHorizon, InGround);
 
                 // Sun disc hotspot (High dynamic range specular flare)
                 float cosAlpha = glm::dot(dir, sunNorm);

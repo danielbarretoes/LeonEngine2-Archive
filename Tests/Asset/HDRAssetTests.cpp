@@ -1,6 +1,11 @@
 #include <doctest/doctest.h>
 #include "Assets/FHDRImporter.hpp"
+#include "Renderer/FIBLMath.hpp"
 #include "Core/Base.hpp"
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <vector>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -87,6 +92,39 @@ TEST_SUITE("HDR Asset Pipeline Tests") {
         CHECK_FALSE(ok);
 
         fs::remove(corruptPath);
+    }
+
+    TEST_CASE("HDR - Equirect UV matches SampleEquirectangular (+Y at v=0, +X at u=0.5)") {
+        glm::vec3 plusY = EquirectDirectionFromUV(0.5f, 0.0f);
+        CHECK(plusY.y == doctest::Approx(1.0f).epsilon(0.02f));
+        CHECK(std::abs(plusY.x) < 0.05f);
+        CHECK(std::abs(plusY.z) < 0.05f);
+
+        glm::vec3 plusX = EquirectDirectionFromUV(0.5f, 0.5f);
+        CHECK(plusX.x == doctest::Approx(1.0f).epsilon(0.02f));
+        CHECK(std::abs(plusX.y) < 0.05f);
+        CHECK(std::abs(plusX.z) < 0.05f);
+
+        FNativeHDRData data;
+        glm::vec3 zenith(0.08f, 0.28f, 0.52f);
+        glm::vec3 horizon(0.22f, 0.55f, 0.70f);
+        glm::vec3 ground(0.02f, 0.08f, 0.16f);
+        REQUIRE(FHDRImporter::CreateAtmosphericHDR(64, 32, zenith, horizon, ground, glm::vec3(0.0f),
+                                                   glm::vec3(0.0f, 1.0f, 0.0f), 0.0f, data));
+
+        glm::vec3 sampledPlusY =
+            SampleEquirectangular(data.Pixels.data(), static_cast<int>(data.Header.Width),
+                                  static_cast<int>(data.Header.Height), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::vec3 expectedPlusY = SampleAtmosphericSky(glm::vec3(0.0f, 1.0f, 0.0f), zenith, horizon, ground);
+        CHECK(sampledPlusY.r == doctest::Approx(expectedPlusY.r).epsilon(0.05f));
+        CHECK(sampledPlusY.g == doctest::Approx(expectedPlusY.g).epsilon(0.05f));
+        CHECK(sampledPlusY.b == doctest::Approx(expectedPlusY.b).epsilon(0.05f));
+
+        glm::vec3 sampledPlusX =
+            SampleEquirectangular(data.Pixels.data(), static_cast<int>(data.Header.Width),
+                                  static_cast<int>(data.Header.Height), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::vec3 expectedPlusX = SampleAtmosphericSky(glm::vec3(1.0f, 0.0f, 0.0f), zenith, horizon, ground);
+        CHECK(sampledPlusX.r == doctest::Approx(expectedPlusX.r).epsilon(0.08f));
     }
 
 }

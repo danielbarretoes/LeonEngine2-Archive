@@ -6,8 +6,18 @@
 
 namespace Leon {
 
+    namespace {
+
+        GLFWwindow* GetInputWindow() {
+            if (!FApplication::HasInstance())
+                return nullptr;
+            return static_cast<GLFWwindow*>(FApplication::Get().GetWindow().GetNativeWindow());
+        }
+
+    } // namespace
+
     bool FInput::IsKeyPressed(int InKeyCode) {
-        auto window = static_cast<GLFWwindow*>(FApplication::Get().GetWindow().GetNativeWindow());
+        GLFWwindow* window = GetInputWindow();
         if (!window)
             return false;
 
@@ -16,7 +26,7 @@ namespace Leon {
     }
 
     bool FInput::IsMouseButtonPressed(int InButton) {
-        auto window = static_cast<GLFWwindow*>(FApplication::Get().GetWindow().GetNativeWindow());
+        GLFWwindow* window = GetInputWindow();
         if (!window)
             return false;
 
@@ -25,7 +35,7 @@ namespace Leon {
     }
 
     std::pair<float, float> FInput::GetMousePosition() {
-        auto window = static_cast<GLFWwindow*>(FApplication::Get().GetWindow().GetNativeWindow());
+        GLFWwindow* window = GetInputWindow();
         if (!window)
             return {0.0f, 0.0f};
 

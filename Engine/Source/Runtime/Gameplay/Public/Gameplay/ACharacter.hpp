@@ -30,12 +30,22 @@ namespace Leon {
         float GetEyeHeight() const { return EyeHeight; }
         void SetEyeHeight(float InHeight) { EyeHeight = InHeight; }
 
+        float GetCapsuleRadius() const { return CapsuleRadius; }
+        void SetCapsuleRadius(float InRadius) { CapsuleRadius = InRadius; }
+
+        /** XZ translation with AABB sweep against static blockers. Returns the applied delta. */
+        glm::vec3 MoveBlocked(const glm::vec3& InWorldDelta);
+
     private:
+        void GetCapsuleAABB(glm::vec3& OutMin, glm::vec3& OutMax) const;
+        void SnapToFloor();
+
         float MoveSpeed = 6.0f;
         float SprintMultiplier = 1.8f;
         float LookSensitivity = 0.12f;
         float FloorZ = 0.0f;
         float EyeHeight = 1.7f;
+        float CapsuleRadius = 0.4f;
 
         float Yaw = -90.0f;
         float Pitch = 0.0f;

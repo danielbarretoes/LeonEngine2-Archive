@@ -4,7 +4,9 @@
 #include "Assets/FLightmapUV.hpp"
 #include "Assets/UStaticMesh.hpp"
 #include "Engine/EMobility.hpp"
+#include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
+#include "Gameplay/AActor.hpp"
 #include "Lightmass/FLightBaker.hpp"
 #include "Lightmass/FLightmapBuilder.hpp"
 #include "Lightmass/FLightmass.hpp"
@@ -382,6 +384,63 @@ TEST_CASE("Analytic plane stores directional irradiance E = L * NdotL") {
     CHECK(mean == doctest::Approx(2.0f).epsilon(0.05f));
 }
 
+TEST_CASE("Constant environment miss stores E = pi * L * Intensity") {
+    FLightBakerScene scene;
+    scene.AtlasWidth = 8;
+    scene.AtlasHeight = 8;
+    FLightmapChart chart;
+    chart.Resolution = 8;
+    chart.PackedWidth = 8;
+    chart.PackedHeight = 8;
+    chart.Scale = {1, 1};
+    chart.Bias = {0, 0};
+    scene.Charts.push_back(chart);
+
+    FBakeVertex v0, v1, v2;
+    v0.Position = {-1, 0, -1};
+    v0.Normal = {0, 1, 0};
+    v0.LightmapUV = {0, 0};
+    v0.Albedo = {1, 1, 1};
+    v1.Position = {1, 0, -1};
+    v1.Normal = {0, 1, 0};
+    v1.LightmapUV = {1, 0};
+    v1.Albedo = {1, 1, 1};
+    v2.Position = {0, 0, 1};
+    v2.Normal = {0, 1, 0};
+    v2.LightmapUV = {0.5f, 1};
+    v2.Albedo = {1, 1, 1};
+    scene.Vertices = {v0, v1, v2};
+    scene.Triangles.push_back({0, 1, 2, 0, false});
+
+    const glm::vec3 Lsky(0.2f);
+    scene.Environment.bEnabled = true;
+    scene.Environment.Zenith = Lsky;
+    scene.Environment.Horizon = Lsky;
+    scene.Environment.Ground = Lsky;
+    scene.Environment.Intensity = 1.0f;
+
+    FLightBakerSettings settings;
+    settings.SamplesPerTexel = 256;
+    settings.NumIndirectBounces = 0;
+    settings.bAmbientOcclusion = false;
+    settings.Seed = 42;
+
+    std::vector<float> baked;
+    FLightBaker::Bake(scene, settings, baked);
+    float covered = 0.0f;
+    int count = 0;
+    for (size_t i = 0; i < baked.size(); i += 4) {
+        if (baked[i + 3] <= 0.0f)
+            continue;
+        covered += baked[i];
+        ++count;
+    }
+    REQUIRE(count > 0);
+    float mean = covered / static_cast<float>(count);
+    const float expected = 3.14159265358979323846f * 0.2f;
+    CHECK(mean == doctest::Approx(expected).epsilon(0.08f));
+}
+
 TEST_CASE("Bake input hash stable across identical worlds and settings") {
     auto world = UWorld::Create();
     FLightmassSettings s1, s2;
@@ -403,4 +462,38 @@ TEST_CASE("Bake input hash includes AORadius") {
     s1.AORadius = 1.0f;
     s2.AORadius = 2.0f;
     CHECK(FLightmass::ComputeBakeInputHash(*world, s1) != FLightmass::ComputeBakeInputHash(*world, s2));
+}
+
+TEST_CASE("Bake input hash includes material overrides") {
+    auto world = UWorld::Create();
+    auto* a = world->SpawnActor<AActor>("MeshA");
+    auto& smc = a->AddComponent<UStaticMeshComponent>();
+    smc.Mobility = EComponentMobility::Static;
+    uint64_t h1 = FLightmass::ComputeBakeInputHash(*world, FLightmassSettings{});
+    smc.MaterialOverridePaths = {"/Game/Materials/M_Override.lmat"};
+    uint64_t h2 = FLightmass::ComputeBakeInputHash(*world, FLightmassSettings{});
+    CHECK(h1 != h2);
+}
+
+TEST_CASE("Lighting quality presets change hash") {
+    auto world = UWorld::Create();
+    FLightmassSettings preview, production;
+    ApplyLightingBuildQuality(ELightingBuildQuality::Preview, preview);
+    ApplyLightingBuildQuality(ELightingBuildQuality::Production, production);
+    CHECK(preview.LightmapResolution == 32);
+    CHECK(production.SamplesPerTexel == 32);
+    CHECK(FLightmass::ComputeBakeInputHash(*world, preview) != FLightmass::ComputeBakeInputHash(*world, production));
+}
+
+TEST_CASE("Skip cache requires both atlas and world hashes non-zero") {
+    // OR skip was the bug: a matching atlas hash alone must not skip when world hash is 0.
+    FLightmassSettings settings;
+    auto world = UWorld::Create();
+    auto* env = world->SpawnActor<AActor>("Environment Skybox");
+    auto& ws = env->AddComponent<FWorldSettingsComponent>();
+    ws.bStaticLighting = true;
+    ws.LightmapBakeHash = 0;
+    uint64_t bakeHash = FLightmass::ComputeBakeInputHash(*world, settings);
+    CHECK(bakeHash != 0);
+    CHECK(ws.LightmapBakeHash != bakeHash);
 }

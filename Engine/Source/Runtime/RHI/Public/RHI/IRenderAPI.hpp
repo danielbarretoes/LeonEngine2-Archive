@@ -55,6 +55,7 @@ namespace Leon {
         virtual void SetBlendState(bool InEnabled) = 0;
         virtual void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) = 0;
         virtual void SetClipDistance(bool InEnabled) = 0;
+        virtual void SetPolygonOffset(bool InEnabled, float InFactor = 0.0f, float InUnits = 0.0f) = 0;
 
         virtual uint32_t GetFramebufferBinding() = 0;
         virtual void BindFramebuffer(uint32_t InRendererID) = 0;

@@ -13,7 +13,7 @@ namespace Leon {
      *   MaterialColor  = linear
      *   TextureColor   = hardware-decoded linear (GL_SRGB8_ALPHA8 for sRGB assets)
      *   Lighting       = linear HDR
-     *   Display        = tone map then gamma 2.2 (ToneMapping.glsl)
+     *   Display        = tone map then IEC 61966-2-1 sRGB (ToneMapping.glsl)
      *
      * sRGB textures are decoded exactly once by the GPU. Shaders must not pow(rgb, 2.2).
      */
@@ -33,6 +33,10 @@ namespace Leon {
         if (InLinear <= 0.0031308f)
             return InLinear * 12.92f;
         return 1.055f * std::pow(InLinear, 1.0f / 2.4f) - 0.055f;
+    }
+
+    inline glm::vec3 LinearToSRGB(const glm::vec3& InLinear) {
+        return glm::vec3(LinearToSRGB(InLinear.r), LinearToSRGB(InLinear.g), LinearToSRGB(InLinear.b));
     }
 
     /** Data maps (normal, roughness, metallic, AO) stay linear. Color maps use sRGB. */

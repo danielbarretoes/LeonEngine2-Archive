@@ -38,9 +38,10 @@ namespace Leon {
     };
 
     constexpr uint32_t LMESH_MAGIC = 0x48534D4C; // 'LMESH' in little-endian
-    constexpr uint32_t LMESH_VERSION = 3;
+    constexpr uint32_t LMESH_VERSION = 4;
     constexpr uint32_t LMESH_VERSION_V1 = 1;
     constexpr uint32_t LMESH_VERSION_V2 = 2;
+    constexpr uint32_t LMESH_VERSION_V3 = 3;
 
     struct FStaticSubmesh {
         std::string Name;
@@ -80,6 +81,10 @@ namespace Leon {
         const glm::vec3& GetBoundsMax() const { return BoundsMax; }
         const glm::vec3& GetSphereCenter() const { return SphereCenter; }
         float GetSphereRadius() const { return SphereRadius; }
+
+        /** True only when GenerateBoxPackedLightmapUVs has written unique UV1. */
+        bool HasUniqueLightmapUV() const { return bHasUniqueLightmapUV; }
+        void SetHasUniqueLightmapUV(bool bInValue) { bHasUniqueLightmapUV = bInValue; }
 
         void SetBounds(const glm::vec3& InMin, const glm::vec3& InMax, const glm::vec3& InSphereCenter,
                        float InSphereRadius) {
@@ -130,6 +135,7 @@ namespace Leon {
         std::vector<FStaticMaterialSlot> MaterialSlots;
 
         TRef<FVertexArray> VertexArray;
+        bool bHasUniqueLightmapUV = false;
     };
 
     /**

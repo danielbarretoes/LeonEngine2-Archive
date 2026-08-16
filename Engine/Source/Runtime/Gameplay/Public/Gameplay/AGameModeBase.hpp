@@ -4,6 +4,7 @@
 #include "Gameplay/AGameStateBase.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerController.hpp"
+#include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/APlayerState.hpp"
 
 #include <string>
@@ -25,6 +26,9 @@ namespace Leon {
         virtual APlayerController* Login(const std::string& InPlayerName = "Player_0");
         virtual APawn* SpawnDefaultPawnAtTransform(const glm::vec3& InLocation, const glm::vec3& InRotation);
 
+        virtual AActor* FindPlayerStart(const std::string& InIncomingName = "") const;
+        virtual APlayerStart* ChoosePlayerStart() const;
+
         std::string DefaultPawnClass = "ADefaultPawn";
         std::string PlayerControllerClass = "APlayerController";
         std::string HUDClass = "AHUD";
@@ -38,6 +42,7 @@ namespace Leon {
 
     protected:
         AGameStateBase* GameState = nullptr;
+        int32_t NextPlayerId = 0;
     };
 
 } // namespace Leon

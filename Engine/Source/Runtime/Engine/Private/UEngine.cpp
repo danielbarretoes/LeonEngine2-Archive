@@ -450,6 +450,15 @@ namespace Leon {
         TravelToMap(target);
     }
 
+    void UEngine::BindSession(const TRef<UGameInstance>& InGI, const TRef<UWorld>& InWorld) {
+        GameInstance = InGI;
+        ActiveWorld = InWorld;
+        if (GameInstance)
+            GameInstance->SetWorld(ActiveWorld);
+        if (ActiveWorld && GameInstance)
+            ActiveWorld->SetNetMode(GameInstance->GetNetMode());
+    }
+
     void UEngine::ApplyGameModeConfig(AGameModeBase* InGameMode) const {
         if (!InGameMode)
             return;
@@ -460,8 +469,8 @@ namespace Leon {
         InGameMode->PlayerStateClass = GameModeConfig.PlayerStateClass;
     }
 
-    bool UEngine::LoadMapIntoActiveWorld(const std::string& InVirtualMapPath) {
-        if (!ActiveWorld)
+    bool UEngine::LoadMapIntoWorld(const TRef<UWorld>& InWorld, const std::string& InVirtualMapPath) {
+        if (!InWorld)
             return false;
 
         std::string physicalMapPath = FProjectPaths::ResolveVirtualPath(InVirtualMapPath);
@@ -470,53 +479,76 @@ namespace Leon {
             return false;
         }
 
-        FMapSerializer serializer(ActiveWorld);
+        FMapSerializer serializer(InWorld);
         if (!serializer.Deserialize(physicalMapPath)) {
             LE_CORE_ERROR("UEngine: Failed to parse map '{0}'", physicalMapPath);
             return false;
         }
 
-        CurrentMapName = InVirtualMapPath;
         LE_CORE_INFO("UEngine: Loaded map '{0}' ({1}) with {2} actors", InVirtualMapPath, physicalMapPath,
-                     ActiveWorld->GetAllActors().size());
+                     InWorld->GetAllActors().size());
         return true;
     }
 
-    void UEngine::TravelToMap(const std::string& InVirtualMapPath) {
+    bool UEngine::LoadMapIntoActiveWorld(const std::string& InVirtualMapPath) {
+        if (!LoadMapIntoWorld(ActiveWorld, InVirtualMapPath))
+            return false;
+        CurrentMapName = InVirtualMapPath;
+        return true;
+    }
+
+    bool UEngine::TravelToMap(const std::string& InVirtualMapPath) {
         LE_CORE_INFO("UEngine: Traveling to '{0}'...", InVirtualMapPath);
 
-        // Flow: destroy current world → new UWorld → load .lmap → GameMode → login → BeginPlay
+        // Flow: load into a new UWorld first. Only on success: EndPlay+release old world, rebind, InitWorld/BeginPlay.
+        auto newWorld = UWorld::Create("MainWorld");
+        newWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
+        if (GameInstance)
+            newWorld->SetNetMode(GameInstance->GetNetMode());
+
+        if (!LoadMapIntoWorld(newWorld, InVirtualMapPath)) {
+            LE_CORE_ERROR("UEngine: Travel aborted; keeping current world (map '{0}' failed to load)",
+                          InVirtualMapPath);
+            return false;
+        }
+
         if (ActiveWorld) {
             ActiveWorld->EndPlay();
             ActiveWorld->Clear();
         }
 
-        FOnScreenDebugMessageManager::Get().Clear();
-        FUIRenderer::Shutdown();
+        if (ViewportLayer) {
+            FOnScreenDebugMessageManager::Get().Clear();
+            FUIRenderer::Shutdown();
+        }
 
-        ActiveWorld = UWorld::Create("MainWorld");
-        ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
+        ActiveWorld = newWorld;
+        CurrentMapName = InVirtualMapPath;
         if (GameInstance) {
             GameInstance->SetWorld(ActiveWorld);
+            GameInstance->SetTravelURL(InVirtualMapPath);
         }
         if (ViewportLayer) {
             ViewportLayer->SetWorld(ActiveWorld);
         }
 
-        LoadMapIntoActiveWorld(InVirtualMapPath);
+        UAssetManager::UnloadUnused();
 
         AGameModeBase* gameMode = nullptr;
-        if (!GameModeConfig.GameModeClass.empty() && UClassRegistry::Get().HasClass(GameModeConfig.GameModeClass)) {
-            gameMode = dynamic_cast<AGameModeBase*>(UClassRegistry::Get().CreateActorOfClass(
-                GameModeConfig.GameModeClass, ActiveWorld.get(), "GameMode"));
+        if (ActiveWorld->GetNetMode() != ENetMode::Client) {
+            if (!GameModeConfig.GameModeClass.empty() && UClassRegistry::Get().HasClass(GameModeConfig.GameModeClass)) {
+                gameMode = dynamic_cast<AGameModeBase*>(UClassRegistry::Get().CreateActorOfClass(
+                    GameModeConfig.GameModeClass, ActiveWorld.get(), "GameMode"));
+            }
+            if (!gameMode) {
+                gameMode = ActiveWorld->SpawnActor<AGameModeBase>("GameMode");
+            }
+            ApplyGameModeConfig(gameMode);
+            ActiveWorld->SetGameMode(gameMode);
         }
-        if (!gameMode) {
-            gameMode = ActiveWorld->SpawnActor<AGameModeBase>("GameMode");
-        }
-        ApplyGameModeConfig(gameMode);
-        ActiveWorld->SetGameMode(gameMode);
 
-        FUIRenderer::Init();
+        if (ViewportLayer)
+            FUIRenderer::Init();
         ActiveWorld->InitWorld();
         ActiveWorld->BeginPlay();
 
@@ -535,6 +567,7 @@ namespace Leon {
         }
 
         LE_CORE_INFO("UEngine: Travel complete — map '{0}' is live", InVirtualMapPath);
+        return true;
     }
 
     int UEngine::InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath) {

@@ -19,6 +19,7 @@ namespace Leon {
         void SetBlendState(bool InEnabled) override;
         void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) override;
         void SetClipDistance(bool InEnabled) override;
+        void SetPolygonOffset(bool InEnabled, float InFactor = 0.0f, float InUnits = 0.0f) override;
 
         uint32_t GetFramebufferBinding() override;
         void BindFramebuffer(uint32_t InRendererID) override;

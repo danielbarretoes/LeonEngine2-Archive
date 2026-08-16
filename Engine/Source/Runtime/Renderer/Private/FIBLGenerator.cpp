@@ -18,9 +18,10 @@
 namespace Leon {
 
     static TRef<FTexture2D> CachedBRDFLUT = nullptr;
+    static uint32_t CachedBRDFLUTSize = 0;
 
     TRef<FTexture2D> FIBLGenerator::GenerateBRDFLUT(uint32_t InSize) {
-        if (CachedBRDFLUT) {
+        if (CachedBRDFLUT && CachedBRDFLUTSize == InSize) {
             return CachedBRDFLUT;
         }
 
@@ -34,8 +35,8 @@ namespace Leon {
             if (inFile.is_open()) {
                 FBRDFLUTDiskHeader header{};
                 inFile.read(reinterpret_cast<char*>(&header), sizeof(header));
-                if (inFile && std::string(header.Magic, 8) == "LEONBRDF" && header.Version == 1 &&
-                    header.Size == InSize) {
+                if (inFile && std::string(header.Magic, 8) == "LEONBRDF" && header.Version == 2 &&
+                    header.Size == InSize && header.SampleCount == kBRDFLUTSampleCount) {
                     inFile.read(reinterpret_cast<char*>(data.data()), data.size() * sizeof(float));
                     if (inFile.gcount() == static_cast<std::streamsize>(data.size() * sizeof(float))) {
                         bLoadedFromDisk = true;
@@ -51,7 +52,7 @@ namespace Leon {
                 for (uint32_t x = 0; x < InSize; ++x) {
                     float NdotV = std::max((static_cast<float>(x) + 0.5f) / static_cast<float>(InSize), 0.001f);
 
-                    glm::vec2 integrated = IntegrateBRDF(NdotV, roughness);
+                    glm::vec2 integrated = IntegrateBRDF(NdotV, roughness, kBRDFLUTSampleCount);
 
                     size_t index = (y * InSize + x) * 2;
                     data[index + 0] = integrated.x;
@@ -64,6 +65,7 @@ namespace Leon {
             if (outFile.is_open()) {
                 FBRDFLUTDiskHeader header{};
                 header.Size = InSize;
+                header.SampleCount = kBRDFLUTSampleCount;
                 outFile.write(reinterpret_cast<const char*>(&header), sizeof(header));
                 outFile.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
             }
@@ -75,6 +77,7 @@ namespace Leon {
         }
 
         CachedBRDFLUT = lutTexture;
+        CachedBRDFLUTSize = InSize;
         auto endT = std::chrono::high_resolution_clock::now();
         float durMs = std::chrono::duration<float, std::milli>(endT - startT).count();
         LE_CORE_INFO("  [PROFILE] Cook-Torrance 2D BRDF LUT ({0}x{0}) {1} in {2:.2f} ms", InSize,
@@ -82,18 +85,8 @@ namespace Leon {
         return CachedBRDFLUT;
     }
 
-    static glm::vec3 SampleAtmosphericSky(const FSkyboxComponent& InSkybox, glm::vec3 InDir) {
-        glm::vec3 n = glm::normalize(InDir);
-        float height = n.y;
-        glm::vec3 sky;
-        if (height >= 0.0f) {
-            float horizonFactor = std::pow(1.0f - height, 4.0f);
-            sky = glm::mix(InSkybox.SkyZenithColor, InSkybox.HorizonColor, horizonFactor);
-        } else {
-            float groundFactor = std::clamp(-height * 3.0f, 0.0f, 1.0f);
-            sky = glm::mix(InSkybox.HorizonColor, InSkybox.GroundColor, groundFactor);
-        }
-        return sky;
+    static glm::vec3 SampleSkyboxAtmosphere(const FSkyboxComponent& InSkybox, glm::vec3 InDir) {
+        return SampleAtmosphericSky(InDir, InSkybox.SkyZenithColor, InSkybox.HorizonColor, InSkybox.GroundColor);
     }
 
     static std::string GetIBLCachePath(const std::string& InHDRPath) {
@@ -120,8 +113,14 @@ namespace Leon {
 
         FIBLCacheHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
-        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 5 ||
-            header.HDRSourceHash != currentHDRHash || header.SampleCountIrradiance != 512 ||
+        if (std::string(header.Magic, 7) != "LEONIBL")
+            return false;
+        if (header.Version != kIBLCacheVersion) {
+            LE_CORE_INFO("FIBLGenerator: Ignoring IBL cache '{0}' (v{1}, need v{2})", cachePath, header.Version,
+                         kIBLCacheVersion);
+            return false;
+        }
+        if (header.HDRSourceHash != currentHDRHash || header.SampleCountIrradiance != 512 ||
             header.SampleCountPrefilter != 256) {
             return false;
         }
@@ -169,7 +168,7 @@ namespace Leon {
             return;
 
         FIBLCacheHeader header;
-        header.Version = 5;
+        header.Version = kIBLCacheVersion;
         header.HDRSourceHash = ComputeFileHash64(InHDRPath);
         file.write(reinterpret_cast<const char*>(&header), sizeof(FIBLCacheHeader));
 
@@ -213,8 +212,8 @@ namespace Leon {
             if (TryLoadIBLCache(resolvedHdrPath, env)) {
                 auto totalEndT = std::chrono::high_resolution_clock::now();
                 float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v5) for '{0}' in {1:.2f} ms.", resolvedHdrPath,
-                             totalDurMs);
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v{0}) for '{1}' in {2:.2f} ms.",
+                             kIBLCacheVersion, resolvedHdrPath, totalDurMs);
                 return env;
             }
         }
@@ -262,7 +261,7 @@ namespace Leon {
             if (hdrData) {
                 return SampleEquirectangular(hdrData, hdrWidth, hdrHeight, InDir);
             }
-            return SampleAtmosphericSky(InSkybox, InDir);
+            return SampleSkyboxAtmosphere(InSkybox, InDir);
         };
 
         // 3. Generate Environment Cubemap (128x128 per face)
@@ -287,7 +286,7 @@ namespace Leon {
                         if (hdrData) {
                             color = hdrMipChain.SampleLod(dir, envTexelLod);
                         } else {
-                            color = SampleAtmosphericSky(InSkybox, dir);
+                            color = SampleSkyboxAtmosphere(InSkybox, dir);
                         }
 
                         size_t idx = (y * envSize + x) * 4;
@@ -313,10 +312,8 @@ namespace Leon {
         env.IrradianceMap = FTextureCube::Create(irradSize, irradSize, true);
         std::vector<std::vector<float>> irradFaces(6, std::vector<float>(irradSize * irradSize * 4));
         {
-            // Solid angle of 1 texel in the source HDR equirectangular texture (Epic Games / Brian Karis reference)
-            const float saTexel = (hdrWidth > 0 && hdrHeight > 0)
-                                      ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
-                                      : (4.0f * PI / (6.0f * static_cast<float>(irradSize * irradSize)));
+            // Karis cubemap texel solid angle of the environment cube (128³ faces), not equirect 4π/(w h).
+            const float saTexel = 4.0f * PI / (6.0f * static_cast<float>(envSize * envSize));
 
             // Solid angle of a sample in cosine-weighted hemisphere sampling:
             // Omega_s = 2*PI / N
@@ -354,7 +351,7 @@ namespace Leon {
                             if (hdrData) {
                                 sampleVal = hdrMipChain.SampleLod(sampleVec, irradSampleLod);
                             } else {
-                                sampleVal = SampleAtmosphericSky(InSkybox, sampleVec);
+                                sampleVal = SampleSkyboxAtmosphere(InSkybox, sampleVec);
                             }
 
                             irradiance += sampleVal;
@@ -385,10 +382,8 @@ namespace Leon {
         env.PrefilterMap = FTextureCube::Create(prefilterBaseSize, prefilterBaseSize, true);
         std::vector<std::vector<std::vector<float>>> prefilterMips(maxMipLevels);
         {
-            // Solid angle of 1 texel in the source HDR equirectangular texture (Epic Games / Brian Karis reference)
-            float saTexel = (hdrWidth > 0 && hdrHeight > 0)
-                                ? (4.0f * PI / static_cast<float>(hdrWidth * hdrHeight))
-                                : (4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize)));
+            // Karis cubemap texel solid angle of the environment cube.
+            float saTexel = 4.0f * PI / (6.0f * static_cast<float>(prefilterBaseSize * prefilterBaseSize));
 
             for (uint32_t mip = 0; mip < maxMipLevels; ++mip) {
                 auto mipStartT = std::chrono::high_resolution_clock::now();
@@ -437,7 +432,7 @@ namespace Leon {
                                     if (hdrData) {
                                         sampleVal = hdrMipChain.SampleLod(L, sampleLod);
                                     } else {
-                                        sampleVal = SampleAtmosphericSky(InSkybox, L);
+                                        sampleVal = SampleSkyboxAtmosphere(InSkybox, L);
                                     }
 
                                     prefilteredColor += sampleVal * NdotL;
@@ -467,7 +462,8 @@ namespace Leon {
         // 6. Save baked IBL result to disk cache for instantaneous future startups
         if (InSkybox.bUseHDREnvironmentMap && !resolvedHdrPath.empty()) {
             SaveIBLCache(resolvedHdrPath, envFaces, irradFaces, prefilterMips);
-            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v4) to '{0}'", GetIBLCachePath(resolvedHdrPath));
+            LE_CORE_INFO("FIBLGenerator: Saved IBL disk cache (v{0}) to '{1}'", kIBLCacheVersion,
+                         GetIBLCachePath(resolvedHdrPath));
         }
 
         if (hdrDataAlloc) {

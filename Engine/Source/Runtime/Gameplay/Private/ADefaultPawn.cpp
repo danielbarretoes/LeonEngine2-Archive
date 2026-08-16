@@ -8,7 +8,9 @@
 namespace Leon {
 
     ADefaultPawn::ADefaultPawn(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : APawn(InHandle, InWorld, InName) {}
+        : APawn(InHandle, InWorld, InName) {
+        SetClass("ADefaultPawn");
+    }
 
     void ADefaultPawn::PostInitializeComponents() {
         if (!HasComponent<UCameraComponent>()) {
@@ -18,6 +20,8 @@ namespace Leon {
     }
 
     void ADefaultPawn::Tick(float DeltaSeconds) {
+        if (GetLocalRole() == ENetRole::SimulatedProxy)
+            return;
         if (IsControlled()) {
             SetupPlayerInputComponent(DeltaSeconds);
         }

@@ -8,6 +8,7 @@
 namespace Leon {
 
     AHUD::AHUD(entt::entity InHandle, UWorld* InWorld, const std::string& InName) : AActor(InHandle, InWorld, InName) {
+        SetClass("AHUD");
         SetCanEverTick(true);
     }
 

@@ -2,9 +2,13 @@
 #include "Assets/UStaticMesh.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Assets/FMeshImporter.hpp"
+#include "Assets/FLightmapUV.hpp"
 #include "GPU/HeadlessGLContext.hpp"
+#include "Renderer/FVertexLayout.hpp"
 
+#include <cmath>
 #include <filesystem>
+#include <fstream>
 
 namespace fs = std::filesystem;
 using namespace Leon;
@@ -102,5 +106,60 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
         auto fallback = ResolveStaticSubmeshMaterial(*mesh, body, {});
         REQUIRE(fallback != nullptr);
         CHECK(fallback->GetAlbedoColor().r == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("GenerateLengyelTangents overwrites dummy tangents from UV0") {
+        std::vector<FCanonicalMeshVertex> verts(4);
+        verts[0].Position = {0, 0, 0};
+        verts[0].Normal = {0, 1, 0};
+        verts[0].TexCoord = {0, 0};
+        verts[0].Tangent = {0, 0, 1, 1};
+        verts[1].Position = {1, 0, 0};
+        verts[1].Normal = {0, 1, 0};
+        verts[1].TexCoord = {1, 0};
+        verts[1].Tangent = {0, 0, 1, 1};
+        verts[2].Position = {1, 0, 1};
+        verts[2].Normal = {0, 1, 0};
+        verts[2].TexCoord = {1, 1};
+        verts[2].Tangent = {0, 0, 1, 1};
+        verts[3].Position = {0, 0, 1};
+        verts[3].Normal = {0, 1, 0};
+        verts[3].TexCoord = {0, 1};
+        verts[3].Tangent = {0, 0, 1, 1};
+        std::vector<uint32_t> indices = {0, 1, 2, 0, 2, 3};
+
+        GenerateLengyelTangents(verts, indices);
+        CHECK(verts[0].Tangent.x == doctest::Approx(1.0f).epsilon(0.05f));
+        CHECK(std::abs(verts[0].Tangent.z) < 0.1f);
+        CHECK(verts[0].Tangent.x != doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("HasLightmapUV is false until GenerateBoxPackedLightmapUVs") {
+        auto mesh = UStaticMesh::Create("UV0Only");
+        FStaticMeshVertex v{};
+        v.TexCoord = {0.5f, 0.25f};
+        v.LightmapUV = v.TexCoord;
+        mesh->GetVertices() = {v, v, v};
+        mesh->GetIndices() = {0, 1, 2};
+        CHECK_FALSE(FLightmapUV::HasLightmapUV(*mesh));
+        FLightmapUV::GenerateBoxPackedLightmapUVs(*mesh);
+        CHECK(FLightmapUV::HasLightmapUV(*mesh));
+    }
+
+    TEST_CASE("GetMaterialInstance always creates a unique instance per .lmat path") {
+        fs::path dir = fs::path("build") / "MatInstUnique";
+        fs::create_directories(dir);
+        fs::path lmat = dir / "M_Unique.lmat";
+        {
+            std::ofstream out(lmat);
+            out << "Material:\n  Type: \"PBR_Lit\"\n  AlbedoColor: [0.2, 0.4, 0.8]\n  Metallic: 0.0\n  "
+                   "Roughness: 0.5\n  AO: 1.0\n";
+        }
+        auto a = UAssetManager::GetMaterialInstance(lmat.string());
+        auto b = UAssetManager::GetMaterialInstance(lmat.string());
+        REQUIRE(a);
+        REQUIRE(b);
+        CHECK(a.get() != b.get());
+        CHECK(a->GetParent().get() == b->GetParent().get());
     }
 }

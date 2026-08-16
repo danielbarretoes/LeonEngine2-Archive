@@ -30,6 +30,12 @@ def main() -> int:
     parser.add_argument("--map", default="", help="Map path, /Game/Maps/Name, or omit for DefaultMap")
     parser.add_argument("--force", action="store_true")
     parser.add_argument(
+        "--quality",
+        default="Draft",
+        choices=["Preview", "Draft", "Production"],
+        help="Lighting build quality passed to LeonAssetTool",
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Run validate_lightmaps instead of bake",
@@ -48,7 +54,7 @@ def main() -> int:
     if args.validate_only:
         cmd = [tool, "validate_lightmaps", "--map", map_path]
     else:
-        cmd = [tool, "bake_lightmaps", "--map", map_path]
+        cmd = [tool, "bake_lightmaps", "--map", map_path, f"--quality={args.quality}"]
         if args.force:
             cmd.append("--force")
 

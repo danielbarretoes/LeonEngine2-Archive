@@ -23,7 +23,7 @@ namespace Leon {
      */
     class FLightmapUV {
     public:
-        /** True if any vertex has LightmapUV outside a tiny epsilon of (0,0) or mesh flagged. */
+        /** True if GenerateBoxPackedLightmapUVs has flagged unique UV1 on the mesh. */
         static bool HasLightmapUV(const UStaticMesh& InMesh);
 
         /**

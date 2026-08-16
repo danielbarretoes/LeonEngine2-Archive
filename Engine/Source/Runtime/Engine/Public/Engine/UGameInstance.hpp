@@ -2,6 +2,7 @@
 
 #include "Gameplay/UObject.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/ENetTypes.hpp"
 
 namespace Leon {
 
@@ -20,8 +21,16 @@ namespace Leon {
         void SetWorld(const TRef<UWorld>& InWorld) { World = InWorld; }
         TRef<UWorld> GetWorld() const { return World; }
 
+        ENetMode GetNetMode() const { return NetMode; }
+        void SetNetMode(ENetMode InMode) { NetMode = InMode; }
+
+        const std::string& GetTravelURL() const { return TravelURL; }
+        void SetTravelURL(const std::string& InURL) { TravelURL = InURL; }
+
     protected:
         TRef<UWorld> World;
+        ENetMode NetMode = ENetMode::Standalone;
+        std::string TravelURL;
     };
 
 } // namespace Leon

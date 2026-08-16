@@ -14,8 +14,11 @@
 #include "Gameplay/UObject.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/FMapSerializer.hpp"
-#include "Engine/UGameInstance.hpp"
-#include "Engine/UWorld.hpp"
+#include "Engine/UEngine.hpp"
+#include "Gameplay/APlayerStart.hpp"
+#include "Gameplay/ACharacter.hpp"
+#include "Assets/UAssetManager.hpp"
+#include "Assets/UStaticMesh.hpp"
 #include "Core/FProjectDescriptor.hpp"
 #include "Core/FProjectPaths.hpp"
 
@@ -420,6 +423,205 @@ namespace Leon {
             CHECK(gameConfig.GetString("/Script/Engine.GameModeBase", "DefaultPawnClass", "") == "ADefaultPawn");
             CHECK(inputConfig.GetBool("/Script/Engine.InputSettings", "bEnableMouseLook", false) == true);
             CHECK(inputConfig.GetString("/Script/Engine.InputSettings", "MoveForwardKey", "") == "W");
+        }
+
+        TEST_CASE("22. Single tick does not double-count GameState ElapsedTime") {
+            auto world = UWorld::Create("ElapsedWorld");
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            world->BeginPlay();
+            AGameStateBase* gs = world->GetGameState();
+            REQUIRE(gs);
+            world->Tick(FTimestep(0.1f));
+            CHECK(gs->GetElapsedTime() == doctest::Approx(0.1f));
+        }
+
+        TEST_CASE("23. Destroy PlayerController then Tick is safe") {
+            auto world = UWorld::Create("DestroyPCWorld");
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            world->BeginPlay();
+            APlayerController* pc = world->GetFirstPlayerController();
+            REQUIRE(pc);
+            world->DestroyActor(pc);
+            CHECK(world->GetFirstPlayerController() == nullptr);
+            world->Tick(FTimestep(0.016f));
+            CHECK(world->GetFirstPlayerController() == nullptr);
+        }
+
+        TEST_CASE("24. InitGame is idempotent") {
+            auto world = UWorld::Create("InitOnceWorld");
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            AGameStateBase* gs1 = world->GetGameState();
+            REQUIRE(gs1);
+            world->InitWorld();
+            CHECK(world->GetGameState() == gs1);
+            size_t gsCount = 0;
+            for (const auto& a : world->GetAllActors()) {
+                if (dynamic_cast<AGameStateBase*>(a.get()))
+                    ++gsCount;
+            }
+            CHECK(gsCount == 1);
+        }
+
+        TEST_CASE("25. Tick no-ops before BeginPlay") {
+            auto world = UWorld::Create("NoPlayTick");
+            auto* gs = world->SpawnActor<AGameStateBase>("GS");
+            world->SetGameState(gs);
+            world->Tick(FTimestep(0.25f));
+            CHECK(gs->GetElapsedTime() == doctest::Approx(0.0f));
+        }
+
+        TEST_CASE("26. .lmap Class+GUID roundtrip and ACameraActor survives") {
+            auto src = UWorld::Create("GuidMap");
+            auto* sun = src->SpawnActor<AActor>("Sun");
+            sun->SetClass("AActor");
+            sun->AddComponent<UDirectionalLightComponent>();
+            auto* cam = src->SpawnActor<ACameraActor>("CineCam");
+            cam->SetActorLocation({1.0f, 2.0f, 3.0f});
+
+            FMapSerializer serializer(src);
+            std::string yaml;
+            REQUIRE(serializer.SerializeText(yaml));
+            CHECK(yaml.find("Class:") != std::string::npos);
+            CHECK(yaml.find("GUID:") != std::string::npos);
+            CHECK(yaml.find("ACameraActor") != std::string::npos);
+
+            auto dst = UWorld::Create("GuidMapDst");
+            FMapSerializer deserializer(dst);
+            REQUIRE(deserializer.DeserializeText(yaml));
+            auto* restoredCam = dynamic_cast<ACameraActor*>(dst->FindActorByName("CineCam"));
+            REQUIRE(restoredCam);
+            CHECK(restoredCam->GetActorLocation().y == doctest::Approx(2.0f));
+            CHECK(restoredCam->GetClass() == "ACameraActor");
+            auto* restoredSun = dst->FindActorByName("Sun");
+            REQUIRE(restoredSun);
+            CHECK(restoredSun->GetActorGuid() == sun->GetActorGuid());
+        }
+
+        TEST_CASE("27. Maps without Class/GUID still load") {
+            const char* kOld = R"(
+Map:
+  Name: "Legacy"
+Actors:
+  - Name: "Prop"
+    Transform:
+      Translation: [4.0, 5.0, 6.0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+)";
+            auto world = UWorld::Create("LegacyLoad");
+            FMapSerializer s(world);
+            REQUIRE(s.DeserializeText(kOld));
+            auto* prop = world->FindActorByName("Prop");
+            REQUIRE(prop);
+            CHECK(prop->GetActorLocation().x == doctest::Approx(4.0f));
+            CHECK(prop->GetActorGuid().IsValid());
+        }
+
+        TEST_CASE("28. Login spawns pawn at APlayerStart") {
+            auto world = UWorld::Create("StartWorld");
+            auto* start = world->SpawnActor<APlayerStart>("PlayerStart");
+            start->SetActorLocation({9.0f, 4.0f, 7.0f});
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            world->BeginPlay();
+            APawn* pawn = world->GetFirstPlayerController()->GetPawn();
+            REQUIRE(pawn);
+            CHECK(pawn->GetActorLocation().x == doctest::Approx(9.0f));
+            CHECK(pawn->GetActorLocation().z == doctest::Approx(7.0f));
+        }
+
+        TEST_CASE("29. Character AABB blocked by static cube") {
+            auto world = UWorld::Create("ColWorld");
+            auto* cube = world->SpawnActor<AActor>("Cube");
+            cube->SetActorLocation({2.0f, 0.5f, 0.0f});
+            auto& mesh = cube->AddComponent<FMeshComponent>();
+            mesh.MeshType = "Cube";
+            mesh.MeshSize = 1.0f;
+            mesh.Mobility = EComponentMobility::Static;
+
+            auto* character = world->SpawnActor<ACharacter>("Char");
+            character->SetFloorZ(0.0f);
+            character->SetActorLocation({0.0f, 1.7f, 0.0f});
+
+            UWorld::FHitResult overlap;
+            glm::vec3 qmin(-0.4f, 0.0f, -0.4f);
+            glm::vec3 qmax(0.4f, 1.9f, 0.4f);
+            glm::vec3 cubeMin(1.5f, 0.0f, -0.5f);
+            glm::vec3 cubeMax(2.5f, 1.0f, 0.5f);
+            CHECK(world->OverlapAABB(cubeMin, cubeMax, character, overlap));
+            CHECK(overlap.Actor == cube);
+
+            character->MoveBlocked({2.0f, 0.0f, 0.0f});
+            CHECK(character->GetActorLocation().x < 1.5f);
+        }
+
+        TEST_CASE("30. UEngine travel is transactional") {
+            UEngine engine;
+            auto gi = std::make_shared<UGameInstance>("GI");
+            auto world = UWorld::Create("KeepWorld");
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            world->BeginPlay();
+            REQUIRE(world->GetFirstPlayerController());
+            engine.BindSession(gi, world);
+
+            CHECK_FALSE(engine.TravelToMap("/Game/Maps/DoesNotExist_ZZZ"));
+            CHECK(engine.GetWorld().get() == world.get());
+            CHECK(engine.GetWorld()->GetFirstPlayerController() != nullptr);
+
+            std::filesystem::create_directories("build/TravelMaps");
+            const std::string mapPath = "build/TravelMaps/TravelOk.lmap";
+            {
+                std::ofstream f(mapPath);
+                f << "Map:\n  Name: \"TravelOk\"\nActors:\n  - Name: \"Marker\"\n    Transform:\n"
+                  << "      Translation: [0, 0, 0]\n      Rotation: [0, 0, 0]\n      Scale: [1, 1, 1]\n";
+            }
+            FProjectPaths::SetProjectRoot("build/TravelMaps/Dummy.lproject");
+            // Physical path used directly: ResolveVirtualPath may not map this. Write using a /Game path after
+            // pointing content root.
+            std::filesystem::create_directories("build/TravelProject/Content/Maps");
+            const std::string virtMap = "build/TravelProject/Content/Maps/Ok.lmap";
+            {
+                std::ofstream f(virtMap);
+                f << "Map:\n  Name: \"Ok\"\nActors:\n  - Name: \"Marker\"\n    Transform:\n"
+                  << "      Translation: [1, 2, 3]\n      Rotation: [0, 0, 0]\n      Scale: [1, 1, 1]\n";
+            }
+            FProjectPaths::SetProjectRoot("build/TravelProject/Dummy.lproject");
+            REQUIRE(engine.TravelToMap("/Game/Maps/Ok"));
+            REQUIRE(engine.GetWorld());
+            CHECK(engine.GetWorld()->FindActorByName("Marker") != nullptr);
+            REQUIRE(engine.GetWorld()->GetGameMode());
+            REQUIRE(engine.GetWorld()->GetFirstPlayerController());
+            REQUIRE(engine.GetWorld()->GetFirstPlayerController()->GetPawn());
+        }
+
+        TEST_CASE("31. UnloadUnused drops unused cache entries") {
+            auto mesh = UStaticMesh::Create("TempUnused");
+            UAssetManager::AddStaticMesh("TempUnusedKey", mesh);
+            CHECK(UAssetManager::HasStaticMesh("TempUnusedKey"));
+            mesh.reset();
+            UAssetManager::UnloadUnused();
+            CHECK_FALSE(UAssetManager::HasStaticMesh("TempUnusedKey"));
+        }
+
+        TEST_CASE("32. material instances are unique per request") {
+            auto parent = UAssetManager::GetDefaultMaterial();
+            REQUIRE(parent);
+            auto a = parent->CreateInstance();
+            auto b = parent->CreateInstance();
+            REQUIRE(a);
+            REQUIRE(b);
+            CHECK(a.get() != b.get());
+            CHECK(a->GetParent().get() == parent.get());
+            CHECK(b->GetParent().get() == parent.get());
         }
 
     } // TEST_SUITE

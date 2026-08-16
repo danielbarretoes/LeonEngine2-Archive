@@ -134,8 +134,8 @@ namespace Leon {
                 glTextureStorage3D(DepthAttachment, 1, GL_DEPTH_COMPONENT32F, Specification.Width,
                                    Specification.Height, layers);
 
-                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                 glTextureParameteri(DepthAttachment, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
                 glTextureParameteri(DepthAttachment, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
                 glTextureParameteri(DepthAttachment, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -160,8 +160,8 @@ namespace Leon {
                 glCreateTextures(GL_TEXTURE_2D, 1, &DepthAttachment);
                 glTextureStorage2D(DepthAttachment, 1, internalFormat, Specification.Width, Specification.Height);
 
-                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, bIsShadow ? GL_NEAREST : GL_LINEAR);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, bIsShadow ? GL_NEAREST : GL_LINEAR);
 
                 if (bIsShadow) {
                     glTextureParameteri(DepthAttachment, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);

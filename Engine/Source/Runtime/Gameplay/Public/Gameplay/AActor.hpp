@@ -2,10 +2,12 @@
 
 #include "Core/Base.hpp"
 #include "Core/FLog.hpp"
+#include "Assets/FAssetTypes.hpp"
 #include "Gameplay/UActorComponent.hpp"
 #include "Gameplay/UObject.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/ENetTypes.hpp"
 
 #include <entt/entt.hpp>
 #include <memory>
@@ -42,13 +44,26 @@ namespace Leon {
         UWorld* GetWorld() const { return World; }
         entt::entity GetEntityHandle() const { return EntityHandle; }
 
+        const FUUID& GetActorGuid() const { return ActorGuid; }
+        void SetActorGuid(const FUUID& InGuid) { ActorGuid = InGuid; }
+
+        const std::string& GetClass() const { return ClassName; }
+        void SetClass(const std::string& InClassName) { ClassName = InClassName; }
+
+        bool IsPendingKill() const { return bPendingKill; }
+        void MarkPendingKill() { bPendingKill = true; }
+
         void SetName(const std::string& InName) override;
 
         bool HasBegunPlay() const { return bHasBegunPlay; }
         void MarkBegunPlay() { bHasBegunPlay = true; }
+        void ClearBegunPlay() { bHasBegunPlay = false; }
 
         bool CanEverTick() const { return bCanEverTick; }
         void SetCanEverTick(bool InbCanTick) { bCanEverTick = InbCanTick; }
+
+        ENetRole GetLocalRole() const { return LocalRole; }
+        void SetLocalRole(ENetRole InRole) { LocalRole = InRole; }
 
         FTransformComponent& GetTransform();
         const FTransformComponent& GetTransform() const;
@@ -121,8 +136,12 @@ namespace Leon {
     protected:
         entt::entity EntityHandle{entt::null};
         UWorld* World = nullptr;
+        FUUID ActorGuid;
+        std::string ClassName = "AActor";
         bool bHasBegunPlay = false;
         bool bCanEverTick = true;
+        bool bPendingKill = false;
+        ENetRole LocalRole = ENetRole::Authority;
         std::vector<TRef<UActorComponent>> ActorComponents;
 
         friend class UWorld;

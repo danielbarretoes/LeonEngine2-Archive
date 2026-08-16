@@ -70,6 +70,11 @@ namespace Leon {
                 RenderAPI->SetClipDistance(InEnabled);
         }
 
+        static void SetPolygonOffset(bool InEnabled, float InFactor = 0.0f, float InUnits = 0.0f) {
+            if (RenderAPI)
+                RenderAPI->SetPolygonOffset(InEnabled, InFactor, InUnits);
+        }
+
         static uint32_t GetFramebufferBinding() { return RenderAPI ? RenderAPI->GetFramebufferBinding() : 0; }
 
         static void BindFramebuffer(uint32_t InRendererID) {

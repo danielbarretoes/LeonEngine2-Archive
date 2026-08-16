@@ -6,16 +6,22 @@
 
 namespace Leon {
 
+    /** Matches PBR_Lit.glsl. Below this, GGX is a Dirac that float cannot represent. */
+    inline constexpr float kMinPerceptualRoughness = 0.04f;
+    /** Floor only for 0/0 at r=0; must stay below π α⁴ at r=kMinPerceptualRoughness (~2e-11). */
+    inline constexpr float kGGXDenomEpsilon = 1e-20f;
+
     inline float DistributionGGX(float NdotH, float roughness) {
         float a = roughness * roughness;
         float a2 = a * a;
         float NdotH2 = NdotH * NdotH;
 
         float nom = a2;
-        float denom = (NdotH2 * (a2 - 1.0f) + 1.0f);
-        denom = 3.14159265358979323846f * denom * denom;
-
-        return nom / std::max(denom, 0.0000001f);
+        float f = (NdotH2 * (a2 - 1.0f) + 1.0f);
+        float denom = 3.14159265358979323846f * f * f;
+        if (denom <= kGGXDenomEpsilon)
+            return 0.0f;
+        return nom / denom;
     }
 
     inline float GeometrySchlickGGX_Direct(float NdotV, float roughness) {
@@ -46,7 +52,12 @@ namespace Leon {
 
     inline glm::vec3 EvaluateCookTorrance(glm::vec3 N, glm::vec3 V, glm::vec3 L, glm::vec3 albedo, float metallic,
                                           float roughness, glm::vec3 radiance) {
-        glm::vec3 H = glm::normalize(V + L);
+        roughness = std::clamp(roughness, kMinPerceptualRoughness, 1.0f);
+        glm::vec3 hsum = V + L;
+        float h2 = glm::dot(hsum, hsum);
+        if (h2 < 1e-8f)
+            return glm::vec3(0.0f);
+        glm::vec3 H = hsum * (1.0f / std::sqrt(h2));
         float NdotV = std::max(glm::dot(N, V), 0.0001f);
         float NdotL = std::max(glm::dot(N, L), 0.0f);
         float NdotH = std::max(glm::dot(N, H), 0.0f);

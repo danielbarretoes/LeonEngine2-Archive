@@ -8,7 +8,9 @@
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerController.hpp"
+#include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/APlayerState.hpp"
+#include "Gameplay/AWorldSettings.hpp"
 
 namespace Leon {
 
@@ -58,6 +60,12 @@ namespace Leon {
 
         RegisterClass<AHUD>("AHUD");
         RegisterClass<AHUD>("HUD");
+
+        RegisterClass<APlayerStart>("APlayerStart");
+        RegisterClass<APlayerStart>("PlayerStart");
+
+        RegisterClass<AWorldSettings>("AWorldSettings");
+        RegisterClass<AWorldSettings>("WorldSettings");
     }
 
     AActor* UClassRegistry::CreateActorOfClass(const std::string& InClassName, UWorld* InWorld,

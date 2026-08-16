@@ -6,7 +6,9 @@
 namespace Leon {
 
     APlayerController::APlayerController(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {}
+        : AActor(InHandle, InWorld, InName) {
+        SetClass("APlayerController");
+    }
 
     void APlayerController::PostInitializeComponents() {
         if (!PlayerCameraManager && World) {

@@ -105,9 +105,9 @@ namespace Leon::TestGPU {
                     glBindTexture(GL_TEXTURE_2D, DefaultWhiteTex);
                 }
             }
-            // Unit 6: BRDF LUT
+            // Unit 6: split-sum BRDF LUT default (A=1, B=0) — white would explode specular IBL.
             glActiveTexture(GL_TEXTURE6);
-            glBindTexture(GL_TEXTURE_2D, DefaultWhiteTex);
+            glBindTexture(GL_TEXTURE_2D, DefaultBRDFLUTTex);
 
             // Unit 7 & 8: Irradiance & Prefilter cubemaps
             glActiveTexture(GL_TEXTURE7);
@@ -277,6 +277,7 @@ namespace Leon::TestGPU {
                 glDeleteTextures(1, &DefaultWhiteTex);
                 glDeleteTextures(1, &DefaultBlackTex);
                 glDeleteTextures(1, &DefaultFlatNormalTex);
+                glDeleteTextures(1, &DefaultBRDFLUTTex);
                 glDeleteTextures(1, &DefaultCubeTex);
                 glDeleteTextures(1, &DefaultShadowTex);
                 glDeleteTextures(1, &DefaultShadowArrayTex);
@@ -410,6 +411,9 @@ namespace Leon::TestGPU {
             glTextureParameteri(DefaultShadowArrayTex, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
             glTextureParameteri(DefaultShadowArrayTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
             glClearTexImage(DefaultShadowArrayTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
+
+            // Split-sum LUT fallback: RG = (scale=1, bias=0)
+            DefaultBRDFLUTTex = Create1x1FloatTexture(1.0f, 0.0f, 0.0f, 1.0f);
         }
 
         GLFWwindow* NativeWindow = nullptr;
@@ -429,6 +433,7 @@ namespace Leon::TestGPU {
         GLuint DefaultWhiteTex = 0;
         GLuint DefaultBlackTex = 0;
         GLuint DefaultFlatNormalTex = 0;
+        GLuint DefaultBRDFLUTTex = 0;
         GLuint DefaultCubeTex = 0;
         GLuint DefaultShadowTex = 0;
         GLuint DefaultShadowArrayTex = 0;

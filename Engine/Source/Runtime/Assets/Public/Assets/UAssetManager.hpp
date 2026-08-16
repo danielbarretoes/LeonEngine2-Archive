@@ -72,6 +72,8 @@ namespace Leon {
         template <typename T> static TRef<T> Load(const std::string& InPath);
 
         static void Clear();
+        /** Drop cache entries whose only remaining owner is the cache itself. Keeps shaders and defaults. */
+        static void UnloadUnused();
 
     private:
         static std::string ContentRoot;

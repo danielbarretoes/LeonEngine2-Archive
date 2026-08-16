@@ -3,8 +3,10 @@
 #include "Core/Base.hpp"
 #include "Core/FTimestep.hpp"
 #include "Gameplay/UObject.hpp"
+#include "Assets/FAssetTypes.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/ENetTypes.hpp"
 
 #include <entt/entt.hpp>
 #include <memory>
@@ -18,6 +20,7 @@ namespace Leon {
     class AGameStateBase;
     class APlayerController;
     class FWorldRenderer;
+    class UNetDriver;
 
     /**
      * @brief Unreal Engine aligned UWorld runtime container representing loaded map instances.
@@ -56,7 +59,7 @@ namespace Leon {
             actor->PostInitializeComponents();
 
             // During StartPlay/Login, actors are wired (HUD↔PC, Possess) before BeginPlay runs.
-            if (bBegunPlay && !bDeferSpawnedActorBeginPlay && !actor->HasBegunPlay()) {
+            if (bBegunPlay && !bDeferSpawnedActorBeginPlay && !actor->HasBegunPlay() && !actor->IsPendingKill()) {
                 actor->ExecuteBeginPlay();
                 actor->MarkBegunPlay();
             }
@@ -65,7 +68,9 @@ namespace Leon {
         }
 
         void DestroyActor(AActor* InActor);
+        void RemovePlayerController(APlayerController* InPC);
         AActor* FindActorByName(const std::string& InName);
+        AActor* FindActorByGuid(const FUUID& InGuid);
         const std::vector<TRef<AActor>>& GetAllActors() const { return Actors; }
 
         /**
@@ -88,6 +93,12 @@ namespace Leon {
         APlayerController* GetFirstPlayerController() const;
         const std::vector<APlayerController*>& GetPlayerControllers() const { return PlayerControllers; }
 
+        ENetMode GetNetMode() const { return NetMode; }
+        void SetNetMode(ENetMode InMode) { NetMode = InMode; }
+
+        void SetNetDriver(UNetDriver* InDriver) { NetDriver = InDriver; }
+        UNetDriver* GetNetDriver() const { return NetDriver; }
+
         // --- Rendering ---
         void OnRender(const FPerspectiveCamera& InCamera);
         FWorldRenderer* GetWorldRenderer();
@@ -98,17 +109,38 @@ namespace Leon {
         uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
         bool GetPendingPlanarReflectionEnabled() const { return bPendingPlanarReflection; }
 
+        struct FHitResult {
+            bool bBlockingHit = false;
+            AActor* Actor = nullptr;
+            glm::vec3 Location{0.0f};
+            glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+            float Distance = 0.0f;
+        };
+
+        bool OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,
+                         FHitResult& OutHit) const;
+        bool SweepAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, const glm::vec3& InDelta,
+                       AActor* InIgnore, FHitResult& OutHit) const;
+
     private:
+        void DestroyActorImmediate(AActor* InActor);
+        void UnbindActorAliases(AActor* InActor);
+        void FlushPendingDestroy();
+
         entt::registry Registry;
         std::vector<TRef<AActor>> Actors;
         std::vector<APlayerController*> PlayerControllers;
+        std::vector<AActor*> PendingDestroy;
 
         AGameModeBase* GameMode = nullptr;
         AGameStateBase* GameState = nullptr;
+        ENetMode NetMode = ENetMode::Standalone;
+        UNetDriver* NetDriver = nullptr;
 
         TScope<FWorldRenderer> Renderer;
         bool bBegunPlay = false;
         bool bDeferSpawnedActorBeginPlay = false;
+        bool bIsTicking = false;
 
         bool bHasPendingRendererDefaults = false;
         uint32_t PendingShadowMapResolution = 2048;

@@ -31,23 +31,17 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Assets/Private/UStaticMesh.cpp
     Source/Runtime/Assets/Private/FAssetManifest.cpp
     Source/Runtime/Assets/Private/FAssetPath.cpp
+    # Native .lhdr / .ltex loaders are runtime (OpenGL + IBL). Source import stays callable from Core
+    # because stb_image is already a Core dependency; Pipeline keeps FBX (ufbx) + Lightmass.
     Source/Runtime/Assets/Private/FHDRImporter.cpp
-    Source/Runtime/Assets/Private/FMaterialImporter.cpp
-    Source/Runtime/Assets/Private/FMeshImporter.cpp
     Source/Runtime/Assets/Private/FTextureImporter.cpp
     Source/Runtime/Assets/Private/FLightmapAsset.cpp
-    Source/Runtime/Assets/Private/FLightmapUV.cpp
-    # Lightmass (offline bake — linked into Engine for LeonAssetTool + tests)
-    Source/Runtime/Lightmass/Private/FLightmapBuilder.cpp
-    Source/Runtime/Lightmass/Private/FLightBaker.cpp
-    Source/Runtime/Lightmass/Private/FLightmass.cpp
     # Renderer
     Source/Runtime/Renderer/Private/FWorldRenderer.cpp
     Source/Runtime/Renderer/Private/FMaterial.cpp
     Source/Runtime/Renderer/Private/FMaterialInstance.cpp
     Source/Runtime/Renderer/Private/FMeshPrimitives.cpp
     Source/Runtime/Renderer/Private/FPerspectiveCamera.cpp
-    Source/Runtime/Renderer/Private/FPerspectiveCameraController.cpp
     Source/Runtime/Renderer/Private/FPostProcessPipeline.cpp
     Source/Runtime/Renderer/Private/FIBLGenerator.cpp
     Source/Runtime/Renderer/Private/FDebugOverlay.cpp
@@ -69,6 +63,8 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Engine/Private/UGameInstance.cpp
     Source/Runtime/Engine/Private/FMapSerializer.cpp
     Source/Runtime/Engine/Private/FMaterialSerializer.cpp
+    Source/Runtime/Engine/Private/UNetDriver.cpp
+    Source/Runtime/Engine/Private/FLoopbackNetDriver.cpp
     Source/Runtime/Gameplay/Private/AActor.cpp
     Source/Runtime/Gameplay/Private/ACameraActor.cpp
     Source/Runtime/Gameplay/Private/ACharacter.cpp
@@ -80,6 +76,8 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/APlayerCameraManager.cpp
     Source/Runtime/Gameplay/Private/APlayerController.cpp
     Source/Runtime/Gameplay/Private/APlayerState.cpp
+    Source/Runtime/Gameplay/Private/APlayerStart.cpp
+    Source/Runtime/Gameplay/Private/AWorldSettings.cpp
     Source/Runtime/Gameplay/Private/UGameplayStatics.cpp
     Source/Runtime/Gameplay/Private/FOnScreenDebugMessage.cpp
     Source/Runtime/Gameplay/Private/UActorComponent.cpp
@@ -100,13 +98,11 @@ target_include_directories(LeonEngineCore
         "${LEON_RUNTIME_ROOT}/Core/Public"
         "${LEON_RUNTIME_ROOT}/RHI/Public"
         "${LEON_RUNTIME_ROOT}/Assets/Public"
-        "${LEON_RUNTIME_ROOT}/Lightmass/Public"
         "${LEON_RUNTIME_ROOT}/Renderer/Public"
         "${LEON_RUNTIME_ROOT}/UMG/Public"
         "${LEON_RUNTIME_ROOT}/Engine/Public"
         "${LEON_RUNTIME_ROOT}/Gameplay/Public"
         "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
-        "${CMAKE_SOURCE_DIR}/ThirdParty/ufbx"
 )
 
 target_compile_features(LeonEngineCore PUBLIC cxx_std_20)
@@ -116,10 +112,37 @@ target_link_libraries(LeonEngineCore
         glfw
         glm::glm
         EnTT::EnTT
-        ufbx
         stb_image
 )
 
 if(WIN32)
     target_link_libraries(LeonEngineCore PRIVATE psapi dxgi)
 endif()
+
+set(LEON_PIPELINE_SOURCES
+    Source/Runtime/Assets/Private/FMaterialImporter.cpp
+    Source/Runtime/Assets/Private/FMeshImporter.cpp
+    Source/Runtime/Assets/Private/FLightmapUV.cpp
+    Source/Runtime/Lightmass/Private/FLightmapBuilder.cpp
+    Source/Runtime/Lightmass/Private/FLightBaker.cpp
+    Source/Runtime/Lightmass/Private/FLightmass.cpp
+)
+
+add_library(LeonEnginePipeline STATIC ${LEON_PIPELINE_SOURCES})
+add_library(Leon::Pipeline ALIAS LeonEnginePipeline)
+
+target_include_directories(LeonEnginePipeline
+    PUBLIC
+        "${LEON_RUNTIME_ROOT}/Lightmass/Public"
+        "${LEON_RUNTIME_ROOT}/Assets/Public"
+        "${CMAKE_SOURCE_DIR}/ThirdParty/ufbx"
+)
+
+target_compile_features(LeonEnginePipeline PUBLIC cxx_std_20)
+
+target_link_libraries(LeonEnginePipeline
+    PUBLIC
+        LeonEngineCore
+        ufbx
+)
+

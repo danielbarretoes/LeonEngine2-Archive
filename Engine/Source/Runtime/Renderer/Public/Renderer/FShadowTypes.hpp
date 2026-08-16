@@ -40,9 +40,9 @@ namespace Leon {
         float ShadowDistance = 100.0f;   ///< Maximum view distance for directional shadow coverage
         float CascadeBlendWidth = 0.10f; ///< Relative transition boundary thickness [0.0, 0.5]
 
-        float ConstantBias = 0.0008f; ///< Constant depth offset subtracted from light depth
-        float SlopeBias = 0.0015f;    ///< Dynamic slope-scale factor (1 - NdotL)
-        float NormalBias = 0.025f;    ///< Geometric normal offset scaling in world space
+        float ConstantBias = 0.0010f; ///< Constant depth offset subtracted from light depth
+        float SlopeBias = 0.0035f;    ///< Multiplier for tan(θ) slope-scale (clamped grazing)
+        float NormalBias = 0.040f;    ///< Face-normal offset scaling in world space
 
         uint32_t CascadeResolution = 2048; ///< Width and height per cascade layer
         uint32_t SpotResolution = 1024;    ///< Spotlight shadow map resolution

@@ -8,14 +8,7 @@
 namespace Leon {
 
     bool FLightmapUV::HasLightmapUV(const UStaticMesh& InMesh) {
-        const auto& verts = InMesh.GetVertices();
-        if (verts.empty())
-            return false;
-        for (const auto& v : verts) {
-            if (std::abs(v.LightmapUV.x) > 1e-6f || std::abs(v.LightmapUV.y) > 1e-6f)
-                return true;
-        }
-        return false;
+        return InMesh.HasUniqueLightmapUV();
     }
 
     bool FLightmapUV::ComputeBarycentric(const glm::vec2& InP, const glm::vec2& InA, const glm::vec2& InB,
@@ -117,6 +110,7 @@ namespace Leon {
         indices = std::move(newIndices);
         submeshes = std::move(rebuiltSubmeshes);
         InMesh.CalculateBounds();
+        InMesh.SetHasUniqueLightmapUV(true);
     }
 
     FLightmapUVValidationResult FLightmapUV::Validate(const UStaticMesh& InMesh, float InMinIslandPadding) {

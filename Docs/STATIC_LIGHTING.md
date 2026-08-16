@@ -32,10 +32,10 @@ Pipeline:
 
 1. Load map
 2. Collect Static meshes + Static/Stationary lights
-3. Resolve material albedo (base color + CPU texture average)
+3. Resolve material albedo (base color × albedo map sample at UV0)
 4. UV1 (generate + persist if missing)
 5. Atlas (`FLightmapBuilder`, `TexelPadding`)
-6. CPU bake (`FLightBaker`): stores **diffuse irradiance** `E = ∫ Li max(N·ω,0) dω`. Static lights contribute direct `E`; Static+Stationary contribute to GI. `NumIndirectBounces == 0` skips GI. Receptor emissive is not stored. Bake AO is not multiplied into `E`.
+6. CPU bake (`FLightBaker`): stores **diffuse irradiance** `E = ∫ Li max(N·ω,0) dω`. Static lights contribute direct `E`; Static+Stationary contribute to GI. Cosine misses add sky `E += π L_env` (HDR or atmosphere, scaled by `EnvironmentIntensity`, not `IndirectIntensity`). `NumIndirectBounces == 0` skips GI but still includes environment miss. Receptor emissive is not stored. Bake AO can scale stored `E`. Bake-input hash algorithm version **4** (includes skybox/HDR).
 7. Write `.llightmap` (`ContentHash` = bake input hash)
 8. Stamp `.lmap` chart metadata + `LightmapBakeHash`
 

@@ -202,10 +202,9 @@ float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float NdotH2 = NdotH * NdotH;
 
     float nom   = a2;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
-
-    return nom / max(denom, 0.0000001);
+    float f = (NdotH2 * (a2 - 1.0) + 1.0);
+    float denom = PI * f * f;
+    return denom > 1e-20 ? nom / denom : 0.0;
 }
 
 // 3. Geometry Function (Smith Schlick-GGX)
@@ -237,6 +236,12 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+vec3 SafeHalfVector(vec3 V, vec3 L) {
+    vec3 h = V + L;
+    float h2 = dot(h, h);
+    return h2 > 1e-8 ? h * inversesqrt(h2) : vec3(0.0);
+}
+
 // 5. Image-Based Lighting (IBL) Atmospheric Environment Fallback
 vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
     float height = dir.y;
@@ -245,7 +250,7 @@ vec3 SampleEnvironmentAtmosphere(vec3 dir, float roughness) {
         float horizonFactor = pow(1.0 - height, 4.0);
         sky = mix(u_EnvSkyColor.rgb, u_EnvHorizonColor.rgb, horizonFactor);
     } else {
-        float groundFactor = clamp(-height * 2.5, 0.0, 1.0);
+        float groundFactor = clamp(-height * 3.0, 0.0, 1.0);
         sky = mix(u_EnvHorizonColor.rgb, u_EnvGroundColor.rgb, groundFactor);
     }
     return sky * u_EnvSkyColor.w;
@@ -260,11 +265,135 @@ vec3 GetHemisphereIrradiance(vec3 normal) {
 // -----------------------------------------------------------------------------
 // Advanced Cascaded Shadow Mapping (Multi-Filter, Normal Offset Bias & Blending)
 // -----------------------------------------------------------------------------
-float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 fragPos, vec3 normal, vec3 lightDir) {
+float ShadowSlopeTan(vec3 normal, vec3 lightDir) {
+    float NdotL = clamp(dot(normal, lightDir), 0.0, 1.0);
+    float sinTheta = sqrt(max(0.0, 1.0 - NdotL * NdotL));
+    // Clamp extreme grazing: tan(θ) → ∞ would peter-pan the contact shadow.
+    return min(sinTheta / max(NdotL, 0.08), 8.0);
+}
+
+// Rasterized triangle plane (matches the shadow-map depth). Phong-interpolated vertex
+// normals under-bias smooth/concave panels. Degenerate dFdx (1px tests) falls back.
+vec3 ShadowFaceNormal(vec3 fragPos, vec3 vertexN) {
+    vec3 fn = cross(dFdx(fragPos), dFdy(fragPos));
+    float len2 = dot(fn, fn);
+    if (len2 < 1e-12)
+        return vertexN;
+    fn *= inversesqrt(len2);
+    return fn * sign(dot(fn, vertexN) + 1e-8);
+}
+
+// GPU Gems 3: ∂z/∂u, ∂z/∂v in shadow UV so PCF taps follow the receiver plane.
+vec2 ReceiverPlaneDzDuv(vec3 dpdx, vec3 dpdy) {
+    vec2 dzDuv;
+    dzDuv.x = dpdy.y * dpdx.z - dpdx.y * dpdy.z;
+    dzDuv.y = dpdx.x * dpdy.z - dpdy.x * dpdx.z;
+    float det = dpdx.x * dpdy.y - dpdx.y * dpdy.x;
+    float invDet = 1.0 / (sign(det) * max(abs(det), 1e-6));
+    return clamp(dzDuv * invDet, vec2(-16.0), vec2(16.0));
+}
+
+float ShadowTapArray(sampler2DArrayShadow shadowMap, int cascadeIndex, vec2 uv, float refZ) {
+    return texture(shadowMap, vec4(uv, float(cascadeIndex), refZ));
+}
+
+float ShadowTap2D(sampler2DShadow shadowMap, vec2 uv, float refZ) {
+    return texture(shadowMap, vec3(uv, refZ));
+}
+
+float FilterShadowArray(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 projCoords, float refZ) {
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0).xy);
+    vec2 dzDuv = ReceiverPlaneDzDuv(dFdx(projCoords), dFdy(projCoords));
+    int filterMode = u_ShadowSettings.x;
+    float shadow = 0.0;
+
+    if (filterMode == 0) {
+        return 1.0 - ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy, refZ);
+    } else if (filterMode == 1) {
+        for (int x = -1; x <= 1; ++x) {
+            for (int y = -1; y <= 1; ++y) {
+                vec2 uvOff = vec2(x, y) * texelSize;
+                shadow += ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+            }
+        }
+        return 1.0 - (shadow / 9.0);
+    } else if (filterMode == 2) {
+        for (int x = -2; x <= 2; ++x) {
+            for (int y = -2; y <= 2; ++y) {
+                vec2 uvOff = vec2(x, y) * texelSize;
+                shadow += ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+            }
+        }
+        return 1.0 - (shadow / 25.0);
+    }
+
+    float noise = InterleavedGradientNoise(gl_FragCoord.xy);
+    float angle = noise * 2.0 * PI;
+    mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+    float diskRadius = 1.75;
+    for (int i = 0; i < 16; ++i) {
+        vec2 uvOff = rot * POISSON_DISK[i] * diskRadius * texelSize;
+        shadow += ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+    }
+    return 1.0 - (shadow / 16.0);
+}
+
+float FilterShadow2D(sampler2DShadow shadowMap, vec3 projCoords, float refZ) {
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0));
+    vec2 dzDuv = ReceiverPlaneDzDuv(dFdx(projCoords), dFdy(projCoords));
+    int filterMode = u_ShadowSettings.x;
+    float shadow = 0.0;
+
+    if (filterMode == 0) {
+        return 1.0 - ShadowTap2D(shadowMap, projCoords.xy, refZ);
+    } else if (filterMode == 1) {
+        for (int x = -1; x <= 1; ++x) {
+            for (int y = -1; y <= 1; ++y) {
+                vec2 uvOff = vec2(x, y) * texelSize;
+                shadow += ShadowTap2D(shadowMap, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+            }
+        }
+        return 1.0 - (shadow / 9.0);
+    } else if (filterMode == 2) {
+        for (int x = -2; x <= 2; ++x) {
+            for (int y = -2; y <= 2; ++y) {
+                vec2 uvOff = vec2(x, y) * texelSize;
+                shadow += ShadowTap2D(shadowMap, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+            }
+        }
+        return 1.0 - (shadow / 25.0);
+    }
+
+    float noise = InterleavedGradientNoise(gl_FragCoord.xy);
+    float angle = noise * 2.0 * PI;
+    mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+    float diskRadius = 1.75;
+    for (int i = 0; i < 16; ++i) {
+        vec2 uvOff = rot * POISSON_DISK[i] * diskRadius * texelSize;
+        shadow += ShadowTap2D(shadowMap, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+    }
+    return 1.0 - (shadow / 16.0);
+}
+
+vec3 ApplyShadowUvNormalOffset(vec3 projCoords, mat4 lightMatrix, vec3 normal, float slopeFactor, vec2 texelSize) {
+    // Vertical receivers under a near-vertical light occupy ~1 shadow texel (the caster silhouette).
+    // Depth bias cannot move the sample off that sliver; a UV push along N.xy can.
+    vec2 nUV = (lightMatrix * vec4(normal, 0.0)).xy;
+    float nLen = length(nUV);
+    if (nLen < 1e-6)
+        return projCoords;
+    float taps = 4.0 + 4.0 * slopeFactor;
+    vec2 uvShift = (nUV / nLen) * min(texelSize * taps, vec2(0.02));
+    projCoords.xy += uvShift;
+    return projCoords;
+}
+
+float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 fragPos, vec3 vertexN, vec3 lightDir) {
+    vec3 normal = ShadowFaceNormal(fragPos, vertexN);
     float NdotL = max(dot(normal, lightDir), 0.0);
     float slopeFactor = max(1.0 - NdotL, 0.0);
+    float tanTheta = ShadowSlopeTan(normal, lightDir);
 
-    // Multi-term bias: Constant + Slope-scale + Normal offset
     float constBias  = u_ShadowParams.x;
     float slopeBias  = u_ShadowParams.y;
     float normalBias = u_ShadowParams.z;
@@ -272,65 +401,26 @@ float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex,
     vec3 normalOffset = normal * (normalBias * slopeFactor);
     vec4 biasedFragPos = vec4(fragPos + normalOffset, 1.0);
     vec4 fragPosLightSpace = u_LightSpaceMatrices[cascadeIndex] * biasedFragPos;
+    if (fragPosLightSpace.w <= 0.0)
+        return 0.0;
 
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0).xy);
+    projCoords = ApplyShadowUvNormalOffset(projCoords, u_LightSpaceMatrices[cascadeIndex], normal, slopeFactor, texelSize);
 
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+    if (projCoords.z > 1.0 || projCoords.z < 0.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = constBias + slopeBias * slopeFactor;
-    float currentDepth = projCoords.z - bias;
-
-    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0).xy);
-    float shadow = 0.0;
-
-    int filterMode = u_ShadowSettings.x;
-
-    if (filterMode == 0) {
-        // Hard Shadow (1 tap)
-        vec4 coord = vec4(projCoords.xy, float(cascadeIndex), currentDepth);
-        shadow = texture(shadowMap, coord);
-        return 1.0 - shadow;
-    } else if (filterMode == 1) {
-        // PCF 3x3 (9 taps)
-        for (int x = -1; x <= 1; ++x) {
-            for (int y = -1; y <= 1; ++y) {
-                vec4 coord = vec4(projCoords.xy + vec2(x, y) * texelSize, float(cascadeIndex), currentDepth);
-                shadow += texture(shadowMap, coord);
-            }
-        }
-        return 1.0 - (shadow / 9.0);
-    } else if (filterMode == 2) {
-        // PCF 5x5 (25 taps)
-        for (int x = -2; x <= 2; ++x) {
-            for (int y = -2; y <= 2; ++y) {
-                vec4 coord = vec4(projCoords.xy + vec2(x, y) * texelSize, float(cascadeIndex), currentDepth);
-                shadow += texture(shadowMap, coord);
-            }
-        }
-        return 1.0 - (shadow / 25.0);
-    } else {
-        // Poisson Disk (16 taps with interleaved gradient noise rotation)
-        float noise = InterleavedGradientNoise(gl_FragCoord.xy);
-        float angle = noise * 2.0 * PI;
-        float s = sin(angle);
-        float c = cos(angle);
-        mat2 rot = mat2(c, -s, s, c);
-        float diskRadius = 2.5;
-
-        for (int i = 0; i < 16; ++i) {
-            vec2 offset = rot * POISSON_DISK[i] * diskRadius * texelSize;
-            vec4 coord = vec4(projCoords.xy + offset, float(cascadeIndex), currentDepth);
-            shadow += texture(shadowMap, coord);
-        }
-        return 1.0 - (shadow / 16.0);
-    }
+    float bias = constBias + slopeBias * tanTheta;
+    return FilterShadowArray(shadowMap, cascadeIndex, projCoords, projCoords.z - bias);
 }
 
-float SampleSpotShadowMap(sampler2DShadow shadowMap, vec3 fragPos, vec3 normal, vec3 lightDir) {
+float SampleSpotShadowMap(sampler2DShadow shadowMap, vec3 fragPos, vec3 vertexN, vec3 lightDir) {
+    vec3 normal = ShadowFaceNormal(fragPos, vertexN);
     float NdotL = max(dot(normal, lightDir), 0.0);
     float slopeFactor = max(1.0 - NdotL, 0.0);
+    float tanTheta = ShadowSlopeTan(normal, lightDir);
 
     float constBias  = u_ShadowParams.x * 1.5;
     float slopeBias  = u_ShadowParams.y * 1.5;
@@ -338,48 +428,19 @@ float SampleSpotShadowMap(sampler2DShadow shadowMap, vec3 fragPos, vec3 normal, 
 
     vec3 normalOffset = normal * (normalBias * slopeFactor);
     vec4 fragPosSpotLightSpace = u_SpotLightSpaceMatrix * vec4(fragPos + normalOffset, 1.0);
+    if (fragPosSpotLightSpace.w <= 0.0)
+        return 0.0;
 
     vec3 projCoords = fragPosSpotLightSpace.xyz / fragPosSpotLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0));
+    projCoords = ApplyShadowUvNormalOffset(projCoords, u_SpotLightSpaceMatrix, normal, slopeFactor, texelSize);
 
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+    if (projCoords.z > 1.0 || projCoords.z < 0.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = constBias + slopeBias * slopeFactor;
-    float currentDepth = projCoords.z - bias;
-
-    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0));
-    float shadow = 0.0;
-
-    int filterMode = u_ShadowSettings.x;
-    if (filterMode == 0) {
-        shadow = texture(shadowMap, vec3(projCoords.xy, currentDepth));
-        return 1.0 - shadow;
-    } else if (filterMode == 1) {
-        for (int x = -1; x <= 1; ++x) {
-            for (int y = -1; y <= 1; ++y) {
-                shadow += texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, currentDepth));
-            }
-        }
-        return 1.0 - (shadow / 9.0);
-    } else if (filterMode == 2) {
-        for (int x = -2; x <= 2; ++x) {
-            for (int y = -2; y <= 2; ++y) {
-                shadow += texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, currentDepth));
-            }
-        }
-        return 1.0 - (shadow / 25.0);
-    } else {
-        float noise = InterleavedGradientNoise(gl_FragCoord.xy);
-        float angle = noise * 2.0 * PI;
-        mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
-        float diskRadius = 2.5;
-        for (int i = 0; i < 16; ++i) {
-            vec2 offset = rot * POISSON_DISK[i] * diskRadius * texelSize;
-            shadow += texture(shadowMap, vec3(projCoords.xy + offset, currentDepth));
-        }
-        return 1.0 - (shadow / 16.0);
-    }
+    float bias = constBias + slopeBias * tanTheta;
+    return FilterShadow2D(shadowMap, projCoords, projCoords.z - bias);
 }
 
 float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDir, out int outCascadeIndex) {
@@ -446,7 +507,8 @@ void main() {
     vec3 albedo = u_AlbedoColor * ((u_UseAlbedoMap == 1) ? albedoSample.rgb : vec3(1.0));
 
     // 3. Tangent Space Gram-Schmidt Orthogonalization & Normal Mapping
-    vec3 N = normalize(v_Normal);
+    vec3 geoN = normalize(v_Normal);
+    vec3 N = geoN;
     vec3 T = normalize(v_TBN[0]);
     T = normalize(T - N * dot(N, T));
     vec3 B = normalize(v_TBN[1]);
@@ -493,7 +555,7 @@ void main() {
     // 5.1 Directional Sunlight — single radiance = color * intensity (PBR-correct)
     if (u_DirLight.direction.w > 0.5) {
         vec3 L = normalize(-u_DirLight.direction.xyz);
-        vec3 H = normalize(V + L);
+        vec3 H = SafeHalfVector(V, L);
         vec3 radiance = u_DirLight.color.rgb * u_DirLight.color.w;
 
         float NDF = DistributionGGX(N, H, roughness);
@@ -509,7 +571,10 @@ void main() {
         kD *= 1.0 - metallic;
 
         float NdotL = max(dot(N, L), 0.0);
-        dirShadow = CalculateCascadedDirectionalShadow(v_FragPos, N, L, activeCascadeIndex);
+        // Shadow tests use the rasterized face normal. Interpolated/normal-mapped N jitters bias (acne).
+        vec3 shadowN = ShadowFaceNormal(v_FragPos, geoN);
+        dirShadow = CalculateCascadedDirectionalShadow(v_FragPos, shadowN, L, activeCascadeIndex);
+        dirShadow *= smoothstep(0.0, 0.22, max(dot(shadowN, L), 0.0));
 
         vec3 vis = radiance * NdotL * (1.0 - dirShadow);
         LoDiffuse += (kD * albedo / PI) * vis;
@@ -522,7 +587,7 @@ void main() {
 
         vec3 lightPos = u_PointLights[i].position.xyz;
         vec3 L = normalize(lightPos - v_FragPos);
-        vec3 H = normalize(V + L);
+        vec3 H = SafeHalfVector(V, L);
 
         float distance = length(lightPos - v_FragPos);
         float radius   = u_PointLights[i].params.x;
@@ -559,7 +624,7 @@ void main() {
 
         vec3 lightPos = u_SpotLights[i].position.xyz;
         vec3 L = normalize(lightPos - v_FragPos);
-        vec3 H = normalize(V + L);
+        vec3 H = SafeHalfVector(V, L);
 
         float theta = dot(L, normalize(-u_SpotLights[i].direction.xyz));
         float innerCos = u_SpotLights[i].direction.w;
@@ -592,8 +657,9 @@ void main() {
             kD *= 1.0 - metallic;
 
             float NdotL = max(dot(N, L), 0.0);
-            // Explicit capability: one shadowed spotlight, selected by u_ShadowSettings.y
-            float spotShadow = (i == u_ShadowSettings.y) ? CalculateSpotShadow(v_FragPos, N, L) : 0.0;
+            vec3 spotShadowN = ShadowFaceNormal(v_FragPos, geoN);
+            float spotShadow = (i == u_ShadowSettings.y) ? CalculateSpotShadow(v_FragPos, spotShadowN, L) : 0.0;
+            spotShadow *= smoothstep(0.0, 0.22, max(dot(spotShadowN, L), 0.0));
             if (i == u_ShadowSettings.y)
                 spotShadowFactor = 1.0 - spotShadow;
 
@@ -628,7 +694,7 @@ void main() {
         diffuseIBL = irradiance * albedo / PI;
 
         reflectionLi = SampleEnvironmentAtmosphere(R, roughness);
-        envBRDF = vec2(1.0 - roughness, roughness * 0.5);
+        envBRDF = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
     }
 
     // 7. Real-Time Planar Reflections (Karis split-sum)

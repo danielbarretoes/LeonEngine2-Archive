@@ -24,6 +24,15 @@ TEST_SUITE("PBR - Cook-Torrance Microfacet BRDF Invariants") {
         CHECK(Leon::DistributionGGX(0.0f, 0.5f) == doctest::Approx(0.019894f).epsilon(0.001f));
     }
 
+    TEST_CASE("GGX D(1, r=kMinPerceptualRoughness) equals 1/(PI r^4) without 1e-7 clip") {
+        const float r = Leon::kMinPerceptualRoughness;
+        const float pi = 3.14159265358979323846f;
+        const float expected = 1.0f / (pi * r * r * r * r);
+        float D = Leon::DistributionGGX(1.0f, r);
+        CHECK(D == doctest::Approx(expected).epsilon(0.003f));
+        CHECK(D > 100000.0f);
+    }
+
     TEST_CASE("Smith Schlick-GGX Geometry Function in Range [0, 1]") {
         std::vector<float> testRoughness = {0.001f, 0.1f, 0.5f, 1.0f};
         std::vector<float> testAngles = {0.0001f, 0.2f, 0.5f, 0.8f, 1.0f};

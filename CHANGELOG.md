@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 0.15.0
 
+### Renderer math contract (CPU / GPU / baker)
+
+#### Fixed
+- GGX NDF no longer floors the microfacet denominator at `1e-7` (smooth metals were clipped to \(D \approx 25.6\) instead of \(1/(\pi r^4)\)).
+- Atmospheric HDR equirect mapping matches the runtime sampler (\(v=0\) is +Y, \(u=0.5\) is +X).
+- Lightmass cosine misses now store sky irradiance \(E = \pi L_{\mathrm{env}}\) (procedural atmosphere or HDR). Runtime still skips diffuse IBL when a lightmap is bound.
+- Display encode after tone mapping uses IEC 61966-2-1 sRGB (not `pow(x, 1/2.2)`).
+- Mesh import honors `bGenerateTangents` (Lengyel from UV0).
+- GI bounce albedo samples the albedo map at UV0 instead of a whole-texture average.
+- Directional/spot shadow tests use the rasterized face normal (not the normal map), tan(θ) slope bias, per-tap receiver-plane PCF, UV normal offset off the caster silhouette, `GL_NEAREST` comparison, and caster polygon offset.
+
+#### Changed
+- IBL disk cache is `.libl` **v6** (Karis cubemap `saTexel`). v5 files are ignored and rebuilt on first load.
+- BRDF LUT disk header is `LEONBRDF` **v2** (24 bytes, stores sample count).
+- Lightmass bake-input hash algorithm version is **4** (includes skybox / HDR). Existing `.llightmap` files must be rebaked.
+- Missing lightmap UV1 is persisted to `.lmesh` **before** the bake-input hash, so validation is not stale after the first bake.
+
 ### Renderer correctness (canonical pipeline)
 
 #### Added
@@ -19,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 - Diffuse IBL and lightmaps evaluate `Lo = albedo / PI * irradiance` (irradiance is the cosine-weighted integral, not outgoing radiance).
-- IBL bake/cache (`.libl` v5) stores linear HDR; scene exposure is applied only in tone mapping.
+- IBL bake/cache (`.libl` v6) stores linear HDR; scene exposure is applied only in tone mapping.
 - Lightmaps (`.llightmap` v2) store baked diffuse irradiance; GI is off when `NumIndirectBounces == 0`.
 - Window resize rebuilds HDR, planar, and post-process targets.
 - Transparent draws sort back-to-front with depth write off.
@@ -42,9 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 - Bake cache hash no longer includes stamped `.lmap` metadata (stable `ComputeBakeInputHash` from world + settings).
-- Bake albedo reads material base color and averages albedo textures on CPU (was constant 0.7).
+- Bake albedo reads material base color and samples albedo textures at UV0 on CPU (was constant 0.7).
 - Generated lightmap UV1 is persisted back to `.lmesh` when missing.
-- BRDF LUT disk test reads the `LEONBRDF` 16-byte header plus RG float payload.
+- BRDF LUT disk test reads the `LEONBRDF` v2 24-byte header plus RG float payload.
 
 #### Added
 - `ELightMobility::Stationary`: indirect-only bake + dynamic direct/shadows at runtime (`IsLightmassBakeLight` / `DoesLightmassBakeDirect`).
@@ -60,11 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 - CC0 1k PBR textures (studio floor, street, metal, brick, roof, bark, wood) and two Poly Haven 1k HDRs (`DaySky1k`, `NightSky1k`).
 - NightLevel static meshes authored in Blender (`House`, `Car`, `PalmTree`, `StreetLamp`, `Ground`) with per-slot materials.
+- NightLevel cottage (`Cottage_FREE.fbx`) with Dirt PBR atlas (`Dirt_Base_Color`, `Dirt_Roughness`, `Dirt_Metallic`).
 
 #### Changed
 - ShowcaseLevel uses only primitives on a larger studio-floor base and the day HDRI.
 - NightLevel uses imported static meshes on an asphalt ground with the night HDRI.
 - Sandbox HUD chip travels ShowcaseLevel ↔ NightLevel (was Night-only).
+- `M_Car_Body` is painted metal (no tiling plate maps). The body is a long box whose smart-project UV0 stretched a 1:1 tile on the sides.
 
 #### Added
 - Showcase Movable glass sphere (transparency sort) and negative-scale cube (cull/TBN flip).
@@ -72,6 +91,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Removed
 - Unused Sandbox maps, leftover PNG textures, unused materials, `NightField1k` HDR, and Raw download scratch.
+
+### Gameplay framework (Unreal-lite lifetime, identity, collision, listen-server)
+
+#### Added
+- Actor `Class` + `GUID` on `.lmap` v2.1 (old maps without those keys still load). Runtime-only framework actors are not serialized.
+- `APlayerStart` and `AGameModeBase::ChoosePlayerStart` / `FindPlayerStart`; Login uses the placed start instead of a hardcoded location.
+- AABB overlap/sweep on `UWorld` (`FBoxCollisionComponent` and static mesh bounds). `ACharacter` XZ movement is blocked by static geometry.
+- `AWorldSettings` / `FWorldSettingsComponent` for Lightmass knobs (migrated off the skybox). Legacy Skybox bake keys copy into WorldSettings on load.
+- Lighting quality presets (`Preview` / `Draft` / `Production`) with LeonAssetTool `--quality=` and `bake_lightmaps.py --quality`.
+- Lean listen-server: `ENetMode` / `ENetRole`, `UNetDriver` snapshots, in-process `FLoopbackNetDriver`. Replicates GameState elapsed time, PlayerState, and possessed pawn transforms. Clients have no GameMode.
+- `LeonEnginePipeline` static library (FBX/material import, Lightmass, lightmap UV). `LeonEngineCore` no longer links `ufbx`. Native `.ltex` / `.lhdr` loaders stay in Core so games (Sandbox) can load cooked textures without Pipeline.
+
+#### Fixed
+- `UWorld` ticks each actor once (GameState `ElapsedTime` no longer doubles). `Tick` is a no-op before `BeginPlay`; `EndPlay` clears `HasBegunPlay`.
+- `DestroyActor` unbinds PlayerController / GameMode / GameState / possess / ViewTarget aliases and defers erase while ticking.
+- `InitGame` does not spawn a second GameState. `TravelToMap` loads into a new world first and keeps the old world if the map is missing.
+- Lightmass skip requires **both** atlas `ContentHash` and world `LightmapBakeHash` to match and be non-zero. `ValidateMap` fails on hash `0`.
+- Bake hash includes material overrides and mesh slot `.lmat` paths. FBX import no longer copies UV0 onto UV1; unique UV1 is flagged only by `GenerateBoxPackedLightmapUVs`.
+- Procedural meshes write unique 0–1 UV1 for lightmaps; the renderer samples UV1 instead of tiled UV0.
+- `GetMaterialInstance(".lmat")` always creates a unique instance. `UnloadUnused` drops unused cache entries after travel.
+- Runtime `.ltex` load (`FNativeTextureData`) lives in Core so OpenGL/Sandbox link without `LeonEnginePipeline`.
+
+#### Changed
+- Simple AO is applied in `FLightBaker` using existing AO radius/intensity settings.
 
 ### Engine Scripts (Unreal-like project contract)
 
@@ -113,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One-shot migration helpers (`migrate_runtime_layout.py`, `rename_ue_members.py`, `finish_ue_naming.py`, `fix_member_type_collisions.py`) after the sweep completed.
 
 #### Notes
-- CMake still links a single `LeonEngineCore` (folder modules first; split link units later).
+- CMake splits `LeonEngineCore` (runtime, including native `.ltex`/`.lhdr` load) and `LeonEnginePipeline` (FBX/material import + Lightmass). Sandbox links Core only.
 - Member `m_`/`s_` stripped to Unreal-style members (`bFlag`, `PascalCase`); collisions fixed (`CurrentAPI`, `CachedProjectDir`, `bIsLoaded`).
 
 ---

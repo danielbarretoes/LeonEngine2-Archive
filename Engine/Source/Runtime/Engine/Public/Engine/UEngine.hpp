@@ -76,12 +76,24 @@ namespace Leon {
 
         bool HasPendingTravel() const { return bPendingTravel; }
 
+        /**
+         * @brief Bind GameInstance + World for tests / listen-server without a full InternalRun boot.
+         */
+        void BindSession(const TRef<UGameInstance>& InGI, const TRef<UWorld>& InWorld);
+
+        /**
+         * @brief Transactional map travel: load into a new world first; keep the old world on failure.
+         */
+        bool TravelToMap(const std::string& InVirtualMapPath);
+
+        void SetGameModeConfig(const FGameModeConfig& InConfig) { GameModeConfig = InConfig; }
+
     private:
         int InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InConfigPath);
 
         void ApplyGameModeConfig(AGameModeBase* InGameMode) const;
+        bool LoadMapIntoWorld(const TRef<UWorld>& InWorld, const std::string& InVirtualMapPath);
         bool LoadMapIntoActiveWorld(const std::string& InVirtualMapPath);
-        void TravelToMap(const std::string& InVirtualMapPath);
 
         TRef<UGameInstance> GameInstance;
         TRef<UWorld> ActiveWorld;

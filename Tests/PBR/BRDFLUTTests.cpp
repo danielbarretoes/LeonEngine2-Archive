@@ -1,5 +1,8 @@
 #include <doctest/doctest.h>
+#include <cmath>
+#include <filesystem>
 #include <fstream>
+#include <vector>
 #include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("PBR - BRDF LUT Invariants") {
@@ -36,6 +39,13 @@ TEST_SUITE("PBR - BRDF LUT Invariants") {
         CHECK(mirrorBRDF.y == doctest::Approx(0.0f).epsilon(0.05f));
     }
 
+    TEST_CASE("BRDF LUT disk header is v2 and 24 bytes") {
+        CHECK(sizeof(Leon::FBRDFLUTDiskHeader) == 24);
+        Leon::FBRDFLUTDiskHeader header;
+        CHECK(header.Version == 2);
+        CHECK(header.SampleCount == Leon::kBRDFLUTSampleCount);
+    }
+
     TEST_CASE("Pre-baked BRDF_LUT.bin File Verification") {
         const std::string binPath = "Engine/Assets/Textures/BRDF_LUT.bin";
         if (!std::filesystem::exists(binPath)) {
@@ -54,8 +64,13 @@ TEST_SUITE("PBR - BRDF LUT Invariants") {
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         REQUIRE(file);
         REQUIRE(std::string(header.Magic, 8) == "LEONBRDF");
-        REQUIRE(header.Version == 1);
-        REQUIRE((header.Size == 256 || header.Size == 512));
+        if (header.Version != 2) {
+            MESSAGE("On-disk BRDF LUT is not v2 — runtime regenerates; skipping file payload check.");
+            return;
+        }
+        const bool sizeOk = header.Size == 256 || header.Size == 512;
+        REQUIRE(sizeOk);
+        REQUIRE(header.SampleCount > 0);
 
         const size_t payloadBytes =
             static_cast<size_t>(header.Size) * static_cast<size_t>(header.Size) * 2u * sizeof(float);

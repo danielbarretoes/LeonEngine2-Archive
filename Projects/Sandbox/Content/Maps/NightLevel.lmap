@@ -2,9 +2,23 @@
 # Human-Readable & Deterministic Serialization
 Map:
   Name: "NightLevel"
-  Version: "2.0"
+  Version: "2.1"
 
 Environment:
+  WorldSettings:
+    StaticLighting: true
+    LightingBuildQuality: Draft
+    LightmapResolution: 64
+    NumIndirectBounces: 2
+    SamplesPerTexel: 8
+    IndirectIntensity: 1
+    AmbientOcclusion: false
+    AOIntensity: 1
+    AORadius: 0.4
+    TexelPadding: 2
+    WorldScale: 1
+    LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    LightmapBakeHash: "b652ce42643314e6"
   Skybox:
     Enabled: true
     Exposure: 0.75
@@ -16,21 +30,18 @@ Environment:
     HorizonColor: [0.08, 0.1, 0.18]
     GroundColor: [0.03, 0.03, 0.04]
     SunColor: [0.55, 0.65, 0.95]
-    StaticLighting: true
-    LightmapResolution: 64
-    NumIndirectBounces: 2
-    SamplesPerTexel: 8
-    IndirectIntensity: 1
-    AmbientOcclusion: false
-    AOIntensity: 1
-    AORadius: 0.4
-    TexelPadding: 2
-    WorldScale: 1
-    LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
-    LightmapBakeHash: "797509a115f5cb1"
 
 Actors:
+  - Name: "PlayerStart"
+    Class: "APlayerStart"
+    GUID: "4c454f4e00000000c0ffee0000000002"
+    Transform:
+      Translation: [-6.2, 2.8, 12.5]
+      Rotation: [-8, -22, 0]
+      Scale: [1, 1, 1]
   - Name: "Main Camera"
+    Class: "AActor"
+    GUID: "4c454f4e557ff342557ff342bac6b40a"
     Transform:
       Translation: [-6.2, 2.8, 12.5]
       Rotation: [-8, -22, 0]
@@ -41,6 +52,8 @@ Actors:
       NearClip: 0.1
       FarClip: 1000
   - Name: "Moonlight"
+    Class: "AActor"
+    GUID: "4c454f4eda7766aada7766aa979adf39"
     Transform:
       Translation: [0, 20, 0]
       Rotation: [0, 0, 0]
@@ -52,6 +65,8 @@ Actors:
       Intensity: 2.2
       Mobility: Stationary
   - Name: "Street Lamp Light A"
+    Class: "AActor"
+    GUID: "4c454f4e0a3987960a3987963a158312"
     Transform:
       Translation: [-5.35, 3.4, 4.2]
       Rotation: [0, 0, 0]
@@ -63,6 +78,8 @@ Actors:
       Radius: 12
       Mobility: Static
   - Name: "Street Lamp Light B"
+    Class: "AActor"
+    GUID: "4c454f4e0a3986960a3986963a15815f"
     Transform:
       Translation: [5.15, 3.4, -1.2]
       Rotation: [0, 0, 0]
@@ -74,8 +91,10 @@ Actors:
       Radius: 11
       Mobility: Static
   - Name: "Building Porch Light"
+    Class: "AActor"
+    GUID: "4c454f4ea372b2c5a372b2c519755404"
     Transform:
-      Translation: [0, 2.15, -3.2]
+      Translation: [0, 2, -1.3]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
@@ -85,8 +104,10 @@ Actors:
       Radius: 8
       Mobility: Static
   - Name: "Building Window Glow"
+    Class: "AActor"
+    GUID: "4c454f4e86451576864515769351eec7"
     Transform:
-      Translation: [-1.55, 2.2, -3.6]
+      Translation: [-1.5, 2.1, -2.2]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
@@ -96,6 +117,8 @@ Actors:
       Radius: 6.5
       Mobility: Static
   - Name: "Car Headlight Left"
+    Class: "AActor"
+    GUID: "4c454f4e7ecf9abc7ecf9abc3f78f90b"
     Transform:
       Translation: [3.75, 0.55, 5.09]
       Rotation: [0, 0, 0]
@@ -110,6 +133,8 @@ Actors:
       OuterCutOff: 24
       Mobility: Stationary
   - Name: "Car Headlight Right"
+    Class: "AActor"
+    GUID: "4c454f4e8c4d15598c4d155909e83294"
     Transform:
       Translation: [4.85, 0.55, 5.2]
       Rotation: [0, 0, 0]
@@ -124,6 +149,8 @@ Actors:
       OuterCutOff: 24
       Mobility: Static
   - Name: "Car Taillight Left"
+    Class: "AActor"
+    GUID: "4c454f4e5c3dcb585c3dcb58f2558c0b"
     Transform:
       Translation: [5.05, 0.55, 1.55]
       Rotation: [0, 0, 0]
@@ -135,6 +162,8 @@ Actors:
       Radius: 3
       Mobility: Static
   - Name: "Car Taillight Right"
+    Class: "AActor"
+    GUID: "4c454f4eab1caf9cab1caf9cf6b5fb94"
     Transform:
       Translation: [3.95, 0.55, 1.42]
       Rotation: [0, 0, 0]
@@ -146,6 +175,8 @@ Actors:
       Radius: 3
       Mobility: Static
   - Name: "Ground"
+    Class: "AActor"
+    GUID: "4c454f4e000fb517000fb517884bc2ed"
     Transform:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -165,22 +196,26 @@ Actors:
         - Slot: 0
           Asset: "/Game/Materials/M_StreetAsphalt.lmat"
   - Name: "House"
+    Class: "AActor"
+    GUID: "4c454f4e4342742f4342742f37b8c8c2"
     Transform:
-      Translation: [0, 0, -6]
+      Translation: [0, 0, -6.5]
       Rotation: [0, 180, 0]
-      Scale: [1, 1, 1]
+      Scale: [0.65, 0.65, 0.65]
     StaticMesh:
-      Asset: "/Game/Meshes/House.lmesh"
+      Asset: "/Game/Meshes/Cottage_FREE.lmesh"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
       Mobility: Static
-      LightmapResolution: 96
+      LightmapResolution: 128
       LightmapIndex: 1
-      LightmapScale: [0.1875, 0.375]
+      LightmapScale: [0.25, 0.5]
       LightmapBias: [0.257812, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Car"
+    Class: "AActor"
+    GUID: "4c454f4ea2c6a963a2c6a963313366dc"
     Transform:
       Translation: [4.4, 0, 3.2]
       Rotation: [0, 145, 0]
@@ -194,9 +229,11 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 2
       LightmapScale: [0.125, 0.25]
-      LightmapBias: [0.449219, 0.0078125]
+      LightmapBias: [0.511719, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Street Lamp A"
+    Class: "AActor"
+    GUID: "4c454f4e650e91bd650e91bd8bb3bb76"
     Transform:
       Translation: [-6.2, 0, 4.2]
       Rotation: [0, -90, 0]
@@ -210,9 +247,11 @@ Actors:
       LightmapResolution: 32
       LightmapIndex: 3
       LightmapScale: [0.0625, 0.125]
-      LightmapBias: [0.855469, 0.0078125]
+      LightmapBias: [0.917969, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Street Lamp B"
+    Class: "AActor"
+    GUID: "4c454f4e650e90bd650e90bd8bb3b9c3"
     Transform:
       Translation: [6, 0, -1.2]
       Rotation: [0, 90, 0]
@@ -226,9 +265,11 @@ Actors:
       LightmapResolution: 32
       LightmapIndex: 4
       LightmapScale: [0.0625, 0.125]
-      LightmapBias: [0.921875, 0.0078125]
+      LightmapBias: [0.00390625, 0.515625]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Palm Tree A"
+    Class: "AActor"
+    GUID: "4c454f4ef83aa9c5f83aa9c58aa4ea5d"
     Transform:
       Translation: [-8.4, 0, -4.2]
       Rotation: [0, 25, 0]
@@ -242,9 +283,11 @@ Actors:
       LightmapResolution: 48
       LightmapIndex: 5
       LightmapScale: [0.09375, 0.1875]
-      LightmapBias: [0.578125, 0.0078125]
+      LightmapBias: [0.640625, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Palm Tree B"
+    Class: "AActor"
+    GUID: "4c454f4ef83aa6c5f83aa6c58aa4e544"
     Transform:
       Translation: [8.2, 0, -2.4]
       Rotation: [0, -40, 0]
@@ -258,9 +301,11 @@ Actors:
       LightmapResolution: 48
       LightmapIndex: 6
       LightmapScale: [0.09375, 0.1875]
-      LightmapBias: [0.675781, 0.0078125]
+      LightmapBias: [0.738281, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Palm Tree C"
+    Class: "AActor"
+    GUID: "4c454f4ef83aa7c5f83aa7c58aa4e6f7"
     Transform:
       Translation: [-9.2, 0, 3.4]
       Rotation: [0, 110, 0]
@@ -274,9 +319,11 @@ Actors:
       LightmapResolution: 40
       LightmapIndex: 7
       LightmapScale: [0.078125, 0.15625]
-      LightmapBias: [0.773438, 0.0078125]
+      LightmapBias: [0.835938, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
   - Name: "Level Title"
+    Class: "AActor"
+    GUID: "4c454f4ec413c2c4c413c2c44bd2a776"
     Transform:
       Translation: [-5.5, 4.2, 6]
       Rotation: [-8, -22, 0]

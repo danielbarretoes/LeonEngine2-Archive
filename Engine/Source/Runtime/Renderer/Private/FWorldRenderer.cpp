@@ -449,6 +449,7 @@ namespace Leon {
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetCulling(true, ECullMode::Front);
+        FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
 
         ShadowDepthShader->Bind();
 
@@ -532,6 +533,7 @@ namespace Leon {
             }
         }
 
+        FRenderCommand::SetPolygonOffset(false);
         FRenderCommand::SetCulling(false);
         CascadeShadowFramebuffer->Unbind();
     }
@@ -560,6 +562,7 @@ namespace Leon {
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
 
         ShadowDepthShader->Bind();
         ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));
@@ -592,6 +595,7 @@ namespace Leon {
             }
         }
 
+        FRenderCommand::SetPolygonOffset(false);
         FRenderCommand::SetCulling(false);
         SpotShadowFramebuffer->Unbind();
     }
@@ -912,7 +916,7 @@ namespace Leon {
                 draw.DistanceSq = glm::dot(delta, delta);
                 draw.bReceiveShadows = mesh.bReceiveShadows;
                 draw.bUseLightmap = bUseLM;
-                draw.bLightmapUseTexCoord = true;
+                draw.bLightmapUseTexCoord = false;
                 draw.LightmapScale = mesh.LightmapScale;
                 draw.LightmapBias = mesh.LightmapBias;
                 draw.Lightmap = lightmapTex;
@@ -936,7 +940,7 @@ namespace Leon {
 
             ApplyMeshRasterState(*matInst, model, false);
             matInst->Bind(mesh.Shader);
-            BindLightmapUniforms(*mesh.Shader, bUseLM, true, mesh.LightmapScale, mesh.LightmapBias, lightmapTex);
+            BindLightmapUniforms(*mesh.Shader, bUseLM, false, mesh.LightmapScale, mesh.LightmapBias, lightmapTex);
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", DebugMode);
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));

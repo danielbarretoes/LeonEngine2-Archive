@@ -40,6 +40,17 @@ namespace Leon {
         bool bContributeDirect = true;
     };
 
+    struct FBakeEnvironment {
+        bool bEnabled = false;
+        glm::vec3 Zenith{0.18f, 0.44f, 0.88f};
+        glm::vec3 Horizon{0.78f, 0.84f, 0.95f};
+        glm::vec3 Ground{0.22f, 0.24f, 0.28f};
+        float Intensity = 1.0f;
+        std::vector<float> HDRRGBA;
+        int HDRWidth = 0;
+        int HDRHeight = 0;
+    };
+
     struct FLightBakerScene {
         std::vector<FBakeVertex> Vertices;
         std::vector<FBakeTriangle> Triangles;
@@ -47,6 +58,7 @@ namespace Leon {
         std::vector<FBakePointLight> PointLights;
         std::vector<FBakeSpotLight> SpotLights;
         std::vector<FLightmapChart> Charts;
+        FBakeEnvironment Environment;
         uint32_t AtlasWidth = 0;
         uint32_t AtlasHeight = 0;
     };
@@ -63,8 +75,8 @@ namespace Leon {
 
     /**
      * @brief CPU path tracer for diffuse irradiance lightmaps.
-     * Direct + optional cosine-weighted GI. Shared attenuation with PBR_Lit.
-     * Receptor emissive is runtime-only. Material AO is not baked into E.
+     * Direct lights + cosine-weighted environment (miss = sky) + optional GI bounces.
+     * Receptor emissive is runtime-only. Geometric AO can scale stored E.
      */
     class FLightBaker {
     public:

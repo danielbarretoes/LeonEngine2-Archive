@@ -109,6 +109,20 @@ namespace {
         return Scene.Triangles[tri].bCastShadow;
     }
 
+    static glm::vec3 SampleBakeEnvironment(const FLightBakerScene& Scene, const glm::vec3& Dir) {
+        if (!Scene.Environment.bEnabled)
+            return glm::vec3(0.0f);
+        glm::vec3 li;
+        if (!Scene.Environment.HDRRGBA.empty() && Scene.Environment.HDRWidth > 0 && Scene.Environment.HDRHeight > 0) {
+            li = SampleEquirectangular(Scene.Environment.HDRRGBA.data(), Scene.Environment.HDRWidth,
+                                       Scene.Environment.HDRHeight, Dir);
+        } else {
+            li = SampleAtmosphericSky(Dir, Scene.Environment.Zenith, Scene.Environment.Horizon,
+                                      Scene.Environment.Ground);
+        }
+        return li * Scene.Environment.Intensity;
+    }
+
     static glm::vec3 EvaluateDirectIrradiance(const FLightBakerScene& Scene, const glm::vec3& Pos,
                                               const glm::vec3& Normal, bool bDirectLightingPass) {
         glm::vec3 irradiance(0.0f);
@@ -261,6 +275,7 @@ namespace {
                 // Receptor emissive stays runtime-only. Incoming emissive from other surfaces is in GI Li.
                 direct[idx] = EvaluateDirectIrradiance(InScene, pos, n, true);
 
+                glm::vec3 skyAccum(0.0f);
                 glm::vec3 indir(0.0f);
                 // Ray visibility is already in direct/GI. Material AO stays a runtime artistic term.
                 const bool bTraceGI = InSettings.NumIndirectBounces > 0;
@@ -277,7 +292,11 @@ namespace {
                     bool hit =
                         IntersectScene(InScene, pos + n * kEpsilon * 2.0f, dir, 1e6f, tHit, hitTri, bary);
 
-                    if (!bTraceGI || !hit)
+                    if (!hit) {
+                        skyAccum += kPI * SampleBakeEnvironment(InScene, dir);
+                        continue;
+                    }
+                    if (!bTraceGI)
                         continue;
 
                     const auto& tri = InScene.Triangles[hitTri];
@@ -305,8 +324,10 @@ namespace {
                         uint32_t tri2;
                         glm::vec3 bary2;
                         if (!IntersectScene(InScene, curPos + curN * kEpsilon * 2.0f, dir2, 1e6f, t2, tri2,
-                                            bary2))
+                                            bary2)) {
+                            Epath += throughput * SampleBakeEnvironment(InScene, dir2);
                             break;
+                        }
                         const auto& tref = InScene.Triangles[tri2];
                         const auto& w0 = InScene.Vertices[tref.I0];
                         const auto& w1 = InScene.Vertices[tref.I1];
@@ -324,9 +345,32 @@ namespace {
                     indir += Epath;
                 }
 
-                if (samples > 0)
+                if (samples > 0) {
                     indir /= static_cast<float>(samples);
+                    skyAccum /= static_cast<float>(samples);
+                }
+                direct[idx] += skyAccum;
                 indirect[idx] = indir * InSettings.IndirectIntensity;
+
+                if (InSettings.bAmbientOcclusion && InSettings.AORadius > 0.0f) {
+                    float occluded = 0.0f;
+                    const uint32_t aoSamples = std::max(1u, samples);
+                    for (uint32_t s = 0; s < aoSamples; ++s) {
+                        uint32_t h = HashCombine(InSettings.Seed ^ 0xA0A0A0A0u, x, y, s);
+                        glm::vec2 xi = HammersleyLocal(h % aoSamples, aoSamples);
+                        glm::vec3 dir = CosineSampleHemisphere(n, xi.x, xi.y);
+                        float tHit;
+                        uint32_t hitTri;
+                        glm::vec3 bary;
+                        if (IntersectScene(InScene, pos + n * kEpsilon * 2.0f, dir, InSettings.AORadius, tHit, hitTri,
+                                           bary))
+                            occluded += 1.0f;
+                    }
+                    float vis = 1.0f - std::clamp(InSettings.AOIntensity * (occluded / static_cast<float>(aoSamples)),
+                                                  0.0f, 1.0f);
+                    direct[idx] *= vis;
+                    indirect[idx] *= vis;
+                }
             }
         }
 

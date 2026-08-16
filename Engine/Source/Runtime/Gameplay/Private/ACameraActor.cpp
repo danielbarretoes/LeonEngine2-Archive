@@ -3,7 +3,9 @@
 namespace Leon {
 
     ACameraActor::ACameraActor(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {}
+        : AActor(InHandle, InWorld, InName) {
+        SetClass("ACameraActor");
+    }
 
     void ACameraActor::PostInitializeComponents() {
         if (!HasComponent<UCameraComponent>()) {

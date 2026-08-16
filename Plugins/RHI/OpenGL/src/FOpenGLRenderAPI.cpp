@@ -161,6 +161,16 @@ namespace Leon {
             glDisable(GL_CLIP_DISTANCE0);
     }
 
+    void FOpenGLRenderAPI::SetPolygonOffset(bool InEnabled, float InFactor, float InUnits) {
+        if (InEnabled) {
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(InFactor, InUnits);
+        } else {
+            glDisable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(0.0f, 0.0f);
+        }
+    }
+
     FGPUInfo FOpenGLRenderAPI::GetGPUInfo() {
         FGPUInfo info;
         const char* vendor = (const char*)glGetString(GL_VENDOR);

@@ -4,6 +4,7 @@
 #include "RHI/IRenderDriver.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <limits>
 
@@ -179,6 +180,9 @@ namespace Leon {
             file.write(reinterpret_cast<const char*>(Indices.data()), Indices.size() * sizeof(uint32_t));
         }
 
+        uint8_t uniqueUV = bHasUniqueLightmapUV ? 1 : 0;
+        file.write(reinterpret_cast<const char*>(&uniqueUV), sizeof(uniqueUV));
+
         return file.good();
     }
 
@@ -199,7 +203,7 @@ namespace Leon {
             LE_CORE_ERROR("UStaticMesh: Invalid magic in \"{0}\"", InFilePath);
             return false;
         }
-        if (version != LMESH_VERSION && version != LMESH_VERSION_V1 && version != LMESH_VERSION_V2) {
+        if (version < LMESH_VERSION_V1 || version > LMESH_VERSION) {
             LE_CORE_ERROR("UStaticMesh: Unsupported version {0} in \"{1}\"", version, InFilePath);
             return false;
         }
@@ -295,6 +299,13 @@ namespace Leon {
         Indices.resize(indexCount);
         if (indexCount > 0) {
             file.read(reinterpret_cast<char*>(Indices.data()), indexCount * sizeof(uint32_t));
+        }
+
+        bHasUniqueLightmapUV = false;
+        if (version >= 4) {
+            uint8_t uniqueUV = 0;
+            file.read(reinterpret_cast<char*>(&uniqueUV), sizeof(uniqueUV));
+            bHasUniqueLightmapUV = uniqueUV != 0;
         }
 
         AssetPath = InFilePath;

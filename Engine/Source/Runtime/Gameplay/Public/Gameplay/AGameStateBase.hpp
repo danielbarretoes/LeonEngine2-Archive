@@ -20,6 +20,7 @@ namespace Leon {
         const std::vector<APlayerState*>& GetPlayerArray() const { return PlayerArray; }
 
         float GetElapsedTime() const { return ElapsedTime; }
+        void SetElapsedTime(float InTime) { ElapsedTime = InTime; }
         void Tick(float DeltaSeconds) override;
 
     private:

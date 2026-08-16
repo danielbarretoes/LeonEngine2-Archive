@@ -4,7 +4,9 @@
 namespace Leon {
 
     APawn::APawn(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {}
+        : AActor(InHandle, InWorld, InName) {
+        SetClass("APawn");
+    }
 
     void APawn::PossessedBy(APlayerController* InController) {
         Controller = InController;

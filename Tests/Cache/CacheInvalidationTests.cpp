@@ -37,12 +37,12 @@ TEST_SUITE("Cache - Invalidation & FNV-1a 64-bit Content Hashing") {
         headerV3.Version = 3;
         headerV3.HDRSourceHash = hashA1;
 
-        Leon::FIBLCacheHeader headerV5;
-        headerV5.Version = 5;
-        headerV5.HDRSourceHash = hashA1;
+        Leon::FIBLCacheHeader headerDefault;
+        headerDefault.HDRSourceHash = hashA1;
 
-        CHECK(headerV3.Version != 5);
-        CHECK(headerV5.Version == 5);
+        CHECK(headerV3.Version != Leon::kIBLCacheVersion);
+        CHECK(headerDefault.Version == 6);
+        CHECK(headerDefault.Version == Leon::kIBLCacheVersion);
 
         std::filesystem::remove(testFilePath);
     }

@@ -49,7 +49,7 @@ Display        = bloom → exposure → tone map → gamma 2.2 → LDR
 
 sRGB textures are decoded **once** by the GPU. Shaders must not `pow(rgb, 2.2)`.
 
-Albedo / emissive CPU constants are linear. Baker albedo averages decode sRGB with the piecewise IEC 61966-2-1 transfer (`SRGBToLinear`).
+Albedo / emissive CPU constants are linear. Baker albedo map samples decode sRGB with the piecewise IEC 61966-2-1 transfer (`SRGBToLinear`). Display encode after tone mapping uses the matching `LinearToSRGB` (not `pow(x, 1/2.2)`).
 
 ## PBR (direct)
 
@@ -75,7 +75,7 @@ Diffuse:
 Lo_diffuse = albedo / PI * E
 ```
 
-Prefilter: GGX/Karis split-sum. BRDF LUT uses IBL Smith (`k = a²/2`), texel centers `(x+0.5)/size`. Cache `.libl` **v5** hashes HDR content, algorithm version, resolutions, and sample counts. **Exposure and environment intensity are not baked into IBL.**
+Prefilter: GGX/Karis split-sum. BRDF LUT uses IBL Smith (`k = a²/2`), texel centers `(x+0.5)/size`. Cache `.libl` **v6** hashes HDR content, algorithm version, resolutions, and sample counts. `saTexel` is the cubemap solid angle \(4\pi / (6 \cdot \mathrm{size}^2)\). **Exposure and environment intensity are not baked into IBL.** Perceptual roughness is clamped to `[0.04, 1]` on CPU and GPU.
 
 Runtime: IBL and skybox multiply `EnvironmentIntensity`. Scene `Exposure` is applied only in `ToneMapping.glsl`.
 
@@ -102,15 +102,15 @@ Runtime:
 Lo_diffuse = kD * albedo / PI * E
 ```
 
-When a lightmap is bound, diffuse IBL is replaced by the lightmap; specular IBL remains.
+When a lightmap is bound, diffuse IBL is replaced by the lightmap; specular IBL remains. Sky irradiance is stored in the lightmap (cosine miss \(E = \pi L_{\mathrm{env}}\), not scaled by `IndirectIntensity`).
 
-- `NumIndirectBounces == 0` disables GI (direct only).
-- GI estimator: cosine hemisphere sampling, `E += π * Lo_hit`, throughput `albedo` per extra bounce.
+- `NumIndirectBounces == 0` disables GI (direct + environment miss still apply).
+- GI estimator: cosine hemisphere sampling, `E += π * Lo_hit`, throughput `albedo` per extra bounce. Environment miss on later bounces adds `throughput * L_env`.
 - Receptor **emissive is runtime-only**. Other surfaces contribute emissive through GI `Li`.
 - Bake AO is **not** multiplied into `E`. Artistic AO is the material AO map at runtime.
 - Spotlight angular factor is the same Hermite smoothstep as `PBR_Lit.glsl` (`FLightAttenuation.hpp`).
 
-`.llightmap` version **2**. Cache key includes baker algorithm version `2`, geometry, transforms, lights (including disabled), materials, UVs, resolution, bounces, samples, AO settings.
+`.llightmap` version **2**. Cache key includes baker algorithm version `4`, geometry, transforms, lights, skybox/HDR, materials, UV0 albedo samples, resolution, bounces, samples, AO settings.
 
 ### Mobility
 
@@ -145,7 +145,7 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 
 | Asset | Version / key |
 | :--- | :--- |
-| `.libl` | v5, HDR hash, sizes, sample counts |
+| `.libl` | v6, HDR hash, sizes, sample counts |
 | BRDF LUT | `LEONBRDF` v1 |
 | `.llightmap` | v2 + bake input hash |
 | `.lmesh` | v3 (v1/v2 migrated on load) |

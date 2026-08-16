@@ -54,6 +54,7 @@ add_executable(RendererTests
     Gameplay/UIHUDTests.cpp
     Gameplay/InputSettingsTests.cpp
     Gameplay/CharacterComponentFrustumTests.cpp
+    Gameplay/NetDriverTests.cpp
     Lightmass/StaticLightingTests.cpp
     Renderer/ViewportResizeTests.cpp
     Renderer/GoldenSceneTests.cpp
@@ -70,6 +71,7 @@ target_include_directories(RendererTests PRIVATE
 
 target_link_libraries(RendererTests PRIVATE
     LeonEngineCore
+    LeonEnginePipeline
     LeonEngine_OpenGL
     doctest
     glad

@@ -1,5 +1,6 @@
 #include "Lightmass/FLightmass.hpp"
 #include "Assets/FAssetPath.hpp"
+#include "Assets/FHDRImporter.hpp"
 #include "Assets/FLightmapAsset.hpp"
 #include "Assets/FLightmapUV.hpp"
 #include "Assets/FTextureImporter.hpp"
@@ -20,6 +21,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -74,9 +76,25 @@ namespace {
         return Hash;
     }
 
-    glm::vec3 AverageAlbedoFromTexturePath(const std::string& InVirtualOrAbsolutePath) {
+    struct FBakeAlbedoTexture {
+        std::vector<uint8_t> Pixels;
+        uint32_t Width = 0;
+        uint32_t Height = 0;
+        uint32_t Channels = 4;
+        bool bSRGB = true;
+    };
+
+    struct FBakeMaterialSample {
+        glm::vec3 Albedo{0.7f};
+        float Metallic = 0.0f;
+        float Roughness = 0.5f;
+        glm::vec3 Emissive{0.0f};
+        FBakeAlbedoTexture AlbedoMap;
+    };
+
+    bool LoadBakeAlbedoTexture(const std::string& InVirtualOrAbsolutePath, FBakeAlbedoTexture& OutTex) {
         if (InVirtualOrAbsolutePath.empty())
-            return glm::vec3(-1.0f);
+            return false;
 
         fs::path resolved = InVirtualOrAbsolutePath;
         if (!resolved.is_absolute()) {
@@ -85,42 +103,40 @@ namespace {
                 resolved = underContent;
         }
         if (!fs::exists(resolved))
-            return glm::vec3(-1.0f);
+            return false;
 
         FNativeTextureData tex;
         if (!tex.LoadFromFile(resolved.string()) || tex.Mips.empty() || tex.Mips[0].Pixels.empty())
-            return glm::vec3(-1.0f);
+            return false;
 
         const auto& mip = tex.Mips[0];
-        const uint32_t channels = std::max(1u, tex.Header.Channels);
-        const bool bSRGB = tex.Header.ColorSpace == 1 && !IsLinearDataTexturePath(resolved.string());
-        double sumR = 0.0, sumG = 0.0, sumB = 0.0;
-        uint32_t count = 0;
-        for (size_t i = 0; i + channels - 1 < mip.Pixels.size(); i += channels) {
-            float a = (channels >= 4) ? mip.Pixels[i + 3] / 255.0f : 1.0f;
-            if (a < 0.05f)
-                continue;
-            glm::vec3 encoded(mip.Pixels[i + 0] / 255.0f,
-                              (channels > 1 ? mip.Pixels[i + 1] : mip.Pixels[i + 0]) / 255.0f,
-                              (channels > 2 ? mip.Pixels[i + 2] : mip.Pixels[i + 0]) / 255.0f);
-            glm::vec3 linear = bSRGB ? SRGBToLinear(encoded) : encoded;
-            sumR += linear.r;
-            sumG += linear.g;
-            sumB += linear.b;
-            ++count;
-        }
-        if (count == 0)
-            return glm::vec3(-1.0f);
-        return glm::vec3(static_cast<float>(sumR / count), static_cast<float>(sumG / count),
-                          static_cast<float>(sumB / count));
+        OutTex.Pixels = mip.Pixels;
+        OutTex.Width = mip.Width;
+        OutTex.Height = mip.Height;
+        OutTex.Channels = std::max(1u, tex.Header.Channels);
+        OutTex.bSRGB = tex.Header.ColorSpace == 1 && !IsLinearDataTexturePath(resolved.string());
+        return OutTex.Width > 0 && OutTex.Height > 0;
     }
 
-    struct FBakeMaterialSample {
-        glm::vec3 Albedo{0.7f};
-        float Metallic = 0.0f;
-        float Roughness = 0.5f;
-        glm::vec3 Emissive{0.0f};
-    };
+    glm::vec3 SampleAlbedoAtUV(const FBakeMaterialSample& InMat, const glm::vec2& InUV) {
+        const FBakeAlbedoTexture& tex = InMat.AlbedoMap;
+        if (tex.Pixels.empty() || tex.Width == 0 || tex.Height == 0)
+            return InMat.Albedo;
+
+        float u = InUV.x - std::floor(InUV.x);
+        float v = InUV.y - std::floor(InUV.y);
+        int x = std::clamp(static_cast<int>(u * static_cast<float>(tex.Width)), 0, static_cast<int>(tex.Width) - 1);
+        int y = std::clamp(static_cast<int>(v * static_cast<float>(tex.Height)), 0, static_cast<int>(tex.Height) - 1);
+        size_t i = (static_cast<size_t>(y) * tex.Width + static_cast<size_t>(x)) * tex.Channels;
+        if (i + tex.Channels - 1 >= tex.Pixels.size())
+            return InMat.Albedo;
+
+        glm::vec3 encoded(tex.Pixels[i + 0] / 255.0f,
+                          (tex.Channels > 1 ? tex.Pixels[i + 1] : tex.Pixels[i + 0]) / 255.0f,
+                          (tex.Channels > 2 ? tex.Pixels[i + 2] : tex.Pixels[i + 0]) / 255.0f);
+        glm::vec3 linear = tex.bSRGB ? SRGBToLinear(encoded) : encoded;
+        return linear * InMat.Albedo;
+    }
 
     FBakeMaterialSample SampleMaterialInstance(const TRef<FMaterialInstance>& InMatInst) {
         FBakeMaterialSample sample;
@@ -134,9 +150,7 @@ namespace {
 
         if (InMatInst->GetParent()) {
             const std::string& texPath = InMatInst->GetParent()->GetTexturePath(0);
-            glm::vec3 avg = AverageAlbedoFromTexturePath(texPath);
-            if (avg.x >= 0.0f)
-                sample.Albedo = avg;
+            LoadBakeAlbedoTexture(texPath, sample.AlbedoMap);
         }
         return sample;
     }
@@ -418,6 +432,29 @@ namespace {
         }
     }
 
+    void PersistMissingLightmapUVs(UStaticMesh& Mesh) {
+        if (FLightmapUV::HasLightmapUV(Mesh))
+            return;
+        FLightmapUV::GenerateBoxPackedLightmapUVs(Mesh);
+        if (Mesh.GetAssetPath().empty())
+            return;
+        if (Mesh.SaveToFile(Mesh.GetAssetPath()))
+            LogLM("Wrote lightmap UVs to " + Mesh.GetAssetPath());
+        else
+            LogLM("Warning: failed to persist lightmap UVs to " + Mesh.GetAssetPath());
+    }
+
+    void PersistWorldLightmapUVs(UWorld& InWorld) {
+        for (auto& actorRef : InWorld.GetAllActors()) {
+            if (!actorRef || !actorRef->HasComponent<UStaticMeshComponent>())
+                continue;
+            auto& smc = actorRef->GetComponent<UStaticMeshComponent>();
+            if (smc.Mobility != EComponentMobility::Static || !smc.StaticMesh)
+                continue;
+            PersistMissingLightmapUVs(*smc.StaticMesh);
+        }
+    }
+
     void AppendStaticMesh(FLightBakerScene& Scene, uint32_t ChartIndex, UStaticMesh& Mesh, const glm::mat4& M,
                            const FBakeMaterialSample& Mat, bool bCastShadow) {
         auto& verts = Mesh.GetVertices();
@@ -425,15 +462,7 @@ namespace {
         if (verts.empty() || indices.size() < 3)
             return;
 
-        if (!FLightmapUV::HasLightmapUV(Mesh)) {
-            FLightmapUV::GenerateBoxPackedLightmapUVs(Mesh);
-            if (!Mesh.GetAssetPath().empty()) {
-                if (Mesh.SaveToFile(Mesh.GetAssetPath()))
-                    LogLM("Wrote lightmap UVs to " + Mesh.GetAssetPath());
-                else
-                    LogLM("Warning: failed to persist lightmap UVs to " + Mesh.GetAssetPath());
-            }
-        }
+        PersistMissingLightmapUVs(Mesh);
 
         glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(M)));
         uint32_t base = static_cast<uint32_t>(Scene.Vertices.size());
@@ -442,7 +471,7 @@ namespace {
             v.Position = glm::vec3(M * glm::vec4(sv.Position, 1.0f));
             v.Normal = glm::normalize(normalMat * sv.Normal);
             v.LightmapUV = sv.LightmapUV;
-            v.Albedo = Mat.Albedo;
+            v.Albedo = SampleAlbedoAtUV(Mat, sv.TexCoord);
             v.Metallic = Mat.Metallic;
             v.Roughness = Mat.Roughness;
             v.Emissive = Mat.Emissive;
@@ -468,26 +497,70 @@ namespace {
         return contentRoot / rel;
     }
 
-    void ApplySkyboxSettings(FSkyboxComponent& Sky, FLightmassSettings& OutSettings, std::string& OutLightmapVirtual) {
-        if (Sky.LightmapResolution > 0)
-            OutSettings.LightmapResolution = Sky.LightmapResolution;
-        OutSettings.NumIndirectBounces = Sky.NumIndirectBounces;
-        OutSettings.SamplesPerTexel = Sky.SamplesPerTexel;
-        OutSettings.IndirectIntensity = Sky.IndirectIntensity;
-        OutSettings.bAmbientOcclusion = Sky.bAmbientOcclusion;
-        OutSettings.AOIntensity = Sky.AOIntensity;
-        OutSettings.AORadius = Sky.AORadius;
-        OutSettings.TexelPadding = Sky.TexelPadding;
-        OutSettings.WorldScale = Sky.WorldScale;
-        if (!Sky.LightmapAssetPath.empty())
-            OutLightmapVirtual = Sky.LightmapAssetPath;
+    FWorldSettingsComponent* FindWorldSettings(UWorld& InWorld) {
+        for (auto& actorRef : InWorld.GetAllActors()) {
+            if (actorRef && actorRef->HasComponent<FWorldSettingsComponent>())
+                return &actorRef->GetComponent<FWorldSettingsComponent>();
+        }
+        return nullptr;
+    }
+
+    const FSkyboxComponent* FindSkybox(UWorld& InWorld) {
+        const FSkyboxComponent* found = nullptr;
+        for (auto& actorRef : InWorld.GetAllActors()) {
+            if (actorRef && actorRef->HasComponent<FSkyboxComponent>())
+                found = &actorRef->GetComponent<FSkyboxComponent>();
+        }
+        return found;
+    }
+
+    void FillBakeEnvironment(FLightBakerScene& Scene, const FSkyboxComponent& InSkybox) {
+        Scene.Environment.bEnabled = InSkybox.bEnabled;
+        Scene.Environment.Zenith = InSkybox.SkyZenithColor;
+        Scene.Environment.Horizon = InSkybox.HorizonColor;
+        Scene.Environment.Ground = InSkybox.GroundColor;
+        Scene.Environment.Intensity = InSkybox.EnvironmentIntensity;
+
+        if (!InSkybox.bEnabled || !InSkybox.bUseHDREnvironmentMap)
+            return;
+
+        std::string hdrPath = InSkybox.HDREnvironmentMapPath;
+        if (hdrPath.empty())
+            return;
+        hdrPath = UAssetManager::ResolveVirtualPath(hdrPath);
+        if (hdrPath.size() < 5 || hdrPath.substr(hdrPath.size() - 5) != ".lhdr")
+            return;
+
+        FNativeHDRData hdr;
+        if (!hdr.LoadFromFile(hdrPath) || hdr.Pixels.empty())
+            return;
+        Scene.Environment.HDRRGBA = std::move(hdr.Pixels);
+        Scene.Environment.HDRWidth = static_cast<int>(hdr.Header.Width);
+        Scene.Environment.HDRHeight = static_cast<int>(hdr.Header.Height);
+    }
+
+    void ApplyWorldSettings(const FWorldSettingsComponent& Ws, FLightmassSettings& OutSettings,
+                            std::string& OutLightmapVirtual) {
+        if (Ws.LightmapResolution > 0)
+            OutSettings.LightmapResolution = Ws.LightmapResolution;
+        OutSettings.NumIndirectBounces = Ws.NumIndirectBounces;
+        OutSettings.SamplesPerTexel = Ws.SamplesPerTexel;
+        OutSettings.IndirectIntensity = Ws.IndirectIntensity;
+        OutSettings.bAmbientOcclusion = Ws.bAmbientOcclusion;
+        OutSettings.AOIntensity = Ws.AOIntensity;
+        OutSettings.AORadius = Ws.AORadius;
+        OutSettings.TexelPadding = Ws.TexelPadding;
+        OutSettings.WorldScale = Ws.WorldScale;
+        OutSettings.LightingBuildQuality = Ws.LightingBuildQuality;
+        if (!Ws.LightmapAssetPath.empty())
+            OutLightmapVirtual = Ws.LightmapAssetPath;
     }
 
 } // namespace
 
     uint64_t FLightmass::ComputeBakeInputHash(const UWorld& InWorld, const FLightmassSettings& InSettings) {
         uint64_t hash = 14695981039346656037ull;
-        constexpr uint32_t kBakerAlgorithmVersion = 2;
+        constexpr uint32_t kBakerAlgorithmVersion = 4;
         hash = HashBytes(hash, &kBakerAlgorithmVersion, sizeof(kBakerAlgorithmVersion));
 
         hash = HashBytes(hash, &InSettings.LightmapResolution, sizeof(InSettings.LightmapResolution));
@@ -501,6 +574,8 @@ namespace {
         hash = HashBytes(hash, &InSettings.TexelPadding, sizeof(InSettings.TexelPadding));
         hash = HashBytes(hash, &InSettings.WorldScale, sizeof(InSettings.WorldScale));
         hash = HashBytes(hash, &InSettings.DeterministicSeed, sizeof(InSettings.DeterministicSeed));
+        uint8_t quality = static_cast<uint8_t>(InSettings.LightingBuildQuality);
+        hash = HashBytes(hash, &quality, sizeof(quality));
 
         for (const auto& actorRef : InWorld.GetAllActors()) {
             if (!actorRef)
@@ -524,6 +599,14 @@ namespace {
                 if (smc.Mobility == EComponentMobility::Static && smc.StaticMesh) {
                     hash = HashString(hash, smc.StaticMesh->GetAssetPath());
                     hash = HashAssetFileFingerprint(hash, smc.StaticMesh->GetAssetPath());
+                    for (const auto& slot : smc.StaticMesh->GetMaterialSlots()) {
+                        hash = HashString(hash, slot.DefaultMaterialPath);
+                        hash = HashAssetFileFingerprint(hash, slot.DefaultMaterialPath);
+                    }
+                }
+                for (const auto& path : smc.MaterialOverridePaths) {
+                    hash = HashString(hash, path);
+                    hash = HashAssetFileFingerprint(hash, path);
                 }
                 if (actor.HasComponent<FMaterialComponent>()) {
                     hash = HashString(hash, actor.GetComponent<FMaterialComponent>().AssetPath);
@@ -542,6 +625,10 @@ namespace {
                 hash = HashBytes(hash, &mc.MeshDepth, sizeof(mc.MeshDepth));
                 hash = HashBytes(hash, &mc.MeshRadius, sizeof(mc.MeshRadius));
                 hash = HashString(hash, actor.GetName());
+                if (actor.HasComponent<FMaterialComponent>()) {
+                    hash = HashString(hash, actor.GetComponent<FMaterialComponent>().AssetPath);
+                    hash = HashAssetFileFingerprint(hash, actor.GetComponent<FMaterialComponent>().AssetPath);
+                }
             }
 
             auto hashLight = [&](ELightMobility Mobility, bool bEnabled, const auto& LightPayload) {
@@ -563,6 +650,20 @@ namespace {
             if (actor.HasComponent<USpotLightComponent>()) {
                 const auto& c = actor.GetComponent<USpotLightComponent>();
                 hashLight(c.Mobility, c.bEnabled, c.Light);
+            }
+
+            if (actor.HasComponent<FSkyboxComponent>()) {
+                const auto& sky = actor.GetComponent<FSkyboxComponent>();
+                uint8_t en = sky.bEnabled ? 1 : 0;
+                uint8_t useHdr = sky.bUseHDREnvironmentMap ? 1 : 0;
+                hash = HashBytes(hash, &en, sizeof(en));
+                hash = HashBytes(hash, &useHdr, sizeof(useHdr));
+                hash = HashVec3(hash, sky.SkyZenithColor);
+                hash = HashVec3(hash, sky.HorizonColor);
+                hash = HashVec3(hash, sky.GroundColor);
+                hash = HashBytes(hash, &sky.EnvironmentIntensity, sizeof(sky.EnvironmentIntensity));
+                hash = HashString(hash, sky.HDREnvironmentMapPath);
+                hash = HashAssetFileFingerprint(hash, sky.HDREnvironmentMapPath);
             }
         }
 
@@ -592,15 +693,11 @@ namespace {
         std::string lightmapVirtual;
         bool bStaticLighting = false;
         uint64_t storedHash = 0;
-        for (auto& actorRef : world->GetAllActors()) {
-            if (!actorRef || !actorRef->HasComponent<FSkyboxComponent>())
-                continue;
-            auto& sky = actorRef->GetComponent<FSkyboxComponent>();
-            bStaticLighting = sky.bStaticLighting;
-            storedHash = sky.LightmapBakeHash;
-            lightmapVirtual = sky.LightmapAssetPath;
-            ApplySkyboxSettings(sky, settings, lightmapVirtual);
-            break;
+        if (FWorldSettingsComponent* ws = FindWorldSettings(*world)) {
+            bStaticLighting = ws->bStaticLighting;
+            storedHash = ws->LightmapBakeHash;
+            lightmapVirtual = ws->LightmapAssetPath;
+            ApplyWorldSettings(*ws, settings, lightmapVirtual);
         }
 
         uint32_t staticMeshes = 0;
@@ -668,13 +765,21 @@ namespace {
                 return false;
             }
             uint64_t expected = ComputeBakeInputHash(*world, settings);
-            if (storedHash != 0 && storedHash != expected) {
+            if (storedHash == 0) {
+                OutMessage = ss.str() + " — FAIL: LightmapBakeHash is 0";
+                return false;
+            }
+            if (storedHash != expected) {
                 ss << " — FAIL: LightmapBakeHash stale (stored=" << std::hex << storedHash
                    << " expected=" << expected << std::dec << ")";
                 OutMessage = ss.str();
                 return false;
             }
-            if (atlas.GetContentHash() != 0 && atlas.GetContentHash() != expected) {
+            if (atlas.GetContentHash() == 0) {
+                OutMessage = ss.str() + " — FAIL: .llightmap ContentHash is 0";
+                return false;
+            }
+            if (atlas.GetContentHash() != expected) {
                 ss << " — FAIL: .llightmap ContentHash stale";
                 OutMessage = ss.str();
                 return false;
@@ -711,12 +816,11 @@ namespace {
         FLightmassSettings settings = InSettings;
         std::string lightmapVirtual = "/Game/Lightmaps/" + fs::path(InMapPath).stem().string() + ".llightmap";
 
-        for (auto& actorRef : world->GetAllActors()) {
-            if (!actorRef || !actorRef->HasComponent<FSkyboxComponent>())
-                continue;
-            ApplySkyboxSettings(actorRef->GetComponent<FSkyboxComponent>(), settings, lightmapVirtual);
-            break;
+        if (FWorldSettingsComponent* ws = FindWorldSettings(*world)) {
+            ApplyWorldSettings(*ws, settings, lightmapVirtual);
         }
+
+        PersistWorldLightmapUVs(*world);
 
         uint64_t bakeHash = ComputeBakeInputHash(*world, settings);
         result.BakeHash = bakeHash;
@@ -725,17 +829,12 @@ namespace {
 
         if (!bForce && fs::exists(lightmapAbs)) {
             FLightmapAsset existing;
-            bool bHashMatch = false;
-            if (existing.LoadFromFile(lightmapAbs.string()) && existing.GetContentHash() == bakeHash)
-                bHashMatch = true;
-            for (auto& actorRef : world->GetAllActors()) {
-                if (actorRef && actorRef->HasComponent<FSkyboxComponent>()) {
-                    if (actorRef->GetComponent<FSkyboxComponent>().LightmapBakeHash == bakeHash)
-                        bHashMatch = true;
-                    break;
-                }
-            }
-            if (bHashMatch) {
+            bool bAtlasMatch = existing.LoadFromFile(lightmapAbs.string()) && existing.GetContentHash() != 0 &&
+                               existing.GetContentHash() == bakeHash;
+            bool bWorldMatch = false;
+            if (FWorldSettingsComponent* ws = FindWorldSettings(*world))
+                bWorldMatch = ws->LightmapBakeHash != 0 && ws->LightmapBakeHash == bakeHash;
+            if (bAtlasMatch && bWorldMatch) {
                 result.bSuccess = true;
                 result.Message = "Lightmap cache valid";
                 result.LightmapPath = lightmapAbs.string();
@@ -854,6 +953,19 @@ namespace {
         bakerSettings.AORadius = settings.AORadius * std::max(settings.WorldScale, 1e-4f);
         bakerSettings.Seed = settings.DeterministicSeed;
 
+        if (const FSkyboxComponent* sky = FindSkybox(*world)) {
+            FillBakeEnvironment(scene, *sky);
+            if (scene.Environment.bEnabled) {
+                if (scene.Environment.HDRWidth > 0) {
+                    LogLM("Bake environment: HDR " + std::to_string(scene.Environment.HDRWidth) + "x" +
+                          std::to_string(scene.Environment.HDRHeight) +
+                          " intensity=" + std::to_string(scene.Environment.Intensity));
+                } else {
+                    LogLM("Bake environment: atmosphere intensity=" + std::to_string(scene.Environment.Intensity));
+                }
+            }
+        }
+
         std::vector<float> pixels;
         FLightBaker::Bake(scene, bakerSettings, pixels);
 
@@ -868,24 +980,26 @@ namespace {
             return result;
         }
 
-        for (auto& actorRef : world->GetAllActors()) {
-            if (!actorRef || !actorRef->HasComponent<FSkyboxComponent>())
-                continue;
-            auto& sky = actorRef->GetComponent<FSkyboxComponent>();
-            sky.bStaticLighting = true;
-            sky.LightmapAssetPath = lightmapVirtual;
-            sky.LightmapBakeHash = bakeHash;
-            sky.LightmapResolution = settings.LightmapResolution;
-            sky.NumIndirectBounces = settings.NumIndirectBounces;
-            sky.SamplesPerTexel = settings.SamplesPerTexel;
-            sky.IndirectIntensity = settings.IndirectIntensity;
-            sky.bAmbientOcclusion = settings.bAmbientOcclusion;
-            sky.AOIntensity = settings.AOIntensity;
-            sky.AORadius = settings.AORadius;
-            sky.TexelPadding = settings.TexelPadding;
-            sky.WorldScale = settings.WorldScale;
-            break;
+        FWorldSettingsComponent* ws = FindWorldSettings(*world);
+        if (!ws) {
+            AActor* env = world->FindActorByName("Environment Skybox");
+            if (!env)
+                env = world->SpawnActor("Environment Skybox");
+            ws = &env->AddComponent<FWorldSettingsComponent>();
         }
+        ws->bStaticLighting = true;
+        ws->LightmapAssetPath = lightmapVirtual;
+        ws->LightmapBakeHash = bakeHash;
+        ws->LightmapResolution = settings.LightmapResolution;
+        ws->NumIndirectBounces = settings.NumIndirectBounces;
+        ws->SamplesPerTexel = settings.SamplesPerTexel;
+        ws->IndirectIntensity = settings.IndirectIntensity;
+        ws->bAmbientOcclusion = settings.bAmbientOcclusion;
+        ws->AOIntensity = settings.AOIntensity;
+        ws->AORadius = settings.AORadius;
+        ws->TexelPadding = settings.TexelPadding;
+        ws->WorldScale = settings.WorldScale;
+        ws->LightingBuildQuality = settings.LightingBuildQuality;
 
         if (!serializer.Serialize(InMapPath)) {
             LogLM("Warning: failed to write lightmap metadata back to map");

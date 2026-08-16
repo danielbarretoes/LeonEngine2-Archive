@@ -174,8 +174,30 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
 
     TEST_CASE("IBL cache does not embed scene exposure") {
         Leon::FIBLCacheHeader header;
-        CHECK(header.Version == 5);
+        CHECK(header.Version == Leon::kIBLCacheVersion);
+        CHECK(header.Version == 6);
         CHECK(header.HDRSourceHash == 0);
+    }
+
+    TEST_CASE("Cook-Torrance Lambert term uses kD * albedo / PI") {
+        const float PI = 3.14159265358979323846f;
+        glm::vec3 N(0, 0, 1), V(0, 0, 1), L(0, 0, 1);
+        glm::vec3 lo = Leon::EvaluateCookTorrance(N, V, L, glm::vec3(1.0f), 0.0f, 1.0f, glm::vec3(1.0f));
+        glm::vec3 F = Leon::FresnelSchlick(1.0f, glm::vec3(0.04f));
+        float kD = (1.0f - F.r);
+        CHECK(lo.r >= doctest::Approx(kD / PI).epsilon(1e-4f));
+        CHECK(!std::isnan(lo.r));
+    }
+
+    TEST_CASE("UE4 distance attenuation at d=0,1,2,10") {
+        CHECK(Leon::DistanceAttenuationUE4(0.0f, 10.0f) == doctest::Approx(1.0f).epsilon(1e-6f));
+        CHECK(Leon::DistanceAttenuationUE4(1.0f, 10.0f) == doctest::Approx(0.4999f).epsilon(1e-3f));
+        float d2 = Leon::DistanceAttenuationUE4(2.0f, 10.0f);
+        float ratio = 0.2f;
+        float window = 1.0f - ratio * ratio * ratio * ratio;
+        window *= window;
+        CHECK(d2 == doctest::Approx(window / 5.0f).epsilon(1e-5f));
+        CHECK(Leon::DistanceAttenuationUE4(10.0f, 10.0f) == doctest::Approx(0.0f).epsilon(1e-6f));
     }
 
     TEST_CASE("Negative scale flips handedness of normal matrix") {

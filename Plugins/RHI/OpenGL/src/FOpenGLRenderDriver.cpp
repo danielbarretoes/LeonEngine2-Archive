@@ -13,6 +13,14 @@
 
 namespace Leon {
 
+    namespace {
+
+        bool HasCurrentGLContext() {
+            return glfwGetCurrentContext() != nullptr;
+        }
+
+    } // namespace
+
     TScope<IGraphicsContext> FOpenGLRenderDriver::CreateGraphicsContext(void* InWindowHandle) {
         return MakeScope<FOpenGLContext>(static_cast<GLFWwindow*>(InWindowHandle));
     }
@@ -38,11 +46,15 @@ namespace Leon {
     }
 
     TRef<FShader> FOpenGLRenderDriver::CreateShader(const std::string& InFilePath) {
+        if (!HasCurrentGLContext())
+            return nullptr;
         return MakeRef<FOpenGLShader>(InFilePath);
     }
 
     TRef<FShader> FOpenGLRenderDriver::CreateShader(const std::string& InName, const std::string& InVertexSrc,
                                                     const std::string& InFragmentSrc) {
+        if (!HasCurrentGLContext())
+            return nullptr;
         return MakeRef<FOpenGLShader>(InName, InVertexSrc, InFragmentSrc);
     }
 

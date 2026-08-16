@@ -1,6 +1,8 @@
 #include <doctest/doctest.h>
+#include <cmath>
 #include <vector>
 #include "Renderer/FPBRMath.hpp"
+#include "Renderer/FIBLMath.hpp"
 
 TEST_SUITE("PBR - Energy Conservation Invariants") {
 
@@ -40,5 +42,33 @@ TEST_SUITE("PBR - Energy Conservation Invariants") {
                 }
             }
         }
+    }
+
+    TEST_CASE("Cosine-weighted hemisphere integral of Cook-Torrance stays <= 1") {
+        glm::vec3 N(0.0f, 0.0f, 1.0f);
+        glm::vec3 V(0.0f, 0.0f, 1.0f);
+        glm::vec3 albedo(1.0f);
+        const uint32_t sampleCount = 2048;
+
+        auto integrate = [&](float metallic, float roughness) {
+            double acc = 0.0;
+            uint32_t used = 0;
+            for (uint32_t i = 0; i < sampleCount; ++i) {
+                glm::vec2 xi = Leon::Hammersley(i, sampleCount);
+                glm::vec3 L = Leon::CosineSampleHemisphere(xi, N);
+                float NdotL = std::max(glm::dot(N, L), 0.0f);
+                float pdf = Leon::CosineHemispherePDF(NdotL);
+                if (pdf < 1e-8f)
+                    continue;
+                glm::vec3 lo = Leon::EvaluateCookTorrance(N, V, L, albedo, metallic, roughness, glm::vec3(1.0f));
+                acc += static_cast<double>(lo.r / pdf);
+                ++used;
+            }
+            return acc / static_cast<double>(used);
+        };
+
+        CHECK(integrate(0.0f, 1.0f) <= 1.08);
+        CHECK(integrate(0.0f, 0.5f) <= 1.08);
+        CHECK(integrate(1.0f, 0.5f) <= 1.08);
     }
 }

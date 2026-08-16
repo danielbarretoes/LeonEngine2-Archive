@@ -9,5 +9,6 @@ target_include_directories(LeonAssetTool PRIVATE
 
 target_link_libraries(LeonAssetTool PRIVATE
     LeonEngineCore
+    LeonEnginePipeline
     glm::glm
 )

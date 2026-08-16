@@ -47,11 +47,21 @@ To prevent sub-texel shimmering when the camera rotates:
    $$\mathbf{C}_{\text{snapped}, y} = \text{floor}\left(\frac{\mathbf{C}_{\text{light}, y}}{\Delta x}\right) \cdot \Delta x$$
 
 ### 2.3 Normal Offset & Depth Bias
+Shadow tests use the **rasterized face normal** \(\mathbf{N}_{\mathrm{face}} = \mathrm{normalize}(\partial\mathbf{p}/\partial x \times \partial\mathbf{p}/\partial y)\) (fallback: interpolated vertex normal). A Phong or detail normal would not match the triangle stored in the shadow map.
+
 To prevent surface self-shadowing (acne) on angled geometry without disconnecting shadows from contact bases:
-$$\text{slopeFactor} = 1.0 - \max(\mathbf{N} \cdot \mathbf{L}, 0.0)$$
-$$\mathbf{p}' = \mathbf{p} + \mathbf{N} \cdot (\text{normalBias} \cdot \text{slopeFactor})$$
-$$\text{bias} = \text{constBias} + \text{slopeBias} \cdot \text{slopeFactor}$$
+$$\text{slopeFactor} = 1.0 - \max(\mathbf{N}_{\mathrm{face}} \cdot \mathbf{L}, 0.0)$$
+$$\tan\theta = \min\left(\frac{\sin\theta}{\max(\mathbf{N}_{\mathrm{face}} \cdot \mathbf{L},\, 0.08)},\, 8\right)$$
+$$\mathbf{p}' = \mathbf{p} + \mathbf{N}_{\mathrm{face}} \cdot (\text{normalBias} \cdot \text{slopeFactor})$$
+$$\text{bias} = \text{constBias} + \text{slopeBias} \cdot \tan\theta$$
 $$z_{\text{test}} = z_{\text{light}}(\mathbf{p}') - \text{bias}$$
+
+PCF / Poisson taps add a receiver-plane term (GPU Gems 3) so neighboring shadow texels are compared against the predicted \(z\) of the same triangle:
+$$z_{\text{tap}} = z_{\text{test}} + \frac{\partial z}{\partial u}\Delta u + \frac{\partial z}{\partial v}\Delta v$$
+
+Vertical receivers under a near-vertical light occupy ~1 shadow texel (the caster silhouette). Depth bias cannot move that sample; the UV is pushed along the projected normal by 4–8 texels. Shadow maps use `GL_NEAREST` comparison (software PCF only — hardware 2×2 LINEAR was mixing roof/ground at the sliver). Casters are drawn with polygon offset `(2, 4)`.
+
+At grazing incidence the receiver is faded with \(\mathrm{smoothstep}(0, 0.22, \mathbf{N}_{\mathrm{face}}\cdot\mathbf{L})\). Defaults: `ConstantBias=0.001`, `SlopeBias=0.0035`, `NormalBias=0.04`.
 
 ### 2.4 Poisson Disk Filtering & Interleaved Gradient Noise
 The 16 Poisson taps follow the Vogel distribution:

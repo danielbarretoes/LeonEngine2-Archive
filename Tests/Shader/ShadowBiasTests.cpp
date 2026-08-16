@@ -58,7 +58,7 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
         }
 
         SUBCASE("Slope Scale Bias Active Shifting at Grazing Angles") {
-            // Grazing angle (NdotL = 0.7071, slopeFactor = 0.2929)
+            // Grazing angle (NdotL ≈ 0.707, tanθ = 1.0)
             lightData.DirLight.Direction = glm::normalize(glm::vec4(0.7071f, 0.0f, -0.7071f, 1.0f));
             gl.UpdateLightingUBO(lightData);
 
@@ -67,9 +67,29 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
             lightMat[3][2] = 0.0040f;
             for (int c = 0; c < 4; ++c) camData.LightSpaceMatrices[c] = lightMat;
 
-            // constBias = 0.0001, slopeBias = 0.015 -> bias = 0.0001 + 0.015 * 0.2929 = 0.00449
-            // currentDepth = 0.5020 - 0.00449 = 0.49751 < 0.5 -> Lit (1.0)
+            // constBias = 0.0001, slopeBias = 0.015 -> bias = 0.0001 + 0.015 * tanθ = 0.0151
+            // currentDepth = 0.5020 - 0.0151 = 0.4869 < 0.5 -> Lit (1.0)
             camData.ShadowParams = glm::vec4(0.0001f, 0.015f, 0.0f, 0.0f);
+            gl.UpdateCameraUBO(camData);
+
+            gl.DrawQuad();
+            glm::vec4 pix = gl.ReadPixel(0, 0);
+            CHECK(pix.r == doctest::Approx(1.0f).epsilon(0.02f));
+        }
+
+        SUBCASE("Tan-theta slope bias covers steep grazing that 1-NdotL would miss") {
+            // N = +Z, NdotL = 0.2 → tanθ ≈ 4.9 (old slopeFactor was 0.8)
+            glm::vec3 L = glm::normalize(glm::vec3(0.9798f, 0.0f, 0.2f));
+            lightData.DirLight.Direction = glm::vec4(-L, 1.0f);
+            gl.UpdateLightingUBO(lightData);
+
+            glm::mat4 lightMat = glm::mat4(1.0f);
+            lightMat[3][2] = 0.0060f; // proj.z = 0.503 without bias
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = lightMat;
+
+            // bias = 0.0001 + 0.002 * tanθ ≈ 0.0099 → currentDepth < 0.5 → lit
+            camData.ShadowParams = glm::vec4(0.0001f, 0.002f, 0.0f, 0.0f);
             gl.UpdateCameraUBO(camData);
 
             gl.DrawQuad();

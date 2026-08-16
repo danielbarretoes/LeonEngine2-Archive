@@ -13,6 +13,9 @@ namespace Leon {
 
     inline constexpr float PI = 3.14159265358979323846f;
     inline constexpr float TWO_PI = 6.28318530717958647692f;
+    inline constexpr float kAtmosphereGroundFactor = 3.0f;
+    inline constexpr uint32_t kBRDFLUTSampleCount = 512u;
+    inline constexpr uint32_t kIBLCacheVersion = 6;
 
     inline float RadicalInverse_VdC(uint32_t bits) {
         bits = (bits << 16u) | (bits >> 16u);
@@ -77,7 +80,7 @@ namespace Leon {
         return ggx1 * ggx2;
     }
 
-    inline glm::vec2 IntegrateBRDF(float NdotV, float roughness, uint32_t sampleCount = 512u) {
+    inline glm::vec2 IntegrateBRDF(float NdotV, float roughness, uint32_t sampleCount = kBRDFLUTSampleCount) {
         glm::vec3 V;
         V.x = std::sqrt(std::max(0.0f, 1.0f - NdotV * NdotV));
         V.y = 0.0f;
@@ -127,6 +130,27 @@ namespace Leon {
         default:
             return glm::vec3(0.0f, 1.0f, 0.0f);
         }
+    }
+
+    /** Inverse of SampleEquirectangular UV mapping (OpenGL Y-up). v=0 is +Y, u=0.5 is +X. */
+    inline glm::vec3 EquirectDirectionFromUV(float u, float v) {
+        float phi = (u - 0.5f) * TWO_PI;
+        float y = std::sin((0.5f - v) * PI);
+        y = std::clamp(y, -1.0f, 1.0f);
+        float horiz = std::sqrt(std::max(0.0f, 1.0f - y * y));
+        return glm::vec3(std::cos(phi) * horiz, y, std::sin(phi) * horiz);
+    }
+
+    inline glm::vec3 SampleAtmosphericSky(glm::vec3 InDir, const glm::vec3& InZenith, const glm::vec3& InHorizon,
+                                          const glm::vec3& InGround) {
+        glm::vec3 n = glm::normalize(InDir);
+        float height = n.y;
+        if (height >= 0.0f) {
+            float horizonFactor = std::pow(1.0f - height, 4.0f);
+            return glm::mix(InZenith, InHorizon, horizonFactor);
+        }
+        float groundFactor = std::clamp(-height * kAtmosphereGroundFactor, 0.0f, 1.0f);
+        return glm::mix(InHorizon, InGround, groundFactor);
     }
 
     struct FHDREquirectangularMipChain {
@@ -288,7 +312,7 @@ namespace Leon {
 
     struct FIBLCacheHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-        uint32_t Version = 5; // v5: linear HDR environment (no exposure / env intensity baked in)
+        uint32_t Version = kIBLCacheVersion; // v6: cubemap saTexel + IEC-aligned env (no exposure baked)
         uint64_t HDRSourceHash = 0;
         uint32_t EnvSize = 128;
         uint32_t IrradSize = 32;
@@ -301,10 +325,12 @@ namespace Leon {
 
     struct FBRDFLUTDiskHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'B', 'R', 'D', 'F'};
-        uint32_t Version = 1;
+        uint32_t Version = 2; // v2: sample count stored; 512-sample IntegrateBRDF
         uint32_t Size = 0;
+        uint32_t SampleCount = kBRDFLUTSampleCount;
+        uint32_t Reserved = 0;
     };
-    static_assert(sizeof(FBRDFLUTDiskHeader) == 16, "BRDF LUT disk header must stay 16 bytes");
+    static_assert(sizeof(FBRDFLUTDiskHeader) == 24, "BRDF LUT disk header must stay 24 bytes");
 
     inline uint64_t ComputeFileHash64(const std::string& InFilePath) {
         if (!std::filesystem::exists(InFilePath))

@@ -2,18 +2,27 @@
 #include "Core/FLog.hpp"
 #include "Gameplay/ADefaultPawn.hpp"
 #include "Gameplay/AHUD.hpp"
+#include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "Engine/UWorld.hpp"
 
 namespace Leon {
 
     AGameModeBase::AGameModeBase(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {}
+        : AActor(InHandle, InWorld, InName) {
+        SetClass("AGameModeBase");
+    }
 
     void AGameModeBase::InitGame() {
         LE_CORE_ASSERT(World != nullptr, "AGameModeBase requires valid UWorld!");
 
-        // 1. Instantiate and Initialize GameState
+        if (World->GetGameState()) {
+            GameState = World->GetGameState();
+            return;
+        }
+        if (GameState)
+            return;
+
         if (!GameStateClass.empty()) {
             GameState = dynamic_cast<AGameStateBase*>(
                 UClassRegistry::Get().CreateActorOfClass(GameStateClass, World, "GameState"));
@@ -28,15 +37,42 @@ namespace Leon {
     }
 
     void AGameModeBase::StartPlay() {
-        // FLog in default player
         Login("Player_0");
+    }
+
+    APlayerStart* AGameModeBase::ChoosePlayerStart() const {
+        if (!World)
+            return nullptr;
+        for (const auto& actorRef : World->GetAllActors()) {
+            if (!actorRef || actorRef->IsPendingKill())
+                continue;
+            if (auto* start = dynamic_cast<APlayerStart*>(actorRef.get()))
+                return start;
+        }
+        return nullptr;
+    }
+
+    AActor* AGameModeBase::FindPlayerStart(const std::string& InIncomingName) const {
+        if (!World)
+            return nullptr;
+        if (!InIncomingName.empty()) {
+            for (const auto& actorRef : World->GetAllActors()) {
+                if (!actorRef || actorRef->IsPendingKill())
+                    continue;
+                auto* start = dynamic_cast<APlayerStart*>(actorRef.get());
+                if (start && (start->GetPlayerStartTag() == InIncomingName || start->GetName() == InIncomingName))
+                    return start;
+            }
+        }
+        if (APlayerStart* chosen = ChoosePlayerStart())
+            return chosen;
+        return nullptr;
     }
 
     APlayerController* AGameModeBase::Login(const std::string& InPlayerName) {
         if (!World)
             return nullptr;
 
-        // 1. Spawn PlayerController
         APlayerController* pc = nullptr;
         if (!PlayerControllerClass.empty()) {
             pc = dynamic_cast<APlayerController*>(
@@ -46,7 +82,6 @@ namespace Leon {
             pc = World->SpawnActor<APlayerController>("PlayerController");
         }
 
-        // 2. Spawn PlayerState
         APlayerState* ps = nullptr;
         if (!PlayerStateClass.empty()) {
             ps = dynamic_cast<APlayerState*>(
@@ -58,6 +93,7 @@ namespace Leon {
 
         if (ps) {
             ps->SetPlayerName(InPlayerName);
+            ps->SetPlayerId(NextPlayerId++);
             if (pc) {
                 pc->SetPlayerState(ps);
             }
@@ -69,7 +105,6 @@ namespace Leon {
         if (pc) {
             World->AddPlayerController(pc);
 
-            // 3. Spawn AHUD
             if (!HUDClass.empty() && HUDClass != "None") {
                 AHUD* hud = dynamic_cast<AHUD*>(UClassRegistry::Get().CreateActorOfClass(HUDClass, World, "HUD"));
                 if (!hud) {
@@ -83,13 +118,18 @@ namespace Leon {
                 }
             }
 
-            // 4. Spawn Default Pawn if class is configured
             if (!DefaultPawnClass.empty() && DefaultPawnClass != "None") {
-                APawn* pawn = SpawnDefaultPawnAtTransform(DefaultSpawnLocation, DefaultSpawnRotation);
+                glm::vec3 spawnLoc = DefaultSpawnLocation;
+                glm::vec3 spawnRot = DefaultSpawnRotation;
+                if (AActor* start = FindPlayerStart()) {
+                    spawnLoc = start->GetActorLocation();
+                    spawnRot = start->GetActorRotation();
+                }
+                APawn* pawn = SpawnDefaultPawnAtTransform(spawnLoc, spawnRot);
                 if (pawn) {
                     pc->Possess(pawn);
                     LE_CORE_INFO("AGameModeBase: PlayerController possessed '{0}' at ({1}, {2}, {3})", pawn->GetName(),
-                                 DefaultSpawnLocation.x, DefaultSpawnLocation.y, DefaultSpawnLocation.z);
+                                 spawnLoc.x, spawnLoc.y, spawnLoc.z);
                 }
             } else {
                 LE_CORE_INFO(
