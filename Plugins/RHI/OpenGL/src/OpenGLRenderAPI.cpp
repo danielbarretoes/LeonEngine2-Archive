@@ -104,6 +104,10 @@ namespace Leon {
         }
     }
 
+    void FOpenGLRenderAPI::SetWireframe(bool InEnabled) {
+        glPolygonMode(GL_FRONT_AND_BACK, InEnabled ? GL_LINE : GL_FILL);
+    }
+
     void FOpenGLRenderAPI::SetBlendState(bool InEnabled) {
         m_BlendEnabled = InEnabled;
         if (InEnabled)

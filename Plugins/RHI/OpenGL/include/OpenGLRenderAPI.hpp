@@ -15,6 +15,7 @@ namespace Leon {
         void SetDepthMask(bool InEnabled) override;
         void SetDepthFunc(EDepthFunc InFunc) override;
         void SetCulling(bool InEnabled, ECullMode InMode = ECullMode::Back) override;
+        void SetWireframe(bool InEnabled) override;
         void SetBlendState(bool InEnabled) override;
         void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) override;
 

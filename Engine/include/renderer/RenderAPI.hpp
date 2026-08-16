@@ -53,6 +53,7 @@ namespace Leon {
         virtual void SetDepthMask(bool InEnabled) = 0;
         virtual void SetDepthFunc(EDepthFunc InFunc) = 0;
         virtual void SetCulling(bool InEnabled, ECullMode InMode = ECullMode::Back) = 0;
+        virtual void SetWireframe(bool InEnabled) = 0;
         virtual void SetBlendState(bool InEnabled) = 0;
         virtual void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) = 0;
 

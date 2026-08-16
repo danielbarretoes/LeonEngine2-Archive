@@ -15,6 +15,8 @@
 #include <fstream>
 
 #include "asset/AssetPath.hpp"
+#include "core/Input.hpp"
+#include "core/events/KeyEvent.hpp"
 #include "core/ProjectDescriptor.hpp"
 #include "core/ProjectPaths.hpp"
 
@@ -70,10 +72,84 @@ namespace Leon {
                 }
                 return false;
             });
+
+            dispatcher.Dispatch<FKeyPressedEvent>([this](FKeyPressedEvent& e) {
+                if (e.IsRepeat()) return false;
+                auto* renderer = m_World ? m_World->GetSceneRenderer() : nullptr;
+                if (!renderer) return false;
+
+                switch (e.GetKeyCode()) {
+                case Key::F3: {
+                    m_bWireframe = !m_bWireframe;
+                    FRenderCommand::SetWireframe(m_bWireframe);
+                    LE_CORE_INFO("[RENDER DEBUG] Wireframe: {0}", m_bWireframe ? "ENABLED" : "DISABLED");
+                    return true;
+                }
+                case Key::F4: {
+                    renderer->SetDebugMode(14);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Unlit / Albedo (Base Color)");
+                    return true;
+                }
+                case Key::F5: {
+                    renderer->SetDebugMode(11);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: World Normals (TBN Perturbed)");
+                    return true;
+                }
+                case Key::F6: {
+                    int currentMode = renderer->GetDebugMode();
+                    int nextMode = 16; // Roughness
+                    const char* name = "Roughness";
+                    if (currentMode == 16) {
+                        nextMode = 15; // Metallic
+                        name = "Metallic";
+                    } else if (currentMode == 15) {
+                        nextMode = 18; // Ambient Occlusion
+                        name = "Ambient Occlusion (AO)";
+                    }
+                    renderer->SetDebugMode(nextMode);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Material Channel ({0})", name);
+                    return true;
+                }
+                case Key::F7: {
+                    renderer->SetDebugMode(10);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Direct Lighting Only (Cook-Torrance Lo)");
+                    return true;
+                }
+                case Key::F8: {
+                    renderer->SetDebugMode(9);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Specular IBL & Environment Reflections");
+                    return true;
+                }
+                case Key::F9: {
+                    renderer->SetDebugMode(25);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Cascaded Shadow Maps (CSM) False-Color Slices");
+                    return true;
+                }
+                case Key::F10: {
+                    renderer->SetDebugMode(24);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Shadow Occlusion Mask");
+                    return true;
+                }
+                case Key::F11: {
+                    renderer->SetDebugMode(13);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Real-Time Planar Reflections Buffer");
+                    return true;
+                }
+                case Key::F12: {
+                    renderer->SetDebugMode(0);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: Lit / Standard PBR Composite");
+                    return true;
+                }
+                default:
+                    break;
+                }
+                return false;
+            });
         }
 
     private:
         TRef<UWorld> m_World;
+        bool m_bWireframe = false;
     };
 
     static UEngine* s_EngineInstance = nullptr;

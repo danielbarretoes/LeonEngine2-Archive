@@ -402,9 +402,22 @@ PASS 7: Post-Process Pass           ──► ACES Filmic Tone Mapping + Gamma 2
 
 ## 8. Diagnostic and Interactive Debugging Subsystem
 
-* **HUD Overlay (`F1`)**: Real-time diagnostic panel rendering FPS, Frame Time (CPU/GPU), VRAM allocation, RAM usage, triangle counts, and draw call metrics.
-* **Light Gizmos (`F2`)**: 3D wireframe cones for Spot Lights, bounding attenuation spheres for Point Lights, and directional sunlight vectors.
-* **Material & Lighting Debug Views (`Shift + F1 .. F12`, `Shift + N`, `Shift + R`)**: Interactive hotkeys to isolate individual cubemap mips, diffuse irradiance, BRDF LUT, direct lighting, specular IBL, world normals, and reflection vectors in real time.
+LeonEngine2 provides direct single-key forensic debugging controls available across all viewport layers:
+
+| Hotkey | Mode / Subsystem | Description |
+| :--- | :--- | :--- |
+| **`F1`** | **Diagnostics HUD** | Real-time panel rendering FPS, frametimes (CPU/GPU), VRAM allocation, RAM usage, triangle counts, and draw call metrics. |
+| **`F2`** | **3D Light Gizmos** | 3D wireframe cones for Spot Lights, bounding attenuation spheres for Point Lights, and directional sunlight vectors. |
+| **`F3`** | **Wireframe Toggle** | Toggles polygon rasterization between solid fill and wireframe (`glPolygonMode`). |
+| **`F4`** | **Unlit / Albedo** | Isolates raw Base Color texture/scalar without lighting or reflections. |
+| **`F5`** | **World Normals** | Displays perturbed normal vectors ($N \cdot 0.5 + 0.5$) with TBN normal map contributions. |
+| **`F6`** | **Material Channels** | Cycles sequentially between **Roughness**, **Metallic**, and **Ambient Occlusion (AO)** channels. |
+| **`F7`** | **Direct Lighting Only** | Renders direct analytical lighting ($L_o$) from Directional, Point, and Spot lights (excluding IBL ambient). |
+| **`F8`** | **Specular IBL & Environment**| Isolates Image-Based Lighting reflections and split-sum environment contributions. |
+| **`F9`** | **CSM Cascade Slices** | Visualizes Cascaded Shadow Map splits via false-color (Cascade 0: Red, 1: Green, 2: Blue, 3: Yellow). |
+| **`F10`** | **Shadow Occlusion Mask** | Renders the direct shadow occlusion factor ($1.0 = \text{lit}, 0.0 = \text{occluded}$). |
+| **`F11`** | **Planar Reflections** | Inspects the mirrored camera offscreen planar reflection framebuffer texture. |
+| **`F12`** | **Standard Lit (Default)** | Resets rendering to full multi-light Cook-Torrance PBR composite with IBL and tone mapping. |
 
 ---
 

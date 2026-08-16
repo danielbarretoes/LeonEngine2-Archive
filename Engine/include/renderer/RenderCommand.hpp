@@ -50,6 +50,11 @@ namespace Leon {
                 s_RenderAPI->SetCulling(InEnabled, InMode);
         }
 
+        static void SetWireframe(bool InEnabled) {
+            if (s_RenderAPI)
+                s_RenderAPI->SetWireframe(InEnabled);
+        }
+
         static void SetBlendState(bool InEnabled) {
             if (s_RenderAPI)
                 s_RenderAPI->SetBlendState(InEnabled);
