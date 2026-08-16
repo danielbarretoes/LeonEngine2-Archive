@@ -39,16 +39,21 @@ Like Unreal, **build/run tools live with the Engine** and are invoked *against* 
 python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject
 python Scripts/run_project.py    --project Projects/Sandbox/Sandbox.lproject
 python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
+python Scripts/bake_lightmaps.py --project Projects/Sandbox/Sandbox.lproject
+python Scripts/create_project.py --name MyGame --output D:/Games/MyGame
 ```
+
+Environment: `LEON_ENGINE_ROOT` (optional), `LEON_PROJECT` (or `--project`). Full inventory: [SCRIPTS.md](SCRIPTS.md).
 
 | Owner | Responsibility |
 | :--- | :--- |
 | Engine (`Engine/`, `Plugins/`, `Scripts/`, `Tools/`) | Runtime, RHI plugins, asset tool, build/verify scripts |
-| Project (`Projects/<Name>/`) | `Main`, gameplay classes, Content, Config, `.lproject`, thin CMake target |
+| Project (`Projects/<Name>/` or any external path) | `Main`, gameplay classes, Content, Config, `.lproject`, thin CMake target |
 
 - `UEngine::Run` requires a `.lproject` (argv `--project=`, explicit path, or discovery) — **no Sandbox default inside Engine**.
-- Root CMake selects the game via `LEON_PROJECT_DIR` (monorepo default `Projects/Sandbox`); `Engine/CMakeLists.txt` never names the game.
+- Root CMake selects the game via `LEON_PROJECT_DIR` (absolute path supported for external games; monorepo cache default may still be `Projects/Sandbox`).
 - There is no UBT / `.Build.cs` yet; CMake + these Python scripts are the lite equivalent.
+- Product shortcuts (e.g. Sandbox) live under `Projects/<Name>/Scripts/`, never as Engine defaults.
 
 **Isolation checklist:** `grep` / CI must not find `Projects/Sandbox` or bare product `Sandbox` under `Engine/Source` (legacy INI suffix `.SandboxGameMode` is allowlisted).
 
@@ -59,7 +64,7 @@ python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
 ```text
 LeonEngine2/
 ├── Docs/                                  # Technical specifications (NAMING, ARCHITECTURE, …)
-├── Scripts/                               # Engine tooling (build_project / run_project / verify)
+├── Scripts/                               # Engine tooling — see Docs/SCRIPTS.md
 ├── Engine/
 │   ├── Assets/                            # Engine shaders, fonts, BRDF LUT
 │   ├── CMakeLists.txt                     # LeonEngineCore (single link unit today)
@@ -95,7 +100,7 @@ LeonEngine2/
   "FileVersion": 1,
   "EngineVersion": "0.15.0",
   "ProjectName": "Sandbox",
-  "DefaultMap": "/Game/Maps/MainShowcase",
+  "DefaultMap": "/Game/Maps/ShowcaseLevel",
   "DefaultGameMode": "ASandboxGameMode"
 }
 ```
@@ -145,8 +150,8 @@ This is **not** full Unreal config stacking (`Base.ini` + project + `Saved/Confi
 **Project executable duties:** register RHI driver + project `UClassRegistry` classes **before** `UEngine::Run`. Missing default map on initial boot returns non-zero.
 
 ### 3.3 Virtual Path Resolution (`FProjectPaths`)
-* `/Game/Maps/MainShowcase` → `<ProjectRoot>/Content/Maps/MainShowcase.lmap`
-* `/Game/Textures/T_Car_Body_D` → `<ProjectRoot>/Content/Textures/T_Car_Body_D.ltex`
+* `/Game/Maps/ShowcaseLevel` → `<ProjectRoot>/Content/Maps/ShowcaseLevel.lmap`
+* `/Game/Materials/M_FloorTiles` → `<ProjectRoot>/Content/Materials/M_FloorTiles.lmat`
 * `/Engine/Shaders/PBR_Lit.glsl` → `Engine/Assets/Shaders/PBR_Lit.glsl`
 
 ### 3.4 Multi-INI Configuration
@@ -268,6 +273,8 @@ Provides physical Cook-Torrance ambient lighting using the Split-Sum approximati
 
 Runtime path: `UEngine` → viewport layer → `UWorld::OnRender` → `FWorldRenderer::Render`.
 
+Static lighting (offline): `LeonAssetTool bake_lightmaps` → `FLightmass` → `.llightmap`. Runtime sampling is documented in [STATIC_LIGHTING.md](STATIC_LIGHTING.md).
+
 ```text
 PASS 1: Cascaded Shadow Pass (CSM)
 PASS 2: Spot Shadow Pass
@@ -292,7 +299,7 @@ LeonEngine2 provides direct single-key forensic debugging controls available acr
 | **`F4`** | **Unlit / Albedo** | Isolates raw Base Color texture/scalar without lighting or reflections. |
 | **`F5`** | **World Normals** | Displays perturbed normal vectors ($N \cdot 0.5 + 0.5$) with TBN normal map contributions. |
 | **`F6`** | **Material Channels** | Cycles sequentially between **Roughness**, **Metallic**, and **Ambient Occlusion (AO)** channels. |
-| **`F7`** | **Direct Lighting Only** | Renders direct analytical lighting ($L_o$) from Directional, Point, and Spot lights (excluding IBL ambient). |
+| **`F7`** | **Lighting Isolation** | Cycles: **Dynamic (Lo)** → **Baked only** → **Lightmap irradiance** → **Lightmap UV** → **Dynamic+Baked (no IBL)**. |
 | **`F8`** | **Specular IBL & Environment**| Isolates Image-Based Lighting reflections and split-sum environment contributions. |
 | **`F9`** | **CSM Cascade Slices** | Visualizes Cascaded Shadow Map splits via false-color (Cascade 0: Red, 1: Green, 2: Blue, 3: Yellow). |
 | **`F10`** | **Shadow Occlusion Mask** | Renders the direct shadow occlusion factor ($1.0 = \text{lit}, 0.0 = \text{occluded}$). |
@@ -368,7 +375,7 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 
 **PrintString** (`UGameplayStatics::PrintString` / `Leon::PrintString`) queues on-screen debug messages via `FOnScreenDebugMessageManager`. Messages are distinct from `FLog` and are painted inside the viewport by `AHUD::DrawHUD`.
 
-**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/NightScene")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay.
+**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/NightLevel")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay.
 
 **FInput modes** (`APlayerController`): `SetInputModeGameOnly`, `SetInputModeUIOnly`, `SetInputModeGameAndUI`. GameAndUI allows pawn movement and UI mouse interaction simultaneously.
 

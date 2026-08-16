@@ -6,7 +6,7 @@
 namespace Leon {
 
     /**
-     * @brief Sandbox HUD — creates the main menu widget on MainShowcase and demo PrintString.
+     * @brief Sandbox HUD — creates the main menu widget on ShowcaseLevel and demo PrintString.
      */
     class ASandboxHUD : public AHUD {
     public:

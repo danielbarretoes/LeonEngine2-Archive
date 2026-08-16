@@ -1,6 +1,7 @@
 #include "Renderer/FWorldRenderer.hpp"
 #include "Core/FLog.hpp"
 #include "Assets/UAssetManager.hpp"
+#include "Assets/FLightmapAsset.hpp"
 #include "RHI/FBuffer.hpp"
 #include "RHI/FFramebuffer.hpp"
 #include "Renderer/FFrustumCull.hpp"
@@ -51,6 +52,21 @@ namespace Leon {
             }
             FRenderer::GetStatsMutable().MeshesDrawn++;
             return false;
+        }
+
+        void BindLightmapUniforms(FShader& InShader, bool bUseLightmap, bool bUseTexCoord,
+                                   const glm::vec2& InScale, const glm::vec2& InBias,
+                                   const TRef<FTexture2D>& InTexture) {
+            if (bUseLightmap && InTexture) {
+                InTexture->Bind(12);
+                InShader.SetInt("u_Lightmap", 12);
+                InShader.SetInt("u_UseLightmap", 1);
+                InShader.SetInt("u_LightmapUseTexCoord", bUseTexCoord ? 1 : 0);
+                InShader.SetFloat2("u_LightmapScale", InScale.x, InScale.y);
+                InShader.SetFloat2("u_LightmapBias", InBias.x, InBias.y);
+            } else {
+                InShader.SetInt("u_UseLightmap", 0);
+            }
         }
     } // namespace
 
@@ -197,7 +213,7 @@ namespace Leon {
             auto view = reg.view<UDirectionalLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<UDirectionalLightComponent>(entity);
-                if (comp.bEnabled) {
+                if (comp.bEnabled && comp.Mobility != ELightMobility::Static) {
                     dirLightComp = comp;
                     bHasDirLight = true;
                     break;
@@ -210,7 +226,7 @@ namespace Leon {
             auto view = reg.view<UPointLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<UPointLightComponent>(entity);
-                if (comp.bEnabled && pointLights.size() < 16) {
+                if (comp.bEnabled && comp.Mobility != ELightMobility::Static && pointLights.size() < 16) {
                     FPointLight pl = comp.Light;
                     if (reg.all_of<FTransformComponent>(entity))
                         pl.Position = reg.get<FTransformComponent>(entity).Translation;
@@ -227,7 +243,7 @@ namespace Leon {
             auto view = reg.view<USpotLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<USpotLightComponent>(entity);
-                if (comp.bEnabled && spotLights.size() < 8) {
+                if (comp.bEnabled && comp.Mobility != ELightMobility::Static && spotLights.size() < 8) {
                     FSpotLight sl = comp.Light;
                     if (reg.all_of<FTransformComponent>(entity))
                         sl.Position = reg.get<FTransformComponent>(entity).Translation;
@@ -643,6 +659,18 @@ namespace Leon {
                 IBLEnvironment.PrefilterMap->Bind(8);
         }
 
+        // Y-reflection reverses winding and must flip world normals (det < 0).
+        auto CullModeForReflection = [](ECullMode InMode) -> ECullMode {
+            if (InMode == ECullMode::Back)
+                return ECullMode::Front;
+            if (InMode == ECullMode::Front)
+                return ECullMode::Back;
+            return InMode;
+        };
+        auto NormalMatrixForReflection = [&reflectMatrix](const glm::mat4& InModel) -> glm::mat3 {
+            return glm::transpose(glm::inverse(glm::mat3(reflectMatrix * InModel)));
+        };
+
         // Visible meshes in reflection (full materials + textures; no nested planar, no shadows)
         auto& reg = World->GetRegistry();
         const FFrustumPlanes reflectionFrustum = ExtractFrustumPlanes(mirroredCamera.GetViewProjectionMatrix());
@@ -670,7 +698,7 @@ namespace Leon {
             }
 
             const auto& pso = matInst->GetPipelineState();
-            ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : pso.CullMode;
+            ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : CullModeForReflection(pso.CullMode);
             FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
             FRenderCommand::SetDepthTesting(pso.bDepthTest);
             bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
@@ -686,7 +714,7 @@ namespace Leon {
 
             glm::mat4 model = transform.GetTransform();
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
-            glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+            glm::mat3 normalMatrix = NormalMatrixForReflection(model);
             mesh.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
 
             mesh.VertexArray->Bind();
@@ -724,7 +752,7 @@ namespace Leon {
                     ResolveStaticSubmeshMaterial(*staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
 
                 const auto& pso = matInst->GetPipelineState();
-                ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : pso.CullMode;
+                ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : CullModeForReflection(pso.CullMode);
                 FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
                 FRenderCommand::SetDepthTesting(pso.bDepthTest);
                 bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
@@ -740,7 +768,7 @@ namespace Leon {
 
                 glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
                 shader->SetMat4("u_Model", glm::value_ptr(model));
-                glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+                glm::mat3 normalMatrix = NormalMatrixForReflection(model);
                 shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
                 FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
                                                   submesh.IndexOffset);
@@ -851,6 +879,16 @@ namespace Leon {
             // Bind resolved material parameters and textures (slots 0..5, 9)
             matInst->Bind(mesh.Shader);
 
+            TRef<FTexture2D> lightmapTex;
+            bool bUseLM = mesh.Mobility == EComponentMobility::Static && mesh.LightmapIndex >= 0 &&
+                          !mesh.LightmapAssetPath.empty();
+            if (bUseLM) {
+                auto lm = UAssetManager::GetLightmap(mesh.LightmapAssetPath);
+                if (lm)
+                    lightmapTex = lm->GetOrCreateGPUTexture();
+            }
+            BindLightmapUniforms(*mesh.Shader, bUseLM, true, mesh.LightmapScale, mesh.LightmapBias, lightmapTex);
+
             // IBL enablement (samplers are statically bound to slots 6-8)
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", DebugMode);
@@ -925,6 +963,17 @@ namespace Leon {
 
                 // Bind Material
                 matInst->Bind(activeShader);
+
+                TRef<FTexture2D> lightmapTex;
+                bool bUseLM = staticMeshComp.Mobility == EComponentMobility::Static &&
+                              staticMeshComp.LightmapIndex >= 0 && !staticMeshComp.LightmapAssetPath.empty();
+                if (bUseLM) {
+                    auto lm = UAssetManager::GetLightmap(staticMeshComp.LightmapAssetPath);
+                    if (lm)
+                        lightmapTex = lm->GetOrCreateGPUTexture();
+                }
+                BindLightmapUniforms(*activeShader, bUseLM, false, staticMeshComp.LightmapScale,
+                                      staticMeshComp.LightmapBias, lightmapTex);
 
                 // Transform with submesh local transform
                 glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;

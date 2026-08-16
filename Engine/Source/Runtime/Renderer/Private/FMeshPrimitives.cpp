@@ -59,8 +59,12 @@ namespace Leon {
         };
 
         TRef<FVertexArray> vertexArray = FVertexArray::Create();
+        if (!vertexArray)
+            return nullptr;
 
         TRef<FVertexBuffer> vertexBuffer = FVertexBuffer::Create(vertices, sizeof(vertices));
+        if (!vertexBuffer)
+            return nullptr;
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
@@ -70,6 +74,8 @@ namespace Leon {
         vertexArray->AddVertexBuffer(vertexBuffer);
 
         TRef<FIndexBuffer> indexBuffer = FIndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t));
+        if (!indexBuffer)
+            return nullptr;
         vertexArray->SetIndexBuffer(indexBuffer);
 
         return vertexArray;

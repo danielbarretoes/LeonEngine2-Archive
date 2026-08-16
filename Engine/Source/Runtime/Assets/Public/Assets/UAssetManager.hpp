@@ -5,6 +5,7 @@
 #include "Renderer/FMaterialInstance.hpp"
 #include "RHI/FShader.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/FLightmapAsset.hpp"
 #include "RHI/FTexture.hpp"
 
 #include <memory>
@@ -44,6 +45,11 @@ namespace Leon {
         static void AddStaticMesh(const std::string& InName, const TRef<UStaticMesh>& InMesh);
         static bool HasStaticMesh(const std::string& InPath);
 
+        // Lightmaps (.llightmap)
+        static TRef<FLightmapAsset> GetLightmap(const std::string& InPath);
+        static void AddLightmap(const std::string& InName, const TRef<FLightmapAsset>& InLightmap);
+        static bool HasLightmap(const std::string& InPath);
+
         // Shaders
         static TRef<FShader> GetShader(const std::string& InPath);
         static void AddShader(const std::string& InName, const TRef<FShader>& InShader);
@@ -71,6 +77,7 @@ namespace Leon {
         static std::string ContentRoot;
         static std::unordered_map<std::string, TRef<FTexture2D>> TextureCache;
         static std::unordered_map<std::string, TRef<UStaticMesh>> StaticMeshCache;
+        static std::unordered_map<std::string, TRef<FLightmapAsset>> LightmapCache;
         static std::unordered_map<std::string, TRef<FShader>> ShaderCache;
         static std::unordered_map<std::string, TRef<FMaterial>> MaterialCache;
         static std::unordered_map<std::string, TRef<FMaterialInstance>> MaterialInstanceCache;

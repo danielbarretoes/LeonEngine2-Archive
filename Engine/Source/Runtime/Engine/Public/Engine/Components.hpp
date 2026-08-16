@@ -8,6 +8,7 @@
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "RHI/FShader.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Engine/EMobility.hpp"
 #include "RHI/FTexture.hpp"
 #include "RHI/FVertexArray.hpp"
 
@@ -51,6 +52,12 @@ namespace Leon {
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
+        EComponentMobility Mobility = EComponentMobility::Static;
+        uint32_t LightmapResolution = 64;
+        int32_t LightmapIndex = -1;
+        glm::vec2 LightmapScale{1.0f, 1.0f};
+        glm::vec2 LightmapBias{0.0f, 0.0f};
+        std::string LightmapAssetPath;
 
         // Mesh geometry metadata for lossless map serialization
         std::string MeshType = "Cube";
@@ -82,6 +89,12 @@ namespace Leon {
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
+        EComponentMobility Mobility = EComponentMobility::Static;
+        uint32_t LightmapResolution = 64;
+        int32_t LightmapIndex = -1; ///< Index into world lightmap atlas entries (-1 = none)
+        glm::vec2 LightmapScale{1.0f, 1.0f};
+        glm::vec2 LightmapBias{0.0f, 0.0f};
+        std::string LightmapAssetPath; ///< Virtual path to .llightmap (atlas for this world/instance)
 
         UStaticMeshComponent() = default;
         UStaticMeshComponent(const UStaticMeshComponent&) = default;
@@ -105,6 +118,7 @@ namespace Leon {
     struct UDirectionalLightComponent {
         FDirectionalLight Light;
         bool bEnabled = true;
+        ELightMobility Mobility = ELightMobility::Movable;
 
         UDirectionalLightComponent() = default;
         UDirectionalLightComponent(const UDirectionalLightComponent&) = default;
@@ -114,6 +128,7 @@ namespace Leon {
     struct UPointLightComponent {
         FPointLight Light;
         bool bEnabled = true;
+        ELightMobility Mobility = ELightMobility::Movable;
 
         UPointLightComponent() = default;
         UPointLightComponent(const UPointLightComponent&) = default;
@@ -123,6 +138,7 @@ namespace Leon {
     struct USpotLightComponent {
         FSpotLight Light;
         bool bEnabled = true;
+        ELightMobility Mobility = ELightMobility::Movable;
 
         USpotLightComponent() = default;
         USpotLightComponent(const USpotLightComponent&) = default;
@@ -155,6 +171,20 @@ namespace Leon {
         glm::vec3 HorizonColor{0.78f, 0.84f, 0.95f};
         glm::vec3 GroundColor{0.22f, 0.24f, 0.28f};
         glm::vec3 SunColor{1.0f, 0.98f, 0.92f};
+
+        // Static lighting / Lightmass world settings (serialized under Environment)
+        bool bStaticLighting = false;
+        uint32_t LightmapResolution = 64;
+        uint32_t NumIndirectBounces = 2;
+        uint32_t SamplesPerTexel = 16;
+        float IndirectIntensity = 1.0f;
+        bool bAmbientOcclusion = true;
+        float AOIntensity = 1.0f;
+        float AORadius = 1.0f;     ///< World-space AO ray length (scaled by WorldScale in bake)
+        float TexelPadding = 2.0f; ///< Atlas chart padding in texels
+        float WorldScale = 1.0f;   ///< Multiplier applied to AORadius during bake
+        std::string LightmapAssetPath; ///< Atlas for this map, e.g. Lightmaps/MyMap.llightmap
+        uint64_t LightmapBakeHash = 0;
 
         FSkyboxComponent() = default;
         FSkyboxComponent(const FSkyboxComponent&) = default;

@@ -1,40 +1,56 @@
 #!/usr/bin/env python3
 """
-LeonEngine2 - Python Asset Import Tool Wrapper
-Runs Tools/LeonAssetTool.exe to import raw assets into native LeonEngine format.
+LeonEngine2 — import raw assets into project Content via LeonAssetTool.
+Requires --project (or LEON_PROJECT). Optional --raw / --content overrides.
 """
 
-import os
-import sys
-import subprocess
-import argparse
+from __future__ import annotations
 
-def main():
-    parser = argparse.ArgumentParser(description="Import assets for LeonEngine2")
-    parser.add_argument("--raw", default="Assets/Raw", help="Raw assets path (default: Assets/Raw)")
-    parser.add_argument("--content", default="Projects/Sandbox/Content", help="Output content path (default: Projects/Sandbox/Content)")
-    parser.add_argument("--force", action="store_true", help="Force re-import of all assets")
-    parser.add_argument("--tool", default="build/Tools/LeonAssetTool/LeonAssetTool.exe", help="Path to LeonAssetTool binary")
+import argparse
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _leon_paths import (  # noqa: E402
+    engine_root,
+    ensure_tool_built,
+    project_content_dir,
+    project_raw_dir,
+    require_project,
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Import assets for a LeonEngine2 project")
+    parser.add_argument("--project", default=os.environ.get("LEON_PROJECT", ""))
+    parser.add_argument("--raw", default="", help="Override raw assets directory")
+    parser.add_argument("--content", default="", help="Override content output directory")
+    parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    tool_path = os.path.join(project_root, args.tool)
+    try:
+        project = require_project(args.project)
+    except SystemExit as e:
+        print(e)
+        return 1
 
-    if not os.path.exists(tool_path):
-        print(f"[ERROR] Asset tool binary not found at: {tool_path}")
-        print("[INFO] Building project first...")
-        res = subprocess.run(["cmake", "--build", "build", "--target", "LeonAssetTool"], cwd=project_root)
-        if res.returncode != 0:
-            print("[ERROR] Failed to build LeonAssetTool.")
-            sys.exit(1)
+    raw = args.raw or project_raw_dir(project)
+    content = args.content or project_content_dir(project)
+    root = engine_root()
 
-    cmd = [tool_path, "import", "--raw", args.raw, "--content", args.content]
+    try:
+        tool = ensure_tool_built("LeonAssetTool")
+    except SystemExit as e:
+        print(e)
+        return 1
+
+    cmd = [tool, "import", "--raw", raw, "--content", content]
     if args.force:
         cmd.append("--force")
-
     print(f"[RUN] {' '.join(cmd)}")
-    res = subprocess.run(cmd, cwd=project_root)
-    sys.exit(res.returncode)
+    return subprocess.run(cmd, cwd=root).returncode
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

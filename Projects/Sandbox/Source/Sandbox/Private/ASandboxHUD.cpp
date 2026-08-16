@@ -31,7 +31,7 @@ namespace Leon {
             return;
 
         const std::string& mapName = UEngine::Get().GetCurrentMapName();
-        const bool bIsShowcase = mapName.empty() || mapName.find("MainShowcase") != std::string::npos;
+        const bool bIsShowcase = mapName.empty() || mapName.find("ShowcaseLevel") != std::string::npos;
 
         auto widget = std::make_shared<USandboxMainMenuWidget>("SandboxMainMenu");
         widget->SetIsShowcaseLayout(bIsShowcase);
@@ -42,7 +42,7 @@ namespace Leon {
         MainMenuWidget->AddToViewport(0);
 
         if (!bIsShowcase) {
-            PrintString("Night Scene loaded", 3.0f);
+            PrintString("Night Level loaded", 3.0f);
         }
 
         LE_CORE_INFO("ASandboxHUD: Menu widget on viewport (map='{0}', widgets={1})", mapName,

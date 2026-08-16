@@ -33,30 +33,30 @@ namespace Leon {
                                FMargin(-(Margin + PanelW), Margin, Margin, -(Margin + PanelH)));
 
         TitleText = std::make_shared<UTextBlock>("Title");
-        TitleText->SetText(bShowcaseLayout ? "Showcase" : "Night Scene");
+        TitleText->SetText(bShowcaseLayout ? "Showcase" : "Night Level");
         TitleText->SetFontScale(0.85f);
         TitleText->SetColor({0.78f, 0.84f, 0.95f, 0.95f});
         TitleText->SetJustification(ETextAlignment::Left);
         TitleText->SetSize({PanelW - 16.0f, 16.0f});
         panel->AddChild(TitleText, FAnchors::TopLeft(), FMargin(10.0f, 8.0f, -190.0f, -24.0f));
 
-        NightSceneButton = std::make_shared<UButton>("NightSceneButton");
-        NightSceneButton->SetNormalColor({0.12f, 0.18f, 0.30f, 0.95f});
-        NightSceneButton->SetHoveredColor({0.18f, 0.30f, 0.50f, 1.0f});
-        NightSceneButton->SetPressedColor({0.08f, 0.12f, 0.20f, 1.0f});
-        NightSceneButton->SetBorder({0.40f, 0.62f, 0.92f, 0.85f}, 1.0f);
+        NightLevelButton = std::make_shared<UButton>("NightLevelButton");
+        NightLevelButton->SetNormalColor({0.12f, 0.18f, 0.30f, 0.95f});
+        NightLevelButton->SetHoveredColor({0.18f, 0.30f, 0.50f, 1.0f});
+        NightLevelButton->SetPressedColor({0.08f, 0.12f, 0.20f, 1.0f});
+        NightLevelButton->SetBorder({0.40f, 0.62f, 0.92f, 0.85f}, 1.0f);
 
-        ButtonLabel = std::make_shared<UTextBlock>("NightSceneLabel");
-        ButtonLabel->SetText(bShowcaseLayout ? "Open Night Scene" : "Reload Night");
+        ButtonLabel = std::make_shared<UTextBlock>("NightLevelLabel");
+        ButtonLabel->SetText(bShowcaseLayout ? "Open Night Level" : "Reload Night");
         ButtonLabel->SetFontScale(0.90f);
         ButtonLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
         ButtonLabel->SetJustification(ETextAlignment::Center);
-        NightSceneButton->SetContent(ButtonLabel);
+        NightLevelButton->SetContent(ButtonLabel);
 
-        NightSceneButton->OnClicked.AddLambda([this]() { OnOpenNightSceneClicked(); });
+        NightLevelButton->OnClicked.AddLambda([this]() { OnOpenNightLevelClicked(); });
 
         const float buttonX = (PanelW - ButtonW) * 0.5f;
-        panel->AddChild(NightSceneButton, FAnchors::TopLeft(),
+        panel->AddChild(NightLevelButton, FAnchors::TopLeft(),
                         FMargin(buttonX, 30.0f, -(buttonX + ButtonW), -(30.0f + ButtonH)));
 
         SetWidgetTree(RootCanvas);
@@ -64,14 +64,14 @@ namespace Leon {
         SetPosition({0.0f, 0.0f});
     }
 
-    void USandboxMainMenuWidget::OnOpenNightSceneClicked() {
-        PrintString("Opening Night Scene...", 2.0f);
+    void USandboxMainMenuWidget::OnOpenNightLevelClicked() {
+        PrintString("Opening Night Level...", 2.0f);
 
         UWorld* world = nullptr;
         if (OwningPlayer) {
             world = OwningPlayer->GetWorld();
         }
-        UGameplayStatics::OpenLevel(world, "/Game/Maps/NightScene");
+        UGameplayStatics::OpenLevel(world, "/Game/Maps/NightLevel");
     }
 
 } // namespace Leon

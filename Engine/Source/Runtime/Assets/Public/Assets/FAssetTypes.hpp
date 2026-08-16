@@ -18,7 +18,8 @@ namespace Leon {
         Material,
         MaterialInstance,
         Shader,
-        Level
+        Level,
+        Lightmap
     };
 
     inline const char* AssetTypeToString(EAssetType InType) {
@@ -37,6 +38,8 @@ namespace Leon {
             return "Shader";
         case EAssetType::Level:
             return "Level";
+        case EAssetType::Lightmap:
+            return "Lightmap";
         default:
             return "Unknown";
         }
@@ -57,6 +60,8 @@ namespace Leon {
             return EAssetType::Shader;
         if (InStr == "Level")
             return EAssetType::Level;
+        if (InStr == "Lightmap")
+            return EAssetType::Lightmap;
         return EAssetType::Unknown;
     }
 

@@ -1,0 +1,6 @@
+[/Script/Engine.GameModeBase]
+DefaultPawnClass=ADefaultPawn
+PlayerControllerClass=APlayerController
+HUDClass=AHUD
+GameStateClass=AGameStateBase
+PlayerStateClass=APlayerState

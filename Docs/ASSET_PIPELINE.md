@@ -19,7 +19,10 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
           │         └─── Native HDR Environment (.lhdr) [RGBA32F equirectangular panorama]
           │
           ├─── Mesh Importer (ufbx right-handed Y-up parsing / multi-submesh preservation / tangents)
-          │         └─── Native Static Mesh (.lmesh) [positions, normals, UVs, tangents, bitangents, bounds]
+          │         └─── Native Static Mesh (.lmesh v2) [positions, normals, UV0, UV1 lightmap, tangents, bitangents, bounds]
+          │
+          ├─── Lightmass (offline CPU bake)
+          │         └─── Native Lightmap (.llightmap) [RGBA32F irradiance atlas + header hash]
           │
           ├─── Material Extractor (Fuzzy token mapper & material slot generator)
           │         ├─── Master Material (.lmat) [Declarative Key-Value text]
@@ -41,11 +44,14 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
 - **Gloss Inversion**: If a texture has the `gloss` semantic, roughness is inverted ($R = 255 - G$) during import.
 
 ### 1.2 Native Static Mesh Format (`.lmesh`)
-- **Magic**: `0x4853454D` (`'MESH'`)
+- **Magic**: `0x48534D4C` (`'LMESH'`)
+- **Version**: 2 (v1 still loads; UV1 defaults from UV0)
+- **Vertex Layout**: Pos, Normal, UV0, **UV1 (LightmapUV)**, Tangent, Bitangent, Color.
+
+### 1.2b Native Lightmap Format (`.llightmap`)
+- **Magic**: `LLLM` (`0x4D4C4C4C`)
 - **Version**: 1
-- **Vertex Layout**: 68-byte packed vertex stride (`Float3 Pos`, `Float3 Normal`, `Float2 UV`, `Float3 Tangent`, `Float3 Bitangent`, `Float3 Color`).
-- **Submesh Preservation**: Preserves independent submeshes and material slot assignments without arbitrary mesh collapsing.
-- **Bounding Volumes**: Stores precomputed Axis-Aligned Bounding Box ($\mathbf{Min}, \mathbf{Max}$) and Bounding Sphere ($\mathbf{Center}, Radius$).
+- **Payload**: RGBA32F HDR irradiance atlas + content/bake hash. See [STATIC_LIGHTING.md](STATIC_LIGHTING.md).
 
 ### 1.3 Native HDR Environment Format (`.lhdr`)
 - **Magic**: `0x5244484C` (`'LHDR'`)
@@ -59,24 +65,23 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
 
 ---
 
-## 2. CLI Toolchain (`LeonAssetTool`)
-Located at `Tools/LeonAssetTool/`:
+## 2. CLI Toolchain (`LeonAssetTool` + Engine Scripts)
+
+Prefer Engine Scripts (resolve Content from `.lproject`). See [SCRIPTS.md](SCRIPTS.md).
 
 ```bash
-# Validate complete project descriptor (.lproject), config hierarchy, and default map assets
+python Scripts/validate_project.py --project <path.lproject>
+python Scripts/import_assets.py --project <path.lproject> [--force]
+python Scripts/validate_assets.py --project <path.lproject>
+python Scripts/bake_lightmaps.py --project <path.lproject> [--map /Game/Maps/Name] [--force]
+
+# Direct tool (paths absolute):
 LeonAssetTool validate_project --project <path.lproject>
-
-# Import all raw assets (Textures, Meshes, HDR) incrementally
 LeonAssetTool import --raw <raw_dir> --content <content_dir> [--force]
-
-# Validate all native assets in content directory
 LeonAssetTool validate --content <content_dir>
-
-# Validate map asset links, actors, lights, camera, and static meshes
 LeonAssetTool validate_map --map <path.lmap>
-
-# Inspect native binary header and metadata
-LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi>
+LeonAssetTool bake_lightmaps --map <path.lmap> [--force]
+LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi | file.llightmap>
 ```
 
 ---

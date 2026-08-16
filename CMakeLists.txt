@@ -53,12 +53,14 @@ add_subdirectory(Plugins/RHI/OpenGL)
 add_subdirectory(Tools/LeonAssetTool)
 
 # Game project (monorepo default). Override: -DLEON_PROJECT_DIR=Projects/MyGame
+# Absolute paths outside the Engine tree are supported (Unreal-like external .uproject).
 # Engine CMake never names a product; only this root entry point selects the client.
 set(LEON_PROJECT_DIR "Projects/Sandbox" CACHE PATH "Relative or absolute path to the game project directory")
 if(EXISTS "${CMAKE_SOURCE_DIR}/${LEON_PROJECT_DIR}/CMakeLists.txt")
     add_subdirectory("${LEON_PROJECT_DIR}")
 elseif(EXISTS "${LEON_PROJECT_DIR}/CMakeLists.txt")
-    add_subdirectory("${LEON_PROJECT_DIR}")
+    get_filename_component(_LEON_PROJECT_FOLDER_NAME "${LEON_PROJECT_DIR}" NAME)
+    add_subdirectory("${LEON_PROJECT_DIR}" "${CMAKE_BINARY_DIR}/Projects/${_LEON_PROJECT_FOLDER_NAME}")
 else()
     message(WARNING "LEON_PROJECT_DIR='${LEON_PROJECT_DIR}' not found — skipping game target")
 endif()

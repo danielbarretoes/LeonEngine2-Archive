@@ -35,6 +35,12 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Assets/Private/FMaterialImporter.cpp
     Source/Runtime/Assets/Private/FMeshImporter.cpp
     Source/Runtime/Assets/Private/FTextureImporter.cpp
+    Source/Runtime/Assets/Private/FLightmapAsset.cpp
+    Source/Runtime/Assets/Private/FLightmapUV.cpp
+    # Lightmass (offline bake — linked into Engine for LeonAssetTool + tests)
+    Source/Runtime/Lightmass/Private/FLightmapBuilder.cpp
+    Source/Runtime/Lightmass/Private/FLightBaker.cpp
+    Source/Runtime/Lightmass/Private/FLightmass.cpp
     # Renderer
     Source/Runtime/Renderer/Private/FWorldRenderer.cpp
     Source/Runtime/Renderer/Private/FMaterial.cpp
@@ -94,6 +100,7 @@ target_include_directories(LeonEngineCore
         "${LEON_RUNTIME_ROOT}/Core/Public"
         "${LEON_RUNTIME_ROOT}/RHI/Public"
         "${LEON_RUNTIME_ROOT}/Assets/Public"
+        "${LEON_RUNTIME_ROOT}/Lightmass/Public"
         "${LEON_RUNTIME_ROOT}/Renderer/Public"
         "${LEON_RUNTIME_ROOT}/UMG/Public"
         "${LEON_RUNTIME_ROOT}/Engine/Public"

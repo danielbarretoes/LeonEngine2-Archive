@@ -54,7 +54,9 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
     }
 
     TEST_CASE("StaticMesh - Vertex Layout Stride") {
-        CHECK(sizeof(FStaticMeshVertex) == 68); // 3 + 3 + 2 + 3 + 3 + 3 = 17 floats = 68 bytes
+        // Pos3 + Normal3 + UV0 + UV1 + Tangent3 + Bitangent3 + Color3 = 19 floats = 76 bytes
+        CHECK(sizeof(FStaticMeshVertex) == 76);
+        CHECK(sizeof(FStaticMeshVertexV1) == 68);
     }
 
     TEST_CASE("ResolveStaticSubmeshMaterial prefers MaterialOverrides (planar/geometry shared path)") {

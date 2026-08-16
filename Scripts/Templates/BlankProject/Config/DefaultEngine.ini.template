@@ -1,0 +1,14 @@
+[/Script/EngineSettings.GameMapsSettings]
+GameDefaultMap=/Game/Maps/Empty
+GlobalDefaultGameMode=AGameModeBase
+
+[/Script/Engine.DisplaySettings]
+WindowTitle={{PROJECT_NAME}}
+WindowWidth=1280
+WindowHeight=720
+VSync=True
+Fullscreen=False
+
+[/Script/Engine.RendererSettings]
+ShadowMapResolution=2048
+EnablePlanarReflection=False

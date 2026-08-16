@@ -8,7 +8,7 @@ namespace Leon {
     TRef<FTexture2D> FTexture2D::Create(uint32_t InWidth, uint32_t InHeight) {
         IRenderDriver* driver = FRenderDriverRegistry::GetActiveDriver();
         if (!driver) {
-            LE_CORE_ASSERT(false, "No active RenderDriver registered for Texture2D creation!");
+            LE_CORE_WARN("FTexture2D::Create: no RenderDriver (offline / headless) — returning null");
             return nullptr;
         }
         return driver->CreateTexture2D(InWidth, InHeight);
@@ -17,7 +17,7 @@ namespace Leon {
     TRef<FTexture2D> FTexture2D::Create(const std::string& InPath) {
         IRenderDriver* driver = FRenderDriverRegistry::GetActiveDriver();
         if (!driver) {
-            LE_CORE_ASSERT(false, "No active RenderDriver registered for Texture2D creation!");
+            LE_CORE_WARN("FTexture2D::Create: no RenderDriver (offline / headless) — returning null");
             return nullptr;
         }
         return driver->CreateTexture2D(InPath);
@@ -26,7 +26,7 @@ namespace Leon {
     TRef<FTexture2D> FTexture2D::CreateWithFormat(uint32_t InWidth, uint32_t InHeight, ETextureFormat InFormat) {
         IRenderDriver* driver = FRenderDriverRegistry::GetActiveDriver();
         if (!driver) {
-            LE_CORE_ASSERT(false, "No active RenderDriver registered for Texture2D creation!");
+            LE_CORE_WARN("FTexture2D::CreateWithFormat: no RenderDriver (offline / headless) — returning null");
             return nullptr;
         }
         return driver->CreateTexture2DWithFormat(InWidth, InHeight, InFormat);

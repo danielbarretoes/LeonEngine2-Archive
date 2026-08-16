@@ -54,6 +54,7 @@ add_executable(RendererTests
     Gameplay/UIHUDTests.cpp
     Gameplay/InputSettingsTests.cpp
     Gameplay/CharacterComponentFrustumTests.cpp
+    Lightmass/StaticLightingTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE

@@ -140,8 +140,28 @@ namespace Leon {
                     return true;
                 }
                 case Key::F7: {
-                    renderer->SetDebugMode(10);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Direct Lighting Only (Cook-Torrance Lo)");
+                    // Cycle lighting isolation: Dynamic → Baked → Lightmap → LM UV → Dyn+Baked
+                    int currentMode = renderer->GetDebugMode();
+                    int nextMode = 10;
+                    const char* name = "Dynamic Lighting Only (Lo)";
+                    if (currentMode == 10) {
+                        nextMode = 31;
+                        name = "Baked Lighting Only";
+                    } else if (currentMode == 31) {
+                        nextMode = 32;
+                        name = "Lightmap Irradiance (raw)";
+                    } else if (currentMode == 32) {
+                        nextMode = 33;
+                        name = "Lightmap UV (atlas)";
+                    } else if (currentMode == 33) {
+                        nextMode = 34;
+                        name = "Dynamic + Baked (no IBL)";
+                    } else if (currentMode == 34) {
+                        nextMode = 10;
+                        name = "Dynamic Lighting Only (Lo)";
+                    }
+                    renderer->SetDebugMode(nextMode);
+                    LE_CORE_INFO("[RENDER DEBUG] Mode: {0}", name);
                     return true;
                 }
                 case Key::F8: {
@@ -409,7 +429,7 @@ namespace Leon {
     std::string UEngine::ResolveStartupMap(const FConfigFile& InEngineConfig, const FProjectDescriptor& InProjectDesc) {
         return InEngineConfig.GetString(
             "/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
-            InProjectDesc.DefaultMap.empty() ? "/Game/Maps/MainShowcase" : InProjectDesc.DefaultMap);
+            InProjectDesc.DefaultMap.empty() ? "/Game/Maps/Empty" : InProjectDesc.DefaultMap);
     }
 
     void UEngine::RequestTravel(const std::string& InLevelName) {

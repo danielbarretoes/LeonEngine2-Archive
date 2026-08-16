@@ -1,0 +1,757 @@
+# LeonEngine2 Map Asset File (.lmap)
+# Human-Readable & Deterministic Serialization
+Map:
+  Name: "NightLevel"
+  Version: "2.0"
+
+Environment:
+  Skybox:
+    Enabled: true
+    Exposure: 0.9
+    SunIntensity: 0.15
+    EnvironmentIntensity: 0.32
+    UseHDREnvironmentMap: true
+    HDREnvironmentMap: "/Game/HDR/NightField1k.lhdr"
+    SkyZenithColor: [0.02, 0.04, 0.1]
+    HorizonColor: [0.08, 0.1, 0.18]
+    GroundColor: [0.03, 0.03, 0.04]
+    SunColor: [0.55, 0.65, 0.95]
+    StaticLighting: true
+    LightmapResolution: 64
+    NumIndirectBounces: 2
+    SamplesPerTexel: 8
+    IndirectIntensity: 1.15
+    AmbientOcclusion: true
+    AOIntensity: 1
+    AORadius: 0.4
+    TexelPadding: 2
+    WorldScale: 1
+    LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    LightmapBakeHash: "e72dff9e13b002fe"
+
+Actors:
+  - Name: "Main Camera"
+    Transform:
+      Translation: [-5.5, 2.6, 11]
+      Rotation: [-10, -22, 0]
+      Scale: [1, 1, 1]
+    Camera:
+      Primary: true
+      FOV: 50
+      NearClip: 0.1
+      FarClip: 1000
+  - Name: "Moonlight"
+    Transform:
+      Translation: [0, 20, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    DirectionalLight:
+      Enabled: true
+      Direction: [0.28, -0.9, -0.32]
+      Color: [0.45, 0.58, 0.95]
+      Intensity: 2.4
+      Mobility: Static
+  - Name: "Street Lamp Light A"
+    Transform:
+      Translation: [-6, 3.6, 4]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.72, 0.35]
+      Intensity: 6.5
+      Radius: 12
+      Mobility: Static
+  - Name: "Street Lamp Light B"
+    Transform:
+      Translation: [5.5, 3.6, -1]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.72, 0.35]
+      Intensity: 6
+      Radius: 11
+      Mobility: Static
+  - Name: "Building Porch Light"
+    Transform:
+      Translation: [-0.5, 2.2, -3.8]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.8, 0.45]
+      Intensity: 4.5
+      Radius: 8
+      Mobility: Static
+  - Name: "Building Window Glow"
+    Transform:
+      Translation: [1.4, 2.5, -5.4]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.86, 0.55]
+      Intensity: 3.2
+      Radius: 6.5
+      Mobility: Static
+  - Name: "Car Headlight Left"
+    Transform:
+      Translation: [3.2, 0.55, 3.2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [-0.55, -0.06, 0.83]
+      Color: [1, 0.97, 0.9]
+      Intensity: 42
+      Radius: 22
+      CutOff: 14
+      OuterCutOff: 24
+      Mobility: Static
+  - Name: "Car Headlight Right"
+    Transform:
+      Translation: [4.1, 0.55, 2.7]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [-0.55, -0.06, 0.83]
+      Color: [1, 0.97, 0.9]
+      Intensity: 42
+      Radius: 22
+      CutOff: 14
+      OuterCutOff: 24
+      Mobility: Static
+  - Name: "Car Taillight Left"
+    Transform:
+      Translation: [4.9, 0.55, 0.4]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.05, 0.04]
+      Intensity: 2
+      Radius: 3
+      Mobility: Static
+  - Name: "Car Taillight Right"
+    Transform:
+      Translation: [5.5, 0.55, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.05, 0.04]
+      Intensity: 2
+      Radius: 3
+      Mobility: Static
+  - Name: "Ground"
+    Transform:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Plane"
+      Size: 1
+      Width: 40
+      Height: 1
+      Depth: 36
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 30
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: false
+      Mobility: Static
+      LightmapResolution: 128
+      LightmapIndex: 0
+      LightmapScale: [0.125, 0.5]
+      LightmapBias: [0.00195312, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_FloorTiles.lmat"
+  - Name: "Building Body"
+    Transform:
+      Translation: [0, 1.6, -5.5]
+      Rotation: [0, 0, 0]
+      Scale: [6, 3.2, 4]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 96
+      LightmapIndex: 1
+      LightmapScale: [0.09375, 0.375]
+      LightmapBias: [0.128906, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_IndustrialMetal.lmat"
+  - Name: "Building Roof"
+    Transform:
+      Translation: [0, 3.55, -5.5]
+      Rotation: [0, 0, 0]
+      Scale: [6.4, 0.35, 4.4]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 2
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.224609, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RoughCastIron.lmat"
+  - Name: "Building Porch Slab"
+    Transform:
+      Translation: [0, 0.12, -3.2]
+      Rotation: [0, 0, 0]
+      Scale: [3.2, 0.24, 1.6]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 48
+      LightmapIndex: 3
+      LightmapScale: [0.046875, 0.1875]
+      LightmapBias: [0.353516, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_MatteObsidian.lmat"
+  - Name: "Building Window Pane"
+    Transform:
+      Translation: [1.4, 2.4, -3.45]
+      Rotation: [0, 0, 0]
+      Scale: [1.2, 1.2, 0.12]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 4
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.789062, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_AmberEmissive.lmat"
+  - Name: "Lamp Post A"
+    Transform:
+      Translation: [-6, 1.7, 4]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 3.4
+      Depth: 1
+      Radius: 0.08
+      SubdivisionsX: 12
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 5
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.755859, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_BrushedIron.lmat"
+  - Name: "Lamp Bulb A"
+    Transform:
+      Translation: [-6, 3.55, 4]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.22
+      SubdivisionsX: 16
+      SubdivisionsZ: 12
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 6
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.974609, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_AmberEmissive.lmat"
+  - Name: "Lamp Post B"
+    Transform:
+      Translation: [5.5, 1.7, -1]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 3.4
+      Depth: 1
+      Radius: 0.08
+      SubdivisionsX: 12
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 7
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.722656, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_BrushedIron.lmat"
+  - Name: "Lamp Bulb B"
+    Transform:
+      Translation: [5.5, 3.55, -1]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.22
+      SubdivisionsX: 16
+      SubdivisionsZ: 12
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 8
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.923828, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_AmberEmissive.lmat"
+  - Name: "Car Body"
+    Transform:
+      Translation: [4.2, 0.55, 1.6]
+      Rotation: [0, -35, 0]
+      Scale: [1.8, 0.55, 3.6]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 9
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.289062, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RedPlastic.lmat"
+  - Name: "Car Cabin"
+    Transform:
+      Translation: [4.2, 1.05, 1.35]
+      Rotation: [0, -35, 0]
+      Scale: [1.5, 0.55, 1.8]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 48
+      LightmapIndex: 10
+      LightmapScale: [0.046875, 0.1875]
+      LightmapBias: [0.451172, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ChromeMirror.lmat"
+  - Name: "Car Wheel FL"
+    Transform:
+      Translation: [3.35, 0.28, 2.55]
+      Rotation: [0, -35, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.28
+      SubdivisionsX: 12
+      SubdivisionsZ: 10
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 11
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.898438, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_MatteObsidian.lmat"
+  - Name: "Car Wheel FR"
+    Transform:
+      Translation: [5.05, 0.28, 2.05]
+      Rotation: [0, -35, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.28
+      SubdivisionsX: 12
+      SubdivisionsZ: 10
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 12
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.873047, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_MatteObsidian.lmat"
+  - Name: "Car Wheel RL"
+    Transform:
+      Translation: [3.55, 0.28, 0.55]
+      Rotation: [0, -35, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.28
+      SubdivisionsX: 12
+      SubdivisionsZ: 10
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 13
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.822266, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_MatteObsidian.lmat"
+  - Name: "Car Wheel RR"
+    Transform:
+      Translation: [5.25, 0.28, 0.05]
+      Rotation: [0, -35, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.28
+      SubdivisionsX: 12
+      SubdivisionsZ: 10
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 14
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.847656, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_MatteObsidian.lmat"
+  - Name: "Tree Trunk A"
+    Transform:
+      Translation: [-8.5, 1.2, -5.5]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 2.4
+      Depth: 1
+      Radius: 0.18
+      SubdivisionsX: 10
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 15
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.689453, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RoughCastIron.lmat"
+  - Name: "Tree Crown A"
+    Transform:
+      Translation: [-8.5, 3, -5.5]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cone"
+      Size: 1
+      Width: 1
+      Height: 2.2
+      Depth: 1
+      Radius: 1.1
+      SubdivisionsX: 16
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 48
+      LightmapIndex: 16
+      LightmapScale: [0.046875, 0.1875]
+      LightmapBias: [0.5, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_EmeraldRamp.lmat"
+  - Name: "Tree Trunk B"
+    Transform:
+      Translation: [8, 1.2, -3]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 2.4
+      Depth: 1
+      Radius: 0.16
+      SubdivisionsX: 10
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 17
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.65625, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RoughCastIron.lmat"
+  - Name: "Tree Crown B"
+    Transform:
+      Translation: [8, 3, -3]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cone"
+      Size: 1
+      Width: 1
+      Height: 2
+      Depth: 1
+      Radius: 1
+      SubdivisionsX: 16
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 48
+      LightmapIndex: 18
+      LightmapScale: [0.046875, 0.1875]
+      LightmapBias: [0.402344, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_EmeraldRamp.lmat"
+  - Name: "Tree Trunk C"
+    Transform:
+      Translation: [-9, 1, 2.5]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 2
+      Depth: 1
+      Radius: 0.14
+      SubdivisionsX: 10
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 24
+      LightmapIndex: 19
+      LightmapScale: [0.0234375, 0.09375]
+      LightmapBias: [0.949219, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RoughCastIron.lmat"
+  - Name: "Tree Crown C"
+    Transform:
+      Translation: [-9, 2.6, 2.5]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cone"
+      Size: 1
+      Width: 1
+      Height: 1.8
+      Depth: 1
+      Radius: 0.9
+      SubdivisionsX: 16
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 40
+      LightmapIndex: 20
+      LightmapScale: [0.0390625, 0.15625]
+      LightmapBias: [0.548828, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_EmeraldRamp.lmat"
+  - Name: "Curb Block A"
+    Transform:
+      Translation: [-3.5, 0.15, 5.5]
+      Rotation: [0, 0, 0]
+      Scale: [8, 0.3, 0.4]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 21
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.623047, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_WhitePlastic.lmat"
+  - Name: "Curb Block B"
+    Transform:
+      Translation: [4, 0.15, -4.8]
+      Rotation: [0, 90, 0]
+      Scale: [6, 0.3, 0.4]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 22
+      LightmapScale: [0.03125, 0.125]
+      LightmapBias: [0.589844, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_WhitePlastic.lmat"
+  - Name: "Level Title"
+    Transform:
+      Translation: [-5.5, 4.2, 6]
+      Rotation: [-8, -22, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "NIGHT LEVEL"
+      Color: [0.7, 0.82, 1, 0.9]
+      Scale: 0.28
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true

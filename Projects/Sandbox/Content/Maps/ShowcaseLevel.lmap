@@ -1,0 +1,849 @@
+# LeonEngine2 Map Asset File (.lmap)
+# Human-Readable & Deterministic Serialization
+Map:
+  Name: "ShowcaseLevel"
+  Version: "2.0"
+
+Environment:
+  Skybox:
+    Enabled: true
+    Exposure: 1
+    SunIntensity: 3.5
+    EnvironmentIntensity: 1.2
+    UseHDREnvironmentMap: true
+    HDREnvironmentMap: "/Game/HDR/AutumnField1k.lhdr"
+    SkyZenithColor: [0.18, 0.44, 0.88]
+    HorizonColor: [0.78, 0.84, 0.95]
+    GroundColor: [0.22, 0.24, 0.28]
+    SunColor: [1, 0.98, 0.92]
+    StaticLighting: true
+    LightmapResolution: 64
+    NumIndirectBounces: 2
+    SamplesPerTexel: 8
+    IndirectIntensity: 1
+    AmbientOcclusion: true
+    AOIntensity: 1
+    AORadius: 0.35
+    TexelPadding: 2
+    WorldScale: 1
+    LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    LightmapBakeHash: "c83ac5c83c866a84"
+
+Actors:
+  - Name: "Main Camera"
+    Transform:
+      Translation: [0, 3.2, 9.5]
+      Rotation: [-12, 0, 0]
+      Scale: [1, 1, 1]
+    Camera:
+      Primary: true
+      FOV: 55
+      NearClip: 0.1
+      FarClip: 1000
+  - Name: "Directional Sunlight"
+    Transform:
+      Translation: [0, 4.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    DirectionalLight:
+      Enabled: true
+      Direction: [-0.45, -1, -0.35]
+      Color: [1, 0.98, 0.92]
+      Intensity: 3.5
+      Mobility: Static
+  - Name: "Orbiting Point Light"
+    Transform:
+      Translation: [3.5, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.55, 0.15]
+      Intensity: 5
+      Radius: 12
+      Mobility: Movable
+  - Name: "Accent Magenta Point Light"
+    Transform:
+      Translation: [-3.5, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [0.95, 0.15, 1]
+      Intensity: 4.5
+      Radius: 10
+      Mobility: Static
+  - Name: "Dramatic Spotlight"
+    Transform:
+      Translation: [0, 4.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [0, -1, 0]
+      Color: [0, 0.95, 1]
+      Intensity: 50
+      Radius: 20
+      CutOff: 20
+      OuterCutOff: 30
+      Mobility: Static
+  - Name: "Golden Raking Spotlight"
+    Transform:
+      Translation: [-6, 3.8, 3.5]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [0.75, -0.45, -0.45]
+      Color: [1, 0.85, 0.4]
+      Intensity: 40
+      Radius: 22
+      CutOff: 18
+      OuterCutOff: 28
+      Mobility: Static
+  - Name: "PBR Ground Plane"
+    Transform:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Plane"
+      Size: 1
+      Width: 28
+      Height: 1
+      Depth: 24
+      Radius: 0.5
+      SubdivisionsX: 28
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: false
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 0
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.646484, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_FloorTiles.lmat"
+  - Name: "PBR Emerald Ramp"
+    Transform:
+      Translation: [-5, 0.5, 2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Ramp"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 1
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.195312, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_EmeraldRamp.lmat"
+  - Name: "PBR Textured Cube"
+    Transform:
+      Translation: [-3, 0.5, 2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 2
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.130859, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ContainerCube.lmat"
+  - Name: "PBR Polished Gold Sphere"
+    Transform:
+      Translation: [-1, 0.5, 2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 16
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 3
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.0664062, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_PolishedGold.lmat"
+  - Name: "PBR Glossy Ruby Sphere"
+    Transform:
+      Translation: [1, 0.5, 2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 16
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 4
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.00195312, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RubyDielectric.lmat"
+  - Name: "PBR Brushed Iron Cylinder"
+    Transform:
+      Translation: [3, 0.5, 2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 5
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.904297, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_BrushedIron.lmat"
+  - Name: "PBR Cobalt Pyramid"
+    Transform:
+      Translation: [5, 0.5, 2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Pyramid"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 6
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.839844, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_CobaltPyramid.lmat"
+  - Name: "PBR Mirror Chrome Sphere"
+    Transform:
+      Translation: [-5, 0.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 16
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 7
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.775391, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ChromeMirror.lmat"
+  - Name: "PBR Polished Brass Cone"
+    Transform:
+      Translation: [-3, 0.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cone"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 8
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.710938, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_PolishedBrass.lmat"
+  - Name: "PBR Pure Copper Cube"
+    Transform:
+      Translation: [-1, 0.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 9
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.00195312, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_PureCopper.lmat"
+  - Name: "PBR Satin Titanium Sphere"
+    Transform:
+      Translation: [1, 0.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 16
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 10
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.582031, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_SatinTitanium.lmat"
+  - Name: "PBR Rough Cast Iron Cylinder"
+    Transform:
+      Translation: [3, 0.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 11
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.517578, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RoughCastIron.lmat"
+  - Name: "PBR Matte Obsidian Pyramid"
+    Transform:
+      Translation: [5, 0.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Pyramid"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 12
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.453125, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_MatteObsidian.lmat"
+  - Name: "PBR Neon Cyan Emissive Cube"
+    Transform:
+      Translation: [-5, 0.5, -2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 13
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.388672, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_NeonCyanEmissive.lmat"
+  - Name: "PBR Amber Core Emissive Sphere"
+    Transform:
+      Translation: [-3, 0.5, -2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 16
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 14
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.324219, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_AmberEmissive.lmat"
+  - Name: "PBR Clean White Plastic Cylinder"
+    Transform:
+      Translation: [-1, 0.5, -2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cylinder"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 15
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.259766, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_WhitePlastic.lmat"
+  - Name: "PBR Glossy Red Plastic Ramp"
+    Transform:
+      Translation: [1, 0.5, -2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Ramp"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 16
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.195312, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_RedPlastic.lmat"
+  - Name: "PBR Sapphire Crystal Cone"
+    Transform:
+      Translation: [3, 0.5, -2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cone"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 17
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.130859, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_SapphireCrystal.lmat"
+  - Name: "PBR Industrial Metal Cube"
+    Transform:
+      Translation: [5, 0.5, -2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 18
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.0664062, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_IndustrialMetal.lmat"
+  - Name: "Row 1 Header"
+    Transform:
+      Translation: [-7, 0.25, 2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "ROW 1: CORE GEOMETRIES"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.22
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Row 2 Header"
+    Transform:
+      Translation: [-7, 0.25, 0]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "ROW 2: ROUGHNESS & METALS"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.22
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Row 3 Header"
+    Transform:
+      Translation: [-7, 0.25, -2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "ROW 3: EMISSIVE & PLASTICS"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.22
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Emerald Ramp"
+    Transform:
+      Translation: [-5, 0.15, 2.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "EMERALD RAMP"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Container Cube"
+    Transform:
+      Translation: [-3, 0.15, 2.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "CONTAINER CUBE"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Gold Sphere"
+    Transform:
+      Translation: [-1, 0.15, 2.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "POLISHED GOLD"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Ruby Sphere"
+    Transform:
+      Translation: [1, 0.15, 2.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "GLOSSY RUBY"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Brushed Iron"
+    Transform:
+      Translation: [3, 0.15, 2.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "BRUSHED IRON"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Cobalt Pyramid"
+    Transform:
+      Translation: [5, 0.15, 2.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "COBALT PYRAMID"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Chrome Sphere"
+    Transform:
+      Translation: [-5, 0.15, 0.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "MIRROR CHROME"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Brass Cone"
+    Transform:
+      Translation: [-3, 0.15, 0.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "POLISHED BRASS"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Copper Cube"
+    Transform:
+      Translation: [-1, 0.15, 0.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "PURE COPPER"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Titanium Sphere"
+    Transform:
+      Translation: [1, 0.15, 0.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "SATIN TITANIUM"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Cast Iron"
+    Transform:
+      Translation: [3, 0.15, 0.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "CAST IRON"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Obsidian Pyramid"
+    Transform:
+      Translation: [5, 0.15, 0.8]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "MATTE OBSIDIAN"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Cyan Cube"
+    Transform:
+      Translation: [-5, 0.15, -1.2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "NEON CYAN"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Amber Sphere"
+    Transform:
+      Translation: [-3, 0.15, -1.2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "AMBER CORE"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label White Plastic"
+    Transform:
+      Translation: [-1, 0.15, -1.2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "WHITE PLASTIC"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Red Plastic"
+    Transform:
+      Translation: [1, 0.15, -1.2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "RED PLASTIC"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Sapphire Cone"
+    Transform:
+      Translation: [3, 0.15, -1.2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "SAPPHIRE CRYSTAL"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true
+  - Name: "Label Industrial Metal"
+    Transform:
+      Translation: [5, 0.15, -1.2]
+      Rotation: [-20, 0, 0]
+      Scale: [1, 1, 1]
+    Text:
+      Content: "INDUSTRIAL METAL"
+      Color: [0.22, 0.22, 0.25, 0.95]
+      Scale: 0.13
+      LineSpacing: 1.2
+      Alignment: 1
+      DoubleSided: true

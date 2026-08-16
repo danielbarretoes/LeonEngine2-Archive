@@ -1,0 +1,7 @@
+{
+  "FileVersion": 1,
+  "EngineVersion": "0.15.0",
+  "ProjectName": "{{PROJECT_NAME}}",
+  "DefaultMap": "/Game/Maps/Empty",
+  "DefaultGameMode": "AGameModeBase"
+}

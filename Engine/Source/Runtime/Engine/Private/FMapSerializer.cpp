@@ -4,7 +4,9 @@
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "Engine/Components.hpp"
+#include "RHI/IRenderDriver.hpp"
 
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -123,6 +125,34 @@ namespace Leon {
                    << "]\n";
                 Indent(ss, 2);
                 ss << "SunColor: [" << sky.SunColor.r << ", " << sky.SunColor.g << ", " << sky.SunColor.b << "]\n";
+                Indent(ss, 2);
+                ss << "StaticLighting: " << (sky.bStaticLighting ? "true" : "false") << "\n";
+                Indent(ss, 2);
+                ss << "LightmapResolution: " << sky.LightmapResolution << "\n";
+                Indent(ss, 2);
+                ss << "NumIndirectBounces: " << sky.NumIndirectBounces << "\n";
+                Indent(ss, 2);
+                ss << "SamplesPerTexel: " << sky.SamplesPerTexel << "\n";
+                Indent(ss, 2);
+                ss << "IndirectIntensity: " << sky.IndirectIntensity << "\n";
+                Indent(ss, 2);
+                ss << "AmbientOcclusion: " << (sky.bAmbientOcclusion ? "true" : "false") << "\n";
+                Indent(ss, 2);
+                ss << "AOIntensity: " << sky.AOIntensity << "\n";
+                Indent(ss, 2);
+                ss << "AORadius: " << sky.AORadius << "\n";
+                Indent(ss, 2);
+                ss << "TexelPadding: " << sky.TexelPadding << "\n";
+                Indent(ss, 2);
+                ss << "WorldScale: " << sky.WorldScale << "\n";
+                if (!sky.LightmapAssetPath.empty()) {
+                    Indent(ss, 2);
+                    ss << "LightmapAsset: \"" << sky.LightmapAssetPath << "\"\n";
+                }
+                if (sky.LightmapBakeHash != 0) {
+                    Indent(ss, 2);
+                    ss << "LightmapBakeHash: \"" << std::hex << sky.LightmapBakeHash << std::dec << "\"\n";
+                }
                 break;
             }
         }
@@ -192,6 +222,22 @@ namespace Leon {
                 ss << "ReceiveShadows: " << (smc.bReceiveShadows ? "true" : "false") << "\n";
                 Indent(ss, 3);
                 ss << "VisibleInReflection: " << (smc.bVisibleInReflection ? "true" : "false") << "\n";
+                Indent(ss, 3);
+                ss << "Mobility: " << ComponentMobilityToString(smc.Mobility) << "\n";
+                Indent(ss, 3);
+                ss << "LightmapResolution: " << smc.LightmapResolution << "\n";
+                if (smc.LightmapIndex >= 0) {
+                    Indent(ss, 3);
+                    ss << "LightmapIndex: " << smc.LightmapIndex << "\n";
+                    Indent(ss, 3);
+                    ss << "LightmapScale: [" << smc.LightmapScale.x << ", " << smc.LightmapScale.y << "]\n";
+                    Indent(ss, 3);
+                    ss << "LightmapBias: [" << smc.LightmapBias.x << ", " << smc.LightmapBias.y << "]\n";
+                }
+                if (!smc.LightmapAssetPath.empty()) {
+                    Indent(ss, 3);
+                    ss << "LightmapAsset: \"" << smc.LightmapAssetPath << "\"\n";
+                }
 
                 if (!smc.MaterialOverridePaths.empty()) {
                     Indent(ss, 3);
@@ -236,6 +282,22 @@ namespace Leon {
                 ss << "ReceiveShadows: " << (mc.bReceiveShadows ? "true" : "false") << "\n";
                 Indent(ss, 3);
                 ss << "VisibleInReflection: " << (mc.bVisibleInReflection ? "true" : "false") << "\n";
+                Indent(ss, 3);
+                ss << "Mobility: " << ComponentMobilityToString(mc.Mobility) << "\n";
+                Indent(ss, 3);
+                ss << "LightmapResolution: " << mc.LightmapResolution << "\n";
+                if (mc.LightmapIndex >= 0) {
+                    Indent(ss, 3);
+                    ss << "LightmapIndex: " << mc.LightmapIndex << "\n";
+                    Indent(ss, 3);
+                    ss << "LightmapScale: [" << mc.LightmapScale.x << ", " << mc.LightmapScale.y << "]\n";
+                    Indent(ss, 3);
+                    ss << "LightmapBias: [" << mc.LightmapBias.x << ", " << mc.LightmapBias.y << "]\n";
+                }
+                if (!mc.LightmapAssetPath.empty()) {
+                    Indent(ss, 3);
+                    ss << "LightmapAsset: \"" << mc.LightmapAssetPath << "\"\n";
+                }
             }
 
             // Material Component
@@ -262,6 +324,8 @@ namespace Leon {
                    << "]\n";
                 Indent(ss, 3);
                 ss << "Intensity: " << dlc.Light.Intensity << "\n";
+                Indent(ss, 3);
+                ss << "Mobility: " << LightMobilityToString(dlc.Mobility) << "\n";
             }
 
             // Point Light Component
@@ -278,6 +342,8 @@ namespace Leon {
                 ss << "Intensity: " << plc.Light.Intensity << "\n";
                 Indent(ss, 3);
                 ss << "Radius: " << plc.Light.Radius << "\n";
+                Indent(ss, 3);
+                ss << "Mobility: " << LightMobilityToString(plc.Mobility) << "\n";
             }
 
             // Spot Light Component
@@ -301,6 +367,8 @@ namespace Leon {
                 ss << "CutOff: " << slc.Light.CutOff << "\n";
                 Indent(ss, 3);
                 ss << "OuterCutOff: " << slc.Light.OuterCutOff << "\n";
+                Indent(ss, 3);
+                ss << "Mobility: " << LightMobilityToString(slc.Mobility) << "\n";
             }
 
             // Text Component
@@ -376,6 +444,12 @@ namespace Leon {
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
+        EComponentMobility Mobility = EComponentMobility::Static;
+        uint32_t LightmapResolution = 64;
+        int32_t LightmapIndex = -1;
+        glm::vec2 LightmapScale{1.0f, 1.0f};
+        glm::vec2 LightmapBias{0.0f, 0.0f};
+        std::string LightmapAssetPath;
 
         bool bHasMaterial = false;
         std::string MaterialAssetPath;
@@ -383,14 +457,17 @@ namespace Leon {
 
         bool bHasDirLight = false;
         bool bDirLightEnabled = true;
+        ELightMobility DirLightMobility = ELightMobility::Movable;
         FDirectionalLight DirLight;
 
         bool bHasPointLight = false;
         bool bPointLightEnabled = true;
+        ELightMobility PointLightMobility = ELightMobility::Movable;
         FPointLight PointLight;
 
         bool bHasSpotLight = false;
         bool bSpotLightEnabled = true;
+        ELightMobility SpotLightMobility = ELightMobility::Movable;
         FSpotLight SpotLight;
 
         bool bHasText = false;
@@ -523,6 +600,30 @@ namespace Leon {
                             auto v = ParseFloatArray(val);
                             if (v.size() >= 3)
                                 skybox.SunColor = {v[0], v[1], v[2]};
+                        } else if (key == "StaticLighting") {
+                            skybox.bStaticLighting = (val == "true");
+                        } else if (key == "LightmapResolution") {
+                            skybox.LightmapResolution = static_cast<uint32_t>(std::stoul(val));
+                        } else if (key == "NumIndirectBounces") {
+                            skybox.NumIndirectBounces = static_cast<uint32_t>(std::stoul(val));
+                        } else if (key == "SamplesPerTexel") {
+                            skybox.SamplesPerTexel = static_cast<uint32_t>(std::stoul(val));
+                        } else if (key == "IndirectIntensity") {
+                            skybox.IndirectIntensity = std::stof(val);
+                        } else if (key == "AmbientOcclusion") {
+                            skybox.bAmbientOcclusion = (val == "true");
+                        } else if (key == "AOIntensity") {
+                            skybox.AOIntensity = std::stof(val);
+                        } else if (key == "AORadius") {
+                            skybox.AORadius = std::stof(val);
+                        } else if (key == "TexelPadding") {
+                            skybox.TexelPadding = std::stof(val);
+                        } else if (key == "WorldScale") {
+                            skybox.WorldScale = std::stof(val);
+                        } else if (key == "LightmapAsset") {
+                            skybox.LightmapAssetPath = val;
+                        } else if (key == "LightmapBakeHash") {
+                            skybox.LightmapBakeHash = std::strtoull(val.c_str(), nullptr, 16);
                         }
                     }
                 }
@@ -671,6 +772,22 @@ namespace Leon {
                             currentActor.bReceiveShadows = (val == "true");
                         else if (key == "VisibleInReflection")
                             currentActor.bVisibleInReflection = (val == "true");
+                        else if (key == "Mobility")
+                            currentActor.Mobility = StringToComponentMobility(val);
+                        else if (key == "LightmapResolution")
+                            currentActor.LightmapResolution = static_cast<uint32_t>(std::stoul(val));
+                        else if (key == "LightmapIndex")
+                            currentActor.LightmapIndex = std::stoi(val);
+                        else if (key == "LightmapScale") {
+                            auto v = ParseFloatArray(val);
+                            if (v.size() >= 2)
+                                currentActor.LightmapScale = {v[0], v[1]};
+                        } else if (key == "LightmapBias") {
+                            auto v = ParseFloatArray(val);
+                            if (v.size() >= 2)
+                                currentActor.LightmapBias = {v[0], v[1]};
+                        } else if (key == "LightmapAsset")
+                            currentActor.LightmapAssetPath = val;
                         break;
 
                     case EActorComponentSection::MaterialOverrides:
@@ -708,6 +825,22 @@ namespace Leon {
                             currentActor.bReceiveShadows = (val == "true");
                         else if (key == "VisibleInReflection")
                             currentActor.bVisibleInReflection = (val == "true");
+                        else if (key == "Mobility")
+                            currentActor.Mobility = StringToComponentMobility(val);
+                        else if (key == "LightmapResolution")
+                            currentActor.LightmapResolution = static_cast<uint32_t>(std::stoul(val));
+                        else if (key == "LightmapIndex")
+                            currentActor.LightmapIndex = std::stoi(val);
+                        else if (key == "LightmapScale") {
+                            auto v = ParseFloatArray(val);
+                            if (v.size() >= 2)
+                                currentActor.LightmapScale = {v[0], v[1]};
+                        } else if (key == "LightmapBias") {
+                            auto v = ParseFloatArray(val);
+                            if (v.size() >= 2)
+                                currentActor.LightmapBias = {v[0], v[1]};
+                        } else if (key == "LightmapAsset")
+                            currentActor.LightmapAssetPath = val;
                         break;
 
                     case EActorComponentSection::Material:
@@ -738,6 +871,8 @@ namespace Leon {
                                 currentActor.DirLight.Color = {v[0], v[1], v[2]};
                         } else if (key == "Intensity")
                             currentActor.DirLight.Intensity = std::stof(val);
+                        else if (key == "Mobility")
+                            currentActor.DirLightMobility = StringToLightMobility(val);
                         break;
 
                     case EActorComponentSection::PointLight:
@@ -751,6 +886,8 @@ namespace Leon {
                             currentActor.PointLight.Intensity = std::stof(val);
                         else if (key == "Radius")
                             currentActor.PointLight.Radius = std::stof(val);
+                        else if (key == "Mobility")
+                            currentActor.PointLightMobility = StringToLightMobility(val);
                         break;
 
                     case EActorComponentSection::SpotLight:
@@ -772,6 +909,8 @@ namespace Leon {
                             currentActor.SpotLight.CutOff = std::stof(val);
                         else if (key == "OuterCutOff" || key == "OuterConeAngle")
                             currentActor.SpotLight.OuterCutOff = std::stof(val);
+                        else if (key == "Mobility")
+                            currentActor.SpotLightMobility = StringToLightMobility(val);
                         break;
 
                     case EActorComponentSection::Text:
@@ -844,6 +983,12 @@ namespace Leon {
                     comp.bCastShadows = actorData.bCastShadows;
                     comp.bReceiveShadows = actorData.bReceiveShadows;
                     comp.bVisibleInReflection = actorData.bVisibleInReflection;
+                    comp.Mobility = actorData.Mobility;
+                    comp.LightmapResolution = actorData.LightmapResolution;
+                    comp.LightmapIndex = actorData.LightmapIndex;
+                    comp.LightmapScale = actorData.LightmapScale;
+                    comp.LightmapBias = actorData.LightmapBias;
+                    comp.LightmapAssetPath = actorData.LightmapAssetPath;
 
                     // Apply Material Overrides per slot
                     for (const auto& [slotIdx, overridePath] : actorData.MaterialOverrides) {
@@ -871,31 +1016,38 @@ namespace Leon {
             // Mesh Component (Procedural)
             else if (actorData.bHasMesh) {
                 TRef<FVertexArray> va = nullptr;
-                if (actorData.MeshType == "Cube") {
-                    va = FMeshPrimitives::CreateCube(actorData.MeshSize);
-                } else if (actorData.MeshType == "Plane") {
-                    va = FMeshPrimitives::CreatePlane(actorData.MeshWidth, actorData.MeshDepth, actorData.MeshSubdivX,
-                                                      actorData.MeshSubdivZ);
-                } else if (actorData.MeshType == "Sphere") {
-                    va = FMeshPrimitives::CreateSphere(actorData.MeshRadius, actorData.MeshSubdivX,
-                                                       actorData.MeshSubdivZ);
-                } else if (actorData.MeshType == "Cylinder") {
-                    va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, actorData.MeshRadius,
-                                                         actorData.MeshHeight, actorData.MeshSubdivX, true);
-                } else if (actorData.MeshType == "Cone") {
-                    va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, 0.0f, actorData.MeshHeight,
-                                                         actorData.MeshSubdivX, true);
-                } else if (actorData.MeshType == "Ramp") {
-                    va = FMeshPrimitives::CreateRamp(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
-                } else if (actorData.MeshType == "Pyramid") {
-                    va = FMeshPrimitives::CreatePyramid(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
-                } else if (actorData.MeshType == "Quad") {
-                    va = FMeshPrimitives::CreateQuad(actorData.MeshWidth, actorData.MeshHeight);
+                if (FRenderDriverRegistry::GetActiveDriver()) {
+                    if (actorData.MeshType == "Cube") {
+                        va = FMeshPrimitives::CreateCube(actorData.MeshSize);
+                    } else if (actorData.MeshType == "Plane") {
+                        va = FMeshPrimitives::CreatePlane(actorData.MeshWidth, actorData.MeshDepth,
+                                                          actorData.MeshSubdivX, actorData.MeshSubdivZ);
+                    } else if (actorData.MeshType == "Sphere") {
+                        va = FMeshPrimitives::CreateSphere(actorData.MeshRadius, actorData.MeshSubdivX,
+                                                           actorData.MeshSubdivZ);
+                    } else if (actorData.MeshType == "Cylinder") {
+                        va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, actorData.MeshRadius,
+                                                             actorData.MeshHeight, actorData.MeshSubdivX, true);
+                    } else if (actorData.MeshType == "Cone") {
+                        va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, 0.0f, actorData.MeshHeight,
+                                                             actorData.MeshSubdivX, true);
+                    } else if (actorData.MeshType == "Ramp") {
+                        va = FMeshPrimitives::CreateRamp(actorData.MeshWidth, actorData.MeshHeight,
+                                                         actorData.MeshDepth);
+                    } else if (actorData.MeshType == "Pyramid") {
+                        va = FMeshPrimitives::CreatePyramid(actorData.MeshWidth, actorData.MeshHeight,
+                                                          actorData.MeshDepth);
+                    } else if (actorData.MeshType == "Quad") {
+                        va = FMeshPrimitives::CreateQuad(actorData.MeshWidth, actorData.MeshHeight);
+                    }
                 }
 
-                auto shader = UAssetManager::GetShader(actorData.ShaderPath);
-                if (!shader) {
-                    shader = FShader::Create(actorData.ShaderPath);
+                TRef<FShader> shader = nullptr;
+                if (FRenderDriverRegistry::GetActiveDriver()) {
+                    shader = UAssetManager::GetShader(actorData.ShaderPath);
+                    if (!shader) {
+                        shader = FShader::Create(actorData.ShaderPath);
+                    }
                 }
 
                 auto& comp = entity->AddComponent<FMeshComponent>(va, shader);
@@ -911,6 +1063,12 @@ namespace Leon {
                 comp.bCastShadows = actorData.bCastShadows;
                 comp.bReceiveShadows = actorData.bReceiveShadows;
                 comp.bVisibleInReflection = actorData.bVisibleInReflection;
+                comp.Mobility = actorData.Mobility;
+                comp.LightmapResolution = actorData.LightmapResolution;
+                comp.LightmapIndex = actorData.LightmapIndex;
+                comp.LightmapScale = actorData.LightmapScale;
+                comp.LightmapBias = actorData.LightmapBias;
+                comp.LightmapAssetPath = actorData.LightmapAssetPath;
             }
 
             // Material Component
@@ -922,12 +1080,14 @@ namespace Leon {
             if (actorData.bHasDirLight) {
                 auto& comp = entity->AddComponent<UDirectionalLightComponent>(actorData.DirLight);
                 comp.bEnabled = actorData.bDirLightEnabled;
+                comp.Mobility = actorData.DirLightMobility;
             }
 
             // Point Light
             if (actorData.bHasPointLight) {
                 auto& comp = entity->AddComponent<UPointLightComponent>(actorData.PointLight);
                 comp.bEnabled = actorData.bPointLightEnabled;
+                comp.Mobility = actorData.PointLightMobility;
                 comp.Light.Position = actorData.Translation;
             }
 
@@ -935,6 +1095,7 @@ namespace Leon {
             if (actorData.bHasSpotLight) {
                 auto& comp = entity->AddComponent<USpotLightComponent>(actorData.SpotLight);
                 comp.bEnabled = actorData.bSpotLightEnabled;
+                comp.Mobility = actorData.SpotLightMobility;
                 comp.Light.Position = actorData.Translation;
             }
 

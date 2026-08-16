@@ -7,12 +7,14 @@ layout(location = 2) in vec2 aTexCoord;
 layout(location = 3) in vec3 aTangent;
 layout(location = 4) in vec3 aBitangent;
 layout(location = 5) in vec3 aColor;
+layout(location = 6) in vec2 aLightmapUV;
 
 out vec3 v_FragPos;
 out vec3 v_Normal;
 out vec2 v_TexCoord;
 out vec3 v_Color;
 out mat3 v_TBN;
+out vec2 v_LightmapUV;
 
 // UBO Binding 0: Camera & Shadow Data (std140)
 layout(std140) uniform CameraData {
@@ -45,6 +47,8 @@ void main() {
 
     v_TexCoord = aTexCoord;
     v_Color    = aColor;
+    // Prefer dedicated UV1 when present; procedural meshes without attr 6 use TexCoord via u_LightmapUseTexCoord
+    v_LightmapUV = aLightmapUV;
 
     gl_Position = u_ViewProjection * worldPos;
 }
@@ -59,6 +63,7 @@ in vec3 v_Normal;
 in vec2 v_TexCoord;
 in vec3 v_Color;
 in mat3 v_TBN;
+in vec2 v_LightmapUV;
 
 // UBO Binding 0: Camera & Shadow Data (std140)
 layout(std140) uniform CameraData {
@@ -141,6 +146,7 @@ layout(binding = 9) uniform sampler2D u_EmissiveMap;
 // Cascaded Shadow Map (Texture2DArray Hardware PCF) & Spot Shadow Map
 layout(binding = 10) uniform sampler2DArrayShadow u_CascadeShadowMap;
 layout(binding = 11) uniform sampler2DShadow u_SpotShadowMap;
+layout(binding = 12) uniform sampler2D u_Lightmap;
 
 uniform int u_UseIBL;
 uniform int u_UseAlbedoMap;
@@ -154,6 +160,10 @@ uniform int u_UseShadows;
 uniform int u_UseSpotShadows;
 uniform int u_DebugMode;
 uniform vec2 u_ScreenSize;
+uniform int u_UseLightmap;
+uniform int u_LightmapUseTexCoord;
+uniform vec2 u_LightmapScale;
+uniform vec2 u_LightmapBias;
 
 // -----------------------------------------------------------------------------
 // Poisson Disk Offsets (16 Samples - Vogel spiral distribution)
@@ -663,12 +673,25 @@ void main() {
     // Indirect ambient radiance occluded by AO
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;
 
+    // Baked static lighting (irradiance). Diffuse: albedo * irradiance (kD)
+    vec3 lightmapIrradiance = vec3(0.0);
+    vec2 lightmapUVSample = vec2(0.0);
+    vec3 bakedLighting = vec3(0.0);
+    if (u_UseLightmap == 1) {
+        lightmapUVSample = (u_LightmapUseTexCoord == 1) ? v_TexCoord : v_LightmapUV;
+        lightmapUVSample = lightmapUVSample * u_LightmapScale + u_LightmapBias;
+        lightmapIrradiance = texture(u_Lightmap, lightmapUVSample).rgb;
+        bakedLighting = kD_IBL * albedo * lightmapIrradiance;
+        // When lightmaps are present, reduce diffuse IBL to avoid double ambient (specular IBL kept)
+        ambient = (specularIBL) * ao;
+    }
+
     // 8. Emissive Radiance (sRGB -> Linear Decompression)
     vec3 emissiveMapSample = (u_UseEmissiveMap == 1) ? pow(texture(u_EmissiveMap, uv).rgb, vec3(2.2)) : vec3(1.0);
     vec3 emissive = u_EmissiveColor * u_EmissiveIntensity * emissiveMapSample;
 
     // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
-    vec3 hdrColor = ambient + Lo + emissive;
+    vec3 hdrColor = ambient + Lo + bakedLighting + emissive;
 
     // Forensic Debug Views
     if (u_DebugMode == 1 || u_DebugMode == 2) {
@@ -779,6 +802,22 @@ void main() {
         vec4 p3 = u_LightSpaceMatrices[3] * vec4(v_FragPos, 1.0);
         vec3 c3 = p3.xyz / p3.w * 0.5 + 0.5;
         FragColor = vec4(vec3(c3.z), 1.0);
+        return;
+    } else if (u_DebugMode == 31) {
+        // Baked lighting only (albedo * lightmap irradiance)
+        FragColor = vec4(bakedLighting, 1.0);
+        return;
+    } else if (u_DebugMode == 32) {
+        // Raw lightmap irradiance (no material)
+        FragColor = vec4(lightmapIrradiance, 1.0);
+        return;
+    } else if (u_DebugMode == 33) {
+        // Lightmap atlas UV (chart space after scale/bias)
+        FragColor = vec4(fract(lightmapUVSample), u_UseLightmap == 1 ? 0.0 : 1.0, 1.0);
+        return;
+    } else if (u_DebugMode == 34) {
+        // Dynamic + baked only (no IBL ambient / specular IBL)
+        FragColor = vec4(Lo + bakedLighting, 1.0);
         return;
     }
 

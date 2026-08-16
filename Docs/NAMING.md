@@ -21,7 +21,7 @@ Official naming, directory layout, and coding standards for **LeonEngine2**, ali
 | Actors | `A` | `AActor`, `APawn`, `AGameModeBase`, `AHUD` |
 | Structs / value types | `F` | `FApplication`, `FWindow`, `FWorldRenderer`, `FTimestep` |
 | Interfaces | `I` | `IGraphicsContext`, `IRenderAPI`, `IRenderDriver` |
-| Enums | `E` | `EShaderDataType`, `EInputMode`, `EAlphaMode` |
+| Enums | `E` | `EShaderDataType`, `ELightMobility`, `EComponentMobility` |
 | Templates / smart pointers | `T` | `TRef<T>`, `TScope<T>` |
 | Booleans | `b` | `bRunning`, `bCastShadows`, `bWireframeEnabled` |
 | Parameters | `In` + PascalCase | `InDeltaTime`, `InWidth` |
@@ -55,7 +55,9 @@ Engine/
         ├── RHI/Public/RHI/
         ├── RHI/Private/
         ├── Assets/Public/Assets/
-        └── Assets/Private/
+        ├── Assets/Private/
+        ├── Lightmass/Public/Lightmass/  # FLightmass, FLightBaker, FLightmapBuilder
+        └── Lightmass/Private/
 ```
 
 Module folder names are **short** (`Core`, `Engine`, …) — no `Leon` prefix on modules.

@@ -1,6 +1,7 @@
 #include "Assets/UStaticMesh.hpp"
 #include "Core/FLog.hpp"
 #include "Assets/UAssetManager.hpp"
+#include "RHI/IRenderDriver.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -39,8 +40,14 @@ namespace Leon {
             LE_CORE_WARN("UStaticMesh: Cannot create GPU resources for empty mesh \"{0}\"", Name);
             return;
         }
+        if (!FRenderDriverRegistry::GetActiveDriver()) {
+            LE_CORE_WARN("UStaticMesh: No RenderDriver — skipping GPU upload for \"{0}\"", Name);
+            return;
+        }
 
         VertexArray = FVertexArray::Create();
+        if (!VertexArray)
+            return;
 
         TRef<FVertexBuffer> vertexBuffer =
             FVertexBuffer::Create(reinterpret_cast<const float*>(Vertices.data()),
@@ -49,6 +56,7 @@ namespace Leon {
         vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
                                  {EShaderDataType::Float3, "aNormal"},
                                  {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float2, "aLightmapUV"},
                                  {EShaderDataType::Float3, "aTangent"},
                                  {EShaderDataType::Float3, "aBitangent"},
                                  {EShaderDataType::Float3, "aColor"}});
@@ -197,7 +205,7 @@ namespace Leon {
             LE_CORE_ERROR("UStaticMesh: Invalid magic in \"{0}\"", InFilePath);
             return false;
         }
-        if (version != LMESH_VERSION) {
+        if (version != LMESH_VERSION && version != LMESH_VERSION_V1) {
             LE_CORE_ERROR("UStaticMesh: Unsupported version {0} in \"{1}\"", version, InFilePath);
             return false;
         }
@@ -256,7 +264,23 @@ namespace Leon {
         // Vertices
         Vertices.resize(vertexCount);
         if (vertexCount > 0) {
-            file.read(reinterpret_cast<char*>(Vertices.data()), vertexCount * sizeof(FStaticMeshVertex));
+            if (version == LMESH_VERSION_V1) {
+                std::vector<FStaticMeshVertexV1> legacy(vertexCount);
+                file.read(reinterpret_cast<char*>(legacy.data()),
+                          static_cast<std::streamsize>(vertexCount * sizeof(FStaticMeshVertexV1)));
+                for (uint32_t i = 0; i < vertexCount; ++i) {
+                    Vertices[i].Position = legacy[i].Position;
+                    Vertices[i].Normal = legacy[i].Normal;
+                    Vertices[i].TexCoord = legacy[i].TexCoord;
+                    Vertices[i].LightmapUV = legacy[i].TexCoord; // fallback until Lightmass regenerates
+                    Vertices[i].Tangent = legacy[i].Tangent;
+                    Vertices[i].Bitangent = legacy[i].Bitangent;
+                    Vertices[i].Color = legacy[i].Color;
+                }
+            } else {
+                file.read(reinterpret_cast<char*>(Vertices.data()),
+                          static_cast<std::streamsize>(vertexCount * sizeof(FStaticMeshVertex)));
+            }
         }
 
         // Indices

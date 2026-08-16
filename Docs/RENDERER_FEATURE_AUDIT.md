@@ -7,7 +7,7 @@
 
 ## 1. Resumen Ejecutivo
 
-LeonEngine2 cuenta actualmente con una **base de renderizado rasterizado físicamente correcto (OpenGL 4.5 Core + DSA)** completamente funcional y validada en su escena `MainShowcase`:
+LeonEngine2 cuenta actualmente con una **base de renderizado rasterizado físicamente correcto (OpenGL 4.5 Core + DSA)** completamente funcional y validada en su escena `ShowcaseLevel`:
 
 * **PBR Cook-Torrance (GGX + Smith + Schlick)** con conservación de energía estricta.
 * **Image-Based Lighting (IBL v4)**: BRDF LUT 2D en disco ($1.4\text{ ms}$), Caché binaria `.libl` ($11.5\text{ ms}$), Muestreo Quasi-Monte Carlo ponderado por coseno e integración con filtrado por ángulo sólido de la textura HDR original ($1024 \times 512$).
@@ -197,9 +197,9 @@ flowchart TD
 
 ---
 
-## 4. Análisis de Validación del `MainShowcase.llevel`
+## 4. Análisis de Validación del `ShowcaseLevel.lmap`
 
-| Actor en `MainShowcase` | Geometría | Material | Feature Validada | ¿Demuestra una Capacidad Real? |
+| Actor en `ShowcaseLevel` | Geometría | Material | Feature Validada | ¿Demuestra una Capacidad Real? |
 | :--- | :--- | :--- | :--- | :--- |
 | `PBR Ground Plane` | Plane $24\times 24$ | `M_FloorTiles` | Normal Maps, AO Maps, Planar Reflection | **SÍ**: Demuestra detalle de normales tangenciales y reflexión en suelo. |
 | `PBR Polished Gold Sphere` | Sphere $R=0.5$ | `M_PolishedGold` | PBR Metálico ($\text{Met}=1.0, \text{Rough}=0.05$) | **SÍ**: Demuestra lóbulo especular IBL limpio y reflejos de entorno nítidos. |
@@ -234,4 +234,4 @@ Bloom (Jimenez) + tone mapping + FXAA 3.11 ya están en `FPostProcessPipeline` (
 #### Criterios de aceptación (culling):
 1. Cajas fuera del frustum no generan `DrawIndexed`.
 2. Contadores `MeshesCulled` / `MeshesDrawn` en `FRenderStats`.
-3. Sin regresiones visuales en MainShowcase a cámara centrada.
+3. Sin regresiones visuales en ShowcaseLevel a cámara centrada.

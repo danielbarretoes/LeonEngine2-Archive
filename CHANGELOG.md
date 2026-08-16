@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 0.15.0
 
+### Lightmass correctness & Stationary v1
+
+#### Fixed
+- Bake cache hash no longer includes stamped `.lmap` metadata (stable `ComputeBakeInputHash` from world + settings).
+- Bake albedo reads material base color and averages albedo textures on CPU (was constant 0.7).
+- Generated lightmap UV1 is persisted back to `.lmesh` when missing.
+
+#### Added
+- `ELightMobility::Stationary`: indirect-only bake + dynamic direct/shadows at runtime (`IsLightmassBakeLight` / `DoesLightmassBakeDirect`).
+- Environment knobs `AORadius`, `TexelPadding`, `WorldScale` (AO radius scaled by WorldScale).
+- Robust `validate_lightmaps` (atlas presence, hash freshness, chart metadata).
+
+#### Changed
+- Sandbox content reset: removed imported `.lmesh` (House/Car/Palm/StreetLamp) and related materials/textures.
+- New maps `ShowcaseLevel` / `NightLevel` (primitives only); dropped `MainShowcase` / `NightScene`.
+- Sandbox ShowcaseLevel / NightLevel bake presets (procedural primitives only).
+
+### Engine Scripts (Unreal-like project contract)
+
+#### Added
+- `Scripts/_leon_paths.py` (`LEON_ENGINE_ROOT` / `LEON_PROJECT`); `bake_lightmaps.py`; `create_project.py` + BlankProject templates.
+- `Docs/SCRIPTS.md`; Sandbox shortcuts under `Projects/Sandbox/Scripts/`.
+- Root CMake out-of-tree `add_subdirectory` binary dir for external games.
+
+#### Changed
+- Engine Scripts require `--project` / `LEON_PROJECT` (no Sandbox defaults).
+- Removed Engine `run_sandbox` / `validate_sandbox` / hardcoding PS1 wrappers.
+
+### Static Lighting & Lightmap Baking
+
+#### Added
+- `ELightMobility` / `EComponentMobility`; lightmap UV1 on `.lmesh` v2; native `.llightmap` (`FLightmapAsset`).
+- Offline `FLightmass` / `FLightBaker` / `FLightmapBuilder`; LeonAssetTool `bake_lightmaps` / `validate_lightmaps`.
+- Runtime PBR lightmap sampling (slot 12); `.lmap` static lighting metadata + hash cache.
+- Docs: `Docs/STATIC_LIGHTING.md`, `Docs/implementation_plan.md`; tests `Tests/Lightmass/StaticLightingTests.cpp`.
+
 ### Unreal Runtime layout & naming sweep
 
 #### Added

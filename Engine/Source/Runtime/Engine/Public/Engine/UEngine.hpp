@@ -65,7 +65,7 @@ namespace Leon {
 
         /**
          * @brief Queues a map travel for the next safe frame (UGameplayStatics::OpenLevel).
-         * @param InLevelName Virtual path such as "/Game/Maps/NightScene".
+         * @param InLevelName Virtual path such as "/Game/Maps/NightLevel".
          */
         void RequestTravel(const std::string& InLevelName);
 

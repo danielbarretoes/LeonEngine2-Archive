@@ -2,6 +2,7 @@
 #include "Assets/FAssetPath.hpp"
 #include "Core/FLog.hpp"
 #include "Engine/FMaterialSerializer.hpp"
+#include "RHI/IRenderDriver.hpp"
 
 #include "Core/FProjectPaths.hpp"
 #include <filesystem>
@@ -13,6 +14,7 @@ namespace Leon {
     std::string UAssetManager::ContentRoot = "";
     std::unordered_map<std::string, TRef<FTexture2D>> UAssetManager::TextureCache;
     std::unordered_map<std::string, TRef<UStaticMesh>> UAssetManager::StaticMeshCache;
+    std::unordered_map<std::string, TRef<FLightmapAsset>> UAssetManager::LightmapCache;
     std::unordered_map<std::string, TRef<FShader>> UAssetManager::ShaderCache;
     std::unordered_map<std::string, TRef<FMaterial>> UAssetManager::MaterialCache;
     std::unordered_map<std::string, TRef<FMaterialInstance>> UAssetManager::MaterialInstanceCache;
@@ -25,18 +27,24 @@ namespace Leon {
         LE_CORE_INFO("Initializing UAssetManager Subsystem...");
         Clear();
 
-        // Initialize 1x1 default fallback textures
+        // Initialize 1x1 default fallback textures (null when offline / no RenderDriver)
         DefaultWhiteTexture = FTexture2D::Create(1, 1);
-        uint32_t whitePixel = 0xFFFFFFFF;
-        DefaultWhiteTexture->SetData(&whitePixel, sizeof(uint32_t));
+        if (DefaultWhiteTexture) {
+            uint32_t whitePixel = 0xFFFFFFFF;
+            DefaultWhiteTexture->SetData(&whitePixel, sizeof(uint32_t));
+        }
 
         DefaultBlackTexture = FTexture2D::Create(1, 1);
-        uint32_t blackPixel = 0xFF000000;
-        DefaultBlackTexture->SetData(&blackPixel, sizeof(uint32_t));
+        if (DefaultBlackTexture) {
+            uint32_t blackPixel = 0xFF000000;
+            DefaultBlackTexture->SetData(&blackPixel, sizeof(uint32_t));
+        }
 
         DefaultFlatNormalTexture = FTexture2D::Create(1, 1);
-        uint32_t flatNormalPixel = 0xFFFF8080; // RGBA: (128, 128, 255, 255) in memory
-        DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
+        if (DefaultFlatNormalTexture) {
+            uint32_t flatNormalPixel = 0xFFFF8080; // RGBA: (128, 128, 255, 255) in memory
+            DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
+        }
     }
 
     void UAssetManager::Shutdown() {
@@ -158,7 +166,8 @@ namespace Leon {
 
         auto mesh = UStaticMesh::Create(FAssetPath::GetFileNameWithoutExtension(InPath));
         if (mesh->LoadFromFile(resolved)) {
-            mesh->CreateGPUResources();
+            if (FRenderDriverRegistry::GetActiveDriver())
+                mesh->CreateGPUResources();
             StaticMeshCache[resolved] = mesh;
             if (resolved != InPath) {
                 StaticMeshCache[InPath] = mesh;
@@ -178,6 +187,36 @@ namespace Leon {
 
     bool UAssetManager::HasStaticMesh(const std::string& InPath) {
         return StaticMeshCache.find(InPath) != StaticMeshCache.end();
+    }
+
+    TRef<FLightmapAsset> UAssetManager::GetLightmap(const std::string& InPath) {
+        if (InPath.empty())
+            return nullptr;
+
+        std::string resolved = ResolveVirtualPath(InPath);
+        auto it = LightmapCache.find(resolved);
+        if (it != LightmapCache.end() && it->second)
+            return it->second;
+
+        auto lightmap = MakeRef<FLightmapAsset>();
+        if (lightmap->LoadFromFile(resolved)) {
+            LightmapCache[resolved] = lightmap;
+            if (resolved != InPath)
+                LightmapCache[InPath] = lightmap;
+            return lightmap;
+        }
+
+        LE_CORE_WARN("UAssetManager: Failed to load lightmap from \"{0}\"", InPath);
+        return nullptr;
+    }
+
+    void UAssetManager::AddLightmap(const std::string& InName, const TRef<FLightmapAsset>& InLightmap) {
+        if (!InName.empty() && InLightmap)
+            LightmapCache[InName] = InLightmap;
+    }
+
+    bool UAssetManager::HasLightmap(const std::string& InPath) {
+        return LightmapCache.find(InPath) != LightmapCache.end();
     }
 
     TRef<FShader> UAssetManager::GetShader(const std::string& InPath) {
@@ -353,6 +392,7 @@ namespace Leon {
     void UAssetManager::Clear() {
         TextureCache.clear();
         StaticMeshCache.clear();
+        LightmapCache.clear();
         ShaderCache.clear();
         MaterialCache.clear();
         MaterialInstanceCache.clear();

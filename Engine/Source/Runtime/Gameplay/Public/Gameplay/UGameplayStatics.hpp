@@ -18,7 +18,7 @@ namespace Leon {
     class UGameplayStatics {
     public:
         /**
-         * @brief Requests loading of a new level map (e.g. "/Game/Maps/NightScene").
+         * @brief Requests loading of a new level map (e.g. "/Game/Maps/NightLevel").
          */
         static void OpenLevel(UWorld* InWorldContext, const std::string& InLevelName);
 

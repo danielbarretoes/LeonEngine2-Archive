@@ -9,9 +9,11 @@
 #include "Assets/FHDRImporter.hpp"
 #include "Assets/UStaticMesh.hpp"
 #include "Assets/UAssetManager.hpp"
+#include "Assets/FLightmapAsset.hpp"
 #include "Engine/UWorld.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/FMapSerializer.hpp"
+#include "Lightmass/FLightmass.hpp"
 
 #include "Core/FProjectDescriptor.hpp"
 #include "Core/FProjectPaths.hpp"
@@ -36,12 +38,14 @@ void PrintUsage() {
     std::cout << "  LeonAssetTool import --raw <dir> --content <dir> [--force]\n";
     std::cout << "  LeonAssetTool validate --content <dir>\n";
     std::cout << "  LeonAssetTool validate_map --map <path.lmap>\n";
-    std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi>\n\n";
+    std::cout << "  LeonAssetTool bake_lightmaps --map <path.lmap> [--force]\n";
+    std::cout << "  LeonAssetTool validate_lightmaps --map <path.lmap>\n";
+    std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi | file.llightmap>\n\n";
     std::cout << "Options:\n";
     std::cout << "  --project <path>   Project descriptor file (e.g. Projects/Sandbox/Sandbox.lproject)\n";
     std::cout << "  --raw <dir>        Source raw assets directory (e.g. Assets/Raw)\n";
     std::cout << "  --content <dir>    Output native assets directory (e.g. Assets/Content)\n";
-    std::cout << "  --map <path>       Map file path (e.g. Content/Maps/MainShowcase.lmap)\n";
+    std::cout << "  --map <path>       Map file path (e.g. Content/Maps/ShowcaseLevel.lmap)\n";
     std::cout << "  --force            Force re-importing all assets regardless of hash\n";
     std::cout << "  --help, -h         Show this help information\n";
 }
@@ -441,6 +445,52 @@ int ExecuteValidateMap(const std::string& InMapPath) {
     return 0;
 }
 
+int ExecuteBakeLightmaps(const std::string& InMapPath, bool bForce) {
+    if (InMapPath.empty() || !fs::exists(InMapPath)) {
+        std::cerr << "[ERROR] --map <path.lmap> is required and must exist.\n";
+        return 1;
+    }
+
+    FLog::Init();
+    UAssetManager::Init();
+
+    // Content root = parent of Maps/ folder
+    fs::path mapPath = InMapPath;
+    fs::path contentRoot = mapPath.parent_path();
+    if (contentRoot.filename() == "Maps")
+        contentRoot = contentRoot.parent_path();
+    UAssetManager::SetContentRoot(contentRoot.string());
+    FProjectPaths::SetProjectRoot(contentRoot.parent_path().string());
+
+    FLightmassSettings settings;
+    settings.SamplesPerTexel = 4;
+    settings.LightmapResolution = 32;
+    settings.NumIndirectBounces = 2;
+
+    auto result = FLightmass::BakeMap(InMapPath, settings, bForce);
+    UAssetManager::Shutdown();
+    return result.bSuccess ? 0 : 1;
+}
+
+int ExecuteValidateLightmaps(const std::string& InMapPath) {
+    if (InMapPath.empty() || !fs::exists(InMapPath)) {
+        std::cerr << "[ERROR] --map <path> is required and must exist.\n";
+        return 1;
+    }
+    FLog::Init();
+    UAssetManager::Init();
+    fs::path mapPath = InMapPath;
+    fs::path contentRoot = mapPath.parent_path();
+    if (contentRoot.filename() == "Maps")
+        contentRoot = contentRoot.parent_path();
+    UAssetManager::SetContentRoot(contentRoot.string());
+    std::string message;
+    bool ok = FLightmass::ValidateMap(InMapPath, message);
+    std::cout << "[Lightmass] " << message << "\n";
+    UAssetManager::Shutdown();
+    return ok ? 0 : 1;
+}
+
 int ExecuteInspect(const std::string& InFilePath) {
     if (!fs::exists(InFilePath)) {
         std::cerr << "[ERROR] File does not exist: " << InFilePath << "\n";
@@ -505,6 +555,19 @@ int ExecuteInspect(const std::string& InFilePath) {
         std::cout << "Bounding Box Min: (" << minB.x << ", " << minB.y << ", " << minB.z << ")\n";
         std::cout << "Bounding Box Max: (" << maxB.x << ", " << maxB.y << ", " << maxB.z << ")\n";
         std::cout << "Bounding Radius:  " << mesh->GetSphereRadius() << "\n";
+    } else if (ext == "llightmap") {
+        FLightmapAsset lm;
+        if (!lm.LoadFromFile(InFilePath)) {
+            std::cerr << "[ERROR] Failed to load .llightmap file\n";
+            return 1;
+        }
+        const auto& h = lm.GetHeader();
+        std::cout << "Width:        " << h.Width << "\n";
+        std::cout << "Height:       " << h.Height << "\n";
+        std::cout << "Channels:     " << h.ChannelCount << "\n";
+        std::cout << "HDR:          " << (h.bIsHDR ? "yes" : "no") << "\n";
+        std::cout << "Payload Size: " << h.PayloadSize << "\n";
+        std::cout << "Content Hash: " << std::hex << h.ContentHash << std::dec << "\n";
     } else {
         std::cout << "[INFO] Inspecting text asset content:\n";
         std::ifstream f(InFilePath);
@@ -663,6 +726,20 @@ int main(int argc, char** argv) {
             return 1;
         }
         return ExecuteValidateMap(levelPath);
+    } else if (command == "bake_lightmaps") {
+        if (levelPath.empty()) {
+            std::cerr << "[ERROR] --map <path> is required for bake_lightmaps.\n";
+            PrintUsage();
+            return 1;
+        }
+        return ExecuteBakeLightmaps(levelPath, bForce);
+    } else if (command == "validate_lightmaps") {
+        if (levelPath.empty()) {
+            std::cerr << "[ERROR] --map <path> is required for validate_lightmaps.\n";
+            PrintUsage();
+            return 1;
+        }
+        return ExecuteValidateLightmaps(levelPath);
     } else if (command == "inspect") {
         if (argc < 3) {
             std::cerr << "[ERROR] File path is required for inspect.\n";
