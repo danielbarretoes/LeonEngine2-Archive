@@ -50,6 +50,7 @@ add_executable(RendererTests
     Asset/MeshImportTests.cpp
     Asset/AssetValidationTests.cpp
     Gameplay/GameplayFrameworkTests.cpp
+    Gameplay/ProjectBootTests.cpp
     Gameplay/UIHUDTests.cpp
     Gameplay/InputSettingsTests.cpp
     Gameplay/CharacterComponentFrustumTests.cpp

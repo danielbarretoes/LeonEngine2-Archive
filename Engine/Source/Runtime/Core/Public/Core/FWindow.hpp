@@ -38,6 +38,9 @@ namespace Leon {
         void SetVSync(bool bInEnabled);
         bool IsVSync() const { return Data.bVSync; }
 
+        void SetFullscreen(bool bInEnabled);
+        bool IsFullscreen() const { return Data.bFullscreen; }
+
         void SetCursorVisible(bool bVisible);
         bool IsCursorVisible() const { return Data.bCursorVisible; }
 
@@ -58,6 +61,7 @@ namespace Leon {
             unsigned int Width = 0;
             unsigned int Height = 0;
             bool bVSync = true;
+            bool bFullscreen = false;
             bool bCursorVisible = true;
             FEventCallbackFn EventCallback;
         };

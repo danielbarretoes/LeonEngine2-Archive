@@ -5,26 +5,29 @@ Unreal Engine–inspired C++20 game engine for solo / small-team development. Fo
 ## Quick start
 
 ```bash
-# Configure + build (Ninja)
-python Scripts/build_incremental.py --config Debug
+# Configure + build a project (Engine script + --project)
+python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject --config Debug
 
-# Run Sandbox
-python Scripts/run_sandbox.py
+# Build and run
+python Scripts/run_project.py --project Projects/Sandbox/Sandbox.lproject
 
-# Unit / GPU tests
+# Unit / GPU tests (Engine)
 python Scripts/run_tests.py
 
-# Validate Sandbox project assets
-python Scripts/validate_sandbox.py
+# Validate project assets
+python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
 ```
+
+Compatibility wrappers `run_sandbox.py` / `validate_sandbox.py` forward to the `--project` scripts.
 
 ## Layout
 
 | Path | Role |
 |------|------|
-| `Engine/` | Core library (`Leon::Core`) — core, renderer, world, gameplay, ui, asset |
+| `Scripts/` | Engine tooling (`build_project`, `run_project`, `verify_ue_naming`, …) |
+| `Engine/` | Product-agnostic runtime (`LeonEngineCore`) |
 | `Plugins/RHI/OpenGL/` | OpenGL 4.5 RHI plugin |
-| `Projects/Sandbox/` | Reference project (`.lproject`, maps, materials, GameMode/HUD) |
+| `Projects/Sandbox/` | Reference game (`.lproject`, Content, Main, GameMode/HUD) |
 | `Tools/LeonAssetTool/` | Import / validate CLI |
 | `Docs/` | Architecture, renderer, assets |
 | `Tests/` | doctest suites (math, IBL, PBR, GPU, gameplay, UI) |

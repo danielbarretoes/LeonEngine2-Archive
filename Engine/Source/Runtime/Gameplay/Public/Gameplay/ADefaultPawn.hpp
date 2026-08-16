@@ -7,7 +7,8 @@ namespace Leon {
 
     /**
      * @brief 6-DOF fly / spectator pawn (editor-style camera). Not a ground character —
-     * use ACharacter for XZ floor movement. DefaultPawnClass in Sandbox remains this class.
+     * prefer ADefaultPawn for spectator fly; use ACharacter for XZ floor movement.
+     * Set DefaultPawnClass in DefaultGame.ini.
      */
     class ADefaultPawn : public APawn {
     public:

@@ -5,16 +5,16 @@
 
 namespace Leon {
 
-    std::string FProjectPaths::CachedProjectDir = "Projects/Sandbox";
+    std::string FProjectPaths::CachedProjectDir = ".";
 
     void FProjectPaths::SetProjectRoot(const std::string& InProjectFilePathOrDir) {
         std::string norm = FAssetPath::Normalize(InProjectFilePathOrDir);
         if (norm.empty()) {
-            CachedProjectDir = "Projects/Sandbox";
+            CachedProjectDir = ".";
             return;
         }
 
-        // File paths (e.g. Sandbox.lproject) resolve to the parent directory
+        // File paths (e.g. MyGame.lproject) resolve to the parent directory
         if (FAssetPath::GetExtension(norm) == "lproject" || FAssetPath::GetExtension(norm) == "ini") {
             CachedProjectDir = FAssetPath::GetDirectory(norm);
         } else {
@@ -155,6 +155,68 @@ namespace Leon {
         }
 
         return norm;
+    }
+
+    std::string FProjectPaths::LocateProjectFile(const std::string& InPathOrDir) {
+        namespace fs = std::filesystem;
+
+        auto findInDirectory = [](const fs::path& dir) -> std::string {
+            if (!fs::is_directory(dir))
+                return {};
+            for (const auto& entry : fs::directory_iterator(dir)) {
+                if (entry.path().extension() == ".lproject") {
+                    return FAssetPath::Normalize(entry.path().string());
+                }
+            }
+            return {};
+        };
+
+        auto tryPath = [&](const fs::path& candidate) -> std::string {
+            if (candidate.empty())
+                return {};
+            std::error_code ec;
+            if (fs::is_regular_file(candidate, ec) && candidate.extension() == ".lproject") {
+                return FAssetPath::Normalize(candidate.string());
+            }
+            if (fs::is_directory(candidate, ec)) {
+                return findInDirectory(candidate);
+            }
+            return {};
+        };
+
+        // 1. As-given (cwd-relative or absolute)
+        if (!InPathOrDir.empty()) {
+            if (auto hit = tryPath(InPathOrDir); !hit.empty())
+                return hit;
+        }
+
+        // 2. Walk parents: relative hint, then any .lproject beside Engine/ (or under Projects/)
+        fs::path cursor = fs::current_path();
+        for (int depth = 0; depth < 8; ++depth) {
+            if (!InPathOrDir.empty()) {
+                if (auto hit = tryPath(cursor / InPathOrDir); !hit.empty())
+                    return hit;
+            }
+            if (fs::is_directory(cursor / "Engine")) {
+                // Prefer Projects/*/*.lproject without naming a specific game
+                fs::path projectsDir = cursor / "Projects";
+                if (fs::is_directory(projectsDir)) {
+                    for (const auto& entry : fs::directory_iterator(projectsDir)) {
+                        if (!entry.is_directory())
+                            continue;
+                        if (auto hit = findInDirectory(entry.path()); !hit.empty())
+                            return hit;
+                    }
+                }
+                if (auto hit = findInDirectory(cursor); !hit.empty())
+                    return hit;
+            }
+            if (!cursor.has_parent_path() || cursor == cursor.root_path())
+                break;
+            cursor = cursor.parent_path();
+        }
+
+        return {};
     }
 
 } // namespace Leon

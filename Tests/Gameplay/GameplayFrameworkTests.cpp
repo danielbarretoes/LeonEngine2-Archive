@@ -344,7 +344,7 @@ namespace Leon {
         TEST_CASE("19. FProjectDescriptor JSON serialization & roundtrip") {
             FProjectDescriptor desc;
             desc.FileVersion = 1;
-            desc.EngineVersion = "0.8.0";
+            desc.EngineVersion = "0.15.0";
             desc.ProjectName = "TestGame";
             desc.DefaultMap = "/Game/Maps/TestMap";
             desc.DefaultGameMode = "AGameModeBase";
@@ -356,7 +356,7 @@ namespace Leon {
             FProjectDescriptor restored;
             REQUIRE(restored.DeserializeJson(serialized));
             CHECK(restored.FileVersion == 1);
-            CHECK(restored.EngineVersion == "0.8.0");
+            CHECK(restored.EngineVersion == "0.15.0");
             CHECK(restored.ProjectName == "TestGame");
             CHECK(restored.DefaultMap == "/Game/Maps/TestMap");
             CHECK(restored.DefaultGameMode == "AGameModeBase");

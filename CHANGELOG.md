@@ -12,9 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Unreal Runtime layout & naming sweep
 
 #### Added
-- `Engine/Source/Runtime/{Core,RHI,Assets,Renderer,UMG,Engine,Gameplay}` with `Public/` + `Private/` (UE-style).
-- `Scripts/verify_ue_naming.py` CI guard against legacy naming regressions.
-- English-only code rule documented in `Docs/NAMING.md`.
+- Project Boot Contract documented in `Docs/ARCHITECTURE.md` (`.lproject` + flat Multi-INI priority).
+- `FProjectPaths::LocateProjectFile`, `UEngine::BuildGameModeConfig` / `ResolveStartupMap`, fullscreen window API, planar/shadow project defaults from INI.
+- `Tests/Gameplay/ProjectBootTests.cpp` for boot config priority and Sandbox map resolve.
+- Engine/project isolation: `build_project.py` / `run_project.py` / `validate_project.py` with `--project`; Engine has zero Sandbox path defaults.
 
 #### Changed
 - Headers/sources renamed to match primary types (`FWorldRenderer`, `UAssetManager`, `UStaticMesh`, `UGameplayStatics`, `FMapSerializer`, …).
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenGL plugin files/types use `FOpenGL*` names; Sandbox gameplay files use `ASandbox*` / `USandboxMainMenuWidget`.
 - Stripped remaining unprefixed `using` aliases; fixed type/member name collisions (`AppWindow`, `NativeWindow`, `LayerStack`, dispatcher `Event`).
 - CI runs `Scripts/verify_ue_naming.py` before configure.
+- Project boot: generic `/Script/<Project>.GameMode` INI, fatal missing default map, `LocateProjectFile` parent walk, Fullscreen + shadow/planar project defaults.
 
 #### Removed
 - One-shot migration helpers (`migrate_runtime_layout.py`, `rename_ue_members.py`, `finish_ue_naming.py`, `fix_member_type_collisions.py`) after the sweep completed.

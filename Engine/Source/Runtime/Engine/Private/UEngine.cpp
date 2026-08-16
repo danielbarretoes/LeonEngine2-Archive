@@ -25,6 +25,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <cstdio>
 
 namespace Leon {
 
@@ -316,9 +317,99 @@ namespace Leon {
         return *EngineInstance;
     }
 
+    bool UEngine::HasInstance() {
+        return EngineInstance != nullptr;
+    }
+
     int UEngine::Run(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath) {
+        std::string projectPath = InProjectOrConfigPath;
+
+        // Resolve from argv when the caller did not pass an explicit path
+        if (projectPath.empty() && InArgs.Args) {
+            for (int i = 1; i < InArgs.Count; ++i) {
+                const char* a = InArgs.Args[i];
+                if (!a)
+                    continue;
+                std::string arg(a);
+                if (arg.rfind("--project=", 0) == 0) {
+                    projectPath = arg.substr(10);
+                    break;
+                }
+                if (arg.rfind("-project=", 0) == 0) {
+                    projectPath = arg.substr(9);
+                    break;
+                }
+                if (arg == "--project" || arg == "-project") {
+                    if (i + 1 < InArgs.Count && InArgs.Args[i + 1]) {
+                        projectPath = InArgs.Args[i + 1];
+                        break;
+                    }
+                }
+                if (arg.size() > 9 && arg.rfind(".lproject") == arg.size() - 9) {
+                    projectPath = arg;
+                    break;
+                }
+            }
+        }
+
+        if (projectPath.empty()) {
+            // Last resort: discover any .lproject from cwd / Engine sibling
+            projectPath = FProjectPaths::LocateProjectFile("");
+        }
+
+        if (projectPath.empty()) {
+            // Log may not be initialized yet
+            fprintf(stderr, "UEngine::Run: no .lproject specified. Pass --project=<path> or InProjectOrConfigPath.\n");
+            return 1;
+        }
+
         UEngine engine;
-        return engine.InternalRun(InArgs, InProjectOrConfigPath);
+        return engine.InternalRun(InArgs, projectPath);
+    }
+
+    FGameModeConfig UEngine::BuildGameModeConfig(const FConfigFile& InEngineConfig, const FConfigFile& InGameConfig,
+                                                   const FProjectDescriptor& InProjectDesc) {
+        FGameModeConfig config;
+
+        const std::string name = InProjectDesc.ProjectName.empty() ? "Game" : InProjectDesc.ProjectName;
+        const std::string projectSection = "/Script/" + name + ".GameMode";
+        // Legacy section suffix kept for older DefaultGame.ini files (not a product name)
+        const std::string legacyGameModeSection = "/Script/" + name + ".SandboxGameMode";
+
+        auto readGameClass = [&](const char* key, const std::string& fallback) {
+            std::string v = InGameConfig.GetString(projectSection, key, "");
+            if (v.empty())
+                v = InGameConfig.GetString(legacyGameModeSection, key, "");
+            if (v.empty()) {
+                v = InGameConfig.GetString("/Script/Engine.GameModeBase", key,
+                                          InEngineConfig.GetString("/Script/Engine.GameModeBase", key, fallback));
+            }
+            return v;
+        };
+
+        config.GameModeClass = InEngineConfig.GetString(
+            "/Script/EngineSettings.GameMapsSettings", "GlobalDefaultGameMode",
+            InProjectDesc.DefaultGameMode.empty() ? "AGameModeBase" : InProjectDesc.DefaultGameMode);
+
+        config.DefaultPawnClass = readGameClass("DefaultPawnClass", "ADefaultPawn");
+        config.PlayerControllerClass = readGameClass("PlayerControllerClass", "APlayerController");
+        config.HUDClass = readGameClass("HUDClass", "AHUD");
+        config.GameStateClass = readGameClass("GameStateClass", "AGameStateBase");
+        config.PlayerStateClass = readGameClass("PlayerStateClass", "APlayerState");
+
+        std::string gmOverride = InGameConfig.GetString(projectSection, "GameModeClass", "");
+        if (gmOverride.empty())
+            gmOverride = InGameConfig.GetString(legacyGameModeSection, "GameModeClass", "");
+        if (!gmOverride.empty())
+            config.GameModeClass = gmOverride;
+
+        return config;
+    }
+
+    std::string UEngine::ResolveStartupMap(const FConfigFile& InEngineConfig, const FProjectDescriptor& InProjectDesc) {
+        return InEngineConfig.GetString(
+            "/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
+            InProjectDesc.DefaultMap.empty() ? "/Game/Maps/MainShowcase" : InProjectDesc.DefaultMap);
     }
 
     void UEngine::RequestTravel(const std::string& InLevelName) {
@@ -381,6 +472,7 @@ namespace Leon {
         FUIRenderer::Shutdown();
 
         ActiveWorld = UWorld::Create("MainWorld");
+        ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
         if (GameInstance) {
             GameInstance->SetWorld(ActiveWorld);
         }
@@ -425,19 +517,12 @@ namespace Leon {
         LE_CORE_INFO("==================================================");
 
         // 1. Resolve Project Descriptor (.lproject) & Project Paths
-        std::string projectOrConfigPath = InProjectOrConfigPath;
-        FProjectDescriptor projectDesc;
-
-        if (projectOrConfigPath.empty() || std::filesystem::is_directory(projectOrConfigPath)) {
-            std::string candidateDir = projectOrConfigPath.empty() ? "." : projectOrConfigPath;
-            for (const auto& entry : std::filesystem::directory_iterator(candidateDir)) {
-                if (entry.path().extension() == ".lproject") {
-                    projectOrConfigPath = entry.path().string();
-                    break;
-                }
-            }
+        std::string projectOrConfigPath = FProjectPaths::LocateProjectFile(InProjectOrConfigPath);
+        if (projectOrConfigPath.empty()) {
+            projectOrConfigPath = InProjectOrConfigPath;
         }
 
+        FProjectDescriptor projectDesc;
         if (std::filesystem::exists(projectOrConfigPath) &&
             projectOrConfigPath.rfind(".lproject") == projectOrConfigPath.length() - 9) {
             if (projectDesc.Load(projectOrConfigPath)) {
@@ -446,7 +531,8 @@ namespace Leon {
             }
             FProjectPaths::SetProjectRoot(projectOrConfigPath);
         } else {
-            FProjectPaths::SetProjectRoot(projectOrConfigPath);
+            LE_CORE_ERROR("UEngine: Could not locate project file from hint '{0}'", InProjectOrConfigPath);
+            return 1;
         }
 
         UAssetManager::SetContentRoot(FProjectPaths::ProjectContentDir());
@@ -488,36 +574,21 @@ namespace Leon {
         uint32_t windowHeight =
             static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowHeight", 720));
         bool bVSync = engineConfig.GetBool("/Script/Engine.DisplaySettings", "VSync", true);
+        bool bFullscreen = engineConfig.GetBool("/Script/Engine.DisplaySettings", "Fullscreen", false);
 
-        std::string rawMapPath =
-            engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
-                                   projectDesc.DefaultMap.empty() ? "/Game/Maps/MainShowcase" : projectDesc.DefaultMap);
-
-        GameModeConfig.GameModeClass =
-            engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GlobalDefaultGameMode",
-                                   projectDesc.DefaultGameMode.empty() ? "AGameModeBase" : projectDesc.DefaultGameMode);
-
-        // Prefer Sandbox GameMode section, then Engine.GameModeBase
-        auto readGameClass = [&](const char* key, const std::string& fallback) {
-            std::string v = gameConfig.GetString("/Script/Sandbox.SandboxGameMode", key, "");
-            if (v.empty()) {
-                v = gameConfig.GetString("/Script/Engine.GameModeBase", key,
-                                         engineConfig.GetString("/Script/Engine.GameModeBase", key, fallback));
-            }
-            return v;
-        };
-
-        GameModeConfig.DefaultPawnClass = readGameClass("DefaultPawnClass", "ADefaultPawn");
-        GameModeConfig.PlayerControllerClass = readGameClass("PlayerControllerClass", "APlayerController");
-        GameModeConfig.HUDClass = readGameClass("HUDClass", "AHUD");
-        GameModeConfig.GameStateClass = readGameClass("GameStateClass", "AGameStateBase");
-        GameModeConfig.PlayerStateClass = readGameClass("PlayerStateClass", "APlayerState");
-
-        // Allow explicit Sandbox GameMode class override
-        std::string sandboxGM = gameConfig.GetString("/Script/Sandbox.SandboxGameMode", "GameModeClass", "");
-        if (!sandboxGM.empty()) {
-            GameModeConfig.GameModeClass = sandboxGM;
+        // Renderer project defaults (map skybox Exposure/SunIntensity are not overwritten)
+        ProjectShadowMapResolution = static_cast<uint32_t>(
+            engineConfig.GetInt("/Script/Engine.RendererSettings", "ShadowMapResolution", 2048));
+        bProjectEnablePlanarReflection =
+            engineConfig.GetBool("/Script/Engine.RendererSettings", "EnablePlanarReflection", true);
+        if (engineConfig.HasKey("/Script/Engine.RendererSettings", "Exposure") ||
+            engineConfig.HasKey("/Script/Engine.RendererSettings", "SunIntensity")) {
+            LE_CORE_INFO("UEngine: RendererSettings Exposure/SunIntensity are map-owned; INI values are not applied "
+                         "over .lmap skybox/lights");
         }
+
+        std::string rawMapPath = ResolveStartupMap(engineConfig, projectDesc);
+        GameModeConfig = BuildGameModeConfig(engineConfig, gameConfig, projectDesc);
 
         // 3. Initialize FApplication
         FApplicationProps appProps;
@@ -528,15 +599,22 @@ namespace Leon {
 
         auto app = CreateScope<FApplication>(appProps);
         app->GetWindow().SetVSync(bVSync);
+        if (bFullscreen) {
+            app->GetWindow().SetFullscreen(true);
+        }
 
         // 4. Create UGameInstance & UWorld
         GameInstance = CreateRef<UGameInstance>("GameInstance");
         ActiveWorld = UWorld::Create("MainWorld");
+        ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
         GameInstance->SetWorld(ActiveWorld);
         GameInstance->Init();
 
-        // 5. Load Map (.lmap)
-        LoadMapIntoActiveWorld(rawMapPath);
+        // 5. Load Map (.lmap) — fatal on initial boot if missing
+        if (!LoadMapIntoActiveWorld(rawMapPath)) {
+            LE_CORE_ERROR("UEngine: Fatal — default map '{0}' failed to load", rawMapPath);
+            return 1;
+        }
 
         // 6. Instantiate and Configure GameMode
         AGameModeBase* gameMode = nullptr;

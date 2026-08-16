@@ -26,10 +26,31 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
 
 ### Strict Rules:
 
-1. **Engine $\rightarrow$ Projects**: **FORBIDDEN.** The engine is an agnostic reusable library. It must never reference or include any code from `Projects/`.
+1. **Engine $\rightarrow$ Projects**: **FORBIDDEN.** The engine is an agnostic reusable library. It must never reference or include any code from `Projects/`, and must never hardcode a product name (e.g. Sandbox) or `Projects/Sandbox` path. Enforced by `Scripts/verify_ue_naming.py`.
 2. **Plugins $\rightarrow$ Projects**: **FORBIDDEN.** Hardware plugins/drivers are low-level rendering backends. They must never know about client applications.
 3. **Plugins $\rightarrow$ Engine Runtime Public headers**: **ALLOWED & REQUIRED.** Plugins depend on the abstract interfaces under `Engine/Source/Runtime/*/Public/` (such as `RHI/IGraphicsContext.hpp`, `RHI/FBuffer.hpp`, `RHI/IRenderDriver.hpp`, `Core/Base.hpp`) in order to implement them.
 4. **Engine $\rightarrow$ Plugins**: **FORBIDDEN.** The `Engine` core contains **zero `#include` directives** pointing to plugin implementation headers (e.g., `opengl/...`). All hardware object instantiation is mediated via the **`FRenderDriverRegistry`** factory registry.
+
+### Engine / Project isolation (Unreal-like)
+
+Like Unreal, **build/run tools live with the Engine** and are invoked *against* a `.lproject`:
+
+```text
+python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject
+python Scripts/run_project.py    --project Projects/Sandbox/Sandbox.lproject
+python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
+```
+
+| Owner | Responsibility |
+| :--- | :--- |
+| Engine (`Engine/`, `Plugins/`, `Scripts/`, `Tools/`) | Runtime, RHI plugins, asset tool, build/verify scripts |
+| Project (`Projects/<Name>/`) | `Main`, gameplay classes, Content, Config, `.lproject`, thin CMake target |
+
+- `UEngine::Run` requires a `.lproject` (argv `--project=`, explicit path, or discovery) — **no Sandbox default inside Engine**.
+- Root CMake selects the game via `LEON_PROJECT_DIR` (monorepo default `Projects/Sandbox`); `Engine/CMakeLists.txt` never names the game.
+- There is no UBT / `.Build.cs` yet; CMake + these Python scripts are the lite equivalent.
+
+**Isolation checklist:** `grep` / CI must not find `Projects/Sandbox` or bare product `Sandbox` under `Engine/Source` (legacy INI suffix `.SandboxGameMode` is allowlisted).
 
 ---
 
@@ -38,7 +59,7 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
 ```text
 LeonEngine2/
 ├── Docs/                                  # Technical specifications (NAMING, ARCHITECTURE, …)
-├── Scripts/                               # Python build / migrate / verify helpers
+├── Scripts/                               # Engine tooling (build_project / run_project / verify)
 ├── Engine/
 │   ├── Assets/                            # Engine shaders, fonts, BRDF LUT
 │   ├── CMakeLists.txt                     # LeonEngineCore (single link unit today)
@@ -72,25 +93,72 @@ LeonEngine2/
 ```json
 {
   "FileVersion": 1,
-  "EngineVersion": "0.8.0",
+  "EngineVersion": "0.15.0",
   "ProjectName": "Sandbox",
   "DefaultMap": "/Game/Maps/MainShowcase",
   "DefaultGameMode": "ASandboxGameMode"
 }
 ```
 
-### 3.2 Virtual Path Resolution (`FProjectPaths`)
+| Field | Required | Role |
+| :--- | :--- | :--- |
+| `FileVersion` | yes | Descriptor schema version |
+| `EngineVersion` | yes | Informational engine version string |
+| `ProjectName` | yes | Used for INI section `/Script/<ProjectName>.GameMode` |
+| `DefaultMap` | yes | Fallback if `DefaultEngine.ini` omits `GameDefaultMap` |
+| `DefaultGameMode` | yes | Fallback if INI omits `GlobalDefaultGameMode` / `GameModeClass` |
+
+### 3.2 Project Boot Contract
+
+Boot order (`UEngine::InternalRun`):
+
+1. Locate `.lproject` (path as given, directory scan, or walk parents from cwd).
+2. Load `FProjectDescriptor` and `FProjectPaths::SetProjectRoot`.
+3. Load flat Multi-INI from `<Project>/Config/` (no Base.ini / user Saved hierarchy yet).
+4. Create `FApplication` / window from DisplaySettings.
+5. Create `UGameInstance` + `UWorld`, load default map (fatal if missing on boot).
+6. Spawn GameMode from `UClassRegistry`, apply class config, `InitWorld` / `BeginPlay`.
+7. Push viewport layer and run the loop.
+
+**Config priority (highest wins):**
+
+| Setting | Priority |
+| :--- | :--- |
+| Default map | `DefaultEngine.ini` `GameDefaultMap` → `.lproject` `DefaultMap` |
+| GameMode class | `DefaultGame.ini` `/Script/<Project>.GameMode` `GameModeClass` → `GlobalDefaultGameMode` → `.lproject` `DefaultGameMode` |
+| Pawn/PC/HUD/… | `/Script/<Project>.GameMode` → legacy `/Script/<Project>.SandboxGameMode` → `/Script/Engine.GameModeBase` |
+| Input | `DefaultInput.ini` only |
+
+This is **not** full Unreal config stacking (`Base.ini` + project + `Saved/Config`). It is a flat per-project Multi-INI.
+
+**Supported INI keys**
+
+| Section | Keys | Applied to |
+| :--- | :--- | :--- |
+| `/Script/Engine.DisplaySettings` | `WindowTitle`, `WindowWidth`, `WindowHeight`, `VSync`, `Fullscreen` | `FApplication` / `FWindow` |
+| `/Script/EngineSettings.GameMapsSettings` | `GameDefaultMap`, `GlobalDefaultGameMode` | Boot map + GameMode class |
+| `/Script/Engine.RendererSettings` | `ShadowMapResolution`, `EnablePlanarReflection` | `FWorldRenderer` project defaults (before first create) |
+| `/Script/Engine.RendererSettings` | `Exposure`, `SunIntensity` | Documented only — **map skybox / lights own these** (not overwritten) |
+| `/Script/Engine.InputSettings` | mouse look + Move* / Sprint keys | `FInputSettings` |
+| `/Script/<Project>.GameMode` | `GameModeClass`, `DefaultPawnClass`, … | `FGameModeConfig` |
+
+**Project executable duties:** register RHI driver + project `UClassRegistry` classes **before** `UEngine::Run`. Missing default map on initial boot returns non-zero.
+
+### 3.3 Virtual Path Resolution (`FProjectPaths`)
 * `/Game/Maps/MainShowcase` → `<ProjectRoot>/Content/Maps/MainShowcase.lmap`
 * `/Game/Textures/T_Car_Body_D` → `<ProjectRoot>/Content/Textures/T_Car_Body_D.ltex`
 * `/Engine/Shaders/PBR_Lit.glsl` → `Engine/Assets/Shaders/PBR_Lit.glsl`
 
-### 3.3 Multi-INI Configuration
-1. **`DefaultEngine.ini`**: FWindow, renderer, `GameDefaultMap`, `GlobalDefaultGameMode`.
-2. **`DefaultGame.ini`**: `DefaultPawnClass` (use `ADefaultPawn` fly spectator or `ACharacter` ground), PC/HUD/GameState classes.
-3. **`DefaultInput.ini`**: Loaded into `FInputSettings` (`bEnableMouseLook`, Move*/Sprint keys) and applied by pawns.
+### 3.4 Multi-INI Configuration
+1. **`DefaultEngine.ini`**: window, maps, GameMode class, renderer project defaults.
+2. **`DefaultGame.ini`**: pawn / PC / HUD / GameState / PlayerState classes.
+3. **`DefaultInput.ini`**: `FInputSettings` consumed by pawns.
 
-### 3.4 Entry point
-Projects call `UEngine::Run(args, "Projects/Sandbox/Sandbox.lproject")` after registering the OpenGL driver and project classes. There is no `EntryPoint.hpp`.
+### 3.5 Entry point
+The **project** executable registers the RHI driver and project classes, resolves its `.lproject`
+(`--project=` → `LEON_PROJECT` → beside exe → project-local fallback), then calls
+`UEngine::Run(args, projectPath)`. There is no `EntryPoint.hpp`. Prefer
+`Scripts/run_project.py --project <path>` so the Engine never assumes a product path.
 
 ---
 

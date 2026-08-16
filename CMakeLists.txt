@@ -43,7 +43,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(entt)
 
 
-# Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Projects -> Tests)
+# Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Tools -> Project -> Tests)
 add_subdirectory(ThirdParty/glad)
 add_subdirectory(ThirdParty/stb)
 add_subdirectory(ThirdParty/ufbx)
@@ -51,5 +51,16 @@ add_subdirectory(ThirdParty/doctest)
 add_subdirectory(Engine)
 add_subdirectory(Plugins/RHI/OpenGL)
 add_subdirectory(Tools/LeonAssetTool)
-add_subdirectory(Projects/Sandbox)
+
+# Game project (monorepo default). Override: -DLEON_PROJECT_DIR=Projects/MyGame
+# Engine CMake never names a product; only this root entry point selects the client.
+set(LEON_PROJECT_DIR "Projects/Sandbox" CACHE PATH "Relative or absolute path to the game project directory")
+if(EXISTS "${CMAKE_SOURCE_DIR}/${LEON_PROJECT_DIR}/CMakeLists.txt")
+    add_subdirectory("${LEON_PROJECT_DIR}")
+elseif(EXISTS "${LEON_PROJECT_DIR}/CMakeLists.txt")
+    add_subdirectory("${LEON_PROJECT_DIR}")
+else()
+    message(WARNING "LEON_PROJECT_DIR='${LEON_PROJECT_DIR}' not found — skipping game target")
+endif()
+
 add_subdirectory(Tests)

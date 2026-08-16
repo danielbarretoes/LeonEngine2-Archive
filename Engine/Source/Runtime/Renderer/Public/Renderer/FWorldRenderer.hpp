@@ -119,6 +119,15 @@ namespace Leon {
         FShadowSettings& GetShadowSettings() { return ShadowSettings; }
         const FShadowSettings& GetShadowSettings() const { return ShadowSettings; }
 
+        void SetPlanarReflectionEnabled(bool bEnabled) { bEnablePlanarReflection = bEnabled; }
+        bool IsPlanarReflectionEnabled() const { return bEnablePlanarReflection; }
+
+        /**
+         * @brief Apply project-level renderer defaults from DefaultEngine.ini.
+         * Call before first FBO-heavy work when possible; CascadeResolution is read at construction.
+         */
+        void ApplyProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection);
+
     private:
         // ----- Render Passes -------------------------------------------------
         void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
@@ -147,6 +156,7 @@ namespace Leon {
         uint32_t ViewportHeight = 720;
         int DebugMode = 0;
         bool bWireframeEnabled = false;
+        bool bEnablePlanarReflection = true;
 
         // Tracks the FBO active before Render() was called, restored after PostProcess
         uint32_t PreviousFBO = 0;

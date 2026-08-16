@@ -153,6 +153,15 @@ namespace Leon {
         return Renderer.get();
     }
 
+    void UWorld::SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection) {
+        bHasPendingRendererDefaults = true;
+        PendingShadowMapResolution = InShadowMapResolution > 0 ? InShadowMapResolution : 2048;
+        bPendingPlanarReflection = bInEnablePlanarReflection;
+        if (Renderer) {
+            Renderer->ApplyProjectRendererDefaults(PendingShadowMapResolution, bPendingPlanarReflection);
+        }
+    }
+
     void UWorld::OnRender(const FPerspectiveCamera& InCamera) {
         GetWorldRenderer()->RenderScene(InCamera);
     }

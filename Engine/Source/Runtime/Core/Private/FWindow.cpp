@@ -178,6 +178,33 @@ namespace Leon {
         Data.bVSync = bInEnabled;
     }
 
+    void FWindow::SetFullscreen(bool bInEnabled) {
+        if (!NativeWindow)
+            return;
+
+        if (bInEnabled == Data.bFullscreen)
+            return;
+
+        if (bInEnabled) {
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            if (!monitor)
+                return;
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            if (!mode)
+                return;
+            glfwSetWindowMonitor(NativeWindow, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            Data.Width = static_cast<unsigned int>(mode->width);
+            Data.Height = static_cast<unsigned int>(mode->height);
+            Data.bFullscreen = true;
+        } else {
+            glfwSetWindowMonitor(NativeWindow, nullptr, 100, 100, static_cast<int>(Data.Width),
+                                 static_cast<int>(Data.Height), 0);
+            Data.bFullscreen = false;
+        }
+
+        SetVSync(Data.bVSync);
+    }
+
     void FWindow::SetCursorVisible(bool bVisible) {
         if (!NativeWindow)
             return;

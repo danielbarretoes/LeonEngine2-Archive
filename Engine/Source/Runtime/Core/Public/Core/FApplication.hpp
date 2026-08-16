@@ -70,7 +70,7 @@ namespace Leon {
         static FApplication* Instance;
     };
 
-    // Client/Sandbox defined entry point
+    // Project-defined entry point (CreateApplication)
     FApplication* CreateApplication(FApplicationCommandLineArgs InArgs = {});
 
 } // namespace Leon

@@ -3,6 +3,7 @@
 #include "Core/FApplication.hpp"
 #include "Core/FConfigFile.hpp"
 #include "Core/FInputSettings.hpp"
+#include "Core/FProjectDescriptor.hpp"
 #include "Gameplay/UObject.hpp"
 #include "Engine/UGameInstance.hpp"
 #include "Engine/UWorld.hpp"
@@ -37,9 +38,23 @@ namespace Leon {
         ~UEngine() override;
 
         static UEngine& Get();
+        static bool HasInstance();
 
-        static int Run(FApplicationCommandLineArgs InArgs,
-                       const std::string& InProjectOrConfigPath = "Projects/Sandbox/Sandbox.lproject");
+        /**
+         * @brief Boot the engine against a .lproject path (required; no product default).
+         * If InProjectOrConfigPath is empty, resolves from argv (--project= / -project= / *.lproject).
+         */
+        static int Run(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath = "");
+
+        /**
+         * @brief Resolve GameMode class names from Engine/Game INI + .lproject (testable without full boot).
+         */
+        static FGameModeConfig BuildGameModeConfig(const FConfigFile& InEngineConfig, const FConfigFile& InGameConfig,
+                                                    const FProjectDescriptor& InProjectDesc);
+
+        /** Default map: Engine.ini GameDefaultMap, else .lproject DefaultMap. */
+        static std::string ResolveStartupMap(const FConfigFile& InEngineConfig,
+                                             const FProjectDescriptor& InProjectDesc);
 
         TRef<UWorld> GetWorld() const { return ActiveWorld; }
         TRef<UGameInstance> GetGameInstance() const { return GameInstance; }
@@ -76,6 +91,9 @@ namespace Leon {
         std::string CurrentMapName;
         std::string PendingTravelMap;
         bool bPendingTravel = false;
+
+        uint32_t ProjectShadowMapResolution = 2048;
+        bool bProjectEnablePlanarReflection = true;
 
         // Non-owning pointer to the active viewport layer so travel can rebind the world.
         FGameViewportLayer* ViewportLayer = nullptr;

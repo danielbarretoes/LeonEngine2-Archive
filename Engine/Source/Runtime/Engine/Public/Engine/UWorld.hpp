@@ -92,6 +92,12 @@ namespace Leon {
         void OnRender(const FPerspectiveCamera& InCamera);
         FWorldRenderer* GetWorldRenderer();
 
+        /** Project INI renderer defaults applied when the world renderer is first created. */
+        void SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection);
+        bool HasPendingRendererDefaults() const { return bHasPendingRendererDefaults; }
+        uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
+        bool GetPendingPlanarReflectionEnabled() const { return bPendingPlanarReflection; }
+
     private:
         entt::registry Registry;
         std::vector<TRef<AActor>> Actors;
@@ -103,6 +109,10 @@ namespace Leon {
         TScope<FWorldRenderer> Renderer;
         bool bBegunPlay = false;
         bool bDeferSpawnedActorBeginPlay = false;
+
+        bool bHasPendingRendererDefaults = false;
+        uint32_t PendingShadowMapResolution = 2048;
+        bool bPendingPlanarReflection = true;
 
         friend class FMapSerializer;
     };

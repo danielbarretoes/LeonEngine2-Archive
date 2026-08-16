@@ -55,6 +55,11 @@ namespace Leon {
     } // namespace
 
     FWorldRenderer::FWorldRenderer(UWorld* InWorld) : World(InWorld) {
+        if (InWorld && InWorld->HasPendingRendererDefaults()) {
+            ShadowSettings.CascadeResolution = InWorld->GetPendingShadowMapResolution();
+            bEnablePlanarReflection = InWorld->GetPendingPlanarReflectionEnabled();
+        }
+
         // -----------------------------------------------------------------------
         // 1. Shadow framebuffers — DEPTH32F (Texture2DArray for 4-Cascade CSM, 2D for Spot)
         // -----------------------------------------------------------------------
@@ -130,6 +135,20 @@ namespace Leon {
         // 7. Initial IBL state (deferred until first skybox evaluation)
         // -----------------------------------------------------------------------
         bEnvironmentGenerated = false;
+    }
+
+    void FWorldRenderer::ApplyProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection) {
+        bEnablePlanarReflection = bInEnablePlanarReflection;
+        if (InShadowMapResolution == 0 || InShadowMapResolution == ShadowSettings.CascadeResolution)
+            return;
+
+        ShadowSettings.CascadeResolution = InShadowMapResolution;
+        FFramebufferSpecification csmSpec;
+        csmSpec.Width = ShadowSettings.CascadeResolution;
+        csmSpec.Height = ShadowSettings.CascadeResolution;
+        csmSpec.ArrayLayers = 4;
+        csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
+        CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
     }
 
     // =========================================================================
@@ -529,9 +548,9 @@ namespace Leon {
     // PASS 3: Planar Reflection Pass
     // =========================================================================
     void FWorldRenderer::RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera,
-                                                    const FSkyboxComponent* InSkybox, bool bHasDirLight,
-                                                    const FDirectionalLight& InDirLight) {
-        if (!PlanarReflectionFramebuffer)
+                                                     const FSkyboxComponent* InSkybox, bool bHasDirLight,
+                                                     const FDirectionalLight& InDirLight) {
+        if (!bEnablePlanarReflection || !PlanarReflectionFramebuffer)
             return;
 
         uint32_t vpW = ViewportWidth > 0 ? ViewportWidth : 1280;

@@ -29,6 +29,13 @@ namespace Leon {
         /** Convert physical disk path to virtual package path (/Game/..., /Engine/...) */
         static std::string MakeVirtualPath(const std::string& InPhysicalPath);
 
+        /**
+         * @brief Locate a .lproject file from a path hint.
+         * Tries the path as-is, directory scan, then walks parent dirs for the relative
+         * hint or any .lproject beside an Engine/ folder.
+         */
+        static std::string LocateProjectFile(const std::string& InPathOrDir);
+
     private:
         static std::string CachedProjectDir;
     };

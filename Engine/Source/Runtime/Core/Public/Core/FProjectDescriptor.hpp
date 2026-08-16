@@ -11,9 +11,9 @@ namespace Leon {
      */
     struct FProjectDescriptor {
         uint32_t FileVersion = 1;
-        std::string EngineVersion = "0.8.0";
-        std::string ProjectName = "Sandbox";
-        std::string DefaultMap = "/Game/Maps/MainShowcase";
+        std::string EngineVersion = "0.15.0";
+        std::string ProjectName = "Project";
+        std::string DefaultMap = "/Game/Maps/Untitled";
         std::string DefaultGameMode = "AGameModeBase";
 
         bool Load(const std::string& InFilePath);
