@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <vector>
 
 namespace Leon {
 
@@ -14,7 +15,6 @@ namespace Leon {
             if (std::abs(v.LightmapUV.x) > 1e-6f || std::abs(v.LightmapUV.y) > 1e-6f)
                 return true;
         }
-        // All zeros may still be valid UV1 covering a corner — treat as missing if also equals TexCoord empty.
         return false;
     }
 
@@ -41,7 +41,7 @@ namespace Leon {
 
     void FLightmapUV::GenerateBoxPackedLightmapUVs(UStaticMesh& InMesh, float InPadding) {
         auto& verts = InMesh.GetVertices();
-        const auto& indices = InMesh.GetIndices();
+        auto& indices = InMesh.GetIndices();
         if (verts.empty() || indices.size() < 3)
             return;
 
@@ -54,8 +54,84 @@ namespace Leon {
         const float pad = std::clamp(InPadding, 0.0f, cell * 0.45f);
         const float usable = cell - 2.0f * pad;
 
-        for (auto& v : verts)
-            v.LightmapUV = glm::vec2(0.0f);
+        std::vector<FStaticMeshVertex> newVerts;
+        std::vector<uint32_t> newIndices;
+        newVerts.reserve(static_cast<size_t>(triCount) * 3);
+        newIndices.reserve(static_cast<size_t>(triCount) * 3);
+
+        auto& submeshes = InMesh.GetSubmeshes();
+        if (submeshes.empty()) {
+            FStaticSubmesh whole;
+            whole.IndexOffset = 0;
+            whole.IndexCount = static_cast<uint32_t>(indices.size());
+            whole.VertexOffset = 0;
+            whole.VertexCount = static_cast<uint32_t>(verts.size());
+            submeshes.push_back(whole);
+        }
+
+        std::vector<FStaticSubmesh> rebuiltSubmeshes;
+        rebuiltSubmeshes.reserve(submeshes.size());
+
+        for (const auto& sub : submeshes) {
+            FStaticSubmesh out = sub;
+            out.VertexOffset = static_cast<uint32_t>(newVerts.size());
+            out.IndexOffset = static_cast<uint32_t>(newIndices.size());
+
+            uint32_t firstTri = sub.IndexOffset / 3;
+            uint32_t nTri = sub.IndexCount / 3;
+            for (uint32_t t = 0; t < nTri; ++t) {
+                uint32_t srcTri = firstTri + t;
+                uint32_t i0 = indices[srcTri * 3 + 0];
+                uint32_t i1 = indices[srcTri * 3 + 1];
+                uint32_t i2 = indices[srcTri * 3 + 2];
+                if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size())
+                    continue;
+
+                uint32_t gx = srcTri % grid;
+                uint32_t gy = srcTri / grid;
+                float ox = static_cast<float>(gx) * cell + pad;
+                float oy = static_cast<float>(gy) * cell + pad;
+
+                FStaticMeshVertex v0 = verts[i0];
+                FStaticMeshVertex v1 = verts[i1];
+                FStaticMeshVertex v2 = verts[i2];
+                v0.LightmapUV = {ox, oy};
+                v1.LightmapUV = {ox + usable, oy};
+                v2.LightmapUV = {ox + usable * 0.5f, oy + usable};
+
+                uint32_t base = static_cast<uint32_t>(newVerts.size());
+                newVerts.push_back(v0);
+                newVerts.push_back(v1);
+                newVerts.push_back(v2);
+                newIndices.push_back(base);
+                newIndices.push_back(base + 1);
+                newIndices.push_back(base + 2);
+            }
+
+            out.VertexCount = static_cast<uint32_t>(newVerts.size()) - out.VertexOffset;
+            out.IndexCount = static_cast<uint32_t>(newIndices.size()) - out.IndexOffset;
+            rebuiltSubmeshes.push_back(out);
+        }
+
+        verts = std::move(newVerts);
+        indices = std::move(newIndices);
+        submeshes = std::move(rebuiltSubmeshes);
+        InMesh.CalculateBounds();
+    }
+
+    FLightmapUVValidationResult FLightmapUV::Validate(const UStaticMesh& InMesh, float InMinIslandPadding) {
+        FLightmapUVValidationResult result;
+        result.bHasUV1 = HasLightmapUV(InMesh);
+        const auto& verts = InMesh.GetVertices();
+        const auto& indices = InMesh.GetIndices();
+        const uint32_t triCount = static_cast<uint32_t>(indices.size() / 3);
+
+        for (const auto& v : verts) {
+            if (v.LightmapUV.x < -1e-4f || v.LightmapUV.y < -1e-4f || v.LightmapUV.x > 1.0f + 1e-4f ||
+                v.LightmapUV.y > 1.0f + 1e-4f) {
+                result.bInUnitSquare = false;
+            }
+        }
 
         for (uint32_t t = 0; t < triCount; ++t) {
             uint32_t i0 = indices[t * 3 + 0];
@@ -63,83 +139,40 @@ namespace Leon {
             uint32_t i2 = indices[t * 3 + 2];
             if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size())
                 continue;
-
-            uint32_t gx = t % grid;
-            uint32_t gy = t / grid;
-            float ox = static_cast<float>(gx) * cell + pad;
-            float oy = static_cast<float>(gy) * cell + pad;
-
-            // Unique UV corner assignment per triangle (may split shared verts conceptually by overwrite —
-            // for shared vertices, last write wins; duplicate verts if needed for production packs).
-            verts[i0].LightmapUV = {ox, oy};
-            verts[i1].LightmapUV = {ox + usable, oy};
-            verts[i2].LightmapUV = {ox + usable * 0.5f, oy + usable};
-        }
-    }
-
-    FLightmapUVValidationResult FLightmapUV::Validate(const UStaticMesh& InMesh, float InMinIslandPadding) {
-        FLightmapUVValidationResult result;
-        const auto& verts = InMesh.GetVertices();
-        const auto& indices = InMesh.GetIndices();
-        if (verts.empty() || indices.size() < 3) {
-            result.Message = "Mesh has no geometry";
-            return result;
-        }
-
-        result.bHasUV1 = true;
-        for (const auto& v : verts) {
-            if (v.LightmapUV.x < -1e-4f || v.LightmapUV.y < -1e-4f || v.LightmapUV.x > 1.0f + 1e-4f ||
-                v.LightmapUV.y > 1.0f + 1e-4f) {
-                result.bInUnitSquare = false;
-                result.bHasUV1 = true;
-            }
-        }
-
-        // Detect UV triangles with near-zero area and crude overlap via grid occupancy.
-        const int gridRes = 64;
-        std::vector<int> occupancy(static_cast<size_t>(gridRes * gridRes), -1);
-        bool overlap = false;
-        uint32_t triCount = static_cast<uint32_t>(indices.size() / 3);
-
-        for (uint32_t t = 0; t < triCount; ++t) {
-            uint32_t i0 = indices[t * 3 + 0];
-            uint32_t i1 = indices[t * 3 + 1];
-            uint32_t i2 = indices[t * 3 + 2];
             glm::vec2 a = verts[i0].LightmapUV;
             glm::vec2 b = verts[i1].LightmapUV;
             glm::vec2 c = verts[i2].LightmapUV;
-            glm::vec2 minUV = glm::min(glm::min(a, b), c);
-            glm::vec2 maxUV = glm::max(glm::max(a, b), c);
-            float area = std::abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) * 0.5f;
-            if (area < 1e-10f)
-                continue;
 
-            int x0 = std::clamp(static_cast<int>(minUV.x * gridRes), 0, gridRes - 1);
-            int y0 = std::clamp(static_cast<int>(minUV.y * gridRes), 0, gridRes - 1);
-            int x1 = std::clamp(static_cast<int>(maxUV.x * gridRes), 0, gridRes - 1);
-            int y1 = std::clamp(static_cast<int>(maxUV.y * gridRes), 0, gridRes - 1);
-            for (int y = y0; y <= y1; ++y) {
-                for (int x = x0; x <= x1; ++x) {
-                    int& cell = occupancy[static_cast<size_t>(y * gridRes + x)];
-                    if (cell >= 0 && cell != static_cast<int>(t))
-                        overlap = true;
-                    else
-                        cell = static_cast<int>(t);
+            for (uint32_t u = t + 1; u < triCount; ++u) {
+                uint32_t j0 = indices[u * 3 + 0];
+                uint32_t j1 = indices[u * 3 + 1];
+                uint32_t j2 = indices[u * 3 + 2];
+                if (j0 >= verts.size() || j1 >= verts.size() || j2 >= verts.size())
+                    continue;
+                glm::vec2 minA = glm::min(glm::min(a, b), c);
+                glm::vec2 maxA = glm::max(glm::max(a, b), c);
+                glm::vec2 minB = glm::min(glm::min(verts[j0].LightmapUV, verts[j1].LightmapUV), verts[j2].LightmapUV);
+                glm::vec2 maxB = glm::max(glm::max(verts[j0].LightmapUV, verts[j1].LightmapUV), verts[j2].LightmapUV);
+                bool overlap = maxA.x > minB.x + InMinIslandPadding && maxB.x > minA.x + InMinIslandPadding &&
+                               maxA.y > minB.y + InMinIslandPadding && maxB.y > minA.y + InMinIslandPadding;
+                if (overlap) {
+                    result.bHasOverlaps = true;
+                    result.bHasEnoughPadding = false;
                 }
             }
         }
 
-        result.bHasOverlaps = overlap;
-        result.bHasEnoughPadding = InMinIslandPadding >= 0.0f; // soft check; packing enforces padding
-        result.bValid = result.bInUnitSquare && !result.bHasOverlaps;
-        std::ostringstream ss;
-        if (!result.bInUnitSquare)
-            ss << "UV1 outside 0..1; ";
-        if (result.bHasOverlaps)
-            ss << "UV1 overlaps detected; ";
-        if (result.bValid)
-            ss << "OK";
-        result.Message = ss.str();
+        result.bValid = result.bHasUV1 && result.bInUnitSquare && !result.bHasOverlaps;
+        if (!result.bValid) {
+            std::ostringstream ss;
+            if (!result.bHasUV1)
+                ss << "missing UV1; ";
+            if (!result.bInUnitSquare)
+                ss << "UV1 outside unit square; ";
+            if (result.bHasOverlaps)
+                ss << "overlapping charts; ";
+            result.Message = ss.str();
+        }
         return result;
     }
 

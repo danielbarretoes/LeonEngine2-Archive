@@ -4,10 +4,9 @@
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec2 aTexCoord;
-layout(location = 3) in vec3 aTangent;
-layout(location = 4) in vec3 aBitangent;
-layout(location = 5) in vec3 aColor;
-layout(location = 6) in vec2 aLightmapUV;
+layout(location = 3) in vec4 aTangent; // xyz + handedness (B = cross(N,T)*w)
+layout(location = 4) in vec3 aColor;
+layout(location = 5) in vec2 aLightmapUV;
 
 out vec3 v_FragPos;
 out vec3 v_Normal;
@@ -16,40 +15,41 @@ out vec3 v_Color;
 out mat3 v_TBN;
 out vec2 v_LightmapUV;
 
-// UBO Binding 0: Camera & Shadow Data (std140)
 layout(std140) uniform CameraData {
     mat4 u_ViewProjection;
     mat4 u_LightSpaceMatrices[4];
     mat4 u_SpotLightSpaceMatrix;
     vec4 u_ViewPos;
     vec4 u_CameraForward;
-    vec4 u_CascadeSplits;             // x = split0, y = split1, z = split2, w = split3
-    vec4 u_CascadeOffsets[4];         // xy = uvScale, zw = uvOffset
-    vec4 u_ShadowParams;              // x = constBias, y = slopeBias, z = normalBias, w = cascadeBlendWidth
-    ivec4 u_ShadowSettings;           // x = filterMode (0..3), y = contactSteps, z = bEnableContactShadows, w = shadowDebugMode
-    vec4 u_ContactShadowParams;       // x = contactDistance, y = thickness, zw = 0
+    vec4 u_CascadeSplits;
+    vec4 u_ShadowParams;
+    ivec4 u_ShadowSettings; // x = filterMode, y = shadowedSpotIndex, z = 0, w = debug
 };
 
 uniform mat4 u_Model;
-// Normal matrix pre-computed CPU-side to avoid per-vertex GPU inverse (audit fix MEDIO-05)
 uniform mat3 u_NormalMatrix;
+uniform int u_EnableClipPlane = 0;
+uniform vec4 u_ClipPlane = vec4(0.0, 1.0, 0.0, 0.0);
 
 void main() {
     vec4 worldPos = u_Model * vec4(aPos, 1.0);
     v_FragPos = worldPos.xyz;
 
-    // Transform N, T, B to world space with normal matrix (fragment shader does authoritative Gram-Schmidt)
     vec3 N = normalize(u_NormalMatrix * aNormal);
-    vec3 T = normalize(u_NormalMatrix * aTangent);
-    vec3 B = normalize(u_NormalMatrix * aBitangent);
+    vec3 T = u_NormalMatrix * aTangent.xyz;
+    float tLen = length(T);
+    T = tLen > 1e-8 ? T / tLen : vec3(1.0, 0.0, 0.0);
+    T = normalize(T - N * dot(N, T));
+    float detSign = determinant(u_NormalMatrix) < 0.0 ? -1.0 : 1.0;
+    vec3 B = cross(N, T) * aTangent.w * detSign;
     v_TBN = mat3(T, B, N);
     v_Normal = N;
 
     v_TexCoord = aTexCoord;
-    v_Color    = aColor;
-    // Prefer dedicated UV1 when present; procedural meshes without attr 6 use TexCoord via u_LightmapUseTexCoord
+    v_Color = aColor;
     v_LightmapUV = aLightmapUV;
 
+    gl_ClipDistance[0] = (u_EnableClipPlane == 1) ? dot(vec4(worldPos.xyz, 1.0), u_ClipPlane) : 1.0;
     gl_Position = u_ViewProjection * worldPos;
 }
 
@@ -65,18 +65,15 @@ in vec3 v_Color;
 in mat3 v_TBN;
 in vec2 v_LightmapUV;
 
-// UBO Binding 0: Camera & Shadow Data (std140)
 layout(std140) uniform CameraData {
     mat4 u_ViewProjection;
     mat4 u_LightSpaceMatrices[4];
     mat4 u_SpotLightSpaceMatrix;
     vec4 u_ViewPos;
     vec4 u_CameraForward;
-    vec4 u_CascadeSplits;             // x = split0, y = split1, z = split2, w = split3
-    vec4 u_CascadeOffsets[4];         // xy = uvScale, zw = uvOffset
-    vec4 u_ShadowParams;              // x = constBias, y = slopeBias, z = normalBias, w = cascadeBlendWidth
-    ivec4 u_ShadowSettings;           // x = filterMode (0..3), y = contactSteps, z = bEnableContactShadows, w = shadowDebugMode
-    vec4 u_ContactShadowParams;       // x = contactDistance, y = thickness, zw = 0
+    vec4 u_CascadeSplits;
+    vec4 u_ShadowParams;
+    ivec4 u_ShadowSettings; // x = filterMode, y = shadowedSpotIndex, z = 0, w = debug
 };
 
 // Direct Lighting & Environment Subsystem (std140)
@@ -432,33 +429,6 @@ float CalculateSpotShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
     return SampleSpotShadowMap(u_SpotShadowMap, fragPos, normal, lightDir);
 }
 
-float CalculateContactShadow(vec3 fragPos, vec3 lightDir) {
-    if (u_ShadowSettings.z == 0) return 1.0; // Disabled
-    int maxSteps = u_ShadowSettings.y;
-    float maxDistance = u_ContactShadowParams.x;
-    float thickness = u_ContactShadowParams.y;
-
-    vec4 startClip = u_ViewProjection * vec4(fragPos, 1.0);
-    vec3 startNDC = startClip.xyz / max(startClip.w, 0.00001);
-    vec3 startUV = startNDC * 0.5 + 0.5;
-
-    vec4 endClip = u_ViewProjection * vec4(fragPos + lightDir * maxDistance, 1.0);
-    vec3 endNDC = endClip.xyz / max(endClip.w, 0.00001);
-    vec3 endUV = endNDC * 0.5 + 0.5;
-
-    vec3 rayStep = (endUV - startUV) / float(maxSteps);
-    vec3 rayPos = startUV + rayStep * 0.5;
-
-    float shadowFactor = 1.0;
-    for (int i = 0; i < maxSteps; ++i) {
-        if (rayPos.x < 0.0 || rayPos.x > 1.0 || rayPos.y < 0.0 || rayPos.y > 1.0 || rayPos.z < 0.0 || rayPos.z > 1.0)
-            break;
-
-        rayPos += rayStep;
-    }
-    return shadowFactor;
-}
-
 void main() {
     // 1. Texture Coordinate Transformation (Tiling & Offset)
     vec2 uv = v_TexCoord * u_UVTiling + u_UVOffset;
@@ -472,8 +442,8 @@ void main() {
         discard;
     }
 
-    // Convert sRGB Albedo to Linear Space
-    vec3 albedo = u_AlbedoColor * ((u_UseAlbedoMap == 1) ? pow(albedoSample.rgb, vec3(2.2)) : vec3(1.0));
+    // Albedo is already linear: hardware sRGB decode for Color textures, CPU material colors are linear.
+    vec3 albedo = u_AlbedoColor * ((u_UseAlbedoMap == 1) ? albedoSample.rgb : vec3(1.0));
 
     // 3. Tangent Space Gram-Schmidt Orthogonalization & Normal Mapping
     vec3 N = normalize(v_Normal);
@@ -514,9 +484,11 @@ void main() {
 
     // Direct lighting radiance accumulation (Lo)
     vec3 Lo = vec3(0.0);
+    vec3 LoDiffuse = vec3(0.0);
+    vec3 LoSpecular = vec3(0.0);
     int activeCascadeIndex = 0;
     float dirShadow = 0.0;
-    float contactShadowFactor = 1.0;
+    float spotShadowFactor = 0.0;
 
     // 5.1 Directional Sunlight — single radiance = color * intensity (PBR-correct)
     if (u_DirLight.direction.w > 0.5) {
@@ -538,10 +510,10 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         dirShadow = CalculateCascadedDirectionalShadow(v_FragPos, N, L, activeCascadeIndex);
-        contactShadowFactor = CalculateContactShadow(v_FragPos, L);
 
-        float totalShadow = 1.0 - (1.0 - dirShadow) * contactShadowFactor;
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - totalShadow);
+        vec3 vis = radiance * NdotL * (1.0 - dirShadow);
+        LoDiffuse += (kD * albedo / PI) * vis;
+        LoSpecular += specular * vis;
     }
 
     // 5.2 Point Lights Loop
@@ -576,7 +548,9 @@ void main() {
         kD *= 1.0 - metallic;
 
         float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        vec3 vis = radiance * NdotL;
+        LoDiffuse += (kD * albedo / PI) * vis;
+        LoSpecular += specular * vis;
     }
 
     // 5.3 Spot Lights Loop
@@ -618,11 +592,18 @@ void main() {
             kD *= 1.0 - metallic;
 
             float NdotL = max(dot(N, L), 0.0);
-            float spotShadow = (i == 0) ? CalculateSpotShadow(v_FragPos, N, L) : 0.0;
+            // Explicit capability: one shadowed spotlight, selected by u_ShadowSettings.y
+            float spotShadow = (i == u_ShadowSettings.y) ? CalculateSpotShadow(v_FragPos, N, L) : 0.0;
+            if (i == u_ShadowSettings.y)
+                spotShadowFactor = 1.0 - spotShadow;
 
-            Lo += (kD * albedo / PI + specular) * radiance * NdotL * (1.0 - spotShadow);
+            vec3 vis = radiance * NdotL * (1.0 - spotShadow);
+            LoDiffuse += (kD * albedo / PI) * vis;
+            LoSpecular += specular * vis;
         }
     }
+
+    Lo = LoDiffuse + LoSpecular;
 
     // 6. Image-Based Lighting (IBL)
     float NdotV = max(dot(N, V), 0.0);
@@ -637,14 +618,14 @@ void main() {
 
     if (u_UseIBL == 1) {
         vec3 irradiance = texture(u_IrradianceMap, N).rgb * u_EnvSkyColor.w;
-        diffuseIBL = irradiance * albedo;
+        diffuseIBL = irradiance * albedo / PI;
 
         const float MAX_REFLECTION_LOD = 4.0;
         reflectionLi = textureLod(u_PrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb * u_EnvSkyColor.w;
         envBRDF = texture(u_BRDFLUT, vec2(NdotV, roughness)).rg;
     } else {
         vec3 irradiance = GetHemisphereIrradiance(N);
-        diffuseIBL = irradiance * albedo;
+        diffuseIBL = irradiance * albedo / PI;
 
         reflectionLi = SampleEnvironmentAtmosphere(R, roughness);
         envBRDF = vec2(1.0 - roughness, roughness * 0.5);
@@ -673,7 +654,8 @@ void main() {
     // Indirect ambient radiance occluded by AO
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * ao;
 
-    // Baked static lighting (irradiance). Diffuse: albedo * irradiance (kD)
+    // Lightmap stores baked diffuse irradiance E = ∫ Li max(N·wi,0) dω
+    // Lo_diffuse = albedo / π * E
     vec3 lightmapIrradiance = vec3(0.0);
     vec2 lightmapUVSample = vec2(0.0);
     vec3 bakedLighting = vec3(0.0);
@@ -681,13 +663,11 @@ void main() {
         lightmapUVSample = (u_LightmapUseTexCoord == 1) ? v_TexCoord : v_LightmapUV;
         lightmapUVSample = lightmapUVSample * u_LightmapScale + u_LightmapBias;
         lightmapIrradiance = texture(u_Lightmap, lightmapUVSample).rgb;
-        bakedLighting = kD_IBL * albedo * lightmapIrradiance;
-        // When lightmaps are present, reduce diffuse IBL to avoid double ambient (specular IBL kept)
-        ambient = (specularIBL) * ao;
+        bakedLighting = kD_IBL * (albedo / PI) * lightmapIrradiance;
+        ambient = specularIBL * ao;
     }
 
-    // 8. Emissive Radiance (sRGB -> Linear Decompression)
-    vec3 emissiveMapSample = (u_UseEmissiveMap == 1) ? pow(texture(u_EmissiveMap, uv).rgb, vec3(2.2)) : vec3(1.0);
+    vec3 emissiveMapSample = (u_UseEmissiveMap == 1) ? texture(u_EmissiveMap, uv).rgb : vec3(1.0);
     vec3 emissive = u_EmissiveColor * u_EmissiveIntensity * emissiveMapSample;
 
     // Output pure linear HDR color (Post-Processing Pass handles Tonemapping & Gamma)
@@ -776,8 +756,7 @@ void main() {
         FragColor = vec4(cascadeColors[clamp(activeCascadeIndex, 0, 3)], 1.0);
         return;
     } else if (u_DebugMode == 26) {
-        // Contact Shadow Occlusion Factor
-        FragColor = vec4(vec3(contactShadowFactor), 1.0);
+        FragColor = vec4(vec3(spotShadowFactor), 1.0);
         return;
     } else if (u_DebugMode == 27) {
         // Cascade 0 Depth Map
@@ -816,8 +795,22 @@ void main() {
         FragColor = vec4(fract(lightmapUVSample), u_UseLightmap == 1 ? 0.0 : 1.0, 1.0);
         return;
     } else if (u_DebugMode == 34) {
-        // Dynamic + baked only (no IBL ambient / specular IBL)
         FragColor = vec4(Lo + bakedLighting, 1.0);
+        return;
+    } else if (u_DebugMode == 35) {
+        FragColor = vec4(diffuseIBL, 1.0);
+        return;
+    } else if (u_DebugMode == 36) {
+        FragColor = vec4(Lo, 1.0);
+        return;
+    } else if (u_DebugMode == 37) {
+        FragColor = vec4(hdrColor, 1.0);
+        return;
+    } else if (u_DebugMode == 38) {
+        FragColor = vec4(LoDiffuse, 1.0);
+        return;
+    } else if (u_DebugMode == 39) {
+        FragColor = vec4(LoSpecular, 1.0);
         return;
     }
 

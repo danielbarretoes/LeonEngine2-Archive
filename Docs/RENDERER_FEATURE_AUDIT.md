@@ -1,7 +1,8 @@
 # AUDITORÍA DE CARACTERÍSTICAS Y ARQUITECTURA DEL RENDERER
 # LeonEngine2 — OpenGL 4.5 Core Physical Rendering Pipeline
 
-> **Documento maestro de auditoría forense, inventario de capacidades reales y hoja de ruta arquitectónica para LeonEngine2.**
+> **Superseded as a correctness contract.** The live renderer contract is [`Docs/RENDERER_CONTRACT.md`](RENDERER_CONTRACT.md).
+> This file is a historical inventory. Do not treat “COMPLETAMENTE IMPLEMENTADO”, “libre de bugs”, or “físicamente correcto” as current guarantees — those claims are only as strong as the tests in `Tests/`.
 
 ---
 
@@ -199,23 +200,34 @@ flowchart TD
 
 ## 4. Análisis de Validación del `ShowcaseLevel.lmap`
 
+Inventario vivo del mapa de referencia (primitivas + `DaySky1k`). `NightLevel` valida meshes importados (`.lmesh`) + `NightSky1k`; el chip del HUD viaja entre ambos.
+
 | Actor en `ShowcaseLevel` | Geometría | Material | Feature Validada | ¿Demuestra una Capacidad Real? |
 | :--- | :--- | :--- | :--- | :--- |
-| `PBR Ground Plane` | Plane $24\times 24$ | `M_FloorTiles` | Normal Maps, AO Maps, Planar Reflection | **SÍ**: Demuestra detalle de normales tangenciales y reflexión en suelo. |
-| `PBR Polished Gold Sphere` | Sphere $R=0.5$ | `M_PolishedGold` | PBR Metálico ($\text{Met}=1.0, \text{Rough}=0.05$) | **SÍ**: Demuestra lóbulo especular IBL limpio y reflejos de entorno nítidos. |
-| `PBR Glossy Ruby Sphere` | Sphere $R=0.5$ | `M_RubyDielectric` | PBR Dieléctrico ($\text{Met}=0.0, F_0=0.04$) | **SÍ**: Demuestra conservación de energía y Fresnel dieléctrico. |
-| `PBR White Plastic Sphere`| Sphere $R=0.45$ | `M_WhitePlastic` | Dieléctrico Blanco ($\text{Rough}=0.25$) | **SÍ**: Demuestra dispersión difusa IBL pura. |
-| `PBR Red Plastic Cube` | Cube $S=0.9$ | `M_RedPlastic` | Cubo con sombreado plano y aristas vivas | **SÍ**: Demuestra normales de cubo y sombras proyectadas. |
-| `PBR Brushed Iron Cylinder`| Cylinder $R=0.5$ | `M_BrushedIron` | Cilindro metálico de rugosidad media | **SÍ**: Demuestra curvatura de cilindro y tapas superior/inferior. |
-| `PBR Gold Metal Cylinder` | Cylinder $R=0.45$ | `M_GoldMetal` | Cilindro de oro brillante | **SÍ**: Demuestra anisotropía visual por curvatura geométrica. |
-| `PBR Cobalt Pyramid` | Pyramid $1\times 1$ | `M_CobaltPyramid` | Caras triangulares inclinadas | **SÍ**: Demuestra sombreado con gradientes de luz solar oblicuos. |
-| `PBR Rough Metal Pyramid` | Pyramid $0.9\times 0.9$ | `M_RoughMetal` | Metálico rugoso ($\text{Rough}=0.75$) | **SÍ**: Demuestra transición de lóbulo especular disperso. |
-| `PBR Emerald Ramp` | Ramp $1\times 1$ | `M_EmeraldRamp` | Prisma triangular con hipotenusa | **SÍ**: Demuestra proyección de sombras rasantes en rampa. |
-| `PBR Textured Cube` | Cube $S=1.0$ | `M_ContainerCube`| Texturas de albedo, normal y AO | **SÍ**: Demuestra mapeo UV de texturas en cubo. |
-| `PBR Emissive Cyan Cube` | Cube $S=0.9$ | `M_Emissive` | Emisión pura ($L = 5.0$) | **SÍ**: Demuestra término emisivo HDR (resaltará con Bloom). |
-| `Directional Sunlight` | - | Directional | CSM de 4 cascadas | **SÍ**: Demuestra sombras cascadas en todo el escenario. |
-| `Dramatic Spotlight` | - | Spot | Cono de luz cian + Spot Shadows | **SÍ**: Demuestra sombra proyectada cónica individual. |
-| `Orbiting Point Light` | - | Point | Luz puntual animada con atenuación | **SÍ**: Demuestra atenuación inversa cuadrática dinámica. |
+| `PBR Ground Plane` | Plane $36\times 32$ | `M_StudioFloor` | Normal / roughness maps, planar reflection | **SÍ**: Suelo de estudio con TBN y reflexión. |
+| `PBR Emerald Ramp` | Ramp | `M_EmeraldRamp` | Hipotenusa + sombras rasantes | **SÍ**. |
+| `PBR Textured Cube` | Cube | `M_ContainerCube` | Albedo + normal | **SÍ**: UV de cubo. |
+| `PBR Polished Gold Sphere` | Sphere | `M_PolishedGold` | Metálico pulido IBL | **SÍ**. |
+| `PBR Glossy Ruby Sphere` | Sphere | `M_RubyDielectric` | Dieléctrico $F_0=0.04$ | **SÍ**. |
+| `PBR Brushed Iron Cylinder` | Cylinder | `M_BrushedIron` | Metal + packed metal/rough/normal | **SÍ**. |
+| `PBR Cobalt Pyramid` | Pyramid | `M_CobaltPyramid` | Caras inclinadas | **SÍ**. |
+| `PBR Mirror Chrome Sphere` | Sphere | `M_ChromeMirror` | Specular IBL nítido | **SÍ**. |
+| `PBR Polished Brass Cone` | Cone | `M_PolishedBrass` | Metal cálido | **SÍ**. |
+| `PBR Pure Copper Cube` | Cube | `M_PureCopper` | Metal + maps | **SÍ**. |
+| `PBR Satin Titanium Sphere` | Sphere | `M_SatinTitanium` | Roughness media | **SÍ**. |
+| `PBR Rough Cast Iron Cylinder` | Cylinder | `M_RoughCastIron` | Lóbulo especular disperso | **SÍ**. |
+| `PBR Matte Obsidian Pyramid` | Pyramid | `M_MatteObsidian` | Dieléctrico mate | **SÍ**. |
+| `PBR Neon Cyan Emissive Cube` | Cube | `M_NeonCyanEmissive` | Emisión HDR / Bloom | **SÍ**. |
+| `PBR Amber Core Emissive Sphere` | Sphere | `M_AmberEmissive` | Emisión cálida | **SÍ**. |
+| `PBR Clean White Plastic Cylinder` | Cylinder | `M_WoodFloor` | Packed wood PBR maps | **SÍ**. |
+| `PBR Glossy Red Plastic Ramp` | Ramp | `M_RedPlastic` | Dieléctrico saturado | **SÍ**. |
+| `PBR Sapphire Crystal Cone` | Cone | `M_SapphireCrystal` | Dieléctrico azul | **SÍ**. |
+| `PBR Industrial Metal Cube` | Cube | `M_IndustrialMetal` | Metal texturizado | **SÍ**. |
+| `Transparent Glass Sphere` | Sphere (Movable) | `M_GlassTransparent` | Sort back-to-front | **SÍ**. |
+| `Mirrored Scale Cube` | Cube scale $-1$ | `M_RedPlastic` | Cull / TBN flip | **SÍ**. |
+| `Directional Sunlight` | Stationary | Directional | CSM + baked indirect | **SÍ**. |
+| `Dramatic Spotlight` | Stationary | Spot | Cono + spot shadow | **SÍ**. |
+| `Orbiting Point Light` | Movable | Point | Atenuación dinámica | **SÍ**. |
 
 ---
 

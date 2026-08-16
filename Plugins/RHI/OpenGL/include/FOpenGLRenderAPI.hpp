@@ -18,6 +18,7 @@ namespace Leon {
         void SetWireframe(bool InEnabled) override;
         void SetBlendState(bool InEnabled) override;
         void SetBlendFunc(EBlendFactor InSrc, EBlendFactor InDst) override;
+        void SetClipDistance(bool InEnabled) override;
 
         uint32_t GetFramebufferBinding() override;
         void BindFramebuffer(uint32_t InRendererID) override;

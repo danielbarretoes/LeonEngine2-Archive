@@ -86,6 +86,9 @@ namespace Leon {
                         if (pc && pc->GetPlayerCameraManager()) {
                             pc->GetPlayerCameraManager()->SetAspectRatio(aspect);
                         }
+                        if (FWorldRenderer* renderer = World->GetWorldRenderer()) {
+                            renderer->OnViewportResize(e.GetWidth(), e.GetHeight());
+                        }
                     }
                 }
                 return false;
@@ -524,6 +527,9 @@ namespace Leon {
                 APlayerController* pc = ActiveWorld->GetFirstPlayerController();
                 if (pc && pc->GetPlayerCameraManager()) {
                     pc->GetPlayerCameraManager()->SetAspectRatio(aspect);
+                }
+                if (FWorldRenderer* renderer = ActiveWorld->GetWorldRenderer()) {
+                    renderer->OnViewportResize(window.GetWidth(), window.GetHeight());
                 }
             }
         }

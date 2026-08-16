@@ -211,6 +211,177 @@ TEST_CASE("Stationary lights skip direct bake contribution") {
     CHECK(maxStatic > maxStationary);
 }
 
+TEST_CASE("NumIndirectBounces 0 stores only direct irradiance") {
+    FLightBakerScene scene;
+    scene.AtlasWidth = 4;
+    scene.AtlasHeight = 4;
+    FLightmapChart chart;
+    chart.Resolution = 4;
+    chart.PackedWidth = 4;
+    chart.PackedHeight = 4;
+    chart.Scale = {1, 1};
+    chart.Bias = {0, 0};
+    scene.Charts.push_back(chart);
+
+    FBakeVertex floor0, floor1, floor2;
+    floor0.Position = {-1, 0, -1};
+    floor0.Normal = {0, 1, 0};
+    floor0.LightmapUV = {0, 0};
+    floor0.Albedo = {1, 1, 1};
+    floor1.Position = {1, 0, -1};
+    floor1.Normal = {0, 1, 0};
+    floor1.LightmapUV = {1, 0};
+    floor1.Albedo = {1, 1, 1};
+    floor2.Position = {0, 0, 1};
+    floor2.Normal = {0, 1, 0};
+    floor2.LightmapUV = {0.5f, 1};
+    floor2.Albedo = {1, 1, 1};
+
+    FBakeVertex ceil0, ceil1, ceil2;
+    ceil0.Position = {-1, 1, -1};
+    ceil0.Normal = {0, -1, 0};
+    ceil0.LightmapUV = {0, 0};
+    ceil0.Albedo = {1, 1, 1};
+    ceil0.Emissive = {8, 8, 8};
+    ceil1.Position = {1, 1, -1};
+    ceil1.Normal = {0, -1, 0};
+    ceil1.LightmapUV = {1, 0};
+    ceil1.Albedo = {1, 1, 1};
+    ceil1.Emissive = {8, 8, 8};
+    ceil2.Position = {0, 1, 1};
+    ceil2.Normal = {0, -1, 0};
+    ceil2.LightmapUV = {0.5f, 1};
+    ceil2.Albedo = {1, 1, 1};
+    ceil2.Emissive = {8, 8, 8};
+
+    scene.Vertices = {floor0, floor1, floor2, ceil0, ceil1, ceil2};
+    scene.Triangles.push_back({0, 1, 2, 0, true});
+    scene.Triangles.push_back({3, 4, 5, 99, true});
+
+    FLightBakerSettings settings;
+    settings.SamplesPerTexel = 32;
+    settings.bAmbientOcclusion = false;
+    settings.Seed = 7;
+    settings.IndirectIntensity = 1.0f;
+
+    settings.NumIndirectBounces = 0;
+    std::vector<float> zeroBounce;
+    FLightBaker::Bake(scene, settings, zeroBounce);
+
+    settings.NumIndirectBounces = 1;
+    std::vector<float> oneBounce;
+    FLightBaker::Bake(scene, settings, oneBounce);
+
+    float maxZero = 0.0f;
+    float maxOne = 0.0f;
+    for (size_t i = 0; i < zeroBounce.size(); i += 4) {
+        if (zeroBounce[i + 3] <= 0.0f)
+            continue;
+        maxZero = std::max(maxZero, zeroBounce[i]);
+        maxOne = std::max(maxOne, oneBounce[i]);
+    }
+    CHECK(maxZero == doctest::Approx(0.0f).epsilon(1e-4f));
+    CHECK(maxOne > 0.1f);
+}
+
+TEST_CASE("Receptor emissive is not stored in the lightmap") {
+    FLightBakerScene scene;
+    scene.AtlasWidth = 4;
+    scene.AtlasHeight = 4;
+    FLightmapChart chart;
+    chart.Resolution = 4;
+    chart.PackedWidth = 4;
+    chart.PackedHeight = 4;
+    chart.Scale = {1, 1};
+    chart.Bias = {0, 0};
+    scene.Charts.push_back(chart);
+
+    FBakeVertex v0, v1, v2;
+    v0.Position = {-1, 0, -1};
+    v0.Normal = {0, 1, 0};
+    v0.LightmapUV = {0, 0};
+    v0.Albedo = {1, 1, 1};
+    v0.Emissive = {10, 10, 10};
+    v1.Position = {1, 0, -1};
+    v1.Normal = {0, 1, 0};
+    v1.LightmapUV = {1, 0};
+    v1.Albedo = {1, 1, 1};
+    v1.Emissive = {10, 10, 10};
+    v2.Position = {0, 0, 1};
+    v2.Normal = {0, 1, 0};
+    v2.LightmapUV = {0.5f, 1};
+    v2.Albedo = {1, 1, 1};
+    v2.Emissive = {10, 10, 10};
+    scene.Vertices = {v0, v1, v2};
+    scene.Triangles.push_back({0, 1, 2, 0, true});
+
+    FLightBakerSettings settings;
+    settings.SamplesPerTexel = 4;
+    settings.NumIndirectBounces = 0;
+    settings.bAmbientOcclusion = false;
+    settings.Seed = 1;
+
+    std::vector<float> baked;
+    FLightBaker::Bake(scene, settings, baked);
+    float maxE = 0.0f;
+    for (size_t i = 0; i < baked.size(); i += 4) {
+        if (baked[i + 3] <= 0.0f)
+            continue;
+        maxE = std::max(maxE, baked[i]);
+    }
+    CHECK(maxE == doctest::Approx(0.0f).epsilon(1e-4f));
+}
+
+TEST_CASE("Analytic plane stores directional irradiance E = L * NdotL") {
+    FLightBakerScene scene;
+    scene.AtlasWidth = 8;
+    scene.AtlasHeight = 8;
+    FLightmapChart chart;
+    chart.Resolution = 8;
+    chart.PackedWidth = 8;
+    chart.PackedHeight = 8;
+    chart.Scale = {1, 1};
+    chart.Bias = {0, 0};
+    scene.Charts.push_back(chart);
+
+    FBakeVertex v0, v1, v2;
+    v0.Position = {-1, 0, -1};
+    v0.Normal = {0, 1, 0};
+    v0.LightmapUV = {0, 0};
+    v0.Albedo = {1, 1, 1};
+    v1.Position = {1, 0, -1};
+    v1.Normal = {0, 1, 0};
+    v1.LightmapUV = {1, 0};
+    v1.Albedo = {1, 1, 1};
+    v2.Position = {0, 0, 1};
+    v2.Normal = {0, 1, 0};
+    v2.LightmapUV = {0.5f, 1};
+    v2.Albedo = {1, 1, 1};
+    scene.Vertices = {v0, v1, v2};
+    scene.Triangles.push_back({0, 1, 2, 0, false});
+    scene.DirectionalLights.push_back({FDirectionalLight{{0.f, -1.f, 0.f}, {1, 1, 1}, 2.0f}, true});
+
+    FLightBakerSettings settings;
+    settings.SamplesPerTexel = 1;
+    settings.NumIndirectBounces = 0;
+    settings.bAmbientOcclusion = false;
+    settings.Seed = 1;
+
+    std::vector<float> baked;
+    FLightBaker::Bake(scene, settings, baked);
+    float covered = 0.0f;
+    int count = 0;
+    for (size_t i = 0; i < baked.size(); i += 4) {
+        if (baked[i + 3] <= 0.0f)
+            continue;
+        covered += baked[i];
+        ++count;
+    }
+    REQUIRE(count > 0);
+    float mean = covered / static_cast<float>(count);
+    CHECK(mean == doctest::Approx(2.0f).epsilon(0.05f));
+}
+
 TEST_CASE("Bake input hash stable across identical worlds and settings") {
     auto world = UWorld::Create();
     FLightmassSettings s1, s2;

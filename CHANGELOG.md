@@ -9,22 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 0.15.0
 
+### Renderer correctness (canonical pipeline)
+
+#### Added
+- Canonical mesh vertex (`FCanonicalMeshVertex`, `.lmesh` v3): `Tangent.xyz` + handedness `w`, explicit shader locations 0–5.
+- Shared color (`FColorSpace`), spotlight attenuation (`FLightAttenuation`), and numerical helpers (`FRenderingMath`).
+- Renderer contract documentation (`Docs/RENDERER_CONTRACT.md`).
+- Mathematical / GPU regression tests for TBN, winding, Lambert/IBL energy (`Lo = albedo/π * E`), sRGB 128/255, spotlight cone, shadow NDC, FBO resize, bounce count, receptor emissive, and analytic-plane irradiance.
+
+#### Changed
+- Diffuse IBL and lightmaps evaluate `Lo = albedo / PI * irradiance` (irradiance is the cosine-weighted integral, not outgoing radiance).
+- IBL bake/cache (`.libl` v5) stores linear HDR; scene exposure is applied only in tone mapping.
+- Lightmaps (`.llightmap` v2) store baked diffuse irradiance; GI is off when `NumIndirectBounces == 0`.
+- Window resize rebuilds HDR, planar, and post-process targets.
+- Transparent draws sort back-to-front with depth write off.
+- Negative scale flips culling and tangent handedness.
+- Spotlight shadows use configurable `SpotResolution` and an explicit single shadowed index.
+
+#### Removed
+- Contact-shadow shader/UI/tests (the feature was non-functional).
+- Unused `PostProcess.glsl` path (tone mapping lives in `ToneMapping.glsl`).
+- Dual bitangent vertex attributes and manual `pow(rgb, 2.2)` on hardware-sRGB textures.
+- Obsolete `Engine/src` and `Engine/include` trees (not compiled; contradicted the live `Engine/Source/Runtime` pipeline).
+
+#### Fixed
+- Procedural sphere/plane/cylinder winding and TBN (`T × B ≈ N`).
+- Baker albedo sRGB decode; baker/runtime spotlight Hermite attenuation.
+- Lightmap UV generation no longer last-write-wins on shared vertices.
+- Camera basis at pitch ±90°; pawn Euler matches camera look direction.
+
 ### Lightmass correctness & Stationary v1
 
 #### Fixed
 - Bake cache hash no longer includes stamped `.lmap` metadata (stable `ComputeBakeInputHash` from world + settings).
 - Bake albedo reads material base color and averages albedo textures on CPU (was constant 0.7).
 - Generated lightmap UV1 is persisted back to `.lmesh` when missing.
+- BRDF LUT disk test reads the `LEONBRDF` 16-byte header plus RG float payload.
 
 #### Added
 - `ELightMobility::Stationary`: indirect-only bake + dynamic direct/shadows at runtime (`IsLightmassBakeLight` / `DoesLightmassBakeDirect`).
 - Environment knobs `AORadius`, `TexelPadding`, `WorldScale` (AO radius scaled by WorldScale).
-- Robust `validate_lightmaps` (atlas presence, hash freshness, chart metadata).
+- Robust `validate_lightmaps` (atlas presence, hash freshness, chart metadata). Sets project root before resolving `/Game` paths.
 
 #### Changed
-- Sandbox content reset: removed imported `.lmesh` (House/Car/Palm/StreetLamp) and related materials/textures.
-- New maps `ShowcaseLevel` / `NightLevel` (primitives only); dropped `MainShowcase` / `NightScene`.
-- Sandbox ShowcaseLevel / NightLevel bake presets (procedural primitives only).
+- Sandbox maps use Stationary sun/moon (and one Stationary spot) so runtime CSM/spot shadows coexist with baked irradiance lightmaps (`.llightmap` v2).
+- Bake AO flags cleared (irradiance already includes ray visibility). `IndirectIntensity` is 1.0.
+
+### Sandbox content (Showcase + Night)
+
+#### Added
+- CC0 1k PBR textures (studio floor, street, metal, brick, roof, bark, wood) and two Poly Haven 1k HDRs (`DaySky1k`, `NightSky1k`).
+- NightLevel static meshes authored in Blender (`House`, `Car`, `PalmTree`, `StreetLamp`, `Ground`) with per-slot materials.
+
+#### Changed
+- ShowcaseLevel uses only primitives on a larger studio-floor base and the day HDRI.
+- NightLevel uses imported static meshes on an asphalt ground with the night HDRI.
+- Sandbox HUD chip travels ShowcaseLevel ↔ NightLevel (was Night-only).
+
+#### Added
+- Showcase Movable glass sphere (transparency sort) and negative-scale cube (cull/TBN flip).
+- `Projects/Sandbox/Scripts/bake.py` force-rebakes both maps.
+
+#### Removed
+- Unused Sandbox maps, leftover PNG textures, unused materials, `NightField1k` HDR, and Raw download scratch.
 
 ### Engine Scripts (Unreal-like project contract)
 

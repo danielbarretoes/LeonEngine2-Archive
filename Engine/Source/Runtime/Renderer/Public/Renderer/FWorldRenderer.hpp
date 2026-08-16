@@ -26,23 +26,19 @@ namespace Leon {
     // std140-compatible GPU mirror structs — must match UBO layout exactly.
     // =========================================================================
 
-    /** Binding 0 — Camera / Shadow matrices & params (544 bytes) */
+    /** Binding 0 — Camera / Shadow matrices & params (464 bytes) */
     struct FCameraBufferData {
         glm::mat4 ViewProjection{1.0f};                   // 64 bytes  (offset 0)
         glm::mat4 LightSpaceMatrices[4]{glm::mat4(1.0f)}; // 256 bytes (offset 64)
         glm::mat4 SpotLightSpaceMatrix{1.0f};             // 64 bytes  (offset 320)
         glm::vec4 CameraPosition{0.0f};                   // 16 bytes  (offset 384)
         glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f}; // 16 bytes  (offset 400)
-        glm::vec4 CascadeSplits{0.0f};                    // 16 bytes  (offset 416) (x=s0, y=s1, z=s2, w=s3)
-        glm::vec4 CascadeOffsets[4]{glm::vec4(1.0f, 1.0f, 0.0f, 0.0f), glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
-                                    glm::vec4(1.0f, 1.0f, 0.0f, 0.0f),
-                                    glm::vec4(1.0f, 1.0f, 0.0f, 0.0f)}; // 64 bytes (offset 432) (xy=scale, zw=offset)
+        glm::vec4 CascadeSplits{0.0f};                    // 16 bytes  (offset 416)
         glm::vec4 ShadowParams{0.0008f, 0.0015f, 0.025f,
-                               0.10f}; // 16 bytes (offset 496) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
+                               0.10f}; // 16 bytes (offset 432) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
         glm::ivec4 ShadowSettings{
-            1, 16, 0, 0}; // 16 bytes  (offset 512) (x=filterMode, y=contactSteps, z=bContactShadows, w=shadowDebugMode)
-        glm::vec4 ContactShadowParams{0.35f, 0.05f, 0.0f, 0.0f}; // 16 bytes (offset 528) (x=dist, y=thick, zw=0)
-    }; // Total: 544 bytes
+            1, 0, 0, 0}; // 16 bytes (offset 448) (x=filterMode, y=shadowedSpotIndex, z=0, w=debug)
+    }; // Total: 464 bytes
 
     /** std140 GPU directional light (PBR — single Intensity, no Phong split) */
     struct FGpuDirectionalLight {
@@ -176,11 +172,8 @@ namespace Leon {
         // Built-in pipeline shaders
         TRef<FShader> ShadowDepthShader;
         TRef<FShader> SkyboxShader;
-        TRef<FShader> PostProcessShader;
 
-        // Built-in geometry
         TRef<FVertexArray> SkyboxVA;
-        TRef<FVertexArray> FullscreenQuadVA;
 
         // Fallback default 1x1 textures (keeps all texture units valid)
         TRef<FTexture2D> DefaultWhiteTexture;
@@ -201,7 +194,5 @@ namespace Leon {
         FShadowSettings ShadowSettings;
         std::vector<FShadowCascade> ShadowCascades;
     };
-
-    /** @deprecated Prefer FWorldRenderer — kept for transitional includes. */
 
 } // namespace Leon

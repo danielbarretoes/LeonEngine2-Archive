@@ -53,7 +53,7 @@ Riemann Ground Truth Integrator        | Solid-Angle LOD Irradiance         | IB
 AutumnField1k Solar Irradiance         | Karis Solid-Angle Mip Filtering    | IBLGenerator.cpp     | AutumnField1k.hdr     | L_irr < 25.0 (Sin picos)
 Irradiance Spatial Continuity          | Full Cubemap 6x32x32 Baker         | IBLGenerator.cpp     | AutumnField1k.hdr     | Vecindad ratio <= 1.25x
 Specular Prefilter Roughness Mips      | GGX Importance Sampled Prefilter   | IBLGenerator.cpp     | AutumnField1k.hdr     | Dispersión monótona mips
-Split-Sum BRDF LUT File                | FIBLGenerator::GenerateBRDFLUT     | IBLGenerator.cpp     | BRDF_LUT.bin (disco)  | A,B in [0,1], 524KB exactos
+Split-Sum BRDF LUT File                | FIBLGenerator::GenerateBRDFLUT     | IBLGenerator.cpp     | BRDF_LUT.bin (disco)  | Header LEONBRDF + A,B in [0,1]
 Cook-Torrance Analytical CPU           | PBR Formulas C++ Model             | FPBRMath.hpp          | PBR Parametric grid   | D>=0, G in [0,1], F(0)=F0
 Energy Conservation                    | kD = (1-kS)(1-metallic)            | PBRMath / PBR_Lit    | Parameter sweep       | kD + kS <= 1.0001
 AutumnField1k RGBE Solar Pixel         | stbi_loadf RGBE Decoder            | UAssetManager.cpp     | AutumnField1k.hdr     | Pixel (615,173) ~ 114033
@@ -80,7 +80,7 @@ IBL Algorithm Determinism              | IBL Pipeline execution             | IB
 | `Round-Trip Bitwise Identical Serialization` | **SAFE** | Escribe un `.libl` en disco, lo lee con `std::ifstream` y verifica con `std::memcmp` bit-a-bit. |
 | `FNV-1a 64-bit Content Invalidation` | **SAFE** | Verifica el efecto avalancha alterando 1 byte en disco y comprobando que el hash cambia. |
 | `Headless OpenGL Context Float Upload & Readback` | **SAFE** | Crea un contexto OpenGL 4.5 real vía GLFW/GLAD invisible y verifica hardware `GL_RGBA16F`. |
-| `Pre-baked BRDF_LUT.bin File Verification` | **SAFE** | Lee el asset binario real `BRDF_LUT.bin` de disco y valida tamaño (524.288 bytes) y rangos. |
+| `Pre-baked BRDF_LUT.bin File Verification` | **SAFE** | Lee el asset binario real `BRDF_LUT.bin` de disco y valida cabecera `LEONBRDF` + payload RG float y rangos. |
 | `Engine Cosine Hammersley vs High-Res Riemann` | **SAFE** | Compara dos implementaciones matemáticas totalmente independientes (QMC vs Riemann). |
 | `Trowbridge-Reitz GGX NDF Non-Negativity` | **WEAK** | Solo comprueba `ndf >= 0.0f`. Si se rompe el exponente del denominador, el valor sigue siendo positivo y el test no falla. |
 | `Smith Schlick-GGX Geometry in Range [0, 1]` | **WEAK** | Solo comprueba que $G \in [0, 1]$. Si se elimina el término $G_2$ de enmascaramiento, $G_1$ sigue estando en $[0, 1]$ y el test pasa. |

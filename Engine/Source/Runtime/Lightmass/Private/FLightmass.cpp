@@ -12,6 +12,7 @@
 #include "Gameplay/AActor.hpp"
 #include "Lightmass/FLightBaker.hpp"
 #include "Lightmass/FLightmapBuilder.hpp"
+#include "Renderer/FColorSpace.hpp"
 #include "Renderer/FIBLMath.hpp"
 #include "Renderer/FMaterial.hpp"
 #include "Renderer/FMaterialInstance.hpp"
@@ -92,15 +93,20 @@ namespace {
 
         const auto& mip = tex.Mips[0];
         const uint32_t channels = std::max(1u, tex.Header.Channels);
+        const bool bSRGB = tex.Header.ColorSpace == 1 && !IsLinearDataTexturePath(resolved.string());
         double sumR = 0.0, sumG = 0.0, sumB = 0.0;
         uint32_t count = 0;
         for (size_t i = 0; i + channels - 1 < mip.Pixels.size(); i += channels) {
             float a = (channels >= 4) ? mip.Pixels[i + 3] / 255.0f : 1.0f;
             if (a < 0.05f)
                 continue;
-            sumR += mip.Pixels[i + 0] / 255.0f;
-            sumG += (channels > 1 ? mip.Pixels[i + 1] : mip.Pixels[i + 0]) / 255.0f;
-            sumB += (channels > 2 ? mip.Pixels[i + 2] : mip.Pixels[i + 0]) / 255.0f;
+            glm::vec3 encoded(mip.Pixels[i + 0] / 255.0f,
+                              (channels > 1 ? mip.Pixels[i + 1] : mip.Pixels[i + 0]) / 255.0f,
+                              (channels > 2 ? mip.Pixels[i + 2] : mip.Pixels[i + 0]) / 255.0f);
+            glm::vec3 linear = bSRGB ? SRGBToLinear(encoded) : encoded;
+            sumR += linear.r;
+            sumG += linear.g;
+            sumB += linear.b;
             ++count;
         }
         if (count == 0)
@@ -481,6 +487,8 @@ namespace {
 
     uint64_t FLightmass::ComputeBakeInputHash(const UWorld& InWorld, const FLightmassSettings& InSettings) {
         uint64_t hash = 14695981039346656037ull;
+        constexpr uint32_t kBakerAlgorithmVersion = 2;
+        hash = HashBytes(hash, &kBakerAlgorithmVersion, sizeof(kBakerAlgorithmVersion));
 
         hash = HashBytes(hash, &InSettings.LightmapResolution, sizeof(InSettings.LightmapResolution));
         hash = HashBytes(hash, &InSettings.NumIndirectBounces, sizeof(InSettings.NumIndirectBounces));
@@ -508,13 +516,12 @@ namespace {
 
             if (actor.HasComponent<UStaticMeshComponent>()) {
                 const auto& smc = actor.GetComponent<UStaticMeshComponent>();
-                if (smc.Mobility != EComponentMobility::Static)
-                    continue;
                 uint8_t mob = static_cast<uint8_t>(smc.Mobility);
                 hash = HashBytes(hash, &mob, sizeof(mob));
                 hash = HashBytes(hash, &smc.LightmapResolution, sizeof(smc.LightmapResolution));
+                hash = HashBytes(hash, &smc.bCastShadows, sizeof(smc.bCastShadows));
                 hash = HashString(hash, actor.GetName());
-                if (smc.StaticMesh) {
+                if (smc.Mobility == EComponentMobility::Static && smc.StaticMesh) {
                     hash = HashString(hash, smc.StaticMesh->GetAssetPath());
                     hash = HashAssetFileFingerprint(hash, smc.StaticMesh->GetAssetPath());
                 }
@@ -524,15 +531,16 @@ namespace {
                 }
             } else if (actor.HasComponent<FMeshComponent>()) {
                 const auto& mc = actor.GetComponent<FMeshComponent>();
-                if (mc.Mobility != EComponentMobility::Static)
-                    continue;
                 uint8_t mob = static_cast<uint8_t>(mc.Mobility);
                 hash = HashBytes(hash, &mob, sizeof(mob));
                 hash = HashBytes(hash, &mc.LightmapResolution, sizeof(mc.LightmapResolution));
+                hash = HashBytes(hash, &mc.bCastShadows, sizeof(mc.bCastShadows));
                 hash = HashString(hash, mc.MeshType);
                 hash = HashBytes(hash, &mc.MeshSize, sizeof(mc.MeshSize));
                 hash = HashBytes(hash, &mc.MeshWidth, sizeof(mc.MeshWidth));
+                hash = HashBytes(hash, &mc.MeshHeight, sizeof(mc.MeshHeight));
                 hash = HashBytes(hash, &mc.MeshDepth, sizeof(mc.MeshDepth));
+                hash = HashBytes(hash, &mc.MeshRadius, sizeof(mc.MeshRadius));
                 hash = HashString(hash, actor.GetName());
             }
 
@@ -836,7 +844,6 @@ namespace {
 
         LogLM("Baking direct lighting...");
         LogLM("Baking indirect lighting...");
-        LogLM("Baking ambient occlusion...");
 
         FLightBakerSettings bakerSettings;
         bakerSettings.NumIndirectBounces = settings.NumIndirectBounces;

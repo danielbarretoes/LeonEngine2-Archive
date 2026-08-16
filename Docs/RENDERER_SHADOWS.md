@@ -19,8 +19,10 @@ The shadow pipeline consists of:
 - **Smooth Cascade Blending**: Linear interpolation across cascade transition boundaries (`u_ShadowParams.w`).
 - **Far Shadow Distance Soft Fadeout**: Exponential decay to 0.0 at far cascade distance.
 - **Alpha Masked Caster Support**: Cutoff discard for masked materials (`u_AlphaMode == 1`).
-- **Screen-Space Contact Shadows**: Ray-marched screen-space occlusion for high-frequency fine geometry contact details.
-- **Forensic Debug Visualization Modes**: Real-time diagnostic overlays for shadow factors, cascade partitioning, contact shadows, and individual depth maps.
+- **Spotlight shadows**: one shadowed spot (`ShadowedSpotIndex`), resolution `SpotResolution`.
+- **Forensic Debug Visualization Modes**: shadow factor, cascade index, cascade depth slices, spot shadow factor.
+
+Contact shadows were removed (they were non-functional). See `Docs/RENDERER_CONTRACT.md`.
 
 ---
 

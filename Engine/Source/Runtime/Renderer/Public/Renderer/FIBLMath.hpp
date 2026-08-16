@@ -288,8 +288,7 @@ namespace Leon {
 
     struct FIBLCacheHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'I', 'B', 'L', '\0'};
-        uint32_t Version =
-            4; // Version 4: Cosine-weighted importance sampling + source HDR Mip-filtering for Irradiance
+        uint32_t Version = 5; // v5: linear HDR environment (no exposure / env intensity baked in)
         uint64_t HDRSourceHash = 0;
         uint32_t EnvSize = 128;
         uint32_t IrradSize = 32;
@@ -299,6 +298,13 @@ namespace Leon {
         uint32_t SampleCountPrefilter = 256;
         uint32_t Reserved[4] = {0, 0, 0, 0};
     };
+
+    struct FBRDFLUTDiskHeader {
+        char Magic[8] = {'L', 'E', 'O', 'N', 'B', 'R', 'D', 'F'};
+        uint32_t Version = 1;
+        uint32_t Size = 0;
+    };
+    static_assert(sizeof(FBRDFLUTDiskHeader) == 16, "BRDF LUT disk header must stay 16 bytes");
 
     inline uint64_t ComputeFileHash64(const std::string& InFilePath) {
         if (!std::filesystem::exists(InFilePath))

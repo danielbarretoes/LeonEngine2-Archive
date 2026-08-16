@@ -151,7 +151,7 @@ This is **not** full Unreal config stacking (`Base.ini` + project + `Saved/Confi
 
 ### 3.3 Virtual Path Resolution (`FProjectPaths`)
 * `/Game/Maps/ShowcaseLevel` → `<ProjectRoot>/Content/Maps/ShowcaseLevel.lmap`
-* `/Game/Materials/M_FloorTiles` → `<ProjectRoot>/Content/Materials/M_FloorTiles.lmat`
+* `/Game/Materials/M_StudioFloor` → `<ProjectRoot>/Content/Materials/M_StudioFloor.lmat`
 * `/Engine/Shaders/PBR_Lit.glsl` → `Engine/Assets/Shaders/PBR_Lit.glsl`
 
 ### 3.4 Multi-INI Configuration
@@ -375,7 +375,7 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 
 **PrintString** (`UGameplayStatics::PrintString` / `Leon::PrintString`) queues on-screen debug messages via `FOnScreenDebugMessageManager`. Messages are distinct from `FLog` and are painted inside the viewport by `AHUD::DrawHUD`.
 
-**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/NightLevel")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay.
+**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/NightLevel")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay. Sandbox `USandboxMainMenuWidget` uses this to toggle `ShowcaseLevel` ↔ `NightLevel`.
 
 **FInput modes** (`APlayerController`): `SetInputModeGameOnly`, `SetInputModeUIOnly`, `SetInputModeGameAndUI`. GameAndUI allows pawn movement and UI mouse interaction simultaneously.
 

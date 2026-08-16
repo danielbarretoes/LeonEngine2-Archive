@@ -484,6 +484,7 @@ int ExecuteValidateLightmaps(const std::string& InMapPath) {
     if (contentRoot.filename() == "Maps")
         contentRoot = contentRoot.parent_path();
     UAssetManager::SetContentRoot(contentRoot.string());
+    FProjectPaths::SetProjectRoot(contentRoot.parent_path().string());
     std::string message;
     bool ok = FLightmass::ValidateMap(InMapPath, message);
     std::cout << "[Lightmass] " << message << "\n";

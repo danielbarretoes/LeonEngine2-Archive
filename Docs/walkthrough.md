@@ -8,7 +8,7 @@
 - Offline CPU bake: `FLightmass` / `FLightBaker` / `FLightmapBuilder`.
 - Runtime: `PBR_Lit` samples lightmap (binding 12); Static lights skipped in dynamic UBO.
 - LeonAssetTool: `bake_lightmaps`, `validate_lightmaps`, `inspect .llightmap`.
-- Sandbox `ShowcaseLevel` / `NightLevel`: procedural primitives only (no imported `.lmesh`).
+- Sandbox `ShowcaseLevel`: procedural primitives + `DaySky1k` HDRI. `NightLevel`: imported `.lmesh` (`House`, `Car`, `PalmTree`, `StreetLamp`, `Ground`) + `NightSky1k`. HUD chip travels between the two maps.
 
 ## Commands
 

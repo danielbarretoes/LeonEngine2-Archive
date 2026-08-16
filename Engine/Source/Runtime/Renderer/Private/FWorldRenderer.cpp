@@ -11,6 +11,7 @@
 #include "RHI/FRenderer.hpp"
 #include "Renderer/FTextRenderer.hpp"
 #include "RHI/FVertexArray.hpp"
+#include "Renderer/FRenderingMath.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
@@ -20,10 +21,51 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <limits>
+#include <vector>
 
 namespace Leon {
 
     namespace {
+        ECullMode FlipCullForNegativeScale(ECullMode InMode, const glm::mat4& InModel) {
+            if (InMode == ECullMode::None || !HasNegativeScale(InModel))
+                return InMode;
+            if (InMode == ECullMode::Back)
+                return ECullMode::Front;
+            if (InMode == ECullMode::Front)
+                return ECullMode::Back;
+            return InMode;
+        }
+
+        void ApplyMeshRasterState(FMaterialInstance& InMat, const glm::mat4& InModel, bool bTransparent) {
+            const auto& pso = InMat.GetPipelineState();
+            ECullMode cullMode = InMat.GetDoubleSided() ? ECullMode::None : pso.CullMode;
+            cullMode = FlipCullForNegativeScale(cullMode, InModel);
+            FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
+            FRenderCommand::SetDepthTesting(true);
+            FRenderCommand::SetDepthMask(!bTransparent);
+            FRenderCommand::SetDepthFunc(pso.DepthFunc);
+            FRenderCommand::SetBlendState(bTransparent);
+            if (bTransparent)
+                FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
+        }
+
+        struct FTransparentDraw {
+            TRef<FShader> Shader;
+            TRef<FVertexArray> VA;
+            TRef<FMaterialInstance> Mat;
+            glm::mat4 Model{1.0f};
+            float DistanceSq = 0.0f;
+            uint32_t IndexCount = 0;
+            uint32_t IndexOffset = 0;
+            bool bOffset = false;
+            bool bReceiveShadows = true;
+            bool bUseLightmap = false;
+            bool bLightmapUseTexCoord = false;
+            glm::vec2 LightmapScale{1.0f};
+            glm::vec2 LightmapBias{0.0f};
+            TRef<FTexture2D> Lightmap;
+        };
+
         bool IsStaticMeshCulled(const FTransformComponent& InTransform, const UStaticMeshComponent& InMesh,
                                 const FFrustumPlanes& InFrustum) {
             if (!InMesh.StaticMesh)
@@ -122,10 +164,8 @@ namespace Leon {
         // -----------------------------------------------------------------------
         ShadowDepthShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth.glsl");
         SkyboxShader = FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
-        PostProcessShader = FShader::Create("Engine/Assets/Shaders/PostProcess.glsl");
 
         SkyboxVA = FMeshPrimitives::CreateCube(2.0f);
-        FullscreenQuadVA = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
 
         // -----------------------------------------------------------------------
         // 5. Fallback 1x1 textures (keeps all shader texture units valid & defined)
@@ -402,10 +442,7 @@ namespace Leon {
         OutCamData.ShadowParams = glm::vec4(ShadowSettings.ConstantBias, ShadowSettings.SlopeBias,
                                             ShadowSettings.NormalBias, ShadowSettings.CascadeBlendWidth);
         OutCamData.ShadowSettings =
-            glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), ShadowSettings.ContactShadowSteps,
-                       ShadowSettings.bEnableContactShadows ? 1 : 0, DebugMode);
-        OutCamData.ContactShadowParams =
-            glm::vec4(ShadowSettings.ContactShadowDistance, ShadowSettings.ContactShadowThickness, 0.0f, 0.0f);
+            glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), ShadowSettings.ShadowedSpotIndex, 0, DebugMode);
 
         CascadeShadowFramebuffer->Bind();
         FRenderCommand::SetViewport(0, 0, ShadowSettings.CascadeResolution, ShadowSettings.CascadeResolution);
@@ -430,7 +467,6 @@ namespace Leon {
                 corners, InDirLightComp->Light.Direction, ShadowSettings.CascadeResolution,
                 ShadowSettings.bStabilizeCascades, worldUnitsPerTexel);
             OutCamData.LightSpaceMatrices[cascade] = cascadeMatrix;
-            OutCamData.CascadeOffsets[cascade] = ShadowMath::GetAtlasScaleOffset2x2(cascade);
 
             ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
 
@@ -519,7 +555,7 @@ namespace Leon {
         OutCamData.SpotLightSpaceMatrix = spotLightSpace;
 
         SpotShadowFramebuffer->Bind();
-        FRenderCommand::SetViewport(0, 0, 1024, 1024);
+        FRenderCommand::SetViewport(0, 0, ShadowSettings.SpotResolution, ShadowSettings.SpotResolution);
         FRenderCommand::Clear();
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
@@ -598,6 +634,7 @@ namespace Leon {
         FRenderCommand::Clear();
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetClipDistance(true);
 
         // Skybox in reflection
         if (InSkybox && InSkybox->bEnabled && SkyboxShader && SkyboxVA) {
@@ -606,6 +643,7 @@ namespace Leon {
             SkyboxShader->Bind();
             SkyboxShader->SetMat4("u_View", glm::value_ptr(mirrorView));
             SkyboxShader->SetMat4("u_Projection", glm::value_ptr(mirrorProj));
+            SkyboxShader->SetFloat("u_EnvironmentIntensity", InSkybox->EnvironmentIntensity);
             if (InSkybox->bUseHDREnvironmentMap && InSkybox->HDREnvironmentMap) {
                 InSkybox->HDREnvironmentMap->Bind(0);
                 SkyboxShader->SetInt("u_UseHDREnvironmentMap", 1);
@@ -668,7 +706,7 @@ namespace Leon {
             return InMode;
         };
         auto NormalMatrixForReflection = [&reflectMatrix](const glm::mat4& InModel) -> glm::mat3 {
-            return glm::transpose(glm::inverse(glm::mat3(reflectMatrix * InModel)));
+            return SafeNormalMatrix(reflectMatrix * InModel);
         };
 
         // Visible meshes in reflection (full materials + textures; no nested planar, no shadows)
@@ -688,6 +726,8 @@ namespace Leon {
             mesh.Shader->SetInt("u_UseSpotShadows", 0);
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", 0);
+            mesh.Shader->SetInt("u_EnableClipPlane", 1);
+            mesh.Shader->SetFloat4("u_ClipPlane", 0.0f, 1.0f, 0.0f, 0.0f);
 
             TRef<FMaterialInstance> matInst = nullptr;
             if (reg.all_of<FMaterialComponent>(entity)) {
@@ -697,8 +737,10 @@ namespace Leon {
                 matInst = UAssetManager::GetDefaultMaterial()->CreateInstance();
             }
 
+            glm::mat4 model = transform.GetTransform();
             const auto& pso = matInst->GetPipelineState();
             ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : CullModeForReflection(pso.CullMode);
+            cullMode = FlipCullForNegativeScale(cullMode, model);
             FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
             FRenderCommand::SetDepthTesting(pso.bDepthTest);
             bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
@@ -711,8 +753,6 @@ namespace Leon {
             }
 
             matInst->Bind(mesh.Shader);
-
-            glm::mat4 model = transform.GetTransform();
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
             glm::mat3 normalMatrix = NormalMatrixForReflection(model);
             mesh.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
@@ -742,6 +782,8 @@ namespace Leon {
             shader->SetInt("u_UseSpotShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
+            shader->SetInt("u_EnableClipPlane", 1);
+            shader->SetFloat4("u_ClipPlane", 0.0f, 1.0f, 0.0f, 0.0f);
 
             staticMeshComp.StaticMesh->GetVertexArray()->Bind();
             for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
@@ -751,8 +793,10 @@ namespace Leon {
                 TRef<FMaterialInstance> matInst =
                     ResolveStaticSubmeshMaterial(*staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
 
+                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
                 const auto& pso = matInst->GetPipelineState();
                 ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : CullModeForReflection(pso.CullMode);
+                cullMode = FlipCullForNegativeScale(cullMode, model);
                 FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
                 FRenderCommand::SetDepthTesting(pso.bDepthTest);
                 bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
@@ -766,7 +810,6 @@ namespace Leon {
 
                 matInst->Bind(shader);
 
-                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
                 shader->SetMat4("u_Model", glm::value_ptr(model));
                 glm::mat3 normalMatrix = NormalMatrixForReflection(model);
                 shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
@@ -795,6 +838,7 @@ namespace Leon {
         // Roughness-aware specular needs a planar mip chain (sampled via textureLod in PBR_Lit).
         PlanarReflectionFramebuffer->GenerateColorMipmaps();
         PlanarReflectionFramebuffer->Unbind();
+        FRenderCommand::SetClipDistance(false);
     }
 
     // =========================================================================
@@ -829,6 +873,9 @@ namespace Leon {
 
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
         const FFrustumPlanes camFrustum = ExtractFrustumPlanes(InCamera.GetViewProjectionMatrix());
+        std::vector<FTransparentDraw> transparents;
+        glm::vec3 camPos = InCamera.GetPosition();
+
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
             if (!mesh.VertexArray || !mesh.Shader)
@@ -837,13 +884,6 @@ namespace Leon {
             if (IsProceduralMeshCulled(transform, mesh, camFrustum))
                 continue;
 
-            mesh.Shader->Bind();
-
-            // Shadow map enablement flags (samplers are statically bound to slots 10-11)
-            mesh.Shader->SetInt("u_UseShadows", (bShadowsAvailable && mesh.bReceiveShadows) ? 1 : 0);
-            mesh.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && mesh.bReceiveShadows) ? 1 : 0);
-
-            // Material Instance resolution
             TRef<FMaterialInstance> matInst = nullptr;
             if (reg.all_of<FMaterialComponent>(entity)) {
                 matInst = reg.get<FMaterialComponent>(entity).MaterialInstance;
@@ -852,7 +892,39 @@ namespace Leon {
                 matInst = UAssetManager::GetDefaultMaterial()->CreateInstance();
             }
 
-            // Planar reflection (slot 5, per-material)
+            glm::mat4 model = transform.GetTransform();
+            TRef<FTexture2D> lightmapTex;
+            bool bUseLM = mesh.Mobility == EComponentMobility::Static && mesh.LightmapIndex >= 0 &&
+                          !mesh.LightmapAssetPath.empty();
+            if (bUseLM) {
+                auto lm = UAssetManager::GetLightmap(mesh.LightmapAssetPath);
+                if (lm)
+                    lightmapTex = lm->GetOrCreateGPUTexture();
+            }
+
+            if (matInst->GetAlphaMode() == EAlphaMode::Blend) {
+                FTransparentDraw draw;
+                draw.Shader = mesh.Shader;
+                draw.VA = mesh.VertexArray;
+                draw.Mat = matInst;
+                draw.Model = model;
+                glm::vec3 delta = glm::vec3(model[3]) - camPos;
+                draw.DistanceSq = glm::dot(delta, delta);
+                draw.bReceiveShadows = mesh.bReceiveShadows;
+                draw.bUseLightmap = bUseLM;
+                draw.bLightmapUseTexCoord = true;
+                draw.LightmapScale = mesh.LightmapScale;
+                draw.LightmapBias = mesh.LightmapBias;
+                draw.Lightmap = lightmapTex;
+                transparents.push_back(std::move(draw));
+                continue;
+            }
+
+            mesh.Shader->Bind();
+            mesh.Shader->SetInt("u_EnableClipPlane", 0);
+            mesh.Shader->SetInt("u_UseShadows", (bShadowsAvailable && mesh.bReceiveShadows) ? 1 : 0);
+            mesh.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && mesh.bReceiveShadows) ? 1 : 0);
+
             bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
             if (bApplyPlanarReflection) {
                 PlanarReflectionFramebuffer->BindTexture(0, 5);
@@ -862,44 +934,14 @@ namespace Leon {
                 mesh.Shader->SetInt("u_UsePlanarReflection", 0);
             }
 
-            // Apply Material Pipeline State (Culling, Depth, Blend)
-            const auto& pso = matInst->GetPipelineState();
-            ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : pso.CullMode;
-            FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
-            FRenderCommand::SetDepthTesting(pso.bDepthTest);
-            bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
-            FRenderCommand::SetDepthMask(bDepthWrite);
-            FRenderCommand::SetDepthFunc(pso.DepthFunc);
-            bool bBlend = (matInst->GetAlphaMode() == EAlphaMode::Blend) || pso.bBlend;
-            FRenderCommand::SetBlendState(bBlend);
-            if (bBlend) {
-                FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
-            }
-
-            // Bind resolved material parameters and textures (slots 0..5, 9)
+            ApplyMeshRasterState(*matInst, model, false);
             matInst->Bind(mesh.Shader);
-
-            TRef<FTexture2D> lightmapTex;
-            bool bUseLM = mesh.Mobility == EComponentMobility::Static && mesh.LightmapIndex >= 0 &&
-                          !mesh.LightmapAssetPath.empty();
-            if (bUseLM) {
-                auto lm = UAssetManager::GetLightmap(mesh.LightmapAssetPath);
-                if (lm)
-                    lightmapTex = lm->GetOrCreateGPUTexture();
-            }
             BindLightmapUniforms(*mesh.Shader, bUseLM, true, mesh.LightmapScale, mesh.LightmapBias, lightmapTex);
-
-            // IBL enablement (samplers are statically bound to slots 6-8)
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", DebugMode);
-
-            glm::mat4 model = transform.GetTransform();
             mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
-
-            // Audit fix MEDIO-05: compute normal matrix on CPU, not in vertex shader per-vertex
-            glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+            glm::mat3 normalMatrix = SafeNormalMatrix(model);
             mesh.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
-
             mesh.VertexArray->Bind();
             FRenderCommand::DrawIndexed(mesh.VertexArray);
         }
@@ -936,7 +978,37 @@ namespace Leon {
                 TRef<FMaterialInstance> matInst =
                     ResolveStaticSubmeshMaterial(*staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
 
-                // Planar reflection
+                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+
+                TRef<FTexture2D> lightmapTex;
+                bool bUseLM = staticMeshComp.Mobility == EComponentMobility::Static &&
+                              staticMeshComp.LightmapIndex >= 0 && !staticMeshComp.LightmapAssetPath.empty();
+                if (bUseLM) {
+                    auto lm = UAssetManager::GetLightmap(staticMeshComp.LightmapAssetPath);
+                    if (lm)
+                        lightmapTex = lm->GetOrCreateGPUTexture();
+                }
+
+                if (matInst->GetAlphaMode() == EAlphaMode::Blend) {
+                    FTransparentDraw draw;
+                    draw.Shader = activeShader;
+                    draw.VA = staticMeshComp.StaticMesh->GetVertexArray();
+                    draw.Mat = matInst;
+                    draw.Model = model;
+                    glm::vec3 delta = glm::vec3(model[3]) - camPos;
+                    draw.DistanceSq = glm::dot(delta, delta);
+                    draw.IndexCount = submesh.IndexCount;
+                    draw.IndexOffset = submesh.IndexOffset;
+                    draw.bOffset = true;
+                    draw.bReceiveShadows = staticMeshComp.bReceiveShadows;
+                    draw.bUseLightmap = bUseLM;
+                    draw.LightmapScale = staticMeshComp.LightmapScale;
+                    draw.LightmapBias = staticMeshComp.LightmapBias;
+                    draw.Lightmap = lightmapTex;
+                    transparents.push_back(std::move(draw));
+                    continue;
+                }
+
                 bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
                 if (bApplyPlanarReflection) {
                     PlanarReflectionFramebuffer->BindTexture(0, 5);
@@ -947,38 +1019,14 @@ namespace Leon {
                     activeShader->SetInt("u_UsePlanarReflection", 0);
                 }
 
-                // Pipeline State
-                const auto& pso = matInst->GetPipelineState();
-                ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : pso.CullMode;
-                FRenderCommand::SetCulling(cullMode != ECullMode::None, cullMode);
-                FRenderCommand::SetDepthTesting(pso.bDepthTest);
-                bool bDepthWrite = (matInst->GetAlphaMode() == EAlphaMode::Blend) ? false : pso.bDepthWrite;
-                FRenderCommand::SetDepthMask(bDepthWrite);
-                FRenderCommand::SetDepthFunc(pso.DepthFunc);
-                bool bBlend = (matInst->GetAlphaMode() == EAlphaMode::Blend) || pso.bBlend;
-                FRenderCommand::SetBlendState(bBlend);
-                if (bBlend) {
-                    FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
-                }
-
-                // Bind Material
+                ApplyMeshRasterState(*matInst, model, false);
                 matInst->Bind(activeShader);
-
-                TRef<FTexture2D> lightmapTex;
-                bool bUseLM = staticMeshComp.Mobility == EComponentMobility::Static &&
-                              staticMeshComp.LightmapIndex >= 0 && !staticMeshComp.LightmapAssetPath.empty();
-                if (bUseLM) {
-                    auto lm = UAssetManager::GetLightmap(staticMeshComp.LightmapAssetPath);
-                    if (lm)
-                        lightmapTex = lm->GetOrCreateGPUTexture();
-                }
                 BindLightmapUniforms(*activeShader, bUseLM, false, staticMeshComp.LightmapScale,
                                       staticMeshComp.LightmapBias, lightmapTex);
 
-                // Transform with submesh local transform
-                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                activeShader->SetInt("u_EnableClipPlane", 0);
                 activeShader->SetMat4("u_Model", glm::value_ptr(model));
-                glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(model)));
+                glm::mat3 normalMatrix = SafeNormalMatrix(model);
                 activeShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
 
                 FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
@@ -986,11 +1034,38 @@ namespace Leon {
             }
         }
 
+        std::sort(transparents.begin(), transparents.end(),
+                  [](const FTransparentDraw& a, const FTransparentDraw& b) { return a.DistanceSq > b.DistanceSq; });
+        for (const auto& draw : transparents) {
+            if (!draw.Shader || !draw.VA || !draw.Mat)
+                continue;
+            draw.Shader->Bind();
+            draw.Shader->SetInt("u_EnableClipPlane", 0);
+            draw.Shader->SetInt("u_UseShadows", (bShadowsAvailable && draw.bReceiveShadows) ? 1 : 0);
+            draw.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && draw.bReceiveShadows) ? 1 : 0);
+            draw.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
+            draw.Shader->SetInt("u_DebugMode", DebugMode);
+            draw.Shader->SetInt("u_UsePlanarReflection", 0);
+            ApplyMeshRasterState(*draw.Mat, draw.Model, true);
+            draw.Mat->Bind(draw.Shader);
+            BindLightmapUniforms(*draw.Shader, draw.bUseLightmap, draw.bLightmapUseTexCoord, draw.LightmapScale,
+                                 draw.LightmapBias, draw.Lightmap);
+            draw.Shader->SetMat4("u_Model", glm::value_ptr(draw.Model));
+            glm::mat3 normalMatrix = SafeNormalMatrix(draw.Model);
+            draw.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+            draw.VA->Bind();
+            if (draw.bOffset)
+                FRenderCommand::DrawIndexedOffset(draw.VA, draw.IndexCount, draw.IndexOffset);
+            else
+                FRenderCommand::DrawIndexed(draw.VA);
+        }
+
         // Restore pass-level default rasterizer state
-        FRenderCommand::SetCulling(false);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
         FRenderCommand::SetBlendState(false);
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        FRenderCommand::SetClipDistance(false);
     }
 
     // =========================================================================
@@ -1007,6 +1082,7 @@ namespace Leon {
         SkyboxShader->Bind();
         SkyboxShader->SetMat4("u_View", glm::value_ptr(InCamera.GetViewMatrix()));
         SkyboxShader->SetMat4("u_Projection", glm::value_ptr(InCamera.GetProjectionMatrix()));
+        SkyboxShader->SetFloat("u_EnvironmentIntensity", InSkybox->EnvironmentIntensity);
 
         if (InSkybox->bUseHDREnvironmentMap && InSkybox->HDREnvironmentMap) {
             InSkybox->HDREnvironmentMap->Bind(0);

@@ -32,7 +32,7 @@ El subsistema desacopla formalmente el **Baking de Iluminación** (operación co
 ## 2. Formato Binario del BRDF LUT (`BRDF_LUT.bin`)
 
 Ubicación: [`Engine/Assets/Textures/BRDF_LUT.bin`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Assets/Textures/BRDF_LUT.bin)  
-Tamaño: $131,072\text{ bytes}$ (datos crudos) / $524,288\text{ bytes}$ (float array $256 \times 256 \times 2$).
+Tamaño: 16-byte `LEONBRDF` header + $524,288$ float payload ($256 \times 256 \times 2$ RG).
 
 La tabla contiene la integración precalculada de los términos $A$ (escala) y $B$ (sesgo) de la aproximación *Split-Sum* de Cook-Torrance GGX Smith:
 $$\text{envBRDF}(N \cdot V, \alpha) = \int_0^1 \frac{G(N, V, L, \alpha) (V \cdot H)}{(N \cdot V)(N \cdot H)} (1 - (1 - V \cdot H)^5) d\xi$$

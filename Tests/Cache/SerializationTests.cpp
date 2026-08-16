@@ -12,7 +12,7 @@ TEST_SUITE("Cache - IBL .libl Binary Serialization") {
         std::filesystem::create_directories("Engine/Assets/Textures");
 
         Leon::FIBLCacheHeader header;
-        header.Version = 4;
+        header.Version = 5;
         header.HDRSourceHash = 0x123456789ABCDEF0ull;
         header.EnvSize = 16;
         header.IrradSize = 8;
@@ -51,7 +51,7 @@ TEST_SUITE("Cache - IBL .libl Binary Serialization") {
             in.read(reinterpret_cast<char*>(&readHeader), sizeof(Leon::FIBLCacheHeader));
 
             CHECK(std::string(readHeader.Magic, 7) == "LEONIBL");
-            CHECK(readHeader.Version == 4);
+            CHECK(readHeader.Version == 5);
             CHECK(readHeader.HDRSourceHash == 0x123456789ABCDEF0ull);
             CHECK(readHeader.EnvSize == 16);
             CHECK(readHeader.IrradSize == 8);

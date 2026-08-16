@@ -1,10 +1,14 @@
 # LeonEngine2 Material Asset File (.lmat)
 Material:
   Type: "PBR_Lit"
-  AlbedoColor: [0.70, 0.72, 0.75]
-  Metallic: 0.95
-  Roughness: 0.20
+  AlbedoColor: [1.0, 1.0, 1.0]
+  Metallic: 0.92
+  Roughness: 0.22
   AO: 1.0
-  NormalMap: "Projects/Sandbox/Content/Textures/T_MetalPlates_N.png"
-  AOMap: "Projects/Sandbox/Content/Textures/T_MetalPlates_AO.png"
+  AlbedoMap: "/Game/Textures/T_MetalPlate_Color.ltex"
+  NormalMap: "/Game/Textures/T_MetalPlate_Normal.ltex"
+  RoughnessMap: "/Game/Textures/T_MetalPlate_Roughness.ltex"
+  MetallicMap: "/Game/Textures/T_MetalPlate_Metallic.ltex"
+  NormalScale: 1.0
+  UVTiling: [1.0, 1.0]
   UsePlanarReflection: false

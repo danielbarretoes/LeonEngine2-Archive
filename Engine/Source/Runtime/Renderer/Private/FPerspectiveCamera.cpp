@@ -1,4 +1,5 @@
 #include "Renderer/FPerspectiveCamera.hpp"
+#include "Renderer/FRenderingMath.hpp"
 #include <algorithm>
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
@@ -43,25 +44,32 @@ namespace Leon {
         forward.x = std::cos(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
         forward.y = std::sin(glm::radians(Pitch));
         forward.z = std::sin(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
-        return glm::normalize(forward);
+        return SafeNormalize(forward, glm::vec3(0.0f, 0.0f, -1.0f));
     }
 
     glm::vec3 FPerspectiveCamera::GetRightDirection() const {
-        return glm::normalize(glm::cross(GetForwardDirection(), glm::vec3(0.0f, 1.0f, 0.0f)));
+        glm::vec3 right, up;
+        StableViewBasis(GetForwardDirection(), right, up);
+        return right;
     }
 
     glm::vec3 FPerspectiveCamera::GetUpDirection() const {
-        return glm::normalize(glm::cross(GetRightDirection(), GetForwardDirection()));
+        glm::vec3 right, up;
+        StableViewBasis(GetForwardDirection(), right, up);
+        return up;
     }
 
     void FPerspectiveCamera::RecalculateProjectionMatrix() {
-        ProjectionMatrix = glm::perspective(glm::radians(FOV), AspectRatio, NearClip, FarClip);
+        float aspect = std::max(AspectRatio, 1e-4f);
+        ProjectionMatrix = glm::perspective(glm::radians(FOV), aspect, NearClip, FarClip);
         ViewProjectionMatrix = ProjectionMatrix * ViewMatrix;
     }
 
     void FPerspectiveCamera::RecalculateViewMatrix() {
         glm::vec3 forward = GetForwardDirection();
-        ViewMatrix = glm::lookAt(Position, Position + forward, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::vec3 right, up;
+        StableViewBasis(forward, right, up);
+        ViewMatrix = glm::lookAt(Position, Position + forward, up);
         ViewProjectionMatrix = ProjectionMatrix * ViewMatrix;
     }
 

@@ -15,9 +15,9 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
         auto mesh = UStaticMesh::Create("TestCube");
 
         // Populate mock vertices
-        FStaticMeshVertex v0{ glm::vec3(-1.0f), glm::vec3(0,1,0), glm::vec2(0,0), glm::vec3(1,0,0), glm::vec3(0,0,1), glm::vec3(1.0f) };
-        FStaticMeshVertex v1{ glm::vec3(1.0f),  glm::vec3(0,1,0), glm::vec2(1,1), glm::vec3(1,0,0), glm::vec3(0,0,1), glm::vec3(1.0f) };
-        FStaticMeshVertex v2{ glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(0,1,0), glm::vec2(1,0), glm::vec3(1,0,0), glm::vec3(0,0,1), glm::vec3(1.0f) };
+        FStaticMeshVertex v0{ glm::vec3(-1.0f), glm::vec3(0,1,0), glm::vec2(0,0), glm::vec4(1,0,0,1), glm::vec3(1.0f), glm::vec2(0.0f) };
+        FStaticMeshVertex v1{ glm::vec3(1.0f),  glm::vec3(0,1,0), glm::vec2(1,1), glm::vec4(1,0,0,1), glm::vec3(1.0f), glm::vec2(1.0f) };
+        FStaticMeshVertex v2{ glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(0,1,0), glm::vec2(1,0), glm::vec4(1,0,0,1), glm::vec3(1.0f), glm::vec2(1.0f, 0.0f) };
         mesh->GetVertices() = { v0, v1, v2 };
         mesh->GetIndices() = { 0, 1, 2 };
 
@@ -54,8 +54,7 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
     }
 
     TEST_CASE("StaticMesh - Vertex Layout Stride") {
-        // Pos3 + Normal3 + UV0 + UV1 + Tangent3 + Bitangent3 + Color3 = 19 floats = 76 bytes
-        CHECK(sizeof(FStaticMeshVertex) == 76);
+        CHECK(sizeof(FStaticMeshVertex) == 68);
         CHECK(sizeof(FStaticMeshVertexV1) == 68);
     }
 

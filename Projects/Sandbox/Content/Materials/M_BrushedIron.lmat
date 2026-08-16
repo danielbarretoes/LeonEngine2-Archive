@@ -5,6 +5,7 @@ Material:
   Metallic: 0.95
   Roughness: 0.22
   AO: 1.0
-  NormalMap: "Projects/Sandbox/Content/Textures/T_MetalPlates_N.png"
-  AOMap: "Projects/Sandbox/Content/Textures/T_MetalPlates_AO.png"
+  NormalMap: "/Game/Textures/T_MetalPlate_Normal.ltex"
+  RoughnessMap: "/Game/Textures/T_MetalPlate_Roughness.ltex"
+  MetallicMap: "/Game/Textures/T_MetalPlate_Metallic.ltex"
   UsePlanarReflection: false

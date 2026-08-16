@@ -62,8 +62,9 @@ namespace Leon {
     };
 
     /**
-     * @brief CPU path-tracer-style lightmap baker (direct + indirect diffuse + AO).
-     * Shared light attenuation conventions with FLight / PBR_Lit.
+     * @brief CPU path tracer for diffuse irradiance lightmaps.
+     * Direct + optional cosine-weighted GI. Shared attenuation with PBR_Lit.
+     * Receptor emissive is runtime-only. Material AO is not baked into E.
      */
     class FLightBaker {
     public:

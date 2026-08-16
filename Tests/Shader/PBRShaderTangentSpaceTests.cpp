@@ -117,10 +117,10 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
         // Gram-Schmidt MUST project T onto plane perp to N -> (1, 0, 0)
         // Gram-Schmidt MUST project B onto plane perp to N and T -> (0, 1, 0)
         std::vector<Leon::TestGPU::FTestVertex> skewedVertices = {
-            { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(1.0f, 1.0f, 0.0f) },
-            { glm::vec3( 1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f), glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(1.0f, 1.0f, 0.0f) },
-            { glm::vec3( 1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(1.0f, 1.0f, 0.0f) },
-            { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 1.0f), glm::vec3(1.0f, 0.0f, 1.0f), glm::vec3(1.0f, 1.0f, 0.0f) }
+            { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) },
+            { glm::vec3( 1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) },
+            { glm::vec3( 1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) },
+            { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) }
         };
         std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
 
@@ -143,11 +143,11 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, TexCoord));
         glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Tangent));
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Tangent));
         glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Bitangent));
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Color));
         glEnableVertexAttribArray(5);
-        glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Color));
+        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, LightmapUV));
 
         // 1. Tangent test: Skewed (1, 0, 1) MUST be reconstructed to pure +X (1, 0, 0) -> (1.0, 0.5, 0.5)
         shader->SetInt("u_DebugMode", 20);

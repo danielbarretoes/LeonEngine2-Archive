@@ -15,7 +15,7 @@ namespace Leon {
     void USandboxMainMenuWidget::BuildWidgetTree() {
         FUIRenderer::Init();
 
-        // Compact top-right corner chip (does not block the showcase).
+        // Compact top-right chip so it does not cover the scene.
         constexpr float PanelW = 200.0f;
         constexpr float PanelH = 72.0f;
         constexpr float ButtonW = 176.0f;
@@ -30,7 +30,7 @@ namespace Leon {
         panel->SetBackgroundColor({0.04f, 0.05f, 0.09f, 0.78f});
         panel->SetBorder({0.30f, 0.48f, 0.72f, 0.70f}, 1.0f);
         RootCanvas->AddChild(panel, FAnchors::TopRight(),
-                               FMargin(-(Margin + PanelW), Margin, Margin, -(Margin + PanelH)));
+                             FMargin(-(Margin + PanelW), Margin, Margin, -(Margin + PanelH)));
 
         TitleText = std::make_shared<UTextBlock>("Title");
         TitleText->SetText(bShowcaseLayout ? "Showcase" : "Night Level");
@@ -40,23 +40,23 @@ namespace Leon {
         TitleText->SetSize({PanelW - 16.0f, 16.0f});
         panel->AddChild(TitleText, FAnchors::TopLeft(), FMargin(10.0f, 8.0f, -190.0f, -24.0f));
 
-        NightLevelButton = std::make_shared<UButton>("NightLevelButton");
-        NightLevelButton->SetNormalColor({0.12f, 0.18f, 0.30f, 0.95f});
-        NightLevelButton->SetHoveredColor({0.18f, 0.30f, 0.50f, 1.0f});
-        NightLevelButton->SetPressedColor({0.08f, 0.12f, 0.20f, 1.0f});
-        NightLevelButton->SetBorder({0.40f, 0.62f, 0.92f, 0.85f}, 1.0f);
+        SceneSwitchButton = std::make_shared<UButton>("SceneSwitchButton");
+        SceneSwitchButton->SetNormalColor({0.12f, 0.18f, 0.30f, 0.95f});
+        SceneSwitchButton->SetHoveredColor({0.18f, 0.30f, 0.50f, 1.0f});
+        SceneSwitchButton->SetPressedColor({0.08f, 0.12f, 0.20f, 1.0f});
+        SceneSwitchButton->SetBorder({0.40f, 0.62f, 0.92f, 0.85f}, 1.0f);
 
-        ButtonLabel = std::make_shared<UTextBlock>("NightLevelLabel");
-        ButtonLabel->SetText(bShowcaseLayout ? "Open Night Level" : "Reload Night");
+        ButtonLabel = std::make_shared<UTextBlock>("SceneSwitchLabel");
+        ButtonLabel->SetText(bShowcaseLayout ? "Open Night Level" : "Open Showcase");
         ButtonLabel->SetFontScale(0.90f);
         ButtonLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
         ButtonLabel->SetJustification(ETextAlignment::Center);
-        NightLevelButton->SetContent(ButtonLabel);
+        SceneSwitchButton->SetContent(ButtonLabel);
 
-        NightLevelButton->OnClicked.AddLambda([this]() { OnOpenNightLevelClicked(); });
+        SceneSwitchButton->OnClicked.AddLambda([this]() { OnSwitchSceneClicked(); });
 
         const float buttonX = (PanelW - ButtonW) * 0.5f;
-        panel->AddChild(NightLevelButton, FAnchors::TopLeft(),
+        panel->AddChild(SceneSwitchButton, FAnchors::TopLeft(),
                         FMargin(buttonX, 30.0f, -(buttonX + ButtonW), -(30.0f + ButtonH)));
 
         SetWidgetTree(RootCanvas);
@@ -64,14 +64,15 @@ namespace Leon {
         SetPosition({0.0f, 0.0f});
     }
 
-    void USandboxMainMenuWidget::OnOpenNightLevelClicked() {
-        PrintString("Opening Night Level...", 2.0f);
-
-        UWorld* world = nullptr;
-        if (OwningPlayer) {
-            world = OwningPlayer->GetWorld();
+    void USandboxMainMenuWidget::OnSwitchSceneClicked() {
+        UWorld* world = OwningPlayer ? OwningPlayer->GetWorld() : nullptr;
+        if (bShowcaseLayout) {
+            PrintString("Opening Night Level...", 2.0f);
+            UGameplayStatics::OpenLevel(world, "/Game/Maps/NightLevel");
+        } else {
+            PrintString("Opening Showcase...", 2.0f);
+            UGameplayStatics::OpenLevel(world, "/Game/Maps/ShowcaseLevel");
         }
-        UGameplayStatics::OpenLevel(world, "/Game/Maps/NightLevel");
     }
 
 } // namespace Leon

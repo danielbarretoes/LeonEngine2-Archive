@@ -9,7 +9,7 @@
 namespace Leon {
 
     constexpr uint32_t LLIGHTMAP_MAGIC = 0x4D4C4C4C; // 'LLLM' little-endian mnemonic
-    constexpr uint32_t LLIGHTMAP_VERSION = 1;
+    constexpr uint32_t LLIGHTMAP_VERSION = 2;
 
     enum class ELightmapPixelFormat : uint32_t {
         RGBA16F = 1, ///< HDR irradiance (preferred)

@@ -1,5 +1,6 @@
 #include "Lightmass/FLightBaker.hpp"
 #include "Assets/FLightmapUV.hpp"
+#include "Renderer/FLightAttenuation.hpp"
 #include "Renderer/FIBLMath.hpp"
 
 #include <algorithm>
@@ -61,24 +62,12 @@ namespace {
 } // namespace
 
     float FLightBaker::PointAttenuation(float InDistance, float InRadius) {
-        if (InRadius <= 0.0f)
-            return 0.0f;
-        float d = std::max(InDistance, 0.0f);
-        float ratio = d / InRadius;
-        float soft = std::clamp(1.0f - ratio * ratio * ratio * ratio, 0.0f, 1.0f);
-        soft *= soft;
-        return soft / (d * d + 1.0f);
+        return DistanceAttenuationUE4(InDistance, InRadius);
     }
 
     float FLightBaker::SpotConeFactor(const glm::vec3& InLightDir, const glm::vec3& InToLight,
                                         float InCutOffDeg, float InOuterCutOffDeg) {
-        glm::vec3 L = glm::normalize(InToLight);
-        glm::vec3 D = glm::normalize(InLightDir);
-        float theta = glm::dot(L, -D);
-        float inner = std::cos(glm::radians(InCutOffDeg));
-        float outer = std::cos(glm::radians(InOuterCutOffDeg));
-        float eps = std::max(inner - outer, 1e-4f);
-        return std::clamp((theta - outer) / eps, 0.0f, 1.0f);
+        return SpotConeAttenuation(InLightDir, InToLight, InCutOffDeg, InOuterCutOffDeg);
     }
 
     glm::vec3 FLightBaker::CosineSampleHemisphere(const glm::vec3& InNormal, float InU1, float InU2) {
@@ -120,10 +109,9 @@ namespace {
         return Scene.Triangles[tri].bCastShadow;
     }
 
-    static glm::vec3 EvaluateDirect(const FLightBakerScene& Scene, const glm::vec3& Pos, const glm::vec3& Normal,
-                                      const glm::vec3& Albedo, bool bDirectLightingPass) {
-        glm::vec3 Lo(0.0f);
-        const float kd = 1.0f; // diffuse only bake; metallic handled by reducing albedo contribution upstream
+    static glm::vec3 EvaluateDirectIrradiance(const FLightBakerScene& Scene, const glm::vec3& Pos,
+                                              const glm::vec3& Normal, bool bDirectLightingPass) {
+        glm::vec3 irradiance(0.0f);
 
         for (const auto& dl : Scene.DirectionalLights) {
             if (bDirectLightingPass && !dl.bContributeDirect)
@@ -135,7 +123,7 @@ namespace {
             if (IsShadowed(Scene, Pos + Normal * kEpsilon * 2.0f, L, 1e6f))
                 continue;
             glm::vec3 radiance = dl.Light.Color * dl.Light.Intensity;
-            Lo += (Albedo / kPI) * radiance * NdotL * kd;
+            irradiance += radiance * NdotL;
         }
 
         for (const auto& pl : Scene.PointLights) {
@@ -153,7 +141,7 @@ namespace {
                 continue;
             float atten = FLightBaker::PointAttenuation(dist, pl.Light.Radius);
             glm::vec3 radiance = pl.Light.Color * pl.Light.Intensity * atten;
-            Lo += (Albedo / kPI) * radiance * NdotL * kd;
+            irradiance += radiance * NdotL;
         }
 
         for (const auto& sl : Scene.SpotLights) {
@@ -175,22 +163,22 @@ namespace {
                 continue;
             float atten = FLightBaker::PointAttenuation(dist, sl.Light.Radius) * cone;
             glm::vec3 radiance = sl.Light.Color * sl.Light.Intensity * atten;
-            Lo += (Albedo / kPI) * radiance * NdotL * kd;
+            irradiance += radiance * NdotL;
         }
 
-        return Lo;
+        return irradiance;
     }
 
-    static glm::vec3 SurfaceRadiance(const FLightBakerScene& Scene, const FBakeVertex& V0, const FBakeVertex& V1,
-                                      const FBakeVertex& V2, const glm::vec3& Bary) {
+    static glm::vec3 SurfaceOutgoingRadiance(const FLightBakerScene& Scene, const FBakeVertex& V0,
+                                             const FBakeVertex& V1, const FBakeVertex& V2, const glm::vec3& Bary) {
         glm::vec3 albedo = FLightmapUV::Interpolate(V0.Albedo, V1.Albedo, V2.Albedo, Bary);
         float metallic = V0.Metallic * Bary.x + V1.Metallic * Bary.y + V2.Metallic * Bary.z;
         albedo *= (1.0f - metallic);
         glm::vec3 emissive = FLightmapUV::Interpolate(V0.Emissive, V1.Emissive, V2.Emissive, Bary);
         glm::vec3 pos = FLightmapUV::Interpolate(V0.Position, V1.Position, V2.Position, Bary);
         glm::vec3 n = glm::normalize(FLightmapUV::Interpolate(V0.Normal, V1.Normal, V2.Normal, Bary));
-        // Indirect gather: include Stationary lights as bounce sources.
-        return emissive + EvaluateDirect(Scene, pos, n, albedo, false);
+        glm::vec3 E = EvaluateDirectIrradiance(Scene, pos, n, false);
+        return emissive + (albedo / kPI) * E;
     }
 
     void FLightBaker::Bake(const FLightBakerScene& InScene, const FLightBakerSettings& InSettings,
@@ -259,7 +247,6 @@ namespace {
         const uint32_t samples = std::max(1u, InSettings.SamplesPerTexel);
         std::vector<glm::vec3> direct(static_cast<size_t>(W) * H, glm::vec3(0.0f));
         std::vector<glm::vec3> indirect(static_cast<size_t>(W) * H, glm::vec3(0.0f));
-        std::vector<float> ao(static_cast<size_t>(W) * H, 1.0f);
 
         for (uint32_t y = 0; y < H; ++y) {
             for (uint32_t x = 0; x < W; ++x) {
@@ -270,14 +257,16 @@ namespace {
                 glm::vec3 pos = positions[idx];
                 glm::vec3 n = normals[idx];
                 glm::vec3 albedo = albedos[idx];
-                direct[idx] = emissives[idx] + EvaluateDirect(InScene, pos, n, albedo, true);
+                (void)albedo;
+                // Receptor emissive stays runtime-only. Incoming emissive from other surfaces is in GI Li.
+                direct[idx] = EvaluateDirectIrradiance(InScene, pos, n, true);
 
                 glm::vec3 indir(0.0f);
-                float aoSum = 0.0f;
+                // Ray visibility is already in direct/GI. Material AO stays a runtime artistic term.
+                const bool bTraceGI = InSettings.NumIndirectBounces > 0;
                 for (uint32_t s = 0; s < samples; ++s) {
                     uint32_t h = HashCombine(InSettings.Seed, x, y, s);
                     glm::vec2 xi = HammersleyLocal(h % samples, samples);
-                    // scramble slightly for uniqueness per texel
                     xi.x = std::fmod(xi.x + RadicalInverseVdC(h), 1.0f);
                     xi.y = std::fmod(xi.y + RadicalInverseVdC(h ^ 0xA5A5A5A5u), 1.0f);
 
@@ -288,21 +277,9 @@ namespace {
                     bool hit =
                         IntersectScene(InScene, pos + n * kEpsilon * 2.0f, dir, 1e6f, tHit, hitTri, bary);
 
-                    if (InSettings.bAmbientOcclusion) {
-                        float aoRayT = InSettings.AORadius;
-                        float tAo;
-                        uint32_t triAo;
-                        glm::vec3 baryAo;
-                        bool occluded = IntersectScene(InScene, pos + n * kEpsilon * 2.0f, dir, aoRayT, tAo,
-                                                       triAo, baryAo);
-                        aoSum += occluded ? 0.0f : 1.0f;
-                    }
-
-                    if (!hit)
+                    if (!bTraceGI || !hit)
                         continue;
 
-                    // Multi-bounce: gather surface outgoing radiance (direct + emissive) for bounce 1,
-                    // and recurse limited times with continuation.
                     const auto& tri = InScene.Triangles[hitTri];
                     const auto& hv0 = InScene.Vertices[tri.I0];
                     const auto& hv1 = InScene.Vertices[tri.I1];
@@ -310,15 +287,15 @@ namespace {
                     glm::vec3 hitPos = FLightmapUV::Interpolate(hv0.Position, hv1.Position, hv2.Position, bary);
                     glm::vec3 hitN =
                         glm::normalize(FLightmapUV::Interpolate(hv0.Normal, hv1.Normal, hv2.Normal, bary));
-                    glm::vec3 throughput = albedo; // lambert BRDF * cos / pdf cancels for cosine sampling → albedo
-                    glm::vec3 Li = SurfaceRadiance(InScene, hv0, hv1, hv2, bary);
-
-                    glm::vec3 path = throughput * Li;
-                    glm::vec3 curPos = hitPos;
-                    glm::vec3 curN = hitN;
-                    glm::vec3 curAlbedo =
+                    glm::vec3 hitAlbedo =
                         FLightmapUV::Interpolate(hv0.Albedo, hv1.Albedo, hv2.Albedo, bary) *
                         (1.0f - (hv0.Metallic * bary.x + hv1.Metallic * bary.y + hv2.Metallic * bary.z));
+
+                    glm::vec3 LoHit = SurfaceOutgoingRadiance(InScene, hv0, hv1, hv2, bary);
+                    glm::vec3 Epath = kPI * LoHit;
+                    glm::vec3 curPos = hitPos;
+                    glm::vec3 curN = hitN;
+                    glm::vec3 throughput = kPI * hitAlbedo;
 
                     for (uint32_t bounce = 1; bounce < InSettings.NumIndirectBounces; ++bounce) {
                         uint32_t hb = HashCombine(InSettings.Seed, x, y, s + bounce * 1024u);
@@ -334,25 +311,22 @@ namespace {
                         const auto& w0 = InScene.Vertices[tref.I0];
                         const auto& w1 = InScene.Vertices[tref.I1];
                         const auto& w2 = InScene.Vertices[tref.I2];
-                        path += curAlbedo * SurfaceRadiance(InScene, w0, w1, w2, bary2);
+                        glm::vec3 LoNext = SurfaceOutgoingRadiance(InScene, w0, w1, w2, bary2);
+                        Epath += throughput * LoNext;
                         curPos = FLightmapUV::Interpolate(w0.Position, w1.Position, w2.Position, bary2);
                         curN = glm::normalize(FLightmapUV::Interpolate(w0.Normal, w1.Normal, w2.Normal, bary2));
                         float met = w0.Metallic * bary2.x + w1.Metallic * bary2.y + w2.Metallic * bary2.z;
-                        curAlbedo =
+                        glm::vec3 nextAlbedo =
                             FLightmapUV::Interpolate(w0.Albedo, w1.Albedo, w2.Albedo, bary2) * (1.0f - met);
+                        throughput *= nextAlbedo;
                     }
 
-                    indir += path;
+                    indir += Epath;
                 }
 
                 if (samples > 0)
                     indir /= static_cast<float>(samples);
                 indirect[idx] = indir * InSettings.IndirectIntensity;
-
-                if (InSettings.bAmbientOcclusion && samples > 0) {
-                    float aoVal = aoSum / static_cast<float>(samples);
-                    ao[idx] = glm::mix(1.0f, aoVal, InSettings.AOIntensity);
-                }
             }
         }
 
@@ -361,17 +335,8 @@ namespace {
         for (uint32_t y = 0; y < H; ++y) {
             for (uint32_t x = 0; x < W; ++x) {
                 size_t idx = static_cast<size_t>(y) * W + x;
-                glm::vec3 irradiance = (direct[idx] + indirect[idx]) * ao[idx];
-                // Store irradiance (lighting). Runtime multiplies by albedo/PI again would double-count.
-                // Spec: lightmap = irradiance; Final = albedo/PI * irradiance for diffuse.
-                // Our EvaluateDirect already includes albedo/PI. Store lighting as "irradiance-like"
-                // by dividing out albedo when possible so runtime can do albedo * lightmap.
-                glm::vec3 stored = irradiance;
-                if (glm::length(albedos[idx]) > 1e-4f) {
-                    // Convert baked outgoing diffuse approx back toward irradiance
-                    stored = irradiance / glm::max(albedos[idx], glm::vec3(1e-3f));
-                }
-                filtered[idx] = stored;
+                glm::vec3 irradiance = direct[idx] + indirect[idx];
+                filtered[idx] = irradiance;
 
                 if (coverage[idx] <= 0.0f) {
                     // pull from neighbors

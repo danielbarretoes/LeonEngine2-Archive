@@ -1,0 +1,13 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [1.0, 1.0, 1.0]
+  Metallic: 0.02
+  Roughness: 0.72
+  AO: 1.0
+  AlbedoMap: "/Game/Textures/T_Street_Color.ltex"
+  NormalMap: "/Game/Textures/T_Street_Normal.ltex"
+  RoughnessMap: "/Game/Textures/T_Street_Roughness.ltex"
+  NormalScale: 1.0
+  UVTiling: [1.0, 1.0]
+  UsePlanarReflection: false

@@ -7,11 +7,11 @@ Map:
 Environment:
   Skybox:
     Enabled: true
-    Exposure: 1
-    SunIntensity: 3.5
-    EnvironmentIntensity: 1.2
+    Exposure: 0.9
+    SunIntensity: 3.2
+    EnvironmentIntensity: 1.05
     UseHDREnvironmentMap: true
-    HDREnvironmentMap: "/Game/HDR/AutumnField1k.lhdr"
+    HDREnvironmentMap: "/Game/HDR/DaySky1k.lhdr"
     SkyZenithColor: [0.18, 0.44, 0.88]
     HorizonColor: [0.78, 0.84, 0.95]
     GroundColor: [0.22, 0.24, 0.28]
@@ -21,13 +21,13 @@ Environment:
     NumIndirectBounces: 2
     SamplesPerTexel: 8
     IndirectIntensity: 1
-    AmbientOcclusion: true
+    AmbientOcclusion: false
     AOIntensity: 1
     AORadius: 0.35
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
-    LightmapBakeHash: "c83ac5c83c866a84"
+    LightmapBakeHash: "6467857ce1d6786e"
 
 Actors:
   - Name: "Main Camera"
@@ -50,7 +50,7 @@ Actors:
       Direction: [-0.45, -1, -0.35]
       Color: [1, 0.98, 0.92]
       Intensity: 3.5
-      Mobility: Static
+      Mobility: Stationary
   - Name: "Orbiting Point Light"
     Transform:
       Translation: [3.5, 1.5, 0]
@@ -86,7 +86,7 @@ Actors:
       Radius: 20
       CutOff: 20
       OuterCutOff: 30
-      Mobility: Static
+      Mobility: Stationary
   - Name: "Golden Raking Spotlight"
     Transform:
       Translation: [-6, 3.8, 3.5]
@@ -109,24 +109,24 @@ Actors:
     StaticMesh:
       Type: "Plane"
       Size: 1
-      Width: 28
+      Width: 36
       Height: 1
-      Depth: 24
+      Depth: 32
       Radius: 0.5
-      SubdivisionsX: 28
-      SubdivisionsZ: 24
+      SubdivisionsX: 36
+      SubdivisionsZ: 32
       Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
       CastShadows: false
       ReceiveShadows: true
       VisibleInReflection: false
       Mobility: Static
-      LightmapResolution: 64
+      LightmapResolution: 128
       LightmapIndex: 0
-      LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.646484, 0.0078125]
+      LightmapScale: [0.125, 0.5]
+      LightmapBias: [0.00195312, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
-      Asset: "/Game/Materials/M_FloorTiles.lmat"
+      Asset: "/Game/Materials/M_StudioFloor.lmat"
   - Name: "PBR Emerald Ramp"
     Transform:
       Translation: [-5, 0.5, 2]
@@ -149,7 +149,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 1
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.195312, 0.265625]
+      LightmapBias: [0.259766, 0.515625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_EmeraldRamp.lmat"
@@ -175,7 +175,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 2
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.130859, 0.265625]
+      LightmapBias: [0.195312, 0.515625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_ContainerCube.lmat"
@@ -201,7 +201,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 3
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.0664062, 0.265625]
+      LightmapBias: [0.130859, 0.515625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_PolishedGold.lmat"
@@ -227,7 +227,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 4
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.00195312, 0.265625]
+      LightmapBias: [0.0664062, 0.515625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_RubyDielectric.lmat"
@@ -253,7 +253,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 5
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.904297, 0.0078125]
+      LightmapBias: [0.00195312, 0.515625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_BrushedIron.lmat"
@@ -279,7 +279,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 6
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.839844, 0.0078125]
+      LightmapBias: [0.902344, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_CobaltPyramid.lmat"
@@ -305,7 +305,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 7
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.775391, 0.0078125]
+      LightmapBias: [0.837891, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_ChromeMirror.lmat"
@@ -331,7 +331,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 8
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.710938, 0.0078125]
+      LightmapBias: [0.773438, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_PolishedBrass.lmat"
@@ -357,7 +357,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 9
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.00195312, 0.0078125]
+      LightmapBias: [0.128906, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_PureCopper.lmat"
@@ -383,7 +383,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 10
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.582031, 0.0078125]
+      LightmapBias: [0.708984, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_SatinTitanium.lmat"
@@ -409,7 +409,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 11
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.517578, 0.0078125]
+      LightmapBias: [0.644531, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_RoughCastIron.lmat"
@@ -435,7 +435,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 12
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.453125, 0.0078125]
+      LightmapBias: [0.580078, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_MatteObsidian.lmat"
@@ -461,7 +461,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 13
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.388672, 0.0078125]
+      LightmapBias: [0.515625, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_NeonCyanEmissive.lmat"
@@ -487,7 +487,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 14
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.324219, 0.0078125]
+      LightmapBias: [0.451172, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_AmberEmissive.lmat"
@@ -513,10 +513,10 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 15
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.259766, 0.0078125]
+      LightmapBias: [0.386719, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
-      Asset: "/Game/Materials/M_WhitePlastic.lmat"
+      Asset: "/Game/Materials/M_WoodFloor.lmat"
   - Name: "PBR Glossy Red Plastic Ramp"
     Transform:
       Translation: [1, 0.5, -2]
@@ -539,7 +539,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 16
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.195312, 0.0078125]
+      LightmapBias: [0.322266, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_RedPlastic.lmat"
@@ -565,7 +565,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 17
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.130859, 0.0078125]
+      LightmapBias: [0.257812, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_SapphireCrystal.lmat"
@@ -591,10 +591,54 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 18
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.0664062, 0.0078125]
+      LightmapBias: [0.193359, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_IndustrialMetal.lmat"
+  - Name: "Transparent Glass Sphere"
+    Transform:
+      Translation: [7.2, 0.7, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Sphere"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.55
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Movable
+      LightmapResolution: 64
+    Material:
+      Asset: "/Game/Materials/M_GlassTransparent.lmat"
+  - Name: "Mirrored Scale Cube"
+    Transform:
+      Translation: [7.2, 0.45, 2]
+      Rotation: [0, 25, 0]
+      Scale: [-1, 1, 1]
+    StaticMesh:
+      Type: "Cube"
+      Size: 0.7
+      Width: 0.7
+      Height: 0.7
+      Depth: 0.7
+      Radius: 0.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Movable
+      LightmapResolution: 64
+    Material:
+      Asset: "/Game/Materials/M_RedPlastic.lmat"
   - Name: "Row 1 Header"
     Transform:
       Translation: [-7, 0.25, 2]
@@ -805,7 +849,7 @@ Actors:
       Rotation: [-20, 0, 0]
       Scale: [1, 1, 1]
     Text:
-      Content: "WHITE PLASTIC"
+      Content: "WOOD FLOOR"
       Color: [0.22, 0.22, 0.25, 0.95]
       Scale: 0.13
       LineSpacing: 1.2

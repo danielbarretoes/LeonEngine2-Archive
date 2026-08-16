@@ -8,7 +8,7 @@
 namespace Leon {
 
     /**
-     * @brief Sandbox menu chip — travel between ShowcaseLevel and NightLevel.
+     * @brief Sandbox menu chip — HUD button travels ShowcaseLevel ↔ NightLevel.
      */
     class USandboxMainMenuWidget : public UUserWidget {
     public:
@@ -16,16 +16,15 @@ namespace Leon {
 
         void Construct() override;
 
-        /** @brief When false, shows Night Level title (button still opens NightLevel). */
         void SetIsShowcaseLayout(bool bShowcase) { bShowcaseLayout = bShowcase; }
 
     private:
         void BuildWidgetTree();
-        void OnOpenNightLevelClicked();
+        void OnSwitchSceneClicked();
 
         TRef<UCanvasPanel> RootCanvas;
         TRef<UTextBlock> TitleText;
-        TRef<UButton> NightLevelButton;
+        TRef<UButton> SceneSwitchButton;
         TRef<UTextBlock> ButtonLabel;
         bool bShowcaseLayout = true;
     };

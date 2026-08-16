@@ -1,6 +1,7 @@
 #include "Gameplay/ADefaultPawn.hpp"
 #include "Core/FInputSettings.hpp"
 #include "Gameplay/APlayerController.hpp"
+#include "Renderer/FRenderingMath.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -57,10 +58,10 @@ namespace Leon {
         front.x = std::cos(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
         front.y = std::sin(glm::radians(Pitch));
         front.z = std::sin(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
-        front = glm::normalize(front);
+        front = SafeNormalize(front, glm::vec3(0.0f, 0.0f, -1.0f));
 
-        glm::vec3 right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
-        glm::vec3 up = glm::normalize(glm::cross(right, front));
+        glm::vec3 right, up;
+        StableViewBasis(front, right, up);
 
         float speed = MoveSpeed;
         if (FInput::IsKeyPressed(input.SprintKey)) {
@@ -88,7 +89,7 @@ namespace Leon {
             camComp.Camera.SetRotation(Pitch, Yaw);
         }
 
-        transform.Rotation = {Pitch, Yaw, 0.0f};
+        transform.Rotation = EulerLookingAlong(front);
     }
 
 } // namespace Leon

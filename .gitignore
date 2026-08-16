@@ -120,3 +120,6 @@ $RECYCLE.BIN/
 **/Content/HDR/Cache/
 *.libl
 
+# Authoring download scratch (zips / probes)
+**/Raw/_download/
+

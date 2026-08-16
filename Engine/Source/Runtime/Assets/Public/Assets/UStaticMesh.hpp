@@ -5,6 +5,7 @@
 #include "RHI/FBuffer.hpp"
 #include "Renderer/FMaterial.hpp"
 #include "Renderer/FMaterialInstance.hpp"
+#include "Renderer/FVertexLayout.hpp"
 #include "RHI/FVertexArray.hpp"
 
 #include <glm/glm.hpp>
@@ -13,17 +14,9 @@
 
 namespace Leon {
 
-    struct FStaticMeshVertex {
-        glm::vec3 Position{0.0f};
-        glm::vec3 Normal{0.0f, 1.0f, 0.0f};
-        glm::vec2 TexCoord{0.0f};
-        glm::vec2 LightmapUV{0.0f}; ///< UV1 for lightmaps (.lmesh v2+)
-        glm::vec3 Tangent{1.0f, 0.0f, 0.0f};
-        glm::vec3 Bitangent{0.0f, 0.0f, 1.0f};
-        glm::vec3 Color{1.0f};
-    };
+    using FStaticMeshVertex = FCanonicalMeshVertex;
 
-    /** On-disk vertex layout for .lmesh version 1 (no LightmapUV). */
+    /** On-disk vertex layout for .lmesh version 1 (no LightmapUV, separate bitangent). */
     struct FStaticMeshVertexV1 {
         glm::vec3 Position{0.0f};
         glm::vec3 Normal{0.0f, 1.0f, 0.0f};
@@ -33,9 +26,21 @@ namespace Leon {
         glm::vec3 Color{1.0f};
     };
 
+    /** On-disk vertex layout for .lmesh version 2 (LightmapUV before TBN). */
+    struct FStaticMeshVertexV2 {
+        glm::vec3 Position{0.0f};
+        glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+        glm::vec2 TexCoord{0.0f};
+        glm::vec2 LightmapUV{0.0f};
+        glm::vec3 Tangent{1.0f, 0.0f, 0.0f};
+        glm::vec3 Bitangent{0.0f, 0.0f, 1.0f};
+        glm::vec3 Color{1.0f};
+    };
+
     constexpr uint32_t LMESH_MAGIC = 0x48534D4C; // 'LMESH' in little-endian
-    constexpr uint32_t LMESH_VERSION = 2;
+    constexpr uint32_t LMESH_VERSION = 3;
     constexpr uint32_t LMESH_VERSION_V1 = 1;
+    constexpr uint32_t LMESH_VERSION_V2 = 2;
 
     struct FStaticSubmesh {
         std::string Name;

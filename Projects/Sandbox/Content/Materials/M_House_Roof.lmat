@@ -1,0 +1,18 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [1, 1, 1]
+  Metallic: 0
+  Roughness: 0.55
+  AO: 1
+  NormalScale: 1
+  OcclusionStrength: 1
+  AlphaMode: "Opaque"
+  AlphaCutoff: 0.5
+  DoubleSided: false
+  UVTiling: [1, 1]
+  UVOffset: [0, 0]
+  AlbedoMap: "Textures/T_Roof_Color.ltex"
+  NormalMap: "Textures/T_Roof_Normal.ltex"
+  RoughnessMap: "Textures/T_Roof_Roughness.ltex"
+  UsePlanarReflection: false

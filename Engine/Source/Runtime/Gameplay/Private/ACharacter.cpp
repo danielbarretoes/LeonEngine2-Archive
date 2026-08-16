@@ -1,5 +1,6 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APlayerController.hpp"
+#include "Renderer/FRenderingMath.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -66,7 +67,15 @@ namespace Leon {
         forward.y = 0.0f;
         forward.z = std::sin(glm::radians(Yaw));
         forward = glm::normalize(forward);
-        glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+        glm::vec3 look;
+        look.x = std::cos(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
+        look.y = std::sin(glm::radians(Pitch));
+        look.z = std::sin(glm::radians(Yaw)) * std::cos(glm::radians(Pitch));
+        look = SafeNormalize(look, glm::vec3(0.0f, 0.0f, -1.0f));
+
+        glm::vec3 right, up;
+        StableViewBasis(glm::vec3(forward.x, 0.0f, forward.z), right, up);
+        (void)up;
 
         float speed = MoveSpeed;
         if (FInput::IsKeyPressed(input.SprintKey)) {
@@ -91,7 +100,7 @@ namespace Leon {
             camComp.Camera.SetRotation(Pitch, Yaw);
         }
 
-        transform.Rotation = {Pitch, Yaw, 0.0f};
+        transform.Rotation = EulerLookingAlong(look);
     }
 
 } // namespace Leon

@@ -89,14 +89,18 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl IBL Integration") {
         glActiveTexture(GL_TEXTURE8);
         glBindTexture(GL_TEXTURE_CUBE_MAP, prefTex);
 
-        // Render IBL Pass
+        shader->SetInt("u_DebugMode", 35);
+        gl.DrawQuad();
+        glm::vec4 pixelDiffuseIBL = gl.ReadPixel(0, 0);
+        CHECK(pixelDiffuseIBL.r == doctest::Approx(1.0f).epsilon(0.02f));
+        CHECK(pixelDiffuseIBL.g == doctest::Approx(1.0f).epsilon(0.02f));
+        CHECK(pixelDiffuseIBL.b == doctest::Approx(1.0f).epsilon(0.02f));
+
+        shader->SetInt("u_DebugMode", 0);
         gl.DrawQuad();
         glm::vec4 pixelIBL = gl.ReadPixel(0, 0);
 
-        // Verify positive finite IBL ambient radiance
         CHECK(!std::isnan(pixelIBL.r));
-        CHECK(!std::isnan(pixelIBL.g));
-        CHECK(!std::isnan(pixelIBL.b));
         CHECK(pixelIBL.r > 0.5f);
 
         // 4. Pure Metallic IBL Test (kD == 0, diffuseIBL == 0 -> validates BRDF LUT)

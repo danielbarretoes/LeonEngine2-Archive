@@ -11,6 +11,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <stb_image.h>
 #include <vector>
 
@@ -31,9 +32,14 @@ namespace Leon {
         if (std::filesystem::exists(lutCachePath)) {
             std::ifstream inFile(lutCachePath, std::ios::binary);
             if (inFile.is_open()) {
-                inFile.read(reinterpret_cast<char*>(data.data()), data.size() * sizeof(float));
-                if (inFile.gcount() == static_cast<std::streamsize>(data.size() * sizeof(float))) {
-                    bLoadedFromDisk = true;
+                FBRDFLUTDiskHeader header{};
+                inFile.read(reinterpret_cast<char*>(&header), sizeof(header));
+                if (inFile && std::string(header.Magic, 8) == "LEONBRDF" && header.Version == 1 &&
+                    header.Size == InSize) {
+                    inFile.read(reinterpret_cast<char*>(data.data()), data.size() * sizeof(float));
+                    if (inFile.gcount() == static_cast<std::streamsize>(data.size() * sizeof(float))) {
+                        bLoadedFromDisk = true;
+                    }
                 }
             }
         }
@@ -41,22 +47,24 @@ namespace Leon {
         if (!bLoadedFromDisk) {
             LE_CORE_INFO("Generating Cook-Torrance 2D BRDF LUT ({0}x{1}, RG16F)...", InSize, InSize);
             for (uint32_t y = 0; y < InSize; ++y) {
-                float roughness = std::max(static_cast<float>(y) / static_cast<float>(InSize), 0.001f);
+                float roughness = std::max((static_cast<float>(y) + 0.5f) / static_cast<float>(InSize), 0.001f);
                 for (uint32_t x = 0; x < InSize; ++x) {
-                    float NdotV = std::max(static_cast<float>(x) / static_cast<float>(InSize), 0.001f);
+                    float NdotV = std::max((static_cast<float>(x) + 0.5f) / static_cast<float>(InSize), 0.001f);
 
                     glm::vec2 integrated = IntegrateBRDF(NdotV, roughness);
 
                     size_t index = (y * InSize + x) * 2;
-                    data[index + 0] = integrated.x; // Scale (A term)
-                    data[index + 1] = integrated.y; // Bias  (B term)
+                    data[index + 0] = integrated.x;
+                    data[index + 1] = integrated.y;
                 }
             }
 
-            // Save pre-baked BRDF LUT to disk cache
             std::filesystem::create_directories("Engine/Assets/Textures");
             std::ofstream outFile(lutCachePath, std::ios::binary);
             if (outFile.is_open()) {
+                FBRDFLUTDiskHeader header{};
+                header.Size = InSize;
+                outFile.write(reinterpret_cast<const char*>(&header), sizeof(header));
                 outFile.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
             }
         }
@@ -85,7 +93,7 @@ namespace Leon {
             float groundFactor = std::clamp(-height * 3.0f, 0.0f, 1.0f);
             sky = glm::mix(InSkybox.HorizonColor, InSkybox.GroundColor, groundFactor);
         }
-        return sky * InSkybox.EnvironmentIntensity;
+        return sky;
     }
 
     static std::string GetIBLCachePath(const std::string& InHDRPath) {
@@ -112,8 +120,9 @@ namespace Leon {
 
         FIBLCacheHeader header;
         file.read(reinterpret_cast<char*>(&header), sizeof(FIBLCacheHeader));
-        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 4 ||
-            header.HDRSourceHash != currentHDRHash) {
+        if (std::string(header.Magic, 7) != "LEONIBL" || header.Version != 5 ||
+            header.HDRSourceHash != currentHDRHash || header.SampleCountIrradiance != 512 ||
+            header.SampleCountPrefilter != 256) {
             return false;
         }
 
@@ -160,7 +169,7 @@ namespace Leon {
             return;
 
         FIBLCacheHeader header;
-        header.Version = 4;
+        header.Version = 5;
         header.HDRSourceHash = ComputeFileHash64(InHDRPath);
         file.write(reinterpret_cast<const char*>(&header), sizeof(FIBLCacheHeader));
 
@@ -204,7 +213,7 @@ namespace Leon {
             if (TryLoadIBLCache(resolvedHdrPath, env)) {
                 auto totalEndT = std::chrono::high_resolution_clock::now();
                 float totalDurMs = std::chrono::duration<float, std::milli>(totalEndT - totalStartT).count();
-                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v4) for '{0}' in {1:.2f} ms.", resolvedHdrPath,
+                LE_CORE_INFO("FIBLGenerator: Loaded pre-baked IBL cache (v5) for '{0}' in {1:.2f} ms.", resolvedHdrPath,
                              totalDurMs);
                 return env;
             }
@@ -251,7 +260,7 @@ namespace Leon {
 
         auto SampleSky = [&](glm::vec3 InDir) -> glm::vec3 {
             if (hdrData) {
-                return SampleEquirectangular(hdrData, hdrWidth, hdrHeight, InDir) * InSkybox.Exposure;
+                return SampleEquirectangular(hdrData, hdrWidth, hdrHeight, InDir);
             }
             return SampleAtmosphericSky(InSkybox, InDir);
         };
@@ -276,7 +285,7 @@ namespace Leon {
                         glm::vec3 dir = GetCubeDirection(face, u, v);
                         glm::vec3 color;
                         if (hdrData) {
-                            color = hdrMipChain.SampleLod(dir, envTexelLod) * InSkybox.Exposure;
+                            color = hdrMipChain.SampleLod(dir, envTexelLod);
                         } else {
                             color = SampleAtmosphericSky(InSkybox, dir);
                         }
@@ -343,7 +352,7 @@ namespace Leon {
 
                             glm::vec3 sampleVal;
                             if (hdrData) {
-                                sampleVal = hdrMipChain.SampleLod(sampleVec, irradSampleLod) * InSkybox.Exposure;
+                                sampleVal = hdrMipChain.SampleLod(sampleVec, irradSampleLod);
                             } else {
                                 sampleVal = SampleAtmosphericSky(InSkybox, sampleVec);
                             }
@@ -426,7 +435,7 @@ namespace Leon {
 
                                     glm::vec3 sampleVal;
                                     if (hdrData) {
-                                        sampleVal = hdrMipChain.SampleLod(L, sampleLod) * InSkybox.Exposure;
+                                        sampleVal = hdrMipChain.SampleLod(L, sampleLod);
                                     } else {
                                         sampleVal = SampleAtmosphericSky(InSkybox, L);
                                     }

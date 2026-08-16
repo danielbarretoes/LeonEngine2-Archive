@@ -29,6 +29,7 @@ uniform vec3 u_HorizonColor;
 uniform vec3 u_GroundColor;
 uniform vec3 u_SunColor;
 uniform float u_SunIntensity;
+uniform float u_EnvironmentIntensity = 1.0;
 
 layout(binding = 0) uniform sampler2D u_HDREnvironmentMap;
 uniform int u_UseHDREnvironmentMap = 0;
@@ -43,7 +44,7 @@ void main() {
         float u = 0.5 + atan(dir.z, dir.x) / (2.0 * PI);
         float v = 0.5 - asin(clamp(dir.y, -1.0, 1.0)) / PI;
         vec3 hdrSample = texture(u_HDREnvironmentMap, vec2(u, v)).rgb;
-        FragColor = vec4(hdrSample, 1.0);
+        FragColor = vec4(hdrSample * u_EnvironmentIntensity, 1.0);
         return;
     }
 
@@ -66,7 +67,7 @@ void main() {
     float sunHalo = pow(cosTheta, 32.0) * 1.5 + pow(cosTheta, 256.0) * 3.0;
     
     vec3 sunContribution = (u_SunColor * u_SunIntensity) * (sunDisc * 8.0 + sunHalo);
-    vec3 hdrColor = sky + sunContribution;
+    vec3 hdrColor = (sky + sunContribution) * u_EnvironmentIntensity;
 
     // Linear HDR output (Post-Processing Pass handles Tonemapping & Gamma)
     FragColor = vec4(hdrColor, 1.0);

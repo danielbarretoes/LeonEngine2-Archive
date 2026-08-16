@@ -32,6 +32,10 @@ Compatibility wrappers `run_sandbox.py` / `validate_sandbox.py` forward to the `
 | `Docs/` | Architecture, renderer, assets |
 | `Tests/` | doctest suites (math, IBL, PBR, GPU, gameplay, UI) |
 
+## Sandbox
+
+Reference game with two maps. Default boot is `/Game/Maps/ShowcaseLevel` (procedural PBR primitives, `DaySky1k`). The HUD chip in the top-right travels to `/Game/Maps/NightLevel` (imported static meshes, `NightSky1k`) and back. `AutumnField1k.lhdr` stays in `Content/HDR/` as the IBL/HDR test fixture — maps do not use it.
+
 ## Docs
 
 - [Architecture](Docs/ARCHITECTURE.md)

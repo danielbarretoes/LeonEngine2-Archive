@@ -6,14 +6,6 @@
 namespace Leon {
 
     void FOpenGLRenderAPI::Init() {
-        // Default blend: SrcAlpha / OneMinusSrcAlpha
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        SrcBlend = EBlendFactor::SrcAlpha;
-        DstBlend = EBlendFactor::OneMinusSrcAlpha;
-
-        glEnable(GL_BLEND);
-        BlendEnabled = true;
-
         glEnable(GL_DEPTH_TEST);
         DepthTestEnabled = true;
 
@@ -22,6 +14,18 @@ namespace Leon {
 
         glDepthMask(GL_TRUE);
         DepthMaskEnabled = true;
+
+        glDisable(GL_BLEND);
+        BlendEnabled = false;
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        SrcBlend = EBlendFactor::SrcAlpha;
+        DstBlend = EBlendFactor::OneMinusSrcAlpha;
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+        CullEnabled = true;
+        CullMode = ECullMode::Back;
 
         // Enable seamless cubemap filtering for artifacts-free IBL filtering
         glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -148,6 +152,13 @@ namespace Leon {
         SrcBlend = InSrc;
         DstBlend = InDst;
         glBlendFunc(BlendFactorToGL(InSrc), BlendFactorToGL(InDst));
+    }
+
+    void FOpenGLRenderAPI::SetClipDistance(bool InEnabled) {
+        if (InEnabled)
+            glEnable(GL_CLIP_DISTANCE0);
+        else
+            glDisable(GL_CLIP_DISTANCE0);
     }
 
     FGPUInfo FOpenGLRenderAPI::GetGPUInfo() {

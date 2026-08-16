@@ -65,6 +65,11 @@ namespace Leon {
                 RenderAPI->SetBlendFunc(InSrc, InDst);
         }
 
+        static void SetClipDistance(bool InEnabled) {
+            if (RenderAPI)
+                RenderAPI->SetClipDistance(InEnabled);
+        }
+
         static uint32_t GetFramebufferBinding() { return RenderAPI ? RenderAPI->GetFramebufferBinding() : 0; }
 
         static void BindFramebuffer(uint32_t InRendererID) {

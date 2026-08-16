@@ -580,8 +580,8 @@ namespace Leon {
                         else if (key == "HDREnvironmentMap" || key == "HDREnvironmentMapPath" ||
                                  key == "EnvironmentMap") {
                             skybox.HDREnvironmentMapPath = val;
-                            skybox.bUseHDREnvironmentMap = true;
                             if (!val.empty()) {
+                                skybox.bUseHDREnvironmentMap = true;
                                 skybox.HDREnvironmentMap = UAssetManager::GetTexture2D(val);
                             }
                         } else if (key == "ZenithColor" || key == "SkyZenithColor") {

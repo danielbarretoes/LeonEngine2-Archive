@@ -267,24 +267,24 @@ namespace Leon {
                                                                                : static_cast<float>(uv.y));
                                 }
 
-                                // Tangent & Bitangent
+                                glm::vec3 tangent{1.0f, 0.0f, 0.0f};
+                                glm::vec3 bitangent = glm::cross(v.Normal, tangent);
                                 if (uMesh->vertex_tangent.exists) {
                                     ufbx_vec3 t = ufbx_get_vertex_vec3(&uMesh->vertex_tangent, indexInMesh);
-                                    v.Tangent = glm::normalize(normMat * glm::vec3(static_cast<float>(t.x),
+                                    tangent = glm::normalize(normMat * glm::vec3(static_cast<float>(t.x),
                                                                                    static_cast<float>(t.y),
                                                                                    static_cast<float>(t.z)));
-                                } else {
-                                    v.Tangent = glm::vec3(1.0f, 0.0f, 0.0f);
                                 }
-
                                 if (uMesh->vertex_bitangent.exists) {
                                     ufbx_vec3 b = ufbx_get_vertex_vec3(&uMesh->vertex_bitangent, indexInMesh);
-                                    v.Bitangent = glm::normalize(normMat * glm::vec3(static_cast<float>(b.x),
+                                    bitangent = glm::normalize(normMat * glm::vec3(static_cast<float>(b.x),
                                                                                      static_cast<float>(b.y),
                                                                                      static_cast<float>(b.z)));
                                 } else {
-                                    v.Bitangent = glm::normalize(glm::cross(v.Normal, v.Tangent));
+                                    bitangent = glm::normalize(glm::cross(v.Normal, tangent));
                                 }
+                                v.Tangent = PackTangent(tangent, v.Normal, bitangent);
+                                v.LightmapUV = v.TexCoord;
 
                                 // Color
                                 if (uMesh->vertex_color.exists) {
@@ -353,23 +353,24 @@ namespace Leon {
                                                                                      : static_cast<float>(uv.y));
                             }
 
+                            glm::vec3 tangent{1.0f, 0.0f, 0.0f};
+                            glm::vec3 bitangent = glm::cross(v.Normal, tangent);
                             if (uMesh->vertex_tangent.exists) {
                                 ufbx_vec3 t = ufbx_get_vertex_vec3(&uMesh->vertex_tangent, indexInMesh);
-                                v.Tangent =
+                                tangent =
                                     glm::normalize(normMat * glm::vec3(static_cast<float>(t.x), static_cast<float>(t.y),
                                                                        static_cast<float>(t.z)));
-                            } else {
-                                v.Tangent = glm::vec3(1.0f, 0.0f, 0.0f);
                             }
-
                             if (uMesh->vertex_bitangent.exists) {
                                 ufbx_vec3 b = ufbx_get_vertex_vec3(&uMesh->vertex_bitangent, indexInMesh);
-                                v.Bitangent =
+                                bitangent =
                                     glm::normalize(normMat * glm::vec3(static_cast<float>(b.x), static_cast<float>(b.y),
                                                                        static_cast<float>(b.z)));
                             } else {
-                                v.Bitangent = glm::normalize(glm::cross(v.Normal, v.Tangent));
+                                bitangent = glm::normalize(glm::cross(v.Normal, tangent));
                             }
+                            v.Tangent = PackTangent(tangent, v.Normal, bitangent);
+                            v.LightmapUV = v.TexCoord;
 
                             if (uMesh->vertex_color.exists) {
                                 ufbx_vec4 col = ufbx_get_vertex_vec4(&uMesh->vertex_color, indexInMesh);

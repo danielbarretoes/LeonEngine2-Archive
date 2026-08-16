@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
+#include "Renderer/FColorSpace.hpp"
 #include <cmath>
 #include <filesystem>
 
@@ -44,8 +45,8 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Color Space & Gamma") {
         Leon::TestGPU::SetFloat2(shader, "u_UVOffset", glm::vec2(0.0f));
 
         // Create mid-gray texture (128/255 ~= 0.50196)
-        GLuint midGrayTex = gl.Create1x1Texture(128, 128, 128, 255);
-        float expectedLinear = std::pow(128.0f / 255.0f, 2.2f); // ~0.2176
+        GLuint midGrayTex = gl.Create1x1SRGBTexture(128, 128, 128, 255);
+        float expectedLinear = Leon::SRGBToLinear(128.0f / 255.0f);
 
         // 1. Albedo Color Space (Mode 14: BaseColor)
         shader->SetInt("u_DebugMode", 14);

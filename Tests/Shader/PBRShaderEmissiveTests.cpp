@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
+#include "Renderer/FColorSpace.hpp"
 #include <filesystem>
 
 TEST_SUITE("Shader GPU - PBR_Lit.glsl Emissive Radiance") {
@@ -80,7 +81,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Emissive Radiance") {
         CHECK(hdrEmissive.b == doctest::Approx(0.8f).epsilon(0.01f));
 
         // 4. Emissive Texture Map
-        GLuint emissiveTex = gl.Create1x1Texture(255, 128, 0, 255);
+        GLuint emissiveTex = gl.Create1x1SRGBTexture(255, 128, 0, 255);
         glActiveTexture(GL_TEXTURE9);
         glBindTexture(GL_TEXTURE_2D, emissiveTex);
         shader->SetInt("u_UseEmissiveMap", 1);
@@ -89,7 +90,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Emissive Radiance") {
 
         gl.DrawQuad();
         glm::vec4 mapEmissive = gl.ReadPixel();
-        float expectedLinearG = std::pow(128.0f / 255.0f, 2.2f);
+        float expectedLinearG = Leon::SRGBToLinear(128.0f / 255.0f);
         CHECK(mapEmissive.r == doctest::Approx(1.0f).epsilon(0.01f));
         CHECK(mapEmissive.g == doctest::Approx(expectedLinearG).epsilon(0.03f));
         CHECK(std::abs(mapEmissive.b) < 0.001f);

@@ -53,13 +53,7 @@ namespace Leon {
             FVertexBuffer::Create(reinterpret_cast<const float*>(Vertices.data()),
                                   static_cast<uint32_t>(Vertices.size() * sizeof(FStaticMeshVertex)));
 
-        vertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
-                                 {EShaderDataType::Float3, "aNormal"},
-                                 {EShaderDataType::Float2, "aTexCoord"},
-                                 {EShaderDataType::Float2, "aLightmapUV"},
-                                 {EShaderDataType::Float3, "aTangent"},
-                                 {EShaderDataType::Float3, "aBitangent"},
-                                 {EShaderDataType::Float3, "aColor"}});
+        vertexBuffer->SetLayout(MakeCanonicalMeshLayout());
         VertexArray->AddVertexBuffer(vertexBuffer);
 
         TRef<FIndexBuffer> indexBuffer =
@@ -205,7 +199,7 @@ namespace Leon {
             LE_CORE_ERROR("UStaticMesh: Invalid magic in \"{0}\"", InFilePath);
             return false;
         }
-        if (version != LMESH_VERSION && version != LMESH_VERSION_V1) {
+        if (version != LMESH_VERSION && version != LMESH_VERSION_V1 && version != LMESH_VERSION_V2) {
             LE_CORE_ERROR("UStaticMesh: Unsupported version {0} in \"{1}\"", version, InFilePath);
             return false;
         }
@@ -264,18 +258,32 @@ namespace Leon {
         // Vertices
         Vertices.resize(vertexCount);
         if (vertexCount > 0) {
+            auto convertTB = [](FStaticMeshVertex& dst, const glm::vec3& t, const glm::vec3& b) {
+                dst.Tangent = PackTangent(t, dst.Normal, b);
+            };
             if (version == LMESH_VERSION_V1) {
-                std::vector<FStaticMeshVertexV1> legacy(vertexCount);
-                file.read(reinterpret_cast<char*>(legacy.data()),
+                std::vector<FStaticMeshVertexV1> disk(vertexCount);
+                file.read(reinterpret_cast<char*>(disk.data()),
                           static_cast<std::streamsize>(vertexCount * sizeof(FStaticMeshVertexV1)));
                 for (uint32_t i = 0; i < vertexCount; ++i) {
-                    Vertices[i].Position = legacy[i].Position;
-                    Vertices[i].Normal = legacy[i].Normal;
-                    Vertices[i].TexCoord = legacy[i].TexCoord;
-                    Vertices[i].LightmapUV = legacy[i].TexCoord; // fallback until Lightmass regenerates
-                    Vertices[i].Tangent = legacy[i].Tangent;
-                    Vertices[i].Bitangent = legacy[i].Bitangent;
-                    Vertices[i].Color = legacy[i].Color;
+                    Vertices[i].Position = disk[i].Position;
+                    Vertices[i].Normal = disk[i].Normal;
+                    Vertices[i].TexCoord = disk[i].TexCoord;
+                    Vertices[i].Color = disk[i].Color;
+                    Vertices[i].LightmapUV = disk[i].TexCoord;
+                    convertTB(Vertices[i], disk[i].Tangent, disk[i].Bitangent);
+                }
+            } else if (version == LMESH_VERSION_V2) {
+                std::vector<FStaticMeshVertexV2> disk(vertexCount);
+                file.read(reinterpret_cast<char*>(disk.data()),
+                          static_cast<std::streamsize>(vertexCount * sizeof(FStaticMeshVertexV2)));
+                for (uint32_t i = 0; i < vertexCount; ++i) {
+                    Vertices[i].Position = disk[i].Position;
+                    Vertices[i].Normal = disk[i].Normal;
+                    Vertices[i].TexCoord = disk[i].TexCoord;
+                    Vertices[i].Color = disk[i].Color;
+                    Vertices[i].LightmapUV = disk[i].LightmapUV;
+                    convertTB(Vertices[i], disk[i].Tangent, disk[i].Bitangent);
                 }
             } else {
                 file.read(reinterpret_cast<char*>(Vertices.data()),

@@ -47,14 +47,23 @@ TEST_SUITE("PBR - BRDF LUT Invariants") {
         REQUIRE(file.is_open());
 
         file.seekg(0, std::ios::end);
-        size_t fileSize = file.tellg();
+        const size_t fileSize = static_cast<size_t>(file.tellg());
         file.seekg(0, std::ios::beg);
 
-        // Size check: 256x256x2 floats = 524,288 bytes (or 512x512x2 = 2,097,152)
-        REQUIRE((fileSize == 524288 || fileSize == 2097152));
+        Leon::FBRDFLUTDiskHeader header{};
+        file.read(reinterpret_cast<char*>(&header), sizeof(header));
+        REQUIRE(file);
+        REQUIRE(std::string(header.Magic, 8) == "LEONBRDF");
+        REQUIRE(header.Version == 1);
+        REQUIRE((header.Size == 256 || header.Size == 512));
 
-        std::vector<float> data(fileSize / sizeof(float));
-        file.read(reinterpret_cast<char*>(data.data()), fileSize);
+        const size_t payloadBytes =
+            static_cast<size_t>(header.Size) * static_cast<size_t>(header.Size) * 2u * sizeof(float);
+        REQUIRE(fileSize == sizeof(Leon::FBRDFLUTDiskHeader) + payloadBytes);
+
+        std::vector<float> data(payloadBytes / sizeof(float));
+        file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(payloadBytes));
+        REQUIRE(file.gcount() == static_cast<std::streamsize>(payloadBytes));
 
         for (float val : data) {
             CHECK(!std::isnan(val));

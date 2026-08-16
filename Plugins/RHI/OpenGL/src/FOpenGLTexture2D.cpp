@@ -2,6 +2,8 @@
 #include "Assets/FTextureImporter.hpp"
 #include "Assets/FHDRImporter.hpp"
 #include "Core/FLog.hpp"
+#include "Renderer/FColorSpace.hpp"
+#include "RHI/FRenderer.hpp"
 #include "RHI/FRenderer.hpp"
 #include <stb_image.h>
 #include <cmath>
@@ -206,12 +208,13 @@ namespace Leon {
         Height = static_cast<uint32_t>(height);
 
         uint32_t bpp = 4;
+        const bool bLinearData = IsLinearDataTexturePath(InPath);
         if (channels == 4) {
-            InternalFormat = GL_RGBA8;
+            InternalFormat = bLinearData ? GL_RGBA8 : GL_SRGB8_ALPHA8;
             DataFormat = GL_RGBA;
             bpp = 4;
         } else if (channels == 3) {
-            InternalFormat = GL_RGB8;
+            InternalFormat = bLinearData ? GL_RGB8 : GL_SRGB8;
             DataFormat = GL_RGB;
             bpp = 3;
         } else if (channels == 1) {

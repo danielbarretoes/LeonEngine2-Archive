@@ -13,8 +13,8 @@ Helpers: `IsLightmassBakeLight`, `DoesLightmassBakeDirect`.
 
 ## Assets
 
-- **`.llightmap`**: native HDR atlas (`FLightmapAsset`), magic `LLLM`, version 1, RGBA32F payload + bake-input `ContentHash`.
-- **`.lmesh` v2**: `LightmapUV` (UV1). Missing UV1 is generated at bake and **persisted** via `UStaticMesh::SaveToFile`. v1 loads with UV1 = UV0.
+- **`.llightmap`**: native HDR atlas (`FLightmapAsset`), magic `LLLM`, version **2**, RGBA32F payload (`rgb` = irradiance `E`, `a` = coverage) + bake-input `ContentHash`.
+- **`.lmesh` v3**: packed tangent `vec4` + `LightmapUV`. v1/v2 migrate on load. Missing UV1 is generated at bake (split per triangle) and **persisted** via `UStaticMesh::SaveToFile`.
 - **`.lmap` Environment**: `StaticLighting`, `LightmapResolution`, `NumIndirectBounces`, `SamplesPerTexel`, `IndirectIntensity`, `AmbientOcclusion`, `AOIntensity`, `AORadius`, `TexelPadding`, `WorldScale`, `LightmapAsset`, `LightmapBakeHash`.
 
 ## Offline bake (LeonAssetTool)
@@ -35,7 +35,7 @@ Pipeline:
 3. Resolve material albedo (base color + CPU texture average)
 4. UV1 (generate + persist if missing)
 5. Atlas (`FLightmapBuilder`, `TexelPadding`)
-6. CPU bake (`FLightBaker`: Static direct; Static+Stationary in indirect gather; AO with `AORadius * WorldScale`)
+6. CPU bake (`FLightBaker`): stores **diffuse irradiance** `E = ∫ Li max(N·ω,0) dω`. Static lights contribute direct `E`; Static+Stationary contribute to GI. `NumIndirectBounces == 0` skips GI. Receptor emissive is not stored. Bake AO is not multiplied into `E`.
 7. Write `.llightmap` (`ContentHash` = bake input hash)
 8. Stamp `.lmap` chart metadata + `LightmapBakeHash`
 
@@ -49,7 +49,9 @@ Pipeline:
 
 ## Runtime
 
-`FWorldRenderer` binds atlas slot **12**. `PBR_Lit.glsl`: `albedo * irradiance` (baked) + dynamic Movable/Stationary lights + specular IBL (diffuse IBL off when LM active).
+`FWorldRenderer` binds atlas slot **12**. `PBR_Lit.glsl`: `Lo_diffuse = kD * albedo / PI * E` (baked irradiance) + dynamic Movable/Stationary lights + specular IBL (diffuse IBL off when a lightmap is bound).
+
+See `Docs/RENDERER_CONTRACT.md` for equations, mobility, and cache versions.
 
 ### Debug (F7 cycle)
 
@@ -71,4 +73,13 @@ Pipeline:
 
 ## Limits (vs Unreal)
 
-No GPU Lightmass, no volumetric lightmaps, no photon mapping, no true Stationary shadow-map baking. Procedural meshes use UV0 as lightmap UV at runtime (`u_LightmapUseTexCoord`).
+No GPU Lightmass, no volumetric lightmaps, no photon mapping, no true Stationary shadow-map baking. Procedural meshes use UV0 as lightmap UV at runtime (`u_LightmapUseTexCoord`). Imported NightLevel meshes store generated UV1 in `.lmesh`.
+
+## Sandbox maps
+
+| Map | Geometry | HDRI | Lightmap |
+| :--- | :--- | :--- | :--- |
+| `/Game/Maps/ShowcaseLevel` | Procedural primitives (studio floor 36×32) | `DaySky1k` | `ShowcaseLevel.llightmap` |
+| `/Game/Maps/NightLevel` | Imported static meshes | `NightSky1k` | `NightLevel.llightmap` |
+
+`AutumnField1k.lhdr` is an engine IBL/HDR test fixture under Sandbox `Content/HDR/`; neither map references it. Rebake after content changes: `python Projects/Sandbox/Scripts/bake.py --force`.

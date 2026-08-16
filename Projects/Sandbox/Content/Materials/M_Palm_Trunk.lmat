@@ -1,0 +1,16 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [1.0, 1.0, 1.0]
+  Metallic: 0.0
+  Roughness: 0.82
+  AO: 1.0
+  AlbedoMap: "/Game/Textures/T_Bark_Color.ltex"
+  NormalMap: "/Game/Textures/T_Bark_Normal.ltex"
+  RoughnessMap: "/Game/Textures/T_Bark_Roughness.ltex"
+  AOMap: "/Game/Textures/T_Bark_AO.ltex"
+  NormalScale: 1.0
+  OcclusionStrength: 1.0
+  UVTiling: [1.0, 2.0]
+  UVOffset: [0.0, 0.0]
+  UsePlanarReflection: false

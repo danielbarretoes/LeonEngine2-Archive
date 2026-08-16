@@ -1,6 +1,7 @@
 add_executable(RendererTests
     Main.cpp
     Math/VectorTBNTests.cpp
+    Math/RendererContractTests.cpp
     Math/HammersleyTests.cpp
     Math/HemispherePDFTests.cpp
     IBL/IrradianceConvolutionTests.cpp
@@ -43,7 +44,6 @@ add_executable(RendererTests
     Shader/ShadowBiasTests.cpp
     Shader/ShadowAtlasTests.cpp
     Shader/ShadowSelectionTests.cpp
-    Shader/ShadowContactTests.cpp
     Asset/AssetIDTests.cpp
     Asset/TextureImportTests.cpp
     Asset/HDRAssetTests.cpp
@@ -55,6 +55,8 @@ add_executable(RendererTests
     Gameplay/InputSettingsTests.cpp
     Gameplay/CharacterComponentFrustumTests.cpp
     Lightmass/StaticLightingTests.cpp
+    Renderer/ViewportResizeTests.cpp
+    Renderer/GoldenSceneTests.cpp
 )
 
 target_include_directories(RendererTests PRIVATE

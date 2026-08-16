@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
+#include "Renderer/FColorSpace.hpp"
 #include <filesystem>
 
 TEST_SUITE("Shader GPU - PBR_Lit.glsl Material Textures & Fallbacks") {
@@ -58,7 +59,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Material Textures & Fallbacks") {
 
         // 2. Albedo map enabled with 0.5 sRGB (188/255 -> 0.51 linear)
         // 255 in 8-bit = 1.0 linear, 128 in 8-bit ~= (128/255)^2.2 ~= 0.218 linear
-        GLuint albedoTex = gl.Create1x1Texture(128, 255, 0, 255);
+        GLuint albedoTex = gl.Create1x1SRGBTexture(128, 255, 0, 255);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, albedoTex);
         shader->SetInt("u_UseAlbedoMap", 1);
@@ -66,7 +67,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Material Textures & Fallbacks") {
 
         gl.DrawQuad();
         glm::vec4 texAlbedo = gl.ReadPixel();
-        float expectedLinearR = std::pow(128.0f / 255.0f, 2.2f);
+        float expectedLinearR = Leon::SRGBToLinear(128.0f / 255.0f);
         CHECK(texAlbedo.r == doctest::Approx(expectedLinearR).epsilon(0.03f));
         CHECK(texAlbedo.g == doctest::Approx(1.0f).epsilon(0.01f));
         CHECK(texAlbedo.b == doctest::Approx(0.0f).epsilon(0.01f));
