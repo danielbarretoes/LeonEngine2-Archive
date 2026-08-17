@@ -8,6 +8,8 @@
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ALeonTournamentWeapon.hpp"
+#include "ALeonTournamentProjectile.hpp"
+#include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentDummy.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ULeonTournamentGameInstance.hpp"
@@ -75,7 +77,16 @@ int main(int argc, char** argv) {
     registry.RegisterClass<Leon::ALeonTournamentHUD>("ALeonTournamentHUD");
     registry.RegisterClass<Leon::ALeonTournamentBotController>("ALeonTournamentBotController");
     registry.RegisterClass<Leon::ALeonTournamentRifle>("ALeonTournamentRifle");
+    registry.RegisterClass<Leon::ALeonTournamentShotgun>("ALeonTournamentShotgun");
+    registry.RegisterClass<Leon::ALeonTournamentRocketLauncher>("ALeonTournamentRocketLauncher");
+    registry.RegisterClass<Leon::ALeonTournamentLaserRifle>("ALeonTournamentLaserRifle");
+    registry.RegisterClass<Leon::ALeonTournamentGrenadeLauncher>("ALeonTournamentGrenadeLauncher");
+    registry.RegisterClass<Leon::ALeonTournamentFlamethrower>("ALeonTournamentFlamethrower");
     registry.RegisterClass<Leon::ALeonTournamentWeapon>("ALeonTournamentWeapon");
+    registry.RegisterClass<Leon::ALeonTournamentProjectile>("ALeonTournamentProjectile");
+    registry.RegisterClass<Leon::ALeonTournamentWeaponPickup>("ALeonTournamentWeaponPickup");
+    registry.RegisterClass<Leon::ALeonTournamentHealthPickup>("ALeonTournamentHealthPickup");
+    registry.RegisterClass<Leon::ALeonTournamentJumpPad>("ALeonTournamentJumpPad");
     registry.RegisterClass<Leon::ALeonTournamentDummy>("ALeonTournamentDummy");
     registry.RegisterClass<Leon::ALeonTournamentAnimLabGameMode>("ALeonTournamentAnimLabGameMode");
 

@@ -58,7 +58,7 @@ namespace Leon {
         float GetCapsuleHalfHeight() const { return GetCapsuleHeight() * 0.5f; }
 
         bool IsThirdPerson() const { return bThirdPerson; }
-        void SetThirdPerson(bool bEnabled) { bThirdPerson = bEnabled; }
+        void SetThirdPerson(bool bEnabled);
 
         const FAnimRepState& GetAnimRepState() const { return AnimRepState; }
         void SetAnimRepState(const FAnimRepState& InState) { AnimRepState = InState; }
@@ -84,6 +84,9 @@ namespace Leon {
 
         /** World-space eye / first-person view location (Unreal GetPawnViewLocation lite). */
         glm::vec3 GetPawnViewLocation() const;
+
+        /** Camera used for rendering / crosshair (first person eye, or spring-arm in third person). */
+        void GetViewPoint(glm::vec3& OutLocation, glm::vec3& OutForward) const;
 
         APhysicsVolume* GetPhysicsVolume() const { return PhysicsVolume; }
 
@@ -135,6 +138,7 @@ namespace Leon {
         float EyeHeight = 1.7f;
         bool bThirdPerson = false;
         bool bMeshHiddenInGame = false;
+        bool bJumpWasDown = false;
 
         float Yaw = -90.0f;
         float Pitch = 0.0f;

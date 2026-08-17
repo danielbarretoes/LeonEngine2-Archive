@@ -27,7 +27,7 @@ layout(std140, binding = 2) uniform BonePalette {
 
 uniform mat4 u_Model;
 uniform mat3 u_NormalMatrix;
-uniform float u_OutlineWidth = 0.035;
+uniform float u_OutlineWidth = 0.016;
 
 mat4 SkinMatrix() {
     return u_Bones[aBoneIndices.x] * aBoneWeights.x
@@ -51,7 +51,7 @@ void main() {
 
 layout(location = 0) out vec4 FragColor;
 
-uniform vec3 u_OutlineColor = vec3(1.0, 0.15, 0.1);
+uniform vec3 u_OutlineColor = vec3(1.0, 0.14, 0.1);
 
 void main() {
     FragColor = vec4(u_OutlineColor, 1.0);

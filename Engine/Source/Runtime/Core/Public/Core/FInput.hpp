@@ -140,11 +140,13 @@ namespace Leon {
         static float GetMouseX();
         static float GetMouseY();
 
-        // Gamepad / Xbox Controller Queries
+        // Gamepad / Xbox Controller Queries (GLFW standard mapping — Xbox Series S/X, One, 360)
         static bool IsGamepadConnected(int InGamepadID = 0);
         static std::string GetGamepadName(int InGamepadID = 0);
         static bool IsGamepadButtonPressed(int InButton, int InGamepadID = 0);
         static float GetGamepadAxis(int InAxis, int InGamepadID = 0, float InDeadzone = 0.15f);
+        /** Triggers remapped from GLFW [-1..1] to [0..1]; 0 below InThreshold. */
+        static float GetGamepadTrigger(int InAxis, int InGamepadID = 0, float InThreshold = 0.15f);
         static std::pair<float, float> GetGamepadLeftStick(int InGamepadID = 0, float InDeadzone = 0.15f);
         static std::pair<float, float> GetGamepadRightStick(int InGamepadID = 0, float InDeadzone = 0.15f);
     };

@@ -52,6 +52,7 @@ TEST_SUITE("Naming conventions") {
         CHECK(UClassRegistry::Get().HasClass("ABlockingVolume"));
         CHECK(UClassRegistry::Get().HasClass("APhysicsVolume"));
         CHECK(UClassRegistry::Get().HasClass("ANavMeshBoundsVolume"));
+        CHECK(UClassRegistry::Get().HasClass("AProjectile"));
 
         CHECK_FALSE(UClassRegistry::Get().HasClass("Actor"));
         CHECK_FALSE(UClassRegistry::Get().HasClass("Pawn"));

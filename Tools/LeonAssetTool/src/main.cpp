@@ -261,11 +261,41 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
 
         TRef<USkeleton> sharedSkeleton;
         std::string sharedSkelRel;
-        for (auto& entry : pending) {
-            if (entry.Result.SkeletalMesh && entry.Result.Skeleton) {
-                sharedSkeleton = entry.Result.Skeleton;
-                sharedSkelRel = "Skeletons/" + entry.Stem + ".lskeleton";
-                break;
+        std::string sharedOwnerStem;
+
+        auto tryLoadSkeletonFile = [&](const fs::path& InPath, const std::string& InRel) -> bool {
+            if (!fs::exists(InPath))
+                return false;
+            auto loaded = USkeleton::Create(InPath.stem().string());
+            if (!loaded->LoadFromFile(InPath.string()))
+                return false;
+            sharedSkeleton = loaded;
+            sharedSkelRel = InRel;
+            sharedOwnerStem = InPath.stem().string();
+            return true;
+        };
+
+        // Prefer Mixamo YBot as the animation retarget target only.
+        // Each skinned character keeps its own .lskeleton + matching IBPs; sharing a foreign
+        // rest pose with another mesh's IBPs collapses skinning at runtime.
+        if (!tryLoadSkeletonFile(contentPath / "Skeletons" / "YBot.lskeleton", "Skeletons/YBot.lskeleton")) {
+            for (auto& entry : pending) {
+                if (entry.Stem == "YBot" && entry.Result.SkeletalMesh && entry.Result.Skeleton) {
+                    sharedSkeleton = entry.Result.Skeleton;
+                    sharedSkelRel = "Skeletons/YBot.lskeleton";
+                    sharedOwnerStem = "YBot";
+                    break;
+                }
+            }
+        }
+        if (!sharedSkeleton) {
+            for (auto& entry : pending) {
+                if (entry.Result.SkeletalMesh && entry.Result.Skeleton) {
+                    sharedSkeleton = entry.Result.Skeleton;
+                    sharedSkelRel = "Skeletons/" + entry.Stem + ".lskeleton";
+                    sharedOwnerStem = entry.Stem;
+                    break;
+                }
             }
         }
         if (!sharedSkeleton) {
@@ -274,30 +304,27 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                 for (const auto& skelFile : fs::directory_iterator(skelDir)) {
                     if (skelFile.path().extension() != ".lskeleton")
                         continue;
-                    auto loaded = USkeleton::Create(skelFile.path().stem().string());
-                    if (loaded->LoadFromFile(skelFile.path().string())) {
-                        sharedSkeleton = loaded;
-                        sharedSkelRel = "Skeletons/" + skelFile.path().filename().string();
+                    if (tryLoadSkeletonFile(skelFile.path(), "Skeletons/" + skelFile.path().filename().string()))
                         break;
-                    }
                 }
             }
         }
 
         if (sharedSkeleton) {
             for (auto& entry : pending) {
-                if (entry.Result.SkeletalMesh || entry.Result.Animations.empty())
-                    continue;
-                FMeshImportSettings retarget;
-                retarget.bGenerateTangents = true;
-                retarget.SharedSkeleton = sharedSkeleton;
-                FMeshImportResult retargeted;
-                if (FMeshImporter::ImportFBX(entry.Source.string(), retarget, retargeted) &&
-                    !retargeted.Animations.empty()) {
-                    entry.Result.Animations = std::move(retargeted.Animations);
-                    entry.Result.Skeleton = sharedSkeleton;
-                    std::cout << "    [RETARGET] " << entry.Source.filename().string() << " -> /Game/" << sharedSkelRel
-                              << "\n";
+                // Animation-only FBX → sample onto shared skeleton (name-compatible Mixamo tracks).
+                if (!entry.Result.SkeletalMesh && !entry.Result.Animations.empty()) {
+                    FMeshImportSettings retarget;
+                    retarget.bGenerateTangents = true;
+                    retarget.SharedSkeleton = sharedSkeleton;
+                    FMeshImportResult retargeted;
+                    if (FMeshImporter::ImportFBX(entry.Source.string(), retarget, retargeted) &&
+                        !retargeted.Animations.empty()) {
+                        entry.Result.Animations = std::move(retargeted.Animations);
+                        entry.Result.Skeleton = sharedSkeleton;
+                        std::cout << "    [RETARGET ANIM] " << entry.Source.filename().string() << " -> /Game/"
+                                  << sharedSkelRel << "\n";
+                    }
                 }
             }
         }
@@ -329,21 +356,37 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
             };
 
             if (importResult.IsSkeletal()) {
+                // Mixamo / Sketchfab packs often ship albedo beside the FBX with no embedded
+                // ufbx materials — synthesize a slot from the mesh stem so textures still bind.
+                if (importResult.SkeletalMesh && importResult.ExtractedMaterials.empty()) {
+                    FExtractedMaterial synth;
+                    synth.Name = stem;
+                    importResult.ExtractedMaterials.push_back(synth);
+                    auto& slots = importResult.SkeletalMesh->GetMaterialSlots();
+                    if (slots.empty()) {
+                        FSkeletalMaterialSlot slot;
+                        slot.SlotName = stem;
+                        slots.push_back(slot);
+                    } else {
+                        slots[0].SlotName = stem;
+                    }
+                    slots[0].DefaultMaterialPath = "Materials/M_" + stem + ".lmat";
+                }
                 writeMaterials();
                 if (importResult.Skeleton && importResult.SkeletalMesh) {
-                    fs::path skelPath = contentPath / sharedSkelRel;
-                    if (sharedSkelRel.empty())
-                        sharedSkelRel = "Skeletons/" + stem + ".lskeleton";
-                    skelPath = contentPath / sharedSkelRel;
-                    importResult.Skeleton->SetAssetPath("/Game/" + sharedSkelRel);
+                    // One skeleton asset per skinned character (bind pose must match mesh IBPs).
+                    const std::string meshSkelRel = "Skeletons/" + stem + ".lskeleton";
+                    fs::path skelPath = contentPath / meshSkelRel;
+                    importResult.Skeleton->SetAssetPath("/Game/" + meshSkelRel);
                     if (importResult.Skeleton->SaveToFile(skelPath.string())) {
-                        generatedAssets.push_back(sharedSkelRel);
-                        std::cout << "    [SAVED SKELETON] Bones: " << importResult.Skeleton->GetNumBones() << " -> "
-                                  << sharedSkelRel << "\n";
+                        generatedAssets.push_back(meshSkelRel);
+                        std::cout << "    [SAVED SKELETON] Bones: " << importResult.Skeleton->GetNumBones()
+                                  << " -> " << meshSkelRel << "\n";
                     }
-                    importResult.SkeletalMesh->SetSkeletonPath("/Game/" + sharedSkelRel);
+                    importResult.SkeletalMesh->SetSkeletonPath("/Game/" + meshSkelRel);
+                    importResult.SkeletalMesh->SetSkeleton(importResult.Skeleton);
                     for (auto& anim : importResult.Animations)
-                        anim->SetSkeletonPath("/Game/" + sharedSkelRel);
+                        anim->SetSkeletonPath("/Game/" + meshSkelRel);
                 } else if (!sharedSkelRel.empty()) {
                     for (auto& anim : importResult.Animations) {
                         anim->SetSkeletonPath("/Game/" + sharedSkelRel);
@@ -354,6 +397,7 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                 if (importResult.SkeletalMesh) {
                     std::string meshRel = "SkeletalMeshes/" + stem + ".lskeletalmesh";
                     fs::path skmPath = contentPath / meshRel;
+                    importResult.SkeletalMesh->SetName(stem);
                     importResult.SkeletalMesh->SetAssetPath("/Game/" + meshRel);
                     if (importResult.SkeletalMesh->SaveToFile(skmPath.string())) {
                         generatedAssets.push_back(meshRel);

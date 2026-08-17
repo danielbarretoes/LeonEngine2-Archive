@@ -7,6 +7,8 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/ALeonTournamentPlayerState.cpp
     Source/LeonTournament/Private/ALeonTournamentBotController.cpp
     Source/LeonTournament/Private/ALeonTournamentWeapon.cpp
+    Source/LeonTournament/Private/ALeonTournamentProjectile.cpp
+    Source/LeonTournament/Private/ALeonTournamentPickup.cpp
     Source/LeonTournament/Private/ALeonTournamentHUD.cpp
     Source/LeonTournament/Private/ALeonTournamentDummy.cpp
     Source/LeonTournament/Private/ALeonTournamentAnimLabGameMode.cpp
@@ -24,6 +26,7 @@ target_include_directories(LeonTournament PRIVATE
 
 target_link_libraries(LeonTournament PRIVATE
     LeonEngineCore
+    Leon::Pipeline
     Leon::OpenGL
     Leon::Jolt
     Leon::ENet

@@ -2,11 +2,49 @@
 #include "Engine/UWorld.hpp"
 #include "FENetTransport.hpp"
 
+#include <algorithm>
 #include <memory>
 
 namespace Leon {
 
+    namespace {
+        constexpr int32_t kMaxMatchSlots = 12;
+        constexpr int32_t kMaxBotsPerTeam = 6;
+
+        void ClampDesiredBots(int32_t& InOutTeam1, int32_t& InOutTeam2) {
+            InOutTeam1 = std::clamp(InOutTeam1, 0, kMaxBotsPerTeam);
+            InOutTeam2 = std::clamp(InOutTeam2, 0, kMaxBotsPerTeam);
+            // Reserve at least one slot for a local human when possible.
+            while (InOutTeam1 + InOutTeam2 > kMaxMatchSlots - 1 && (InOutTeam1 > 0 || InOutTeam2 > 0)) {
+                if (InOutTeam1 >= InOutTeam2 && InOutTeam1 > 0)
+                    --InOutTeam1;
+                else if (InOutTeam2 > 0)
+                    --InOutTeam2;
+                else
+                    break;
+            }
+        }
+    } // namespace
+
     ULeonTournamentGameInstance::ULeonTournamentGameInstance(const std::string& InName) : UGameInstance(InName) {}
+
+    void ULeonTournamentGameInstance::SetDesiredBotsTeam1(int32_t InCount) {
+        DesiredBotsTeam1 = InCount;
+        ClampDesiredBots(DesiredBotsTeam1, DesiredBotsTeam2);
+    }
+
+    void ULeonTournamentGameInstance::SetDesiredBotsTeam2(int32_t InCount) {
+        DesiredBotsTeam2 = InCount;
+        ClampDesiredBots(DesiredBotsTeam1, DesiredBotsTeam2);
+    }
+
+    void ULeonTournamentGameInstance::AdjustDesiredBotsTeam1(int InDelta) {
+        SetDesiredBotsTeam1(DesiredBotsTeam1 + InDelta);
+    }
+
+    void ULeonTournamentGameInstance::AdjustDesiredBotsTeam2(int InDelta) {
+        SetDesiredBotsTeam2(DesiredBotsTeam2 + InDelta);
+    }
 
     bool ULeonTournamentGameInstance::HostLan(UWorld* InWorld) {
         // Flow: host LAN session

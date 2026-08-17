@@ -1,7 +1,9 @@
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APawn.hpp"
+#include "Gameplay/ACharacter.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/Components.hpp"
 
 namespace Leon {
 
@@ -40,11 +42,19 @@ namespace Leon {
     }
 
     void APlayerController::GetPlayerViewPoint(FPerspectiveCamera& OutCamera) const {
-        if (PlayerCameraManager) {
+        if (PlayerCameraManager)
             OutCamera = PlayerCameraManager->GetCamera();
-        } else if (Pawn && Pawn->HasComponent<UCameraComponent>()) {
-            OutCamera = Pawn->GetComponent<UCameraComponent>().Camera;
+        // Live character view (incl. spring arm) so render / HUD / hitscan share one ray.
+        if (auto* character = dynamic_cast<ACharacter*>(Pawn)) {
+            glm::vec3 loc, fwd;
+            character->GetViewPoint(loc, fwd);
+            (void)fwd;
+            OutCamera.SetPosition(loc);
+            OutCamera.SetRotation(character->GetControlPitch(), character->GetControlYaw());
+            return;
         }
+        if (Pawn && Pawn->HasComponent<UCameraComponent>())
+            OutCamera = Pawn->GetComponent<UCameraComponent>().Camera;
     }
 
     void APlayerController::SetInputModeGameOnly() {

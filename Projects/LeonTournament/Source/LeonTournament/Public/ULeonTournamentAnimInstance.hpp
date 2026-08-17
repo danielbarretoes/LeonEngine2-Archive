@@ -29,6 +29,7 @@ namespace Leon {
         TRef<UBlendSpace> LocomotionBlend;
         TRef<UAnimSequence> DeathSequence;
         TRef<UAnimSequence> IdleSequence;
+        TRef<USkeleton> GraphSkeleton;
         bool bGraphBuilt = false;
     };
 

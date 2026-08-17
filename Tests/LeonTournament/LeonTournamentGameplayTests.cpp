@@ -10,7 +10,10 @@
 #include "ALeonTournamentPlayerState.hpp"
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentWeapon.hpp"
+#include "ALeonTournamentProjectile.hpp"
+#include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentHUD.hpp"
+#include "Physics/FHitResult.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ULeonTournamentGameInstance.hpp"
 #include "Core/FWorldUnits.hpp"
@@ -251,10 +254,11 @@ namespace Leon {
             auto* ch = f.World->SpawnActor<ALeonTournamentCharacter>("Gunner");
             REQUIRE(ch->GetWeapon());
             auto* weap = ch->GetWeapon();
-            CHECK(weap->GetCurrentAmmo() == 30);
+            const int32_t mag = weap->GetMagazineSize();
+            CHECK(weap->GetCurrentAmmo() == mag);
             CHECK(weap->CanFire());
             CHECK(weap->ServerFire());
-            CHECK(weap->GetCurrentAmmo() == 29);
+            CHECK(weap->GetCurrentAmmo() == mag - 1);
             CHECK_FALSE(weap->ServerFire());
             weap->Tick(0.2f);
             CHECK(weap->ServerFire());
@@ -268,7 +272,87 @@ namespace Leon {
             CHECK_FALSE(weap->CanFire());
             weap->Tick(2.1f);
             CHECK_FALSE(weap->IsReloading());
-            CHECK(weap->GetCurrentAmmo() == 30);
+            CHECK(weap->GetCurrentAmmo() == mag);
+        }
+
+        TEST_CASE("laser is one-shot scoped hitscan") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* ch = f.World->SpawnActor<ALeonTournamentCharacter>("LaserGunner");
+            REQUIRE(ch->GiveWeapon(ELeonTournamentWeaponId::Laser));
+            auto* weap = ch->GetWeapon();
+            REQUIRE(weap);
+            CHECK(weap->GetWeaponId() == ELeonTournamentWeaponId::Laser);
+            CHECK(weap->GetMagazineSize() == 1);
+            CHECK(weap->CanAimDownSights());
+            CHECK(weap->GetConfig().ScopeFOV == doctest::Approx(32.0f));
+            CHECK(weap->GetConfig().FireMode == ELeonTournamentFireMode::Hitscan);
+            CHECK(weap->ServerFire());
+            CHECK(weap->GetCurrentAmmo() == 0);
+            CHECK(weap->IsReloading());
+        }
+
+        TEST_CASE("grenade rocket and flame presets") {
+            const auto grenade = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Grenade);
+            CHECK(grenade.FireMode == ELeonTournamentFireMode::Projectile);
+            CHECK(grenade.ProjectileGravityScale > 0.1f);
+            CHECK(grenade.SplashRadius > 1.0f);
+            CHECK(grenade.Knockback > 8.0f);
+
+            const auto rocket = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rocket);
+            CHECK(rocket.FireMode == ELeonTournamentFireMode::Projectile);
+            CHECK(rocket.ProjectileGravityScale == doctest::Approx(0.0f));
+
+            const auto flame = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Flamethrower);
+            CHECK(flame.FireMode == ELeonTournamentFireMode::Flame);
+            CHECK(flame.FlameConeDeg > 1.0f);
+        }
+
+        TEST_CASE("projectile splash damages and launches") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* a = f.World->SpawnActor<ALeonTournamentCharacter>("BoomA");
+            auto* b = f.World->SpawnActor<ALeonTournamentCharacter>("BoomB");
+            a->SetActorLocation({0.0f, 2.0f, 0.0f});
+            b->SetActorLocation({0.0f, 2.0f, 1.5f});
+            REQUIRE(a->GiveWeapon(ELeonTournamentWeaponId::Rocket));
+            auto* proj = f.World->SpawnActor<ALeonTournamentProjectile>("RocketProj");
+            REQUIRE(proj);
+            const auto cfg = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rocket);
+            proj->Launch(a, a->GetWeapon(), {0.0f, 0.0f, 1.0f}, cfg);
+            FHitResult hit;
+            hit.bBlockingHit = true;
+            hit.Actor = b;
+            hit.Location = b->GetActorLocation();
+            hit.Normal = {0.0f, 1.0f, 0.0f};
+            proj->NotifyHit(hit);
+            CHECK(proj->HasExploded());
+            REQUIRE(b->GetHealthComponent());
+            CHECK(b->GetHealthComponent()->IsDead());
+            CHECK(b->IsDeadFrozen());
+        }
+
+        TEST_CASE("weapon pickup grants and respawns after 15s") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* ch = f.World->SpawnActor<ALeonTournamentCharacter>("Picker");
+            auto* pu = f.World->SpawnActor<ALeonTournamentWeaponPickup>("PU_Laser");
+            REQUIRE(pu);
+            pu->SetWeaponId(ELeonTournamentWeaponId::Laser);
+            pu->SetRespawnDelay(15.0f);
+            CHECK(pu->GetRespawnDelay() == doctest::Approx(15.0f));
+            CHECK(pu->IsPickupActive());
+
+            ch->SetActorLocation(pu->GetActorLocation());
+            f.World->Tick(FTimestep(0.05f));
+            CHECK(ch->HasWeapon(ELeonTournamentWeaponId::Laser));
+            CHECK_FALSE(pu->IsPickupActive());
+
+            ch->SetActorLocation(pu->GetActorLocation() + glm::vec3(0.0f, 0.0f, 20.0f));
+            pu->Tick(14.0f);
+            CHECK_FALSE(pu->IsPickupActive());
+            pu->Tick(1.2f);
+            CHECK(pu->IsPickupActive());
         }
 
         TEST_CASE("replicated ammo and reload reach the client pawn") {

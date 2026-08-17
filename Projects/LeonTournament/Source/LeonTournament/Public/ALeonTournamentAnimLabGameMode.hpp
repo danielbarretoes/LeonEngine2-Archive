@@ -21,22 +21,17 @@ namespace Leon {
         void RestartPlayer(AController* NewPlayer) override;
 
         ALeonTournamentDummy* GetDummy() const { return Dummy; }
-        bool PrefersThirdPerson() const { return bPreferThirdPerson; }
-        void SetPreferThirdPerson(bool bEnabled) { bPreferThirdPerson = bEnabled; }
 
     private:
         void ApplyLabClasses();
         void BuildAnimLab();
         void SpawnDummy();
         void RespawnDummy();
-        void ApplyCameraPreference(ALeonTournamentCharacter* InCharacter);
-        void HandleCameraToggle();
         void TickDummyRespawn(float DeltaSeconds);
+        void EnsureLabColliders();
 
         ALeonTournamentDummy* Dummy = nullptr;
         float DummyRespawnRemaining = -1.0f;
-        bool bPreferThirdPerson = true;
-        bool bCameraToggleWasDown = false;
     };
 
 } // namespace Leon

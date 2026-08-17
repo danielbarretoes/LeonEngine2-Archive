@@ -8,22 +8,33 @@
 #include "UMG/UEditableText.hpp"
 #include "FLeonTournamentTypes.hpp"
 
+#include <array>
+
 namespace Leon {
 
     class ULeonTournamentMainMenuWidget : public UUserWidget {
     public:
         ULeonTournamentMainMenuWidget(const std::string& InName = "LeonTournamentMainMenu");
         void Construct() override;
+        void Tick(float InDeltaTime) override;
 
     private:
         void Build();
+        void RefreshCharacterLabel();
         void OnOffline();
         void OnAnimLab();
         void OnHostLan();
         void OnJoinLan();
         void OnQuit();
+        void OnPrevCharacter();
+        void OnNextCharacter();
         TRef<UCanvasPanel> Root;
         TRef<UEditableText> AddressField;
+        TRef<UTextBlock> CharacterLabel;
+        bool bPadAWasDown = false;
+        bool bPadStartWasDown = false;
+        bool bPadLBWasDown = false;
+        bool bPadRBWasDown = false;
     };
 
     class ULeonTournamentLobbyWidget : public UUserWidget {
@@ -34,10 +45,30 @@ namespace Leon {
 
     private:
         void Build();
+        void RefreshCharacterLabel();
         void OnStart();
         void OnBack();
+        void OnPrevCharacter();
+        void OnNextCharacter();
+        void OnAdjustBotsTeam1(int InDelta);
+        void OnAdjustBotsTeam2(int InDelta);
+        void RefreshBotLabels();
         TRef<UCanvasPanel> Root;
         TRef<UTextBlock> RosterText;
+        TRef<UTextBlock> CharacterLabel;
+        TRef<UTextBlock> TitleText;
+        TRef<UTextBlock> BotsTeam1Label;
+        TRef<UTextBlock> BotsTeam2Label;
+        TRef<UTextBlock> CapacityHint;
+        bool bPadAWasDown = false;
+        bool bPadStartWasDown = false;
+        bool bPadBWasDown = false;
+        bool bPadLBWasDown = false;
+        bool bPadRBWasDown = false;
+        bool bPadDLeftWasDown = false;
+        bool bPadDRightWasDown = false;
+        bool bPadDUpWasDown = false;
+        bool bPadDDownWasDown = false;
     };
 
     class ULeonTournamentHUDWidget : public UUserWidget {
@@ -59,11 +90,13 @@ namespace Leon {
         TRef<UTextBlock> TimerText;
         TRef<UTextBlock> HealthText;
         TRef<UTextBlock> AmmoText;
+        TRef<UTextBlock> WeaponSlotsText;
         TRef<UTextBlock> CrosshairText;
         TRef<UImage> CrosshairBarT;
         TRef<UImage> CrosshairBarB;
         TRef<UImage> CrosshairBarL;
         TRef<UImage> CrosshairBarR;
+        std::array<TRef<UImage>, 8> CrosshairRing{};
         TRef<UImage> HitMarkTL;
         TRef<UImage> HitMarkTR;
         TRef<UImage> HitMarkBL;
@@ -97,6 +130,8 @@ namespace Leon {
         TRef<UCanvasPanel> Root;
         TRef<UTextBlock> ResultText;
         TRef<UTextBlock> StatsText;
+        bool bPadAWasDown = false;
+        bool bPadStartWasDown = false;
     };
 
 } // namespace Leon

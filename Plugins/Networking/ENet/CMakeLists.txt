@@ -1,16 +1,16 @@
 # ENet transport plugin. Gameplay never includes <enet/enet.h>.
+# Vendored: ThirdParty/enet (lsalzman/enet v1.3.18).
 
-include(FetchContent)
-FetchContent_Declare(
-    enet
-    GIT_REPOSITORY https://github.com/lsalzman/enet.git
-    GIT_TAG v1.3.18
-    GIT_SHALLOW TRUE
-)
-set(ENET_STATIC TRUE CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(enet)
-if(TARGET enet AND DEFINED enet_SOURCE_DIR)
-    target_include_directories(enet PUBLIC "${enet_SOURCE_DIR}/include")
+set(ENET_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/enet")
+if(NOT EXISTS "${ENET_ROOT}/include/enet/enet.h")
+    message(FATAL_ERROR "Missing vendored enet at ${ENET_ROOT}. Expected include/enet/enet.h")
+endif()
+
+if(NOT TARGET enet)
+    add_subdirectory("${ENET_ROOT}" "${CMAKE_BINARY_DIR}/_deps/enet-build" EXCLUDE_FROM_ALL)
+endif()
+if(TARGET enet)
+    target_include_directories(enet PUBLIC "${ENET_ROOT}/include")
 endif()
 
 add_library(LeonEngine_ENet STATIC

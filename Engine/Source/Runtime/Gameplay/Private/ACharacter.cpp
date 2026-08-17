@@ -40,36 +40,94 @@ namespace Leon {
         return GetActorLocation() + glm::vec3(0.0f, EyeHeight - halfH, 0.0f);
     }
 
+    void ACharacter::GetViewPoint(glm::vec3& OutLocation, glm::vec3& OutForward) const {
+        // Must match UpdateCameraFromView — third-person spring arm is behind the pawn; aiming from
+        // the eye alone diverges badly when looking down (crosshair vs shot end).
+        OutForward = GetControlLookDirection();
+        glm::vec3 right, up;
+        StableViewBasis(OutForward, right, up);
+        OutLocation = GetPawnViewLocation();
+        if (bThirdPerson && SpringArm) {
+            SpringArm->bDoCollisionTest = true;
+            const_cast<USpringArmComponent&>(*SpringArm)
+                .UpdateDesiredArmLocation(OutLocation, OutForward, right, up);
+            OutLocation = SpringArm->GetTargetLocation();
+        }
+    }
+
     glm::vec3 ACharacter::MoveBlocked(const glm::vec3& InWorldDelta) {
         if (!World || glm::dot(InWorldDelta, InWorldDelta) < 1e-12f)
             return glm::vec3(0.0f);
 
-        glm::vec3 minB, maxB;
-        GetCapsuleAABB(minB, maxB);
-        glm::vec3 delta = InWorldDelta;
-        delta.y = 0.0f;
-        glm::vec3 start = (minB + maxB) * 0.5f;
-        glm::vec3 end = start + delta;
-        float radius = CapsuleRadius;
+        // Flow: planar move against WorldStatic
+        // 1. Sweep capsule radius along remaining delta (ignore walkable floors/ceilings)
+        // 2. Stop before impact (skin width); slide leftover along the wall
+        // 3. If already overlapping (Distance≈0), push out along the normal then slide
+        constexpr float kSkin = 0.025f;
+        glm::vec3 remaining = InWorldDelta;
+        remaining.y = 0.0f;
+        glm::vec3 applied(0.0f);
+        glm::vec3 pos = GetActorLocation();
 
-        glm::vec3 applied = delta;
-        std::vector<FHitResult> hits;
-        if (World->SweepMultiByChannel(start, end, radius, ECollisionChannel::WorldStatic, this, hits) > 0) {
+        for (int iter = 0; iter < 3; ++iter) {
+            const float remainLen = glm::length(remaining);
+            if (remainLen < 1e-7f)
+                break;
+
+            std::vector<FHitResult> hits;
+            const glm::vec3 end = pos + remaining;
+            if (World->SweepMultiByChannel(pos, end, CapsuleRadius, ECollisionChannel::WorldStatic, this, hits) <= 0) {
+                applied += remaining;
+                pos += remaining;
+                remaining = glm::vec3(0.0f);
+                break;
+            }
+
+            bool bHitWall = false;
             for (const auto& candidate : hits) {
                 if (!candidate.bBlockingHit)
                     continue;
                 // Horizontal move: walkable floors/ceilings must not consume the step.
                 if (std::abs(candidate.Normal.y) > 0.7f)
                     continue;
-                float len = glm::length(delta);
-                float safe = len > 1e-6f ? std::max(0.0f, candidate.Distance - 0.01f) / len : 0.0f;
-                applied = delta * std::min(safe, 1.0f);
+
+                glm::vec3 n = candidate.Normal;
+                n.y = 0.0f;
+                if (glm::dot(n, n) < 1e-8f)
+                    continue;
+                n = glm::normalize(n);
+
+                if (candidate.Distance <= kSkin) {
+                    // Depenetrate so the next frame can slide instead of locking in place.
+                    const glm::vec3 push = n * kSkin;
+                    applied += push;
+                    pos += push;
+                } else {
+                    const float safe = std::clamp((candidate.Distance - kSkin) / remainLen, 0.0f, 1.0f);
+                    const glm::vec3 step = remaining * safe;
+                    applied += step;
+                    pos += step;
+                    remaining -= step;
+                }
+
+                const float into = glm::dot(remaining, n);
+                if (into < 0.0f)
+                    remaining -= n * into;
+                bHitWall = true;
+                break;
+            }
+
+            if (!bHitWall) {
+                applied += remaining;
+                pos += remaining;
+                remaining = glm::vec3(0.0f);
                 break;
             }
         }
 
         auto& transform = GetTransform();
-        transform.Translation += applied;
+        transform.Translation.x = pos.x;
+        transform.Translation.z = pos.z;
         return applied;
     }
 
@@ -77,39 +135,45 @@ namespace Leon {
         auto& transform = GetTransform();
         float standY = FloorZ;
         const float halfH = GetCapsuleHalfHeight();
+        const float feetY = transform.Translation.y - halfH;
         if (World) {
-            glm::vec3 feetMin, feetMax;
-            GetCapsuleAABB(feetMin, feetMax);
             glm::vec3 probe = transform.Translation;
-            probe.y = (FloorZ + transform.Translation.y - halfH) * 0.5f;
-            glm::vec3 half(CapsuleRadius, std::max(0.2f, (transform.Translation.y - halfH - FloorZ) * 0.5f + 0.1f),
-                           CapsuleRadius);
+            probe.y = feetY + 0.05f;
+            // Thin foot pad — tall walls must not register as supporting floors.
+            glm::vec3 half(CapsuleRadius * 0.9f, 0.12f, CapsuleRadius * 0.9f);
             std::vector<FHitResult> hits;
             if (World->OverlapMultiByChannel(probe, half, ECollisionChannel::WorldStatic, this, hits) > 0) {
                 for (const auto& floorHit : hits) {
-                    if (!floorHit.Actor)
+                    if (!floorHit.Actor || floorHit.Normal.y < 0.7f)
                         continue;
+
+                    float topY = FloorZ;
                     if (floorHit.Actor->HasComponent<FBoxCollisionComponent>()) {
                         const auto& box = floorHit.Actor->GetComponent<FBoxCollisionComponent>();
-                        glm::vec3 wmax =
-                            floorHit.Actor->GetActorLocation() + box.LocalMax * floorHit.Actor->GetActorScale();
-                        standY = std::max(standY, wmax.y);
+                        const glm::vec3 scale = floorHit.Actor->GetActorScale();
+                        topY = floorHit.Actor->GetActorLocation().y + box.LocalMax.y * scale.y;
                     } else if (auto boxComp = floorHit.Actor->FindActorComponent<UBoxComponent>()) {
-                        glm::vec3 top = boxComp->GetComponentLocation();
-                        top.y += boxComp->GetBoxExtent().y;
-                        standY = std::max(standY, top.y);
+                        const glm::vec3 scale = floorHit.Actor->GetActorScale();
+                        topY = boxComp->GetComponentLocation().y + boxComp->GetBoxExtent().y * scale.y;
                     } else if (floorHit.Actor->HasComponent<UStaticMeshComponent>() &&
                                floorHit.Actor->GetComponent<UStaticMeshComponent>().StaticMesh) {
                         const auto& sm = *floorHit.Actor->GetComponent<UStaticMeshComponent>().StaticMesh;
-                        glm::vec3 s = floorHit.Actor->GetActorScale();
-                        standY = std::max(standY, floorHit.Actor->GetActorLocation().y + sm.GetBoundsMax().y * s.y);
+                        const glm::vec3 s = floorHit.Actor->GetActorScale();
+                        topY = floorHit.Actor->GetActorLocation().y + sm.GetBoundsMax().y * s.y;
                     } else if (floorHit.Actor->HasComponent<FMeshComponent>()) {
                         const auto& mesh = floorHit.Actor->GetComponent<FMeshComponent>();
-                        float top = mesh.MeshSize * 0.5f;
+                        float top = mesh.MeshSize * 0.5f * floorHit.Actor->GetActorScale().y;
                         if (mesh.MeshType == "Plane")
                             top = 0.05f;
-                        standY = std::max(standY, floorHit.Actor->GetActorLocation().y + top);
+                        topY = floorHit.Actor->GetActorLocation().y + top;
+                    } else {
+                        continue;
                     }
+
+                    // Only surfaces within a small step of the feet (ignore wall tops while standing beside them).
+                    if (topY > feetY + 0.45f || topY < feetY - 0.35f)
+                        continue;
+                    standY = std::max(standY, topY);
                 }
             }
         }
@@ -141,7 +205,7 @@ namespace Leon {
             CharacterMovement->SetFloorZ(FloorZ);
 
         if (!HasComponent<UCameraComponent>()) {
-            FPerspectiveCamera camera(45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f);
+            FPerspectiveCamera camera(95.0f, 1280.0f / 720.0f, 0.1f, 1000.0f);
             AddComponent<UCameraComponent>(camera);
         }
         if (!SpringArm)
@@ -221,8 +285,9 @@ namespace Leon {
     }
 
     void ACharacter::ApplyLookInput(float DeltaSeconds, bool bRequireHeldButton) {
-        (void)DeltaSeconds;
         const FInputSettings& input = FInputSettings::Get();
+        bool bRotated = false;
+
         const bool bLookHeld = !bRequireHeldButton || FInput::IsMouseButtonPressed(Mouse::ButtonRight);
         if (input.bEnableMouseLook && bLookHeld) {
             auto [mx, my] = FInput::GetMousePosition();
@@ -232,11 +297,25 @@ namespace Leon {
             }
             Yaw += (mx - LastMousePos.x) * LookSensitivity;
             Pitch += (LastMousePos.y - my) * LookSensitivity;
-            Pitch = std::clamp(Pitch, -89.0f, 89.0f);
             LastMousePos = {mx, my};
-            SetControlRotation({Pitch, Yaw, 0.0f});
+            bRotated = true;
         } else {
             bFirstMouse = true;
+        }
+
+        // Xbox / gamepad right stick — always active in game (no hold required).
+        if (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) && DeltaSeconds > 0.0f) {
+            auto [rx, ry] = FInput::GetGamepadRightStick(input.GamepadId, input.GamepadDeadzone);
+            if (std::abs(rx) > 1e-4f || std::abs(ry) > 1e-4f) {
+                Yaw += rx * input.GamepadLookSpeed * DeltaSeconds;
+                Pitch += -ry * input.GamepadLookSpeed * DeltaSeconds;
+                bRotated = true;
+            }
+        }
+
+        if (bRotated) {
+            Pitch = std::clamp(Pitch, -89.0f, 89.0f);
+            SetControlRotation({Pitch, Yaw, 0.0f});
         }
     }
 
@@ -245,7 +324,14 @@ namespace Leon {
         glm::vec3 forward = GetControlPlanarForward();
         glm::vec3 right(-forward.z, 0.0f, forward.x);
 
-        const float speed = GetMoveSpeed() * std::max(InSpeedScale, 0.0f);
+        float speedScale = std::max(InSpeedScale, 0.0f);
+        if (FInput::IsKeyPressed(input.SprintKey))
+            speedScale = std::max(speedScale, SprintMultiplier);
+        if (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
+            FInput::IsGamepadButtonPressed(GamepadButton::LeftBumper, input.GamepadId))
+            speedScale = std::max(speedScale, SprintMultiplier);
+
+        const float speed = GetMoveSpeed() * speedScale;
         glm::vec3 wish(0.0f);
         if (FInput::IsKeyPressed(input.MoveForwardKey))
             wish += forward;
@@ -255,11 +341,35 @@ namespace Leon {
             wish -= right;
         if (FInput::IsKeyPressed(input.MoveRightKey))
             wish += right;
+
+        if (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId)) {
+            auto [lx, ly] = FInput::GetGamepadLeftStick(input.GamepadId, input.GamepadDeadzone);
+            // GLFW stick Y: up is negative → forward.
+            wish += forward * (-ly) + right * lx;
+            if (FInput::IsGamepadButtonPressed(GamepadButton::DPadUp, input.GamepadId))
+                wish += forward;
+            if (FInput::IsGamepadButtonPressed(GamepadButton::DPadDown, input.GamepadId))
+                wish -= forward;
+            if (FInput::IsGamepadButtonPressed(GamepadButton::DPadLeft, input.GamepadId))
+                wish -= right;
+            if (FInput::IsGamepadButtonPressed(GamepadButton::DPadRight, input.GamepadId))
+                wish += right;
+        }
+
         if (glm::length(wish) > 1e-4f && CharacterMovement)
             CharacterMovement->AddInputVector(glm::normalize(wish) * speed);
         (void)DeltaSeconds;
-        if (FInput::IsKeyPressed(input.JumpKey))
+
+        bool bJump = FInput::IsKeyPressed(input.JumpKey);
+        if (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
+            FInput::IsGamepadButtonPressed(GamepadButton::A, input.GamepadId))
+            bJump = true;
+        // Rising edge only — holding Space must not consume double-jump on the same press.
+        if (bJump && !bJumpWasDown)
             Jump();
+        if (!bJump && bJumpWasDown)
+            StopJumping();
+        bJumpWasDown = bJump;
     }
 
     float ACharacter::ComputeLocomotionDirection(const glm::vec3& InPlanarMove, const glm::vec3& InPlanarForward) {
@@ -286,6 +396,11 @@ namespace Leon {
         AnimRepState.Speed = 0.0f;
         AnimRepState.Direction = 0.0f;
         AnimRepState.SetFlag(FAnimRepState::FlagInAir, false);
+        UpdateMeshVisibility();
+    }
+
+    void ACharacter::SetThirdPerson(bool bEnabled) {
+        bThirdPerson = bEnabled;
         UpdateMeshVisibility();
     }
 
@@ -324,17 +439,9 @@ namespace Leon {
     }
 
     void ACharacter::UpdateCameraFromView() {
-        glm::vec3 look = GetControlLookDirection();
-        glm::vec3 right, up;
-        StableViewBasis(look, right, up);
-
-        glm::vec3 camPos = GetPawnViewLocation();
-        if (bThirdPerson && SpringArm) {
-            SpringArm->bDoCollisionTest = true;
-            SpringArm->UpdateDesiredArmLocation(GetPawnViewLocation(), look, right, up);
-            camPos = SpringArm->GetTargetLocation();
-        }
-
+        glm::vec3 camPos, look;
+        GetViewPoint(camPos, look);
+        (void)look;
         if (HasComponent<UCameraComponent>()) {
             auto& camComp = GetComponent<UCameraComponent>();
             camComp.Camera.SetPosition(camPos);

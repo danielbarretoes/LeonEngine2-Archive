@@ -16,12 +16,14 @@ namespace Leon {
         int32_t GetAssists() const { return Assists; }
         ELeonTournamentTeam GetTeam() const { return Team; }
         bool IsBot() const { return bBot; }
+        ELeonTournamentCharacterSkin GetCharacterSkin() const { return CharacterSkin; }
 
         void AddKill();
         void AddDeath();
         void AddAssist();
         void SetTeam(ELeonTournamentTeam InTeam);
         void SetIsBot(bool bInBot);
+        void SetCharacterSkin(ELeonTournamentCharacterSkin InSkin);
         void ResetStats();
 
         void SerializeReplication(std::vector<uint8_t>& OutBytes) const override;
@@ -33,6 +35,7 @@ namespace Leon {
         int32_t Assists = 0;
         ELeonTournamentTeam Team = ELeonTournamentTeam::None;
         bool bBot = false;
+        ELeonTournamentCharacterSkin CharacterSkin = ELeonTournamentCharacterSkin::YBot;
     };
 
 } // namespace Leon

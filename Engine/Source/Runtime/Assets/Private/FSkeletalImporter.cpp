@@ -245,10 +245,53 @@ namespace Leon {
             mesh->SetSkeleton(InSkeleton);
             mesh->SetUUID(FUUID::FromPath(InSkeleton->GetName() + ".skm"));
 
-            std::vector<const ufbx_node*> ordered = CollectOrderedSkeletonNodes(InScene);
+            // Map FBX bone nodes → shared skeleton indices by name (retarget-safe).
             std::unordered_map<const ufbx_node*, int32_t> boneIndex;
-            for (size_t i = 0; i < ordered.size(); ++i)
-                boneIndex[ordered[i]] = static_cast<int32_t>(i);
+            for (size_t ni = 0; ni < InScene->nodes.count; ++ni) {
+                const ufbx_node* node = InScene->nodes.data[ni];
+                if (!node)
+                    continue;
+                const int32_t idx = InSkeleton->FindBoneIndex(NodeName(node, ni));
+                if (idx >= 0)
+                    boneIndex[node] = idx;
+            }
+            if (boneIndex.empty()) {
+                std::vector<const ufbx_node*> ordered = CollectOrderedSkeletonNodes(InScene);
+                for (size_t i = 0; i < ordered.size(); ++i)
+                    boneIndex[ordered[i]] = static_cast<int32_t>(i);
+            }
+
+            // Per-mesh inverse binds: start from skeleton, overlay this FBX's skin clusters.
+            auto& meshIbps = mesh->GetInverseBindPoses();
+            meshIbps.assign(InSkeleton->GetNumBones(), glm::mat4(1.0f));
+            for (size_t i = 0; i < InSkeleton->GetNumBones(); ++i)
+                meshIbps[i] = InSkeleton->GetBones()[i].InverseBindPose;
+
+            glm::mat4 meshGeomToWorld(1.0f);
+            bool bHaveMeshGeom = false;
+            for (size_t ni = 0; ni < InScene->nodes.count; ++ni) {
+                const ufbx_node* node = InScene->nodes.data[ni];
+                if (!node || !node->mesh || node->mesh->skin_deformers.count == 0)
+                    continue;
+                meshGeomToWorld = UfbxMatrixToGlm(node->geometry_to_world);
+                bHaveMeshGeom = true;
+                const ufbx_skin_deformer* skin = node->mesh->skin_deformers.data[0];
+                if (!skin)
+                    continue;
+                const glm::mat4 invMeshGeom = glm::inverse(meshGeomToWorld);
+                for (size_t ci = 0; ci < skin->clusters.count; ++ci) {
+                    const ufbx_skin_cluster* cluster = skin->clusters.data[ci];
+                    if (!cluster || !cluster->bone_node)
+                        continue;
+                    auto it = boneIndex.find(cluster->bone_node);
+                    if (it == boneIndex.end() || it->second < 0)
+                        continue;
+                    meshIbps[static_cast<size_t>(it->second)] =
+                        UfbxMatrixToGlm(cluster->geometry_to_bone) * invMeshGeom;
+                }
+                break;
+            }
+            (void)bHaveMeshGeom;
 
             auto& verts = mesh->GetVertices();
             auto& indices = mesh->GetIndices();

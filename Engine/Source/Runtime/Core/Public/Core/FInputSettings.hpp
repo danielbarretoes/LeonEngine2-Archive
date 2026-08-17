@@ -89,6 +89,13 @@ namespace Leon {
         int SprintKey = Key::LeftShift;
         int JumpKey = Key::Space;
 
+        /** Xbox Series S/X (and compatible) via GLFW gamepad mapping. */
+        bool bEnableGamepad = true;
+        int GamepadId = 0;
+        float GamepadDeadzone = 0.18f;
+        float GamepadLookSpeed = 220.0f; // degrees / second at full stick
+        float GamepadTriggerThreshold = 0.35f;
+
         static constexpr const char* kSection = "/Script/Engine.InputSettings";
 
         void LoadFromConfig(const FConfigFile& InConfig) {
@@ -102,6 +109,12 @@ namespace Leon {
             MoveDownKey = FKeyName::FromString(InConfig.GetString(kSection, "MoveDownKey", "LeftControl"), MoveDownKey);
             SprintKey = FKeyName::FromString(InConfig.GetString(kSection, "SprintKey", "LeftShift"), SprintKey);
             JumpKey = FKeyName::FromString(InConfig.GetString(kSection, "JumpKey", "Space"), JumpKey);
+            bEnableGamepad = InConfig.GetBool(kSection, "bEnableGamepad", bEnableGamepad);
+            GamepadId = InConfig.GetInt(kSection, "GamepadId", GamepadId);
+            GamepadDeadzone = InConfig.GetFloat(kSection, "GamepadDeadzone", GamepadDeadzone);
+            GamepadLookSpeed = InConfig.GetFloat(kSection, "GamepadLookSpeed", GamepadLookSpeed);
+            GamepadTriggerThreshold =
+                InConfig.GetFloat(kSection, "GamepadTriggerThreshold", GamepadTriggerThreshold);
         }
 
         static FInputSettings& GetMutable() {

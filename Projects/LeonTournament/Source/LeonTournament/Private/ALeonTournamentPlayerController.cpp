@@ -1,7 +1,9 @@
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentGameState.hpp"
 #include "Core/FInput.hpp"
+#include "Core/FInputSettings.hpp"
 #include "Engine/UWorld.hpp"
+#include "Gameplay/UGameplayStatics.hpp"
 
 #include <algorithm>
 
@@ -32,7 +34,16 @@ namespace Leon {
             }
         }
         bScoreboardHeld = FInput::IsKeyPressed(Key::Tab);
-        const bool bEsc = FInput::IsKeyPressed(Key::Escape);
+        const FInputSettings& input = FInputSettings::Get();
+        if (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
+            (FInput::IsGamepadButtonPressed(GamepadButton::Back, input.GamepadId) ||
+             FInput::IsGamepadButtonPressed(GamepadButton::Y, input.GamepadId)))
+            bScoreboardHeld = true;
+
+        const bool bEsc =
+            FInput::IsKeyPressed(Key::Escape) ||
+            (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
+             FInput::IsGamepadButtonPressed(GamepadButton::Start, input.GamepadId));
         bEscapePressed = bEsc && !bEscapeWasDown;
         bEscapeWasDown = bEsc;
 
@@ -49,12 +60,15 @@ namespace Leon {
 
     void ALeonTournamentPlayerController::NotifyConfirmedHit(bool bKill) {
         HitMarkerRemaining = kHitMarkerSeconds;
-        if (bKill)
+        if (bKill) {
             KillConfirmRemaining = kKillConfirmSeconds;
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_KillConfirm", 0.75f);
+        }
     }
 
     void ALeonTournamentPlayerController::NotifyTookDamage() {
         DamageFlashRemaining = kDamageFlashSeconds;
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_DamageTaken", 0.7f);
     }
 
 } // namespace Leon

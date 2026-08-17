@@ -17,6 +17,8 @@
 #include "Engine/UEngine.hpp"
 #include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/ACharacter.hpp"
+#include "Gameplay/AProjectile.hpp"
+#include "Gameplay/UProjectileMovementComponent.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Assets/UStaticMesh.hpp"
 #include "Core/FProjectDescriptor.hpp"
@@ -204,6 +206,22 @@ namespace Leon {
             CHECK(viewCam.GetPosition().x == doctest::Approx(10.0f));
             CHECK(viewCam.GetPosition().y == doctest::Approx(5.0f));
             CHECK(viewCam.GetPosition().z == doctest::Approx(20.0f));
+        }
+
+        TEST_CASE("12b. AProjectile movement") {
+            auto world = UWorld::Create("ProjectileWorld");
+            auto* proj = world->SpawnActor<AProjectile>("Rocket");
+            REQUIRE(proj != nullptr);
+            REQUIRE(proj->GetProjectileMovement() != nullptr);
+            proj->SetActorLocation({0.0f, 2.0f, 0.0f});
+            proj->GetProjectileMovement()->InitialSpeed = 10.0f;
+            proj->GetProjectileMovement()->ProjectileGravityScale = 0.0f;
+            proj->SetInitialLifeSpan(2.0f);
+            proj->InitVelocity({0.0f, 0.0f, 1.0f});
+            world->BeginPlay();
+            world->Tick(FTimestep(0.05f));
+            CHECK(proj->GetActorLocation().z == doctest::Approx(0.5f).epsilon(0.25f));
+            CHECK_FALSE(proj->HasExploded());
         }
 
         TEST_CASE("13. Default camera fallback") {

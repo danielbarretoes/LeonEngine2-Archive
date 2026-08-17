@@ -51,19 +51,39 @@ namespace Leon {
 
     void FAnimRuntime::SampleSequence(const UAnimSequence& InSequence, const USkeleton& InSkeleton, float InTime,
                                       bool bLoop, FPose& OutPose) {
+        // Flow: sample anim onto any compatible skeleton
+        // 1. Start from target rest pose (correct bind lengths / mesh IBPs)
+        // 2. Drive bones from tracks linked by name
+        // 3. Non-root: preserve target bone translation length (Mixamo retarget); root keeps authored motion
         RestPose(InSkeleton, OutPose);
         float t = InSequence.WrapTime(InTime, bLoop);
         const auto& tracks = InSequence.GetTracks();
         const auto& map = InSequence.GetTrackToBone();
+        const auto& bones = InSkeleton.GetBones();
         for (size_t i = 0; i < tracks.size(); ++i) {
             int32_t bone = (i < map.size()) ? map[i] : InSkeleton.FindBoneIndex(tracks[i].BoneName);
             if (bone < 0 || bone >= static_cast<int32_t>(OutPose.Num()))
                 continue;
             FBoneTransform& xf = OutPose.LocalTransforms[static_cast<size_t>(bone)];
-            const FBoneTransform& rest = InSkeleton.GetBones()[static_cast<size_t>(bone)].RestLocal;
-            xf.Translation = SampleVecKeys(tracks[i].TranslationKeys, t, rest.Translation);
+            const FBoneTransform& rest = bones[static_cast<size_t>(bone)].RestLocal;
+            const glm::vec3 animT = SampleVecKeys(tracks[i].TranslationKeys, t, rest.Translation);
             xf.Rotation = SampleQuatKeys(tracks[i].RotationKeys, t, rest.Rotation);
             xf.Scale = SampleVecKeys(tracks[i].ScaleKeys, t, rest.Scale);
+
+            const bool bRoot = bones[static_cast<size_t>(bone)].ParentIndex < 0;
+            if (bRoot) {
+                xf.Translation = animT;
+            } else {
+                // Keep target skeleton proportions; apply anim translation only as a direction/delta length.
+                const float restLen = glm::length(rest.Translation);
+                const float animLen = glm::length(animT);
+                if (restLen > 1e-5f && animLen > 1e-5f)
+                    xf.Translation = animT * (restLen / animLen);
+                else
+                    xf.Translation = rest.Translation;
+                // Avoid foreign bind scales crushing the mesh when retargeting across Mixamo characters.
+                xf.Scale = rest.Scale;
+            }
         }
     }
 
@@ -141,11 +161,19 @@ namespace Leon {
 
     void FAnimRuntime::BuildSkinningPalette(const USkeleton& InSkeleton, const std::vector<glm::mat4>& InComponent,
                                             std::vector<glm::mat4>& OutPalette) {
+        BuildSkinningPalette(InSkeleton, InComponent, {}, OutPalette);
+    }
+
+    void FAnimRuntime::BuildSkinningPalette(const USkeleton& InSkeleton, const std::vector<glm::mat4>& InComponent,
+                                            const std::vector<glm::mat4>& InMeshInverseBinds,
+                                            std::vector<glm::mat4>& OutPalette) {
         const auto& bones = InSkeleton.GetBones();
         OutPalette.resize(bones.size(), glm::mat4(1.0f));
         for (size_t i = 0; i < bones.size(); ++i) {
             glm::mat4 component = i < InComponent.size() ? InComponent[i] : glm::mat4(1.0f);
-            OutPalette[i] = component * bones[i].InverseBindPose;
+            const glm::mat4& ibp =
+                (i < InMeshInverseBinds.size()) ? InMeshInverseBinds[i] : bones[i].InverseBindPose;
+            OutPalette[i] = component * ibp;
         }
     }
 

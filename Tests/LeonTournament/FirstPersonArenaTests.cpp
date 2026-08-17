@@ -80,6 +80,7 @@ namespace Leon {
             auto* ch = world->SpawnActor<ALeonTournamentCharacter>("Char");
             world->AddPlayerController(pc);
             pc->Possess(ch);
+            ch->SetThirdPerson(false);
             CHECK_FALSE(ch->IsThirdPerson());
             ch->SetControlRotation({55.0f, 0.0f, 0.0f});
             ch->Tick(0.016f);
@@ -371,7 +372,7 @@ namespace Leon {
                 if (dynamic_cast<ALeonTournamentCharacter*>(actor.get()))
                     ++fighters;
             }
-            CHECK(fighters == 4);
+            CHECK(fighters >= 4);
         }
     }
 

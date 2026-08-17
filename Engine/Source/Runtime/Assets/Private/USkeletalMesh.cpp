@@ -177,6 +177,11 @@ namespace Leon {
             file.write(reinterpret_cast<const char*>(Vertices.data()), Vertices.size() * sizeof(FSkinnedMeshVertex));
         if (!Indices.empty())
             file.write(reinterpret_cast<const char*>(Indices.data()), Indices.size() * sizeof(uint32_t));
+
+        uint32_t bindCount = static_cast<uint32_t>(InverseBindPoses.size());
+        file.write(reinterpret_cast<const char*>(&bindCount), sizeof(bindCount));
+        if (bindCount > 0)
+            file.write(reinterpret_cast<const char*>(InverseBindPoses.data()), bindCount * sizeof(glm::mat4));
         return file.good();
     }
 
@@ -190,7 +195,7 @@ namespace Leon {
         uint32_t magic = 0, version = 0, vertexCount = 0, indexCount = 0, submeshCount = 0, materialSlotCount = 0;
         file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
         file.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (magic != LSKELETALMESH_MAGIC || version != LSKELETALMESH_VERSION) {
+        if (magic != LSKELETALMESH_MAGIC || (version != 1 && version != LSKELETALMESH_VERSION)) {
             LE_CORE_ERROR("USkeletalMesh: Invalid magic/version in \"{0}\"", InFilePath);
             return false;
         }
@@ -220,7 +225,7 @@ namespace Leon {
             file.read(reinterpret_cast<char*>(&sm.VertexOffset), sizeof(sm.VertexOffset));
             file.read(reinterpret_cast<char*>(&sm.VertexCount), sizeof(sm.VertexCount));
             file.read(reinterpret_cast<char*>(&sm.MaterialSlotIndex), sizeof(sm.MaterialSlotIndex));
-            file.read(reinterpret_cast<char*>(&sm.LocalTransform), sizeof(glm::mat4));
+            file.read(reinterpret_cast<char*>(&sm.LocalTransform), sizeof(sm.LocalTransform));
             file.read(reinterpret_cast<char*>(&sm.BoundsMin), sizeof(glm::vec3));
             file.read(reinterpret_cast<char*>(&sm.BoundsMax), sizeof(glm::vec3));
         }
@@ -235,6 +240,17 @@ namespace Leon {
         Indices.resize(indexCount);
         if (indexCount > 0)
             file.read(reinterpret_cast<char*>(Indices.data()), indexCount * sizeof(uint32_t));
+
+        InverseBindPoses.clear();
+        if (version >= 2) {
+            uint32_t bindCount = 0;
+            file.read(reinterpret_cast<char*>(&bindCount), sizeof(bindCount));
+            if (!file || bindCount > 4096)
+                return false;
+            InverseBindPoses.resize(bindCount);
+            if (bindCount > 0)
+                file.read(reinterpret_cast<char*>(InverseBindPoses.data()), bindCount * sizeof(glm::mat4));
+        }
 
         AssetPath = InFilePath;
         if (!SkeletonPath.empty())

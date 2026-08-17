@@ -87,6 +87,8 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentPlayerState.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentBotController.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentWeapon.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentProjectile.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentPickup.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentHUD.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentDummy.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentAnimLabGameMode.cpp

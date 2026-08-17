@@ -38,6 +38,10 @@ namespace Leon {
         const FLeonTournamentMatchConfig& GetMatchConfig() const { return Config; }
         void SetMatchConfig(const FLeonTournamentMatchConfig& InConfig) { Config = InConfig; }
 
+        bool PrefersThirdPerson() const { return bPreferThirdPerson; }
+        void SetPreferThirdPerson(bool bEnabled) { bPreferThirdPerson = bEnabled; }
+        void ApplyCameraPreference(ALeonTournamentCharacter* InCharacter);
+
         void EnterMainMenu();
         void EnterLobby();
         void RequestStartMatch();
@@ -58,12 +62,18 @@ namespace Leon {
 
         bool CanDamage(const ALeonTournamentCharacter& InInstigator, const ALeonTournamentCharacter& InTarget) const;
         void FillBotsToCapacity();
+        void SyncLobbyBots();
+        void ClearAllBots();
         int32_t CountTeam(ELeonTournamentTeam InTeam) const;
+        int32_t CountHumans() const;
+        int32_t CountBotsOnTeam(ELeonTournamentTeam InTeam) const;
 
         std::vector<ALeonTournamentPlayerState*> GetSortedScoreboard() const;
 
         void BuildArena();
         void EnsurePlayableLighting();
+        void TryApplyCachedArenaLightmaps();
+        void TryBakeArenaLighting();
 
     private:
         void RefreshTeamCounts();
@@ -75,10 +85,13 @@ namespace Leon {
         bool ShouldFillBotsOnEnterLobby() const;
         bool IsCombatAllowed() const;
         void ValidateSpawnedCharacter(ALeonTournamentCharacter& InCharacter, ELeonTournamentTeam InTeam);
+        void ApplyMatchCapacityFromLobby();
 
         FLeonTournamentMatchConfig Config;
         float StartingRemaining = 0.0f;
         bool bArenaBuilt = false;
+        bool bArenaLightingBaked = false;
+        bool bPreferThirdPerson = true;
         std::vector<glm::vec3> Waypoints;
         std::vector<glm::vec3> CoverPoints;
         std::vector<glm::vec3> Team1Spawns;

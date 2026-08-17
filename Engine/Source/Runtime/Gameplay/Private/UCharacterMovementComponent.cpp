@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace Leon {
@@ -28,6 +29,12 @@ namespace Leon {
 
     void UCharacterMovementComponent::ConsumeInputVector() { PendingInputVector = glm::vec3(0.0f); }
 
+    void UCharacterMovementComponent::AddImpulse(const glm::vec3& InImpulse) {
+        Velocity += InImpulse;
+        if (InImpulse.y > 0.25f || !IsMovingOnGround())
+            SetMovementMode(EMovementMode::Falling);
+    }
+
     void UCharacterMovementComponent::SetMovementMode(EMovementMode InMode) {
         if (MovementMode == InMode)
             return;
@@ -36,6 +43,7 @@ namespace Leon {
         if (auto* character = GetCharacter())
             character->OnMovementModeChanged(prev, InMode);
         if (prev == EMovementMode::Falling && (InMode == EMovementMode::Walking || InMode == EMovementMode::NavWalking)) {
+            JumpCurrentCount = 0;
             if (auto* character = GetCharacter()) {
                 FHitResult land;
                 land.bBlockingHit = true;
@@ -48,7 +56,13 @@ namespace Leon {
         }
     }
 
-    bool UCharacterMovementComponent::CanJump() const { return IsMovingOnGround(); }
+    bool UCharacterMovementComponent::CanJump() const {
+        if (IsMovingOnGround())
+            return true;
+        if (IsFalling() && JumpCurrentCount < JumpMaxCount)
+            return true;
+        return false;
+    }
 
     void UCharacterMovementComponent::Jump() { bPressedJump = true; }
 
@@ -57,7 +71,9 @@ namespace Leon {
     bool UCharacterMovementComponent::DoJump() {
         if (!CanJump())
             return false;
-        Velocity.y = JumpZVelocity;
+        const float scale = (JumpCurrentCount == 0) ? 1.0f : 0.88f;
+        Velocity.y = JumpZVelocity * scale;
+        ++JumpCurrentCount;
         SetMovementMode(EMovementMode::Falling);
         bPressedJump = false;
         return true;
@@ -194,6 +210,7 @@ namespace Leon {
 
     void UCharacterMovementComponent::ResetForRespawn() {
         StopMovementImmediately();
+        JumpCurrentCount = 0;
         SetMovementMode(EMovementMode::Walking);
     }
 

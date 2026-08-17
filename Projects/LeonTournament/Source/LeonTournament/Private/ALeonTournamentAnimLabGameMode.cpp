@@ -5,13 +5,14 @@
 #include "ALeonTournamentPlayerState.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Core/FApplication.hpp"
-#include "Core/FInput.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
+
+#include <cmath>
 
 namespace Leon {
 
@@ -56,6 +57,7 @@ namespace Leon {
         cfg.MaxTeamSize = 1;
         cfg.RespawnDelaySeconds = 4.0f;
         cfg.StartCountdownSeconds = 0.0f;
+        cfg.MatchDurationSeconds = 0.0f;
         SetMatchConfig(cfg);
     }
 
@@ -72,22 +74,43 @@ namespace Leon {
         ALeonTournamentGameMode::InitGame();
     }
 
-    void ALeonTournamentAnimLabGameMode::ApplyCameraPreference(ALeonTournamentCharacter* InCharacter) {
-        if (!InCharacter)
+    void ALeonTournamentAnimLabGameMode::StartPlay() {
+        if (World && World->GetNetMode() == ENetMode::Client)
             return;
-        InCharacter->SetThirdPerson(bPreferThirdPerson);
-        InCharacter->SetFloorZ(0.0f);
+        DefaultPawnClass = "ALeonTournamentCharacter";
+        AGameModeBase::StartPlay();
+        BuildAnimLab();
+        EnsureLabColliders();
+        if (auto* gs = GetGameState())
+            gs->SetMatchState(ELeonTournamentMatchState::Playing);
+        if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
+            pc->SetInputModeGameOnly();
+            if (auto* pawn = pc->GetPawn<ALeonTournamentCharacter>())
+                ApplyCameraPreference(pawn);
+            else if (pc->GetPawn()) {
+                RestartPlayer(pc);
+            }
+            if (auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(pc->GetPlayerState())) {
+                if (ps->GetTeam() == ELeonTournamentTeam::None)
+                    ps->SetTeam(ELeonTournamentTeam::Team1);
+            }
+        }
+        SpawnDummy();
     }
 
-    void ALeonTournamentAnimLabGameMode::HandleCameraToggle() {
-        const bool bDown = FInput::IsKeyPressed(Key::V);
-        const bool bEdge = bDown && !bCameraToggleWasDown;
-        bCameraToggleWasDown = bDown;
-        if (!bEdge)
+    void ALeonTournamentAnimLabGameMode::Tick(float DeltaSeconds) {
+        ALeonTournamentGameMode::Tick(DeltaSeconds);
+        if (World && World->GetNetMode() == ENetMode::Client)
             return;
-        bPreferThirdPerson = !bPreferThirdPerson;
-        if (auto* pc = World ? World->GetFirstPlayerController() : nullptr)
-            ApplyCameraPreference(pc->GetPawn<ALeonTournamentCharacter>());
+        auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(World ? World->GetFirstPlayerController() : nullptr);
+        if (pc && pc->ConsumeEscapePressed())
+            ReturnToMenu();
+        TickDummyRespawn(DeltaSeconds);
+    }
+
+    void ALeonTournamentAnimLabGameMode::RestartPlayer(AController* NewPlayer) {
+        AGameModeBase::RestartPlayer(NewPlayer);
+        ApplyCameraPreference(NewPlayer ? NewPlayer->GetPawn<ALeonTournamentCharacter>() : nullptr);
     }
 
     void ALeonTournamentAnimLabGameMode::TickDummyRespawn(float DeltaSeconds) {
@@ -108,39 +131,28 @@ namespace Leon {
         }
     }
 
-    void ALeonTournamentAnimLabGameMode::StartPlay() {
-        if (World && World->GetNetMode() == ENetMode::Client)
+    void ALeonTournamentAnimLabGameMode::EnsureLabColliders() {
+        if (!World)
             return;
-        AGameModeBase::StartPlay();
-        BuildAnimLab();
-        EnsurePlayableLighting();
-        if (auto* gs = GetGameState())
-            gs->SetMatchState(ELeonTournamentMatchState::Playing);
-        if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
-            pc->SetInputModeGameOnly();
-            ApplyCameraPreference(pc->GetPawn<ALeonTournamentCharacter>());
-            if (auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(pc->GetPlayerState())) {
-                if (ps->GetTeam() == ELeonTournamentTeam::None)
-                    ps->SetTeam(ELeonTournamentTeam::Team1);
-            }
+        auto ensureBox = [](AActor* actor, const glm::vec3& extent) {
+            if (!actor || actor->FindActorComponent<UBoxComponent>())
+                return;
+            auto box = actor->AddActorComponent<UBoxComponent>("Box");
+            box->SetBoxExtent(extent);
+            box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
+            box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        };
+        if (AActor* floor = World->FindActorByName("LabFloor")) {
+            const auto& scale = floor->GetActorScale();
+            if (std::abs(scale.x - 1.0f) < 0.01f && std::abs(scale.z - 1.0f) < 0.01f)
+                ensureBox(floor, {16.0f, 0.25f, 16.0f});
+            else
+                ensureBox(floor, {0.5f, 0.5f, 0.5f});
         }
-        SpawnDummy();
-    }
-
-    void ALeonTournamentAnimLabGameMode::Tick(float DeltaSeconds) {
-        ALeonTournamentGameMode::Tick(DeltaSeconds);
-        if (World && World->GetNetMode() == ENetMode::Client)
-            return;
-        auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(World ? World->GetFirstPlayerController() : nullptr);
-        if (pc && pc->ConsumeEscapePressed())
-            ReturnToMenu();
-        HandleCameraToggle();
-        TickDummyRespawn(DeltaSeconds);
-    }
-
-    void ALeonTournamentAnimLabGameMode::RestartPlayer(AController* NewPlayer) {
-        AGameModeBase::RestartPlayer(NewPlayer);
-        ApplyCameraPreference(NewPlayer ? NewPlayer->GetPawn<ALeonTournamentCharacter>() : nullptr);
+        for (const char* name : {"LabWallN", "LabWallS", "LabWallW", "LabWallE", "JumpPadLow", "JumpPadHigh",
+                                 "FallLedge"}) {
+            ensureBox(World->FindActorByName(name), {0.5f, 0.5f, 0.5f});
+        }
     }
 
     void ALeonTournamentAnimLabGameMode::BuildAnimLab() {

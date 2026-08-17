@@ -119,7 +119,7 @@ namespace Leon {
                         body->LinearVelocity.z *= 0.35f;
                     }
                     // Soft arena clamp so dead bodies do not leave the playable volume.
-                    constexpr float kArenaHalf = 22.0f;
+                    constexpr float kArenaHalf = 35.0f;
                     actorLoc.x = std::clamp(actorLoc.x, -kArenaHalf, kArenaHalf);
                     actorLoc.z = std::clamp(actorLoc.z, -kArenaHalf, kArenaHalf);
                     body->Location = actorLoc + relative;

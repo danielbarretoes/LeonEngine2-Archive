@@ -34,7 +34,7 @@ namespace Leon {
     constexpr uint32_t LANIM_MAGIC = 0x4D4E414C;         // 'LANM'
     constexpr uint32_t LBLEND_MAGIC = 0x444C424C;        // 'LBLD'
     constexpr uint32_t LSKELETON_VERSION = 1;
-    constexpr uint32_t LSKELETALMESH_VERSION = 1;
+    constexpr uint32_t LSKELETALMESH_VERSION = 2;
     constexpr uint32_t LANIM_VERSION = 1;
     constexpr uint32_t LBLEND_VERSION = 1;
 

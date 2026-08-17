@@ -1,6 +1,7 @@
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ALeonTournamentPlayerController.hpp"
+#include "ALeonTournamentPickup.hpp"
 #include "ULeonTournamentGameInstance.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Core/FApplication.hpp"
@@ -13,17 +14,24 @@
 #include "Engine/Components.hpp"
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/FMapSerializer.hpp"
 #include "Core/FLog.hpp"
 #include "Core/FFrameProfiler.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Lightmass/FLightmass.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
+#include "Renderer/FMaterial.hpp"
 #include "Core/FWorldUnits.hpp"
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <random>
+#include <string>
+#include <vector>
 
 namespace Leon {
 
@@ -34,8 +42,43 @@ namespace Leon {
             return dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get());
         }
 
+        ELeonTournamentCharacterSkin RandomBotCharacterSkin() {
+            static thread_local std::mt19937 rng{std::random_device{}()};
+            std::uniform_int_distribution<int> dist(
+                0, static_cast<int>(ELeonTournamentCharacterSkin::Count) - 1);
+            return static_cast<ELeonTournamentCharacterSkin>(dist(rng));
+        }
+
+        void SyncLocalPlayerCharacterSkin(ALeonTournamentPlayerState* InPs) {
+            if (!InPs || InPs->IsBot())
+                return;
+            if (auto* gi = GetLeonTournamentGameInstance())
+                InPs->SetCharacterSkin(gi->GetSelectedCharacterSkin());
+        }
+
+        enum class EArenaSurface : uint8_t { Floor = 0, Wall = 1, Prop = 2, Metal = 3, Accent = 4, Ceiling = 5 };
+
+        const char* ArenaMaterialPath(EArenaSurface InSurface) {
+            switch (InSurface) {
+            case EArenaSurface::Floor:
+                return "/Game/Materials/M_LabFloor.lmat";
+            case EArenaSurface::Wall:
+                return "/Game/Materials/M_LabWall.lmat";
+            case EArenaSurface::Metal:
+                return "/Game/Materials/M_ArenaMetal.lmat";
+            case EArenaSurface::Accent:
+                return "/Game/Materials/M_ArenaAccent.lmat";
+            case EArenaSurface::Ceiling:
+                return "/Game/Materials/M_LabProp.lmat";
+            case EArenaSurface::Prop:
+            default:
+                return "/Game/Materials/M_LabProp.lmat";
+            }
+        }
+
         AActor* SpawnCollisionBox(UWorld* InWorld, const std::string& InName, const glm::vec3& InLocation,
-                                  const glm::vec3& InScale, const glm::vec3& InColor) {
+                                  const glm::vec3& InScale, EArenaSurface InSurface,
+                                  const glm::vec3& InTint = glm::vec3(1.0f), float InUvTile = 1.0f) {
             if (!InWorld)
                 return nullptr;
             AActor* actor = InWorld->SpawnActor<AActor>(InName);
@@ -53,13 +96,64 @@ namespace Leon {
                     mesh.MeshType = "Cube";
                     mesh.MeshSize = 1.0f;
                     mesh.Mobility = EComponentMobility::Static;
-                    if (auto parent = UAssetManager::GetDefaultMaterial()) {
+                    mesh.LightmapResolution = 64;
+                    mesh.bCastShadows = true;
+                    mesh.bReceiveShadows = true;
+                    mesh.bVisibleInReflection = true;
+                    if (auto mat = UAssetManager::GetMaterialInstance(ArenaMaterialPath(InSurface))) {
+                        mat->SetAlbedoColor(InTint);
+                        if (InUvTile > 0.0f)
+                            mat->SetUVTiling({InUvTile, InUvTile});
+                        if (InSurface == EArenaSurface::Floor || InSurface == EArenaSurface::Metal)
+                            mat->SetUsePlanarReflection(true);
+                        actor->AddComponent<FMaterialComponent>(mat);
+                    } else if (auto parent = UAssetManager::GetDefaultMaterial()) {
                         auto inst = parent->CreateInstance(InName + "Mat");
-                        inst->SetAlbedoColor(InColor);
+                        inst->SetAlbedoColor(InTint);
                         actor->AddComponent<FMaterialComponent>(inst);
                     }
                 }
             }
+            return actor;
+        }
+
+        AActor* SpawnPointLight(UWorld* InWorld, const std::string& InName, const glm::vec3& InPos,
+                                const glm::vec3& InColor, float InIntensity, float InRadius,
+                                ELightMobility InMobility = ELightMobility::Stationary) {
+            if (!InWorld)
+                return nullptr;
+            AActor* actor = InWorld->SpawnActor<AActor>(InName);
+            actor->SetActorLocation(InPos);
+            UPointLightComponent light;
+            light.bEnabled = true;
+            light.Mobility = InMobility;
+            light.Light.Position = InPos;
+            light.Light.Color = InColor;
+            light.Light.Intensity = InIntensity;
+            light.Light.Radius = InRadius;
+            actor->AddComponent<UPointLightComponent>(light);
+            return actor;
+        }
+
+        AActor* SpawnSpotLight(UWorld* InWorld, const std::string& InName, const glm::vec3& InPos,
+                               const glm::vec3& InDir, const glm::vec3& InColor, float InIntensity, float InRadius,
+                               float InInnerDeg, float InOuterDeg,
+                               ELightMobility InMobility = ELightMobility::Stationary) {
+            if (!InWorld)
+                return nullptr;
+            AActor* actor = InWorld->SpawnActor<AActor>(InName);
+            actor->SetActorLocation(InPos);
+            USpotLightComponent light;
+            light.bEnabled = true;
+            light.Mobility = InMobility;
+            light.Light.Position = InPos;
+            light.Light.Direction = glm::normalize(InDir);
+            light.Light.Color = InColor;
+            light.Light.Intensity = InIntensity;
+            light.Light.Radius = InRadius;
+            light.Light.CutOff = InInnerDeg;
+            light.Light.OuterCutOff = InOuterDeg;
+            actor->AddComponent<USpotLightComponent>(light);
             return actor;
         }
 
@@ -124,6 +218,7 @@ namespace Leon {
             if (ps->GetTeam() == ELeonTournamentTeam::None)
                 ps->SetTeam(AssignTeam());
             ps->SetIsBot(false);
+            SyncLocalPlayerCharacterSkin(ps);
         }
         RefreshTeamCounts();
         return pc;
@@ -150,10 +245,11 @@ namespace Leon {
                 if (ps->GetTeam() == ELeonTournamentTeam::None)
                     ps->SetTeam(AssignTeam());
                 ps->SetIsBot(false);
+                SyncLocalPlayerCharacterSkin(ps);
             }
         }
         if (ShouldFillBotsOnEnterLobby())
-            FillBotsToCapacity();
+            SyncLobbyBots();
         RefreshTeamCounts();
     }
 
@@ -168,6 +264,11 @@ namespace Leon {
     bool ALeonTournamentGameMode::IsCombatAllowed() const {
         auto* gs = GetGameState();
         return gs && gs->GetMatchState() == ELeonTournamentMatchState::Playing;
+    }
+
+    void ALeonTournamentGameMode::ApplyMatchCapacityFromLobby() {
+        Config.MaxPlayers = 12;
+        Config.MaxTeamSize = 6;
     }
 
     ELeonTournamentTeam ALeonTournamentGameMode::AssignTeam() {
@@ -192,6 +293,30 @@ namespace Leon {
         return n;
     }
 
+    int32_t ALeonTournamentGameMode::CountHumans() const {
+        int32_t n = 0;
+        if (!GameState)
+            return 0;
+        for (APlayerState* ps : GameState->GetPlayerArray()) {
+            auto* sps = dynamic_cast<ALeonTournamentPlayerState*>(ps);
+            if (sps && !sps->IsBot())
+                ++n;
+        }
+        return n;
+    }
+
+    int32_t ALeonTournamentGameMode::CountBotsOnTeam(ELeonTournamentTeam InTeam) const {
+        int32_t n = 0;
+        if (!GameState)
+            return 0;
+        for (APlayerState* ps : GameState->GetPlayerArray()) {
+            auto* sps = dynamic_cast<ALeonTournamentPlayerState*>(ps);
+            if (sps && sps->IsBot() && sps->GetTeam() == InTeam)
+                ++n;
+        }
+        return n;
+    }
+
     void ALeonTournamentGameMode::RefreshTeamCounts() {
         if (auto* gs = GetGameState()) {
             gs->SetTeam1PlayerCount(CountTeam(ELeonTournamentTeam::Team1));
@@ -209,6 +334,7 @@ namespace Leon {
         ps->SetPlayerId(NextPlayerId++);
         ps->SetTeam(InTeam);
         ps->SetIsBot(true);
+        ps->SetCharacterSkin(RandomBotCharacterSkin());
         bot->SetPlayerState(ps);
         if (GameState)
             GameState->AddPlayerState(ps);
@@ -218,16 +344,65 @@ namespace Leon {
         return bot;
     }
 
-    void ALeonTournamentGameMode::FillBotsToCapacity() {
-        while (CountTeam(ELeonTournamentTeam::Team1) + CountTeam(ELeonTournamentTeam::Team2) < Config.MaxPlayers) {
-            ELeonTournamentTeam team = AssignTeam();
-            if (team == ELeonTournamentTeam::None)
-                break;
-            char name[32];
-            std::snprintf(name, sizeof(name), "Bot_%d", NextBotId++);
-            SpawnBot(team, name);
+    void ALeonTournamentGameMode::ClearAllBots() {
+        if (!World)
+            return;
+        std::vector<ALeonTournamentBotController*> bots;
+        for (AAIController* ai : World->GetAIControllers()) {
+            if (auto* bot = dynamic_cast<ALeonTournamentBotController*>(ai))
+                bots.push_back(bot);
+        }
+        for (ALeonTournamentBotController* bot : bots) {
+            APlayerState* ps = bot->GetPlayerState();
+            APawn* pawn = bot->GetPawn();
+            bot->UnPossess();
+            if (pawn)
+                World->DestroyActor(pawn);
+            World->DestroyActor(bot);
+            if (ps)
+                World->DestroyActor(ps);
         }
         RefreshTeamCounts();
+    }
+
+    void ALeonTournamentGameMode::SyncLobbyBots() {
+        ApplyMatchCapacityFromLobby();
+        if (!World || World->GetNetMode() == ENetMode::Client)
+            return;
+
+        int32_t want1 = 2;
+        int32_t want2 = 2;
+        if (auto* gi = GetLeonTournamentGameInstance()) {
+            want1 = gi->GetDesiredBotsTeam1();
+            want2 = gi->GetDesiredBotsTeam2();
+        }
+        const int32_t humans = CountHumans();
+        int32_t maxBots = std::max(0, Config.MaxPlayers - humans);
+        while (want1 + want2 > maxBots && (want1 > 0 || want2 > 0)) {
+            if (want1 >= want2 && want1 > 0)
+                --want1;
+            else if (want2 > 0)
+                --want2;
+            else
+                break;
+        }
+
+        ClearAllBots();
+        for (int32_t i = 0; i < want1; ++i) {
+            char name[32];
+            std::snprintf(name, sizeof(name), "Bot_T1_%d", NextBotId++);
+            SpawnBot(ELeonTournamentTeam::Team1, name);
+        }
+        for (int32_t i = 0; i < want2; ++i) {
+            char name[32];
+            std::snprintf(name, sizeof(name), "Bot_T2_%d", NextBotId++);
+            SpawnBot(ELeonTournamentTeam::Team2, name);
+        }
+        RefreshTeamCounts();
+    }
+
+    void ALeonTournamentGameMode::FillBotsToCapacity() {
+        SyncLobbyBots();
     }
 
     void ALeonTournamentGameMode::BuildArena() {
@@ -235,57 +410,72 @@ namespace Leon {
             return;
         bArenaBuilt = true;
 
-        SpawnCollisionBox(World, "Floor", {0.0f, -0.25f, 0.0f}, {48.0f, 0.5f, 48.0f}, {0.22f, 0.24f, 0.26f});
-        const glm::vec3 wallColor{0.16f, 0.18f, 0.20f};
-        const glm::vec3 mazeColor{0.20f, 0.22f, 0.26f};
-        const glm::vec3 coverColor{0.34f, 0.24f, 0.18f};
-        SpawnCollisionBox(World, "WallN", {0.0f, 2.5f, -24.0f}, {48.0f, 5.0f, 0.7f}, wallColor);
-        SpawnCollisionBox(World, "WallS", {0.0f, 2.5f, 24.0f}, {48.0f, 5.0f, 0.7f}, wallColor);
-        SpawnCollisionBox(World, "WallW", {-24.0f, 2.5f, 0.0f}, {0.7f, 5.0f, 48.0f}, wallColor);
-        SpawnCollisionBox(World, "WallE", {24.0f, 2.5f, 0.0f}, {0.7f, 5.0f, 48.0f}, wallColor);
+        constexpr float kHalf = 36.0f;
+        constexpr float kCeilY = 7.25f;
+        constexpr float kWallH = 8.0f;
 
-        SpawnCollisionBox(World, "MazeW_A", {-8.0f, 2.25f, -20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeW_B", {-8.0f, 2.25f, -8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeW_C", {-8.0f, 2.25f, 8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeW_D", {-8.0f, 2.25f, 20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeE_A", {8.0f, 2.25f, -20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeE_B", {8.0f, 2.25f, -8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeE_C", {8.0f, 2.25f, 8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeE_D", {8.0f, 2.25f, 20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
-        SpawnCollisionBox(World, "MazeN_A", {-20.0f, 2.25f, -8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeN_B", {-8.0f, 2.25f, -8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeN_C", {8.0f, 2.25f, -8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeN_D", {20.0f, 2.25f, -8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeS_A", {-20.0f, 2.25f, 8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeS_B", {-8.0f, 2.25f, 8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeS_C", {8.0f, 2.25f, 8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
-        SpawnCollisionBox(World, "MazeS_D", {20.0f, 2.25f, 8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "Floor", {0.0f, -0.25f, 0.0f}, {kHalf * 2.0f, 0.5f, kHalf * 2.0f},
+                          EArenaSurface::Floor, {1.0f, 1.0f, 1.0f}, 8.0f);
+        SpawnCollisionBox(World, "Ceiling", {0.0f, kCeilY, 0.0f}, {kHalf * 2.0f, 0.5f, kHalf * 2.0f},
+                          EArenaSurface::Ceiling, {0.55f, 0.58f, 0.62f}, 4.0f);
+        SpawnCollisionBox(World, "WallN", {0.0f, kWallH * 0.5f, -kHalf}, {kHalf * 2.0f, kWallH, 0.8f},
+                          EArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
+        SpawnCollisionBox(World, "WallS", {0.0f, kWallH * 0.5f, kHalf}, {kHalf * 2.0f, kWallH, 0.8f},
+                          EArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
+        SpawnCollisionBox(World, "WallW", {-kHalf, kWallH * 0.5f, 0.0f}, {0.8f, kWallH, kHalf * 2.0f},
+                          EArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
+        SpawnCollisionBox(World, "WallE", {kHalf, kWallH * 0.5f, 0.0f}, {0.8f, kWallH, kHalf * 2.0f},
+                          EArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
 
-        SpawnCollisionBox(World, "CoverA", {-14.0f, 1.15f, -14.0f}, {3.2f, 2.3f, 1.2f}, coverColor);
-        SpawnCollisionBox(World, "CoverB", {14.0f, 1.15f, 14.0f}, {3.2f, 2.3f, 1.2f}, {0.18f, 0.28f, 0.40f});
-        SpawnCollisionBox(World, "CoverC", {-14.0f, 1.15f, 14.0f}, {1.4f, 2.3f, 3.2f}, {0.30f, 0.30f, 0.20f});
-        SpawnCollisionBox(World, "CoverD", {14.0f, 1.15f, -14.0f}, {1.4f, 2.3f, 3.2f}, {0.30f, 0.30f, 0.20f});
-        SpawnCollisionBox(World, "CoverMidW", {-3.0f, 1.15f, 0.0f}, {2.4f, 2.3f, 1.1f}, coverColor);
-        SpawnCollisionBox(World, "CoverMidE", {3.0f, 1.15f, 0.0f}, {2.4f, 2.3f, 1.1f}, {0.20f, 0.26f, 0.34f});
-        SpawnCollisionBox(World, "RampL", {-16.0f, 0.6f, 0.0f}, {4.0f, 1.2f, 2.0f}, {0.28f, 0.28f, 0.30f});
-        SpawnCollisionBox(World, "RampR", {16.0f, 0.6f, 0.0f}, {4.0f, 1.2f, 2.0f}, {0.28f, 0.28f, 0.30f});
+        auto maze = [&](const char* n, const glm::vec3& loc, const glm::vec3& sc) {
+            SpawnCollisionBox(World, n, loc, sc, EArenaSurface::Wall, {0.92f, 0.92f, 0.95f}, 2.0f);
+        };
+        maze("MazeW_A", {-12.0f, 2.2f, -28.0f}, {0.8f, 4.4f, 8.0f});
+        maze("MazeW_B", {-12.0f, 2.2f, -10.0f}, {0.8f, 4.4f, 12.0f});
+        maze("MazeW_C", {-12.0f, 2.2f, 10.0f}, {0.8f, 4.4f, 12.0f});
+        maze("MazeW_D", {-12.0f, 2.2f, 28.0f}, {0.8f, 4.4f, 8.0f});
+        maze("MazeE_A", {12.0f, 2.2f, -28.0f}, {0.8f, 4.4f, 8.0f});
+        maze("MazeE_B", {12.0f, 2.2f, -10.0f}, {0.8f, 4.4f, 12.0f});
+        maze("MazeE_C", {12.0f, 2.2f, 10.0f}, {0.8f, 4.4f, 12.0f});
+        maze("MazeE_D", {12.0f, 2.2f, 28.0f}, {0.8f, 4.4f, 8.0f});
+        maze("MazeN_A", {-28.0f, 2.2f, -12.0f}, {8.0f, 4.4f, 0.8f});
+        maze("MazeN_B", {-8.0f, 2.2f, -12.0f}, {14.0f, 4.4f, 0.8f});
+        maze("MazeN_C", {8.0f, 2.2f, -12.0f}, {14.0f, 4.4f, 0.8f});
+        maze("MazeN_D", {28.0f, 2.2f, -12.0f}, {8.0f, 4.4f, 0.8f});
+        maze("MazeS_A", {-28.0f, 2.2f, 12.0f}, {8.0f, 4.4f, 0.8f});
+        maze("MazeS_B", {-8.0f, 2.2f, 12.0f}, {14.0f, 4.4f, 0.8f});
+        maze("MazeS_C", {8.0f, 2.2f, 12.0f}, {14.0f, 4.4f, 0.8f});
+        maze("MazeS_D", {28.0f, 2.2f, 12.0f}, {8.0f, 4.4f, 0.8f});
 
-        SpawnCollisionBox(World, "ScaleCube1m", {0.0f, 0.5f, -20.0f}, {1.0f, 1.0f, 1.0f}, {0.9f, 0.2f, 0.2f});
-        SpawnCollisionBox(World, "ScaleCube10cm", {1.2f, 0.05f, -20.0f}, {0.1f, 0.1f, 0.1f}, {0.2f, 0.9f, 0.2f});
+        SpawnCollisionBox(World, "CoverA", {-22.0f, 1.15f, -22.0f}, {3.6f, 2.3f, 1.4f}, EArenaSurface::Prop);
+        SpawnCollisionBox(World, "CoverB", {22.0f, 1.15f, 22.0f}, {3.6f, 2.3f, 1.4f}, EArenaSurface::Metal,
+                          {0.7f, 0.75f, 0.85f});
+        SpawnCollisionBox(World, "CoverC", {-22.0f, 1.15f, 22.0f}, {1.6f, 2.3f, 3.6f}, EArenaSurface::Accent);
+        SpawnCollisionBox(World, "CoverD", {22.0f, 1.15f, -22.0f}, {1.6f, 2.3f, 3.6f}, EArenaSurface::Accent);
+        SpawnCollisionBox(World, "CoverMidW", {-4.0f, 1.15f, 0.0f}, {2.8f, 2.3f, 1.2f}, EArenaSurface::Metal);
+        SpawnCollisionBox(World, "CoverMidE", {4.0f, 1.15f, 0.0f}, {2.8f, 2.3f, 1.2f}, EArenaSurface::Metal);
+        SpawnCollisionBox(World, "CoverN", {0.0f, 1.15f, -20.0f}, {4.0f, 2.3f, 1.3f}, EArenaSurface::Prop);
+        SpawnCollisionBox(World, "CoverS", {0.0f, 1.15f, 20.0f}, {4.0f, 2.3f, 1.3f}, EArenaSurface::Prop);
+        SpawnCollisionBox(World, "PillarNW", {-18.0f, 2.5f, -18.0f}, {1.2f, 5.0f, 1.2f}, EArenaSurface::Metal);
+        SpawnCollisionBox(World, "PillarNE", {18.0f, 2.5f, -18.0f}, {1.2f, 5.0f, 1.2f}, EArenaSurface::Metal);
+        SpawnCollisionBox(World, "PillarSW", {-18.0f, 2.5f, 18.0f}, {1.2f, 5.0f, 1.2f}, EArenaSurface::Metal);
+        SpawnCollisionBox(World, "PillarSE", {18.0f, 2.5f, 18.0f}, {1.2f, 5.0f, 1.2f}, EArenaSurface::Metal);
 
-        Team1Spawns = {{-18.0f, 2.0f, -16.0f}, {-18.0f, 2.0f, -4.0f}, {-18.0f, 2.0f, 4.0f}, {-18.0f, 2.0f, 16.0f},
-                       {-16.0f, 2.0f, -16.0f}, {-16.0f, 2.0f, 16.0f}, {-20.0f, 2.0f, 0.0f}, {-14.0f, 2.0f, 0.0f}};
-        Team2Spawns = {{18.0f, 2.0f, 16.0f}, {18.0f, 2.0f, 4.0f},   {18.0f, 2.0f, -4.0f}, {18.0f, 2.0f, -16.0f},
-                       {16.0f, 2.0f, 16.0f}, {16.0f, 2.0f, -16.0f}, {20.0f, 2.0f, 0.0f},  {14.0f, 2.0f, 0.0f}};
-        Waypoints = {{-16.0f, 2.0f, -16.0f}, {-16.0f, 2.0f, 0.0f},  {-16.0f, 2.0f, 16.0f}, {0.0f, 2.0f, -16.0f},
-                     {0.0f, 2.0f, 0.0f},     {0.0f, 2.0f, 16.0f},   {16.0f, 2.0f, -16.0f}, {16.0f, 2.0f, 0.0f},
-                     {16.0f, 2.0f, 16.0f},   {-8.0f, 2.0f, 0.0f},   {8.0f, 2.0f, 0.0f},    {0.0f, 2.0f, -8.0f},
-                     {0.0f, 2.0f, 8.0f},     {-16.0f, 2.0f, -4.0f}, {-16.0f, 2.0f, 4.0f},  {16.0f, 2.0f, -4.0f},
-                     {16.0f, 2.0f, 4.0f},    {-4.0f, 2.0f, -16.0f}, {4.0f, 2.0f, -16.0f},  {-4.0f, 2.0f, 16.0f},
-                     {4.0f, 2.0f, 16.0f}};
-        CoverPoints = {{-16.0f, 2.0f, -12.0f}, {-12.0f, 2.0f, -16.0f}, {16.0f, 2.0f, 12.0f},  {12.0f, 2.0f, 16.0f},
-                       {-16.0f, 2.0f, 12.0f},  {-12.0f, 2.0f, 16.0f},  {16.0f, 2.0f, -12.0f}, {12.0f, 2.0f, -16.0f},
-                       {-5.0f, 2.0f, 0.0f},    {5.0f, 2.0f, 0.0f},     {0.0f, 2.0f, -10.0f},  {0.0f, 2.0f, 10.0f}};
+        Team1Spawns = {{-28.0f, 2.0f, -24.0f}, {-28.0f, 2.0f, -8.0f}, {-28.0f, 2.0f, 8.0f}, {-28.0f, 2.0f, 24.0f},
+                       {-24.0f, 2.0f, -24.0f}, {-24.0f, 2.0f, 24.0f}, {-30.0f, 2.0f, 0.0f}, {-20.0f, 2.0f, 0.0f},
+                       {-26.0f, 2.0f, -14.0f}, {-26.0f, 2.0f, 14.0f}};
+        Team2Spawns = {{28.0f, 2.0f, 24.0f}, {28.0f, 2.0f, 8.0f}, {28.0f, 2.0f, -8.0f}, {28.0f, 2.0f, -24.0f},
+                       {24.0f, 2.0f, 24.0f}, {24.0f, 2.0f, -24.0f}, {30.0f, 2.0f, 0.0f}, {20.0f, 2.0f, 0.0f},
+                       {26.0f, 2.0f, 14.0f}, {26.0f, 2.0f, -14.0f}};
+        Waypoints = {{-24.0f, 2.0f, -24.0f}, {-24.0f, 2.0f, 0.0f}, {-24.0f, 2.0f, 24.0f}, {0.0f, 2.0f, -24.0f},
+                     {0.0f, 2.0f, 0.0f},     {0.0f, 2.0f, 24.0f},  {24.0f, 2.0f, -24.0f}, {24.0f, 2.0f, 0.0f},
+                     {24.0f, 2.0f, 24.0f},   {-12.0f, 2.0f, 0.0f}, {12.0f, 2.0f, 0.0f},   {0.0f, 2.0f, -12.0f},
+                     {0.0f, 2.0f, 12.0f},    {-20.0f, 2.0f, -8.0f}, {20.0f, 2.0f, 8.0f},  {-8.0f, 2.0f, 20.0f},
+                     {8.0f, 2.0f, -20.0f}};
+        CoverPoints = {{-24.0f, 2.0f, -20.0f}, {-20.0f, 2.0f, -24.0f}, {24.0f, 2.0f, 20.0f},  {20.0f, 2.0f, 24.0f},
+                       {-24.0f, 2.0f, 20.0f},  {-20.0f, 2.0f, 24.0f},  {24.0f, 2.0f, -20.0f}, {20.0f, 2.0f, -24.0f},
+                       {-6.0f, 2.0f, 0.0f},    {6.0f, 2.0f, 0.0f},     {0.0f, 2.0f, -14.0f},  {0.0f, 2.0f, 14.0f},
+                       {-8.0f, 2.0f, -8.0f},   {8.0f, 2.0f, 8.0f}};
 
         if (!WorldHasTeamPlayerStart(World, 1)) {
             for (size_t i = 0; i < Team1Spawns.size(); ++i) {
@@ -306,7 +496,7 @@ namespace Leon {
 
         auto* navBounds = World->SpawnActor<ANavMeshBoundsVolume>("NavBounds");
         navBounds->SetActorLocation({0.0f, 1.0f, 0.0f});
-        navBounds->SetActorScale({46.0f, 2.0f, 46.0f});
+        navBounds->SetActorScale({kHalf * 2.0f - 2.0f, 2.5f, kHalf * 2.0f - 2.0f});
         World->RebuildNavigation();
         if (auto* nav = World->GetNavigationSystem()) {
             LE_CORE_INFO("Arena nav: built={0} walkable={1} {2}x{3}", nav->IsBuilt() ? 1 : 0, nav->GetWalkableCount(),
@@ -314,31 +504,97 @@ namespace Leon {
         }
 
         EnsurePlayableLighting();
+        // Synchronous Lightmass bake freezes match start; use cached lightmaps if present.
+        TryApplyCachedArenaLightmaps();
+
+        auto spawnWeaponPickup = [&](const char* name, ELeonTournamentWeaponId id, const glm::vec3& loc) {
+            auto* p = World->SpawnActor<ALeonTournamentWeaponPickup>(name);
+            if (!p)
+                return;
+            p->SetActorLocation(loc);
+            p->SetWeaponId(id);
+            p->SetRespawnDelay(15.0f);
+        };
+        auto spawnHealth = [&](const char* name, const glm::vec3& loc) {
+            auto* p = World->SpawnActor<ALeonTournamentHealthPickup>(name);
+            if (!p)
+                return;
+            p->SetActorLocation(loc);
+            p->SetRespawnDelay(15.0f);
+        };
+
+        spawnWeaponPickup("PU_Shotgun_A", ELeonTournamentWeaponId::Shotgun, {-18.0f, 1.1f, 0.0f});
+        spawnWeaponPickup("PU_Shotgun_B", ELeonTournamentWeaponId::Shotgun, {18.0f, 1.1f, 0.0f});
+        spawnWeaponPickup("PU_Rocket_A", ELeonTournamentWeaponId::Rocket, {-8.0f, 1.1f, -18.0f});
+        spawnWeaponPickup("PU_Rocket_B", ELeonTournamentWeaponId::Rocket, {28.0f, 1.1f, -12.0f});
+        spawnWeaponPickup("PU_Laser_A", ELeonTournamentWeaponId::Laser, {0.0f, 1.1f, 18.0f});
+        spawnWeaponPickup("PU_Laser_B", ELeonTournamentWeaponId::Laser, {0.0f, 1.1f, -18.0f});
+        spawnWeaponPickup("PU_Grenade_A", ELeonTournamentWeaponId::Grenade, {-28.0f, 1.1f, 12.0f});
+        spawnWeaponPickup("PU_Grenade_B", ELeonTournamentWeaponId::Grenade, {18.0f, 1.1f, -12.0f});
+        spawnWeaponPickup("PU_Flamer_A", ELeonTournamentWeaponId::Flamethrower, {-16.0f, 1.1f, 8.0f});
+        spawnWeaponPickup("PU_Flamer_B", ELeonTournamentWeaponId::Flamethrower, {16.0f, 1.1f, -8.0f});
+
+        spawnHealth("PU_Health_A", {-16.0f, 1.0f, -16.0f});
+        spawnHealth("PU_Health_B", {16.0f, 1.0f, 16.0f});
+        spawnHealth("PU_Health_C", {-16.0f, 1.0f, 16.0f});
+        spawnHealth("PU_Health_D", {16.0f, 1.0f, -16.0f});
+        spawnHealth("PU_Health_E", {0.0f, 1.0f, 26.0f});
+        spawnHealth("PU_Health_F", {0.0f, 1.0f, -26.0f});
+
+        auto spawnJumpPad = [&](const char* name, const glm::vec3& loc, const glm::vec3& vel) {
+            auto* p = World->SpawnActor<ALeonTournamentJumpPad>(name);
+            if (!p)
+                return;
+            p->SetActorLocation(loc);
+            p->SetPadVelocity(vel);
+        };
+        spawnJumpPad("JumpPad_Mid", {0.0f, 0.35f, 0.0f}, {0.0f, 9.0f, 0.0f});
+        spawnJumpPad("JumpPad_North", {0.0f, 0.35f, 22.0f}, {0.0f, 8.0f, -4.0f});
+        spawnJumpPad("JumpPad_South", {0.0f, 0.35f, -22.0f}, {0.0f, 8.0f, 4.0f});
+        spawnJumpPad("JumpPad_West", {-22.0f, 0.35f, 0.0f}, {4.0f, 8.0f, 0.0f});
+        spawnJumpPad("JumpPad_East", {22.0f, 0.35f, 0.0f}, {-4.0f, 8.0f, 0.0f});
     }
 
     void ALeonTournamentGameMode::EnsurePlayableLighting() {
         if (!World)
             return;
+        if (UEngine::HasInstance())
+            World->SetProjectRendererDefaults(2048, true, 3, 80.0f);
+
         AActor* env = World->FindActorByName("Environment Skybox");
         if (!env)
             env = World->SpawnActor<AActor>("Environment Skybox");
         FSkyboxComponent sky;
         sky.bEnabled = true;
-        sky.Exposure = 1.0f;
-        sky.SunIntensity = 3.5f;
-        sky.EnvironmentIntensity = 1.15f;
+        sky.Exposure = 0.95f;
+        sky.SunIntensity = 2.2f;
+        sky.EnvironmentIntensity = 1.35f;
         sky.bUseHDREnvironmentMap = true;
         sky.HDREnvironmentMapPath = "/Game/HDR/DaySky1k.lhdr";
         if (FApplication::HasInstance())
             sky.HDREnvironmentMap = UAssetManager::GetTexture2D(sky.HDREnvironmentMapPath);
-        sky.SkyZenithColor = {0.18f, 0.44f, 0.88f};
-        sky.HorizonColor = {0.78f, 0.84f, 0.95f};
-        sky.GroundColor = {0.22f, 0.24f, 0.28f};
-        sky.SunColor = {1.0f, 0.98f, 0.92f};
+        sky.SkyZenithColor = {0.12f, 0.28f, 0.55f};
+        sky.HorizonColor = {0.55f, 0.62f, 0.75f};
+        sky.GroundColor = {0.18f, 0.19f, 0.22f};
+        sky.SunColor = {1.0f, 0.96f, 0.88f};
         if (env->HasComponent<FSkyboxComponent>())
             env->GetComponent<FSkyboxComponent>() = sky;
         else
             env->AddComponent<FSkyboxComponent>(sky);
+
+        FWorldSettingsComponent ws;
+        ws.bStaticLighting = true;
+        ws.LightingBuildQuality = ELightingBuildQuality::Preview;
+        ws.LightmapResolution = 48;
+        ws.NumIndirectBounces = 1;
+        ws.SamplesPerTexel = 4;
+        ws.IndirectIntensity = 1.1f;
+        ws.bAmbientOcclusion = true;
+        ws.LightmapAssetPath = "/Game/Lightmaps/TournamentArena.llightmap";
+        if (env->HasComponent<FWorldSettingsComponent>())
+            env->GetComponent<FWorldSettingsComponent>() = ws;
+        else
+            env->AddComponent<FWorldSettingsComponent>(ws);
 
         bool bHasSun = false;
         for (const auto& actor : World->GetAllActors()) {
@@ -346,24 +602,140 @@ namespace Leon {
                 auto& sun = actor->GetComponent<UDirectionalLightComponent>();
                 sun.bEnabled = true;
                 sun.Mobility = ELightMobility::Stationary;
-                sun.Light.Direction = glm::normalize(glm::vec3(-0.35f, -1.0f, -0.25f));
+                sun.Light.Direction = glm::normalize(glm::vec3(-0.25f, -1.0f, -0.35f));
                 sun.Light.Color = {1.0f, 0.97f, 0.90f};
-                sun.Light.Intensity = 3.5f;
+                sun.Light.Intensity = 2.4f;
                 bHasSun = true;
                 break;
             }
         }
         if (!bHasSun) {
             AActor* sunActor = World->SpawnActor<AActor>("Directional Sunlight");
-            sunActor->SetActorLocation({0.0f, 12.0f, 0.0f});
+            sunActor->SetActorLocation({0.0f, 14.0f, 0.0f});
             UDirectionalLightComponent sun;
             sun.bEnabled = true;
             sun.Mobility = ELightMobility::Stationary;
-            sun.Light.Direction = glm::normalize(glm::vec3(-0.35f, -1.0f, -0.25f));
+            sun.Light.Direction = glm::normalize(glm::vec3(-0.25f, -1.0f, -0.35f));
             sun.Light.Color = {1.0f, 0.97f, 0.90f};
-            sun.Light.Intensity = 3.5f;
+            sun.Light.Intensity = 2.4f;
             sunActor->AddComponent<UDirectionalLightComponent>(sun);
         }
+
+        const glm::vec3 warm{1.0f, 0.82f, 0.55f};
+        const glm::vec3 cool{0.45f, 0.72f, 1.0f};
+        const glm::vec3 neon{0.3f, 1.0f, 0.55f};
+        int idx = 0;
+        for (float z = -28.0f; z <= 28.0f + 0.1f; z += 14.0f) {
+            for (float x = -28.0f; x <= 28.0f + 0.1f; x += 14.0f) {
+                SpawnPointLight(World, "PL_" + std::to_string(idx++), {x, 4.8f, z}, warm, 14.0f, 18.0f);
+            }
+        }
+        SpawnSpotLight(World, "Spot_Mid", {0.0f, 6.5f, 0.0f}, {0.0f, -1.0f, 0.0f}, cool, 22.0f, 28.0f, 18.0f, 32.0f);
+        SpawnSpotLight(World, "Spot_NW", {-20.0f, 6.2f, -20.0f}, {0.2f, -1.0f, 0.2f}, warm, 16.0f, 22.0f, 15.0f, 28.0f);
+        SpawnSpotLight(World, "Spot_NE", {20.0f, 6.2f, -20.0f}, {-0.2f, -1.0f, 0.2f}, warm, 16.0f, 22.0f, 15.0f, 28.0f);
+        SpawnSpotLight(World, "Spot_SW", {-20.0f, 6.2f, 20.0f}, {0.2f, -1.0f, -0.2f}, neon, 14.0f, 20.0f, 14.0f, 26.0f);
+        SpawnSpotLight(World, "Spot_SE", {20.0f, 6.2f, 20.0f}, {-0.2f, -1.0f, -0.2f}, neon, 14.0f, 20.0f, 14.0f, 26.0f);
+        SpawnPointLight(World, "PL_Center", {0.0f, 5.5f, 0.0f}, {1.0f, 0.95f, 0.85f}, 18.0f, 24.0f,
+                        ELightMobility::Static);
+        SpawnPointLight(World, "PL_North", {0.0f, 5.2f, -26.0f}, cool, 12.0f, 18.0f, ELightMobility::Static);
+        SpawnPointLight(World, "PL_South", {0.0f, 5.2f, 26.0f}, cool, 12.0f, 18.0f, ELightMobility::Static);
+    }
+
+    void ALeonTournamentGameMode::TryApplyCachedArenaLightmaps() {
+        if (bArenaLightingBaked || !World)
+            return;
+        namespace fs = std::filesystem;
+        const fs::path lmAbs =
+            fs::path(UAssetManager::GetContentRoot()) / "Lightmaps" / "TournamentArena.llightmap";
+        const fs::path mapAbs = fs::path(UAssetManager::GetContentRoot()) / "Maps" / "TournamentArena.lmap";
+        if (!fs::exists(lmAbs) || !fs::exists(mapAbs))
+            return;
+
+        auto stamped = UWorld::Create("ArenaLightmapRead");
+        FMapSerializer reader(stamped);
+        if (!reader.Deserialize(mapAbs.string()))
+            return;
+
+        for (const auto& bakedRef : stamped->GetAllActors()) {
+            if (!bakedRef || !bakedRef->HasComponent<FMeshComponent>())
+                continue;
+            AActor* liveActor = World->FindActorByName(bakedRef->GetName());
+            if (!liveActor || !liveActor->HasComponent<FMeshComponent>())
+                continue;
+            auto& src = bakedRef->GetComponent<FMeshComponent>();
+            auto& dst = liveActor->GetComponent<FMeshComponent>();
+            dst.LightmapAssetPath = src.LightmapAssetPath.empty() ? "/Game/Lightmaps/TournamentArena.llightmap"
+                                                                  : src.LightmapAssetPath;
+            dst.LightmapIndex = src.LightmapIndex;
+            dst.LightmapScale = src.LightmapScale;
+            dst.LightmapBias = src.LightmapBias;
+        }
+        bArenaLightingBaked = true;
+        LE_CORE_INFO("Applied cached arena lightmaps from {0}", lmAbs.string());
+    }
+
+    void ALeonTournamentGameMode::TryBakeArenaLighting() {
+        // Opt-in only: set LEON_BAKE_ARENA=1 to rebuild lightmaps (blocks StartMatch for several seconds).
+        const char* flag = std::getenv("LEON_BAKE_ARENA");
+        if (!flag || flag[0] != '1')
+            return;
+        if (bArenaLightingBaked || !World || !UEngine::HasInstance())
+            return;
+        auto live = UEngine::Get().GetWorld();
+        if (!live)
+            return;
+
+        namespace fs = std::filesystem;
+        const fs::path mapAbs = fs::path(UAssetManager::GetContentRoot()) / "Maps" / "TournamentArena.lmap";
+        std::error_code ec;
+        fs::create_directories(mapAbs.parent_path(), ec);
+
+        FMapSerializer serializer(live);
+        if (!serializer.Serialize(mapAbs.string())) {
+            LE_CORE_WARN("Arena bake: failed to serialize {0}", mapAbs.string());
+            return;
+        }
+
+        FLightmassSettings settings;
+        ApplyLightingBuildQuality(ELightingBuildQuality::Preview, settings);
+        const auto result = FLightmass::BakeMap(mapAbs.string(), settings, true);
+        if (!result.bSuccess) {
+            LE_CORE_WARN("Arena bake skipped: {0}", result.Message);
+            return;
+        }
+
+        auto stamped = UWorld::Create("ArenaBakeRead");
+        FMapSerializer reader(stamped);
+        if (!reader.Deserialize(mapAbs.string())) {
+            LE_CORE_WARN("Arena bake: could not re-read stamped map");
+            return;
+        }
+
+        for (const auto& bakedRef : stamped->GetAllActors()) {
+            if (!bakedRef || !bakedRef->HasComponent<FMeshComponent>())
+                continue;
+            AActor* liveActor = World->FindActorByName(bakedRef->GetName());
+            if (!liveActor || !liveActor->HasComponent<FMeshComponent>())
+                continue;
+            auto& src = bakedRef->GetComponent<FMeshComponent>();
+            auto& dst = liveActor->GetComponent<FMeshComponent>();
+            dst.LightmapAssetPath = src.LightmapAssetPath;
+            dst.LightmapIndex = src.LightmapIndex;
+            dst.LightmapScale = src.LightmapScale;
+            dst.LightmapBias = src.LightmapBias;
+            if (dst.LightmapAssetPath.empty())
+                dst.LightmapAssetPath = "/Game/Lightmaps/TournamentArena.llightmap";
+        }
+        if (AActor* envLive = World->FindActorByName("Environment Skybox")) {
+            if (envLive->HasComponent<FWorldSettingsComponent>()) {
+                auto& liveWs = envLive->GetComponent<FWorldSettingsComponent>();
+                liveWs.LightmapBakeHash = result.BakeHash;
+                liveWs.LightmapAssetPath = "/Game/Lightmaps/TournamentArena.llightmap";
+            }
+        }
+        bArenaLightingBaked = true;
+        LE_CORE_INFO("Arena lightmap bake ok atlas={0}x{1} meshes={2}", result.AtlasWidth, result.AtlasHeight,
+                     result.StaticMeshCount);
     }
 
     glm::vec3 ALeonTournamentGameMode::GetTeamSpawnLocation(ELeonTournamentTeam InTeam) const {
@@ -443,9 +815,16 @@ namespace Leon {
         const std::string pawnName = (bBot && ps) ? ps->GetPlayerName() : "PlayerPawn";
         auto* pawn = World->SpawnActor<ALeonTournamentCharacter>(pawnName);
         pawn->SetBotControlled(bBot);
+        if (ps) {
+            if (!bBot)
+                SyncLocalPlayerCharacterSkin(ps);
+            pawn->ApplyCharacterSkin(ps->GetCharacterSkin());
+        }
         pawn->SetActorLocation(spawn);
         pawn->SetFloorZ(0.0f);
         NewPlayer->Possess(pawn);
+        if (!bBot)
+            ApplyCameraPreference(pawn);
         FaceIntoArena(*pawn, team);
         if (auto* bot = dynamic_cast<ALeonTournamentBotController*>(NewPlayer)) {
             bot->SetWaypoints(Waypoints);
@@ -453,6 +832,13 @@ namespace Leon {
             bot->NotifyRespawned();
         }
         ValidateSpawnedCharacter(*pawn, team);
+    }
+
+    void ALeonTournamentGameMode::ApplyCameraPreference(ALeonTournamentCharacter* InCharacter) {
+        if (!InCharacter)
+            return;
+        InCharacter->SetThirdPerson(bPreferThirdPerson);
+        InCharacter->SetFloorZ(0.0f);
     }
 
     void ALeonTournamentGameMode::RequestStartMatch() {
@@ -491,6 +877,7 @@ namespace Leon {
                     if (ps->GetTeam() == ELeonTournamentTeam::None)
                         ps->SetTeam(AssignTeam());
                     ps->SetIsBot(false);
+                    SyncLocalPlayerCharacterSkin(ps);
                 }
             }
         }
@@ -548,6 +935,9 @@ namespace Leon {
                                             const ALeonTournamentCharacter& InTarget) const {
         if (InTarget.GetHealthComponent() && InTarget.GetHealthComponent()->IsDead())
             return false;
+        // Self-damage allowed (rocket jumps / splash). Friendly fire still blocked for allies.
+        if (&InInstigator == &InTarget)
+            return true;
         if (!Config.bFriendlyFire && InInstigator.GetTeam() != ELeonTournamentTeam::None &&
             InInstigator.GetTeam() == InTarget.GetTeam())
             return false;
@@ -636,14 +1026,16 @@ namespace Leon {
         if (gs->GetMatchState() != ELeonTournamentMatchState::Playing)
             return;
 
-        gs->SetRemainingTime(std::max(0.0f, gs->GetRemainingTime() - DeltaSeconds));
-        if (gs->GetRemainingTime() <= 0.0f) {
-            if (gs->GetTeam1Kills() > gs->GetTeam2Kills())
-                EndMatch(ELeonTournamentMatchWinner::Team1);
-            else if (gs->GetTeam2Kills() > gs->GetTeam1Kills())
-                EndMatch(ELeonTournamentMatchWinner::Team2);
-            else
-                EndMatch(ELeonTournamentMatchWinner::Draw);
+        if (Config.MatchDurationSeconds > 0.0f) {
+            gs->SetRemainingTime(std::max(0.0f, gs->GetRemainingTime() - DeltaSeconds));
+            if (gs->GetRemainingTime() <= 0.0f) {
+                if (gs->GetTeam1Kills() > gs->GetTeam2Kills())
+                    EndMatch(ELeonTournamentMatchWinner::Team1);
+                else if (gs->GetTeam2Kills() > gs->GetTeam1Kills())
+                    EndMatch(ELeonTournamentMatchWinner::Team2);
+                else
+                    EndMatch(ELeonTournamentMatchWinner::Draw);
+            }
         }
 
         std::vector<AController*> ready;

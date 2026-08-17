@@ -22,6 +22,8 @@ namespace Leon {
         UActorComponent* HitComponent = nullptr;
         glm::vec3 HitLocation{0.0f};
         glm::vec3 HitNormal{0.0f, 1.0f, 0.0f};
+        /** World-space knockback applied to the victim (living launch + death ragdoll). */
+        glm::vec3 Impulse{0.0f};
         bool bCriticalHit = false;
     };
 

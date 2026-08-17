@@ -41,7 +41,8 @@ namespace Leon {
         bs->Set2D(true);
         // Speed is cm/s (world m/s * 100). Walk≈600, sprint≈1080 with default multipliers.
         bs->SetAxisRange({0.0f, -180.0f}, {1200.0f, 180.0f});
-        bs->SetSkeletonPath("/Game/Skeletons/YBot.lskeleton");
+        bs->SetSkeletonPath(InSkeleton && !InSkeleton->GetAssetPath().empty() ? InSkeleton->GetAssetPath()
+                                                                              : "/Game/Skeletons/YBot.lskeleton");
         bs->SetAssetPath("/Game/BlendSpaces/BS_Locomotion.lblend");
 
         auto add = [&](float speed, float direction, const std::string& path) {
@@ -133,8 +134,13 @@ namespace Leon {
     }
 
     void ULeonTournamentAnimInstance::NativeInitializeAnimation() {
-        if (bGraphBuilt || !Skeleton)
+        if (!Skeleton)
             return;
+        // Skins use different skeletons; rebuild when the linked skeleton changes.
+        if (bGraphBuilt && GraphSkeleton.get() == Skeleton.get())
+            return;
+        bGraphBuilt = false;
+        GraphSkeleton = Skeleton;
 
         LocomotionBlend = nullptr;
         const std::string disk = UAssetManager::ResolveVirtualPath("/Game/BlendSpaces/BS_Locomotion.lblend");

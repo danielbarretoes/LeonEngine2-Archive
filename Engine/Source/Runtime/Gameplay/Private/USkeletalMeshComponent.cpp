@@ -103,7 +103,11 @@ namespace Leon {
 
         std::vector<glm::mat4> component;
         FAnimRuntime::LocalToComponent(*SkeletalMesh->GetSkeleton(), EvaluatedPose, component);
-        FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), component, BonePalette);
+        if (SkeletalMesh->HasMeshBindPoses())
+            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), component,
+                                               SkeletalMesh->GetInverseBindPoses(), BonePalette);
+        else
+            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), component, BonePalette);
         PushToRenderComponent();
     }
 

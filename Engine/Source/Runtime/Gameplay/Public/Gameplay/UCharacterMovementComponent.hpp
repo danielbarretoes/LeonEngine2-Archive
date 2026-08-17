@@ -3,6 +3,8 @@
 #include "Gameplay/UNavMovementComponent.hpp"
 #include "Gameplay/EMovementMode.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <glm/glm.hpp>
 
 namespace Leon {
@@ -45,6 +47,9 @@ namespace Leon {
         void SetGravityZ(float InZ) { GravityZ = InZ; }
         float GetAirControl() const { return AirControl; }
         void SetAirControl(float InControl) { AirControl = InControl; }
+        int32_t GetJumpMaxCount() const { return JumpMaxCount; }
+        void SetJumpMaxCount(int32_t InCount) { JumpMaxCount = std::max(1, InCount); }
+        void AddImpulse(const glm::vec3& InImpulse);
 
         bool FindFloor(float InSweepDistance, struct FHitResult& OutHit) const;
         void PerformMovement(float DeltaSeconds);
@@ -66,16 +71,18 @@ namespace Leon {
         glm::vec3 Velocity{0.0f};
         glm::vec3 Acceleration{0.0f};
         glm::vec3 PendingInputVector{0.0f};
-        float MaxWalkSpeed = 6.0f;
-        float MaxAcceleration = 24.0f;
+        float MaxWalkSpeed = 7.5f;
+        float MaxAcceleration = 28.0f;
         float BrakingDecelerationWalking = 24.0f;
         float GroundFriction = 8.0f;
-        float JumpZVelocity = 8.0f;
+        float JumpZVelocity = 9.0f;
         float GravityScale = 1.0f;
         float GravityZ = 22.0f;
-        float AirControl = 0.25f;
+        float AirControl = 0.45f;
         float FloorZ = 0.0f;
         float MaxStepHeight = 0.4f;
+        int32_t JumpMaxCount = 2;
+        int32_t JumpCurrentCount = 0;
         bool bPressedJump = false;
         bool bWasFalling = false;
     };

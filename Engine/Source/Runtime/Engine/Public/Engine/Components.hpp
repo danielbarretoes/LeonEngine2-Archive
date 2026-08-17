@@ -169,8 +169,8 @@ namespace Leon {
         bool bVisible = true;
         /** Friend/foe silhouette (inverted-hull outline pass). */
         bool bDrawOutline = false;
-        glm::vec3 OutlineColor{1.0f, 0.15f, 0.1f};
-        float OutlineWidth = 0.035f;
+        glm::vec3 OutlineColor{1.0f, 0.14f, 0.1f};
+        float OutlineWidth = 0.016f;
 
         FSkinnedMeshRenderState() = default;
         FSkinnedMeshRenderState(const FSkinnedMeshRenderState&) = default;

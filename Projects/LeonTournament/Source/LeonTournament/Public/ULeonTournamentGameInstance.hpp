@@ -21,6 +21,23 @@ namespace Leon {
         const std::string& GetJoinAddress() const { return JoinAddress; }
         void SetJoinAddress(const std::string& InAddress) { JoinAddress = InAddress; }
 
+        ELeonTournamentCharacterSkin GetSelectedCharacterSkin() const { return SelectedCharacterSkin; }
+        void SetSelectedCharacterSkin(ELeonTournamentCharacterSkin InSkin) { SelectedCharacterSkin = InSkin; }
+        void CycleSelectedCharacterSkin(int InDelta) {
+            if (InDelta >= 0)
+                SelectedCharacterSkin = LeonTournamentNextCharacterSkin(SelectedCharacterSkin);
+            else
+                SelectedCharacterSkin = LeonTournamentPrevCharacterSkin(SelectedCharacterSkin);
+        }
+
+        int32_t GetDesiredBotsTeam1() const { return DesiredBotsTeam1; }
+        int32_t GetDesiredBotsTeam2() const { return DesiredBotsTeam2; }
+        void SetDesiredBotsTeam1(int32_t InCount);
+        void SetDesiredBotsTeam2(int32_t InCount);
+        void AdjustDesiredBotsTeam1(int InDelta);
+        void AdjustDesiredBotsTeam2(int InDelta);
+        int32_t GetDesiredBotTotal() const { return DesiredBotsTeam1 + DesiredBotsTeam2; }
+
         uint16_t GetLanPort() const { return LanPort; }
 
         bool HostLan(UWorld* InWorld);
@@ -36,6 +53,9 @@ namespace Leon {
 
     private:
         ELeonTournamentSessionMode SessionMode = ELeonTournamentSessionMode::Offline;
+        ELeonTournamentCharacterSkin SelectedCharacterSkin = ELeonTournamentCharacterSkin::YBot;
+        int32_t DesiredBotsTeam1 = 2;
+        int32_t DesiredBotsTeam2 = 2;
         std::string JoinAddress = "127.0.0.1";
         uint16_t LanPort = UIpNetDriver::DefaultPort;
         TRef<UIpNetDriver> SessionNetDriver;

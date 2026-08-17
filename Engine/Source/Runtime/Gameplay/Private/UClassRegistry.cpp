@@ -14,6 +14,7 @@
 #include "Gameplay/ABlockingVolume.hpp"
 #include "Gameplay/ANavMeshBoundsVolume.hpp"
 #include "Gameplay/APhysicsVolume.hpp"
+#include "Gameplay/AProjectile.hpp"
 
 namespace Leon {
 
@@ -43,6 +44,7 @@ namespace Leon {
         RegisterClass<ANavMeshBoundsVolume>("ANavMeshBoundsVolume");
         RegisterClass<ABlockingVolume>("ABlockingVolume");
         RegisterClass<APhysicsVolume>("APhysicsVolume");
+        RegisterClass<AProjectile>("AProjectile");
     }
 
     AActor* UClassRegistry::CreateActorOfClass(const std::string& InClassName, UWorld* InWorld,

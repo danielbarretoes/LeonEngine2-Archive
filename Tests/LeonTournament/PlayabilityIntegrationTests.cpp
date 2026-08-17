@@ -77,7 +77,7 @@ namespace Leon {
             auto* ch = pc->GetPawn<ALeonTournamentCharacter>();
             REQUIRE(ch);
             CHECK(ch->GetController() == pc);
-            CHECK_FALSE(ch->IsThirdPerson());
+            CHECK(ch->IsThirdPerson());
             CHECK(ch->GetCapsuleHeight() >= FWorldUnits::ExpectedHumanHeightMin);
             CHECK(ch->GetCapsuleHeight() <= FWorldUnits::ExpectedHumanHeightMax);
         }

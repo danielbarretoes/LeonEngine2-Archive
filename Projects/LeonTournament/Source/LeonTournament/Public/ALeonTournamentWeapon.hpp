@@ -10,20 +10,25 @@ namespace Leon {
     class ALeonTournamentWeapon : public AActor {
     public:
         ALeonTournamentWeapon() = default;
-        ALeonTournamentWeapon(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentWeapon");
+        ALeonTournamentWeapon(entt::entity InHandle, UWorld* InWorld,
+                              const std::string& InName = "LeonTournamentWeapon");
 
         void Tick(float DeltaSeconds) override;
 
         void SetOwnerCharacter(ALeonTournamentCharacter* InOwner) { OwnerCharacter = InOwner; }
         ALeonTournamentCharacter* GetOwnerCharacter() const { return OwnerCharacter; }
 
-        const FLeonTournamentRifleConfig& GetConfig() const { return Config; }
-        void SetConfig(const FLeonTournamentRifleConfig& InConfig);
+        ELeonTournamentWeaponId GetWeaponId() const { return WeaponId; }
+        void SetWeaponId(ELeonTournamentWeaponId InId);
+
+        const FLeonTournamentWeaponConfig& GetConfig() const { return Config; }
+        void SetConfig(const FLeonTournamentWeaponConfig& InConfig);
 
         int32_t GetCurrentAmmo() const { return CurrentAmmo; }
         int32_t GetMagazineSize() const { return Config.MagazineSize; }
         bool IsReloading() const { return bReloading; }
         bool IsFiring() const { return bFiring; }
+        bool CanAimDownSights() const { return Config.ScopeFOV > 1.0f; }
 
         void SetFireHeld(bool bHeld);
         bool CanFire() const;
@@ -48,16 +53,25 @@ namespace Leon {
         float GetSpreadAlpha() const;
 
     private:
-        void SpawnFireEffects(const glm::vec3& InMuzzle, const glm::vec3& InTraceEnd, bool bHitWorld,
-                              bool bHitCharacter);
+        void SpawnFireEffects(const glm::vec3& InMuzzle, const glm::vec3& InTracerStart, const glm::vec3& InTraceEnd,
+                              bool bHitWorld, bool bHitCharacter);
+        void SpawnLaserEffects(const glm::vec3& InMuzzle, const glm::vec3& InTraceEnd, bool bHitCharacter);
+        void SpawnRocketLaunchEffects(const glm::vec3& InMuzzle);
+        void SpawnFlameEffects(const glm::vec3& InMuzzle, const glm::vec3& InDir);
         void UpdateFirstPersonVisual();
-        glm::vec3 ApplyAimSpread(const glm::vec3& InForward) const;
+        glm::vec3 ApplyAimSpread(const glm::vec3& InForward, float InHalfAngleDeg) const;
         void AddShotBloom();
+        bool FireHitscan();
+        bool FireProjectile();
+        bool FireFlame();
+        bool ApplyHitscanDamage(const glm::vec3& InOrigin, const glm::vec3& InDir, float InDamage, glm::vec3& OutTraceEnd,
+                                bool& OutHitWorld, bool& OutHitCharacter);
 
     protected:
-        FLeonTournamentRifleConfig Config;
+        ELeonTournamentWeaponId WeaponId = ELeonTournamentWeaponId::Rifle;
+        FLeonTournamentWeaponConfig Config;
         ALeonTournamentCharacter* OwnerCharacter = nullptr;
-        int32_t CurrentAmmo = 30;
+        int32_t CurrentAmmo = 20;
         float FireCooldown = 0.0f;
         float ReloadRemaining = 0.0f;
         float CurrentSpreadDeg = 0.35f;
@@ -73,6 +87,41 @@ namespace Leon {
     public:
         ALeonTournamentRifle() = default;
         ALeonTournamentRifle(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentRifle");
+    };
+
+    class ALeonTournamentShotgun : public ALeonTournamentWeapon {
+    public:
+        ALeonTournamentShotgun() = default;
+        ALeonTournamentShotgun(entt::entity InHandle, UWorld* InWorld,
+                               const std::string& InName = "LeonTournamentShotgun");
+    };
+
+    class ALeonTournamentRocketLauncher : public ALeonTournamentWeapon {
+    public:
+        ALeonTournamentRocketLauncher() = default;
+        ALeonTournamentRocketLauncher(entt::entity InHandle, UWorld* InWorld,
+                                      const std::string& InName = "LeonTournamentRocketLauncher");
+    };
+
+    class ALeonTournamentLaserRifle : public ALeonTournamentWeapon {
+    public:
+        ALeonTournamentLaserRifle() = default;
+        ALeonTournamentLaserRifle(entt::entity InHandle, UWorld* InWorld,
+                                  const std::string& InName = "LeonTournamentLaserRifle");
+    };
+
+    class ALeonTournamentGrenadeLauncher : public ALeonTournamentWeapon {
+    public:
+        ALeonTournamentGrenadeLauncher() = default;
+        ALeonTournamentGrenadeLauncher(entt::entity InHandle, UWorld* InWorld,
+                                       const std::string& InName = "LeonTournamentGrenadeLauncher");
+    };
+
+    class ALeonTournamentFlamethrower : public ALeonTournamentWeapon {
+    public:
+        ALeonTournamentFlamethrower() = default;
+        ALeonTournamentFlamethrower(entt::entity InHandle, UWorld* InWorld,
+                                    const std::string& InName = "LeonTournamentFlamethrower");
     };
 
 } // namespace Leon

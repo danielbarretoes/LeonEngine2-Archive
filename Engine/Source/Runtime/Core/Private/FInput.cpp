@@ -99,6 +99,13 @@ namespace Leon {
         return 0.0f;
     }
 
+    float FInput::GetGamepadTrigger(int InAxis, int InGamepadID, float InThreshold) {
+        // GLFW gamepad triggers rest at -1 and fully press at +1.
+        const float raw = GetGamepadAxis(InAxis, InGamepadID, 0.0f);
+        const float t = (raw + 1.0f) * 0.5f;
+        return t >= InThreshold ? t : 0.0f;
+    }
+
     std::pair<float, float> FInput::GetGamepadLeftStick(int InGamepadID, float InDeadzone) {
         float x = GetGamepadAxis(GamepadAxis::LeftX, InGamepadID, InDeadzone);
         float y = GetGamepadAxis(GamepadAxis::LeftY, InGamepadID, InDeadzone);

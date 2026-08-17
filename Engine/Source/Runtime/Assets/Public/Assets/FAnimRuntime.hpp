@@ -33,6 +33,10 @@ namespace Leon {
 
         static void BuildSkinningPalette(const USkeleton& InSkeleton, const std::vector<glm::mat4>& InComponent,
                                          std::vector<glm::mat4>& OutPalette);
+        /** Prefer mesh bind poses when retargeting multiple characters onto one skeleton. */
+        static void BuildSkinningPalette(const USkeleton& InSkeleton, const std::vector<glm::mat4>& InComponent,
+                                         const std::vector<glm::mat4>& InMeshInverseBinds,
+                                         std::vector<glm::mat4>& OutPalette);
 
         static glm::vec3 SampleVecKeys(const std::vector<FVectorKeyframe>& InKeys, float InTime,
                                        const glm::vec3& InFallback);

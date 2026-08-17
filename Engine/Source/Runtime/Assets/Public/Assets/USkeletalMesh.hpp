@@ -37,6 +37,15 @@ namespace Leon {
         TRef<USkeleton> GetSkeleton() const { return Skeleton; }
         void SetSkeleton(const TRef<USkeleton>& InSkeleton);
 
+        /**
+         * Optional per-mesh inverse-bind matrices (same length as skeleton bones).
+         * Enables multiple skinned meshes to share one USkeleton / anim set while keeping
+         * their own bind pose (Mixamo retarget / different character proportions).
+         */
+        std::vector<glm::mat4>& GetInverseBindPoses() { return InverseBindPoses; }
+        const std::vector<glm::mat4>& GetInverseBindPoses() const { return InverseBindPoses; }
+        bool HasMeshBindPoses() const { return !InverseBindPoses.empty(); }
+
         const glm::vec3& GetBoundsMin() const { return BoundsMin; }
         const glm::vec3& GetBoundsMax() const { return BoundsMax; }
         const glm::vec3& GetSphereCenter() const { return SphereCenter; }
@@ -86,6 +95,7 @@ namespace Leon {
         float SphereRadius = 0.0f;
 
         TRef<USkeleton> Skeleton;
+        std::vector<glm::mat4> InverseBindPoses;
         std::vector<FSkinnedMeshVertex> Vertices;
         std::vector<uint32_t> Indices;
         std::vector<FSkeletalSubmesh> Submeshes;

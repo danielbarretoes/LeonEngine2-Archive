@@ -1,0 +1,18 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [1.0, 1.0, 1.0]
+  Metallic: 0
+  Roughness: 0.6
+  AO: 1
+  NormalScale: 1
+  OcclusionStrength: 1
+  EmissiveColor: [0, 0, 0]
+  EmissiveIntensity: 1
+  AlphaMode: "Opaque"
+  AlphaCutoff: 0.5
+  DoubleSided: false
+  UVTiling: [1, 1]
+  UVOffset: [0, 0]
+  UsePlanarReflection: false
+  AlbedoMap: "/Game/Textures/TrumpBody.ltex"

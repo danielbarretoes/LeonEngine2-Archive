@@ -174,7 +174,7 @@ namespace Leon {
         float bestScore = -1e9f;
         for (const glm::vec3& p : CoverPoints) {
             const float d = PlanarDistance(InSelf.GetActorLocation(), p);
-            if (d > 22.0f)
+            if (d > 35.0f)
                 continue;
             float score = 20.0f - d;
             if (InTarget && World) {
