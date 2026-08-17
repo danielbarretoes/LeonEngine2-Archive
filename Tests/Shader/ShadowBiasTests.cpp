@@ -9,7 +9,7 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Multi-Term Bias Mechanics") {
         auto& gl = FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         auto shader = FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -24,8 +24,8 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
         FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 2.0f, 1.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        camData.CascadeSplits  = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CascadeSplits = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
         camData.ShadowSettings = glm::ivec4(0, 16, 0, 24); // Hard shadow (1 tap), DebugMode = 24 (Shadow factor)
 
         FLightingBufferData lightData;
@@ -36,7 +36,8 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
 
         // Clear layer 0 depth to 0.5f (occluder plane at Z = 0.5)
         float halfDepth = 0.5f;
-        glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 0, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &halfDepth);
+        glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 0, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT,
+                           &halfDepth);
 
         SUBCASE("Constant Bias Boundary Shifting") {
             // Light head-on (NdotL = 1.0, slopeFactor = 0.0)
@@ -46,7 +47,8 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
             // deltaZ = 0.0010 -> projCoords.z = 0.5005 (without bias: 0.5005 > 0.5 occluded)
             glm::mat4 lightMat = glm::mat4(1.0f);
             lightMat[3][2] = 0.0010f;
-            for (int c = 0; c < 4; ++c) camData.LightSpaceMatrices[c] = lightMat;
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = lightMat;
 
             // With constBias = 0.001f, currentDepth = 0.5005 - 0.0010 = 0.4995 < 0.5 -> Lit (1.0)
             camData.ShadowParams = glm::vec4(0.001f, 0.0f, 0.0f, 0.0f);
@@ -65,7 +67,8 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
             // deltaZ = 0.0040 -> projCoords.z = 0.5020 (without slope bias: 0.5020 > 0.5 occluded)
             glm::mat4 lightMat = glm::mat4(1.0f);
             lightMat[3][2] = 0.0040f;
-            for (int c = 0; c < 4; ++c) camData.LightSpaceMatrices[c] = lightMat;
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = lightMat;
 
             // constBias = 0.0001, slopeBias = 0.015 -> bias = 0.0001 + 0.015 * tanθ = 0.0151
             // currentDepth = 0.5020 - 0.0151 = 0.4869 < 0.5 -> Lit (1.0)
@@ -106,7 +109,8 @@ TEST_SUITE("Shader GPU - Shadow Multi-Term Depth & Normal Offset Bias") {
             glm::mat4 lightMat = glm::mat4(1.0f);
             lightMat[2][2] = -1.0f;
             lightMat[3][2] = 0.0030f;
-            for (int c = 0; c < 4; ++c) camData.LightSpaceMatrices[c] = lightMat;
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = lightMat;
 
             // constBias = 0.0, slopeBias = 0.0, normalBias = 0.05
             // Normal offset shifts depth < 0.5 -> Lit (1.0)

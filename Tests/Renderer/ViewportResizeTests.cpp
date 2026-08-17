@@ -6,8 +6,7 @@ TEST_SUITE("Renderer pipeline - viewport / FBO resize") {
 
     TEST_CASE("HDR-style FBO resize matches requested extents") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid())
-            return;
+        REQUIRE(gl.IsValid());
 
         Leon::FFramebufferSpecification spec;
         spec.Width = 1280;

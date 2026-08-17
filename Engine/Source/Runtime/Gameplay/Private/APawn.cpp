@@ -2,6 +2,7 @@
 #include "Core/FLog.hpp"
 #include "Gameplay/AController.hpp"
 #include "Gameplay/APlayerController.hpp"
+#include "Gameplay/APlayerState.hpp"
 #include "Engine/UWorld.hpp"
 
 namespace Leon {
@@ -9,6 +10,10 @@ namespace Leon {
     APawn::APawn(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : AActor(InHandle, InWorld, InName) {
         SetClass("APawn");
+    }
+
+    APlayerState* APawn::GetPlayerState() const {
+        return Controller ? Controller->GetPlayerState() : nullptr;
     }
 
     bool APawn::IsLocallyControlled() const {

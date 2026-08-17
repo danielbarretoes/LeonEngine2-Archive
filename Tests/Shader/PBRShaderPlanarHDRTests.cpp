@@ -10,10 +10,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
 
     TEST_CASE("WorldRenderer planar FBO attachment is RGBA16F (not LDR RGBA8)") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto world = Leon::UWorld::Create("PlanarFormatWorld");
         REQUIRE(world != nullptr);
@@ -30,10 +27,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
 
     TEST_CASE("Planar Karis HDR: metallic mirror keeps HDR Li after BRDF scale") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -99,10 +93,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
 
     TEST_CASE("Dielectric wet floor: HDR planar emissive is BRDF-scaled (not raw Li white stamp)") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -164,10 +155,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
 
     TEST_CASE("IBL ON + Planar OFF vs Planar ON matrix — planar adds specular without NaN") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);

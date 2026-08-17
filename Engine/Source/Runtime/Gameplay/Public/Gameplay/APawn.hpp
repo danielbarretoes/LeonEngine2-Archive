@@ -5,6 +5,7 @@
 namespace Leon {
 
     class AController;
+    class APlayerState;
 
     /**
      * @brief Base class for any AActor that can be possessed by an AController.
@@ -19,6 +20,7 @@ namespace Leon {
         virtual void UnPossessed();
 
         AController* GetController() const { return Controller; }
+        APlayerState* GetPlayerState() const;
         bool IsControlled() const { return Controller != nullptr; }
         bool IsLocallyControlled() const;
 

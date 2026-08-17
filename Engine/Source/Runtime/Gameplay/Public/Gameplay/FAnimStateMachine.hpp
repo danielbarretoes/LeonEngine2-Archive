@@ -26,6 +26,7 @@ namespace Leon {
      * ConditionName uses generic parameter queries on UAnimInstance:
      *   Bool:<name>  NotBool:<name>
      *   FloatGreater:<name>:<threshold>  FloatLessEqual:<name>:<threshold>
+     *   TimeGreater:<seconds>  (current state time)
      */
     struct FAnimTransition {
         std::string FromState;
@@ -44,6 +45,7 @@ namespace Leon {
         float GetStateTime() const { return StateTime; }
 
         void Reset();
+        void ResetToDefault();
         void Update(float InDeltaSeconds, const UAnimInstance& InInstance);
         void Evaluate(const USkeleton& InSkeleton, const UAnimInstance& InInstance, FPose& OutPose) const;
 
@@ -57,6 +59,7 @@ namespace Leon {
         std::vector<FAnimState> States;
         std::vector<FAnimTransition> Transitions;
         std::string CurrentState;
+        std::string DefaultState;
         std::string PreviousState;
         float StateTime = 0.0f;
         float TransitionAlpha = 1.0f;

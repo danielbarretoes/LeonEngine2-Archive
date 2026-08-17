@@ -38,6 +38,7 @@ namespace Leon {
         int32_t VisibleActors = 0;
         int32_t CulledActors = 0;
         int32_t ReplicatedActors = 0;
+        int32_t ParticleCount = 0;
 
         float PingMs = 0.0f;
         uint32_t PacketsSent = 0;

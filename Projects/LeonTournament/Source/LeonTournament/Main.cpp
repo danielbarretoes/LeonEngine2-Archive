@@ -1,14 +1,14 @@
 #include "Engine/UEngine.hpp"
 #include "Gameplay/UClassRegistry.hpp"
-#include "AShooterGameMode.hpp"
-#include "AShooterGameState.hpp"
-#include "AShooterCharacter.hpp"
-#include "AShooterPlayerController.hpp"
-#include "AShooterPlayerState.hpp"
-#include "AShooterHUD.hpp"
-#include "AShooterBotController.hpp"
-#include "AShooterWeapon.hpp"
-#include "UShooterGameInstance.hpp"
+#include "ALeonTournamentGameMode.hpp"
+#include "ALeonTournamentGameState.hpp"
+#include "ALeonTournamentCharacter.hpp"
+#include "ALeonTournamentPlayerController.hpp"
+#include "ALeonTournamentPlayerState.hpp"
+#include "ALeonTournamentHUD.hpp"
+#include "ALeonTournamentBotController.hpp"
+#include "ALeonTournamentWeapon.hpp"
+#include "ULeonTournamentGameInstance.hpp"
 #include "FOpenGLRenderDriver.hpp"
 #include "FJoltPhysicsDriver.hpp"
 
@@ -65,18 +65,35 @@ int main(int argc, char** argv) {
     Leon::FJoltPhysicsDriver::Register();
 
     auto& registry = Leon::UClassRegistry::Get();
-    registry.RegisterClass<Leon::AShooterGameMode>("AShooterGameMode");
-    registry.RegisterClass<Leon::AShooterGameState>("AShooterGameState");
-    registry.RegisterClass<Leon::AShooterCharacter>("AShooterCharacter");
-    registry.RegisterClass<Leon::AShooterPlayerController>("AShooterPlayerController");
-    registry.RegisterClass<Leon::AShooterPlayerState>("AShooterPlayerState");
-    registry.RegisterClass<Leon::AShooterHUD>("AShooterHUD");
-    registry.RegisterClass<Leon::AShooterBotController>("AShooterBotController");
-    registry.RegisterClass<Leon::AShooterRifle>("AShooterRifle");
-    registry.RegisterClass<Leon::AShooterWeapon>("AShooterWeapon");
+    registry.RegisterClass<Leon::ALeonTournamentGameMode>("ALeonTournamentGameMode");
+    registry.RegisterClass<Leon::ALeonTournamentGameState>("ALeonTournamentGameState");
+    registry.RegisterClass<Leon::ALeonTournamentCharacter>("ALeonTournamentCharacter");
+    registry.RegisterClass<Leon::ALeonTournamentPlayerController>("ALeonTournamentPlayerController");
+    registry.RegisterClass<Leon::ALeonTournamentPlayerState>("ALeonTournamentPlayerState");
+    registry.RegisterClass<Leon::ALeonTournamentHUD>("ALeonTournamentHUD");
+    registry.RegisterClass<Leon::ALeonTournamentBotController>("ALeonTournamentBotController");
+    registry.RegisterClass<Leon::ALeonTournamentRifle>("ALeonTournamentRifle");
+    registry.RegisterClass<Leon::ALeonTournamentWeapon>("ALeonTournamentWeapon");
 
-    Leon::UEngine::SetGameInstanceFactory(
-        []() { return Leon::CreateRef<Leon::UShooterGameInstance>("ShooterGameInstance"); });
+    bool autoOffline = false;
+    float validateSeconds = 65.0f;
+    std::string reportPath;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i] ? argv[i] : "";
+        if (arg == "--offline-match")
+            autoOffline = true;
+        else if (arg.rfind("--validate-seconds=", 0) == 0)
+            validateSeconds = std::strtof(arg.c_str() + 19, nullptr);
+        else if (arg.rfind("--report=", 0) == 0)
+            reportPath = arg.substr(9);
+    }
+
+    Leon::UEngine::SetGameInstanceFactory([autoOffline, validateSeconds, reportPath]() {
+        auto gi = Leon::CreateRef<Leon::ULeonTournamentGameInstance>("LeonTournamentGameInstance");
+        if (autoOffline)
+            gi->ConfigureAutoOfflineMatch(validateSeconds, reportPath);
+        return gi;
+    });
 
     Leon::FApplicationCommandLineArgs args{argc, argv};
     const std::string projectFile = ResolveTournamentProjectFile(argc, argv);

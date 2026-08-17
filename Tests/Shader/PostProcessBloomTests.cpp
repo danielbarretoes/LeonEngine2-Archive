@@ -8,10 +8,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
 
     TEST_CASE("Bloom Bright-Pass GPU Thresholding & Soft-Knee Invariants") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/BloomBrightPass.glsl");
         REQUIRE(shader != nullptr);
@@ -31,7 +28,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
         shader->SetFloat("u_SoftKnee", 0.5f);
 
         // Case A: Below Threshold and below knee (L = 0.2 < 0.5) -> Output must be strictly 0.0
-        float valBelow[4] = { 0.2f, 0.2f, 0.2f, 1.0f };
+        float valBelow[4] = {0.2f, 0.2f, 0.2f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, valBelow);
         gl.DrawQuad();
         glm::vec4 pixelBelow = gl.ReadPixel(0, 0);
@@ -43,7 +40,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
         CHECK(pixelBelow.b == doctest::Approx(0.0f).epsilon(1e-4f));
 
         // Case B: In Soft-Knee Transition (L = 0.9, in [0.5, 1.5]) -> Exact quadratic knee output = 0.08
-        float valMid[4] = { 0.9f, 0.9f, 0.9f, 1.0f };
+        float valMid[4] = {0.9f, 0.9f, 0.9f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, valMid);
         gl.DrawQuad();
         glm::vec4 pixelMid = gl.ReadPixel(0, 0);
@@ -54,7 +51,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
         CHECK(pixelMid.b == doctest::Approx(0.0800f).epsilon(0.005f));
 
         // Case C: High Luminance HDR Value (L = 5.0) -> Output strongly positive
-        float valHigh[4] = { 5.0f, 5.0f, 5.0f, 1.0f };
+        float valHigh[4] = {5.0f, 5.0f, 5.0f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, valHigh);
         gl.DrawQuad();
         glm::vec4 pixelHigh = gl.ReadPixel(0, 0);
@@ -65,7 +62,7 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
         CHECK(pixelHigh.b == doctest::Approx(4.0f).epsilon(0.02f));
 
         // Case D: Pure Black (L = 0.0) -> Output strictly 0.0
-        float valBlack[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        float valBlack[4] = {0.0f, 0.0f, 0.0f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, valBlack);
         gl.DrawQuad();
         glm::vec4 pixelBlack = gl.ReadPixel(0, 0);
@@ -79,13 +76,10 @@ TEST_SUITE("Shader GPU - Post-Processing Bloom Pipeline") {
 
     TEST_CASE("Bloom Downsampling & Upsampling Filter Mathematical Energy Bounds") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto downShader = Leon::FShader::Create("Engine/Assets/Shaders/BloomDownsample.glsl");
-        auto upShader   = Leon::FShader::Create("Engine/Assets/Shaders/BloomUpsample.glsl");
+        auto upShader = Leon::FShader::Create("Engine/Assets/Shaders/BloomUpsample.glsl");
         REQUIRE(downShader != nullptr);
         REQUIRE(upShader != nullptr);
 

@@ -6,7 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl UV Transformation") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU UV Tiling and Offset") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -18,13 +18,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl UV Transformation") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -71,5 +71,4 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl UV Transformation") {
         CHECK(offsetUV.r == doctest::Approx(0.75f).epsilon(0.05f));
         CHECK(offsetUV.g == doctest::Approx(0.60f).epsilon(0.05f));
     }
-
 }

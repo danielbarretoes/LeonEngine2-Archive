@@ -34,7 +34,7 @@ namespace Leon {
 
         /**
          * ControlRotation: Pitch/Yaw/Roll in degrees (same as FTransformComponent).
-         * TPS: Pitch drives the camera only; Yaw orients the pawn on the ground plane; Roll stays 0.
+         * Pitch typically drives the camera; yaw orients the pawn on the ground plane; roll stays 0.
          */
         const glm::vec3& GetControlRotation() const { return ControlRotation; }
         void SetControlRotation(const glm::vec3& InRotation) {
@@ -42,7 +42,9 @@ namespace Leon {
             ControlRotation.x = std::clamp(ControlRotation.x, -89.0f, 89.0f);
             ControlRotation.z = 0.0f;
         }
-        void AddYawInput(float InDeltaYaw) { SetControlRotation({ControlRotation.x, ControlRotation.y + InDeltaYaw, 0.0f}); }
+        void AddYawInput(float InDeltaYaw) {
+            SetControlRotation({ControlRotation.x, ControlRotation.y + InDeltaYaw, 0.0f});
+        }
         void AddPitchInput(float InDeltaPitch) {
             SetControlRotation({ControlRotation.x + InDeltaPitch, ControlRotation.y, 0.0f});
         }

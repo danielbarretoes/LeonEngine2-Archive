@@ -7,10 +7,7 @@ TEST_SUITE("GPU - Texture Upload, Half-Float & Seamless Cubemap Integration") {
 
     TEST_CASE("Headless OpenGL Context - Float Texture Upload & Readback Invariants") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU integration test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         // 1. Test Seamless Cubemap OpenGL Flag Enablement
         glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
@@ -25,11 +22,13 @@ TEST_SUITE("GPU - Texture Upload, Half-Float & Seamless Cubemap Integration") {
 
         std::vector<float> uploadFaceData(cubeSize * cubeSize * 4, 3.1415f);
         for (int face = 0; face < 6; ++face) {
-            glTextureSubImage3D(cubeTex, 0, 0, 0, face, cubeSize, cubeSize, 1, GL_RGBA, GL_FLOAT, uploadFaceData.data());
+            glTextureSubImage3D(cubeTex, 0, 0, 0, face, cubeSize, cubeSize, 1, GL_RGBA, GL_FLOAT,
+                                uploadFaceData.data());
         }
 
         std::vector<float> readbackData(cubeSize * cubeSize * 4 * 6, 0.0f);
-        glGetTextureImage(cubeTex, 0, GL_RGBA, GL_FLOAT, static_cast<GLsizei>(readbackData.size() * sizeof(float)), readbackData.data());
+        glGetTextureImage(cubeTex, 0, GL_RGBA, GL_FLOAT, static_cast<GLsizei>(readbackData.size() * sizeof(float)),
+                          readbackData.data());
 
         for (size_t i = 0; i < readbackData.size(); ++i) {
             CHECK(!std::isnan(readbackData[i]));

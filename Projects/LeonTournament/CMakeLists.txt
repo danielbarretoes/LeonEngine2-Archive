@@ -1,17 +1,17 @@
 add_executable(LeonTournament
     Source/LeonTournament/Main.cpp
-    Source/LeonTournament/Private/AShooterGameMode.cpp
-    Source/LeonTournament/Private/AShooterGameState.cpp
-    Source/LeonTournament/Private/AShooterCharacter.cpp
-    Source/LeonTournament/Private/AShooterPlayerController.cpp
-    Source/LeonTournament/Private/AShooterPlayerState.cpp
-    Source/LeonTournament/Private/AShooterBotController.cpp
-    Source/LeonTournament/Private/AShooterWeapon.cpp
-    Source/LeonTournament/Private/AShooterHUD.cpp
-    Source/LeonTournament/Private/UShooterAnimInstance.cpp
-    Source/LeonTournament/Private/UShooterCombatComponent.cpp
-    Source/LeonTournament/Private/UShooterGameInstance.cpp
-    Source/LeonTournament/Private/UShooterWidgets.cpp
+    Source/LeonTournament/Private/ALeonTournamentGameMode.cpp
+    Source/LeonTournament/Private/ALeonTournamentGameState.cpp
+    Source/LeonTournament/Private/ALeonTournamentCharacter.cpp
+    Source/LeonTournament/Private/ALeonTournamentPlayerController.cpp
+    Source/LeonTournament/Private/ALeonTournamentPlayerState.cpp
+    Source/LeonTournament/Private/ALeonTournamentBotController.cpp
+    Source/LeonTournament/Private/ALeonTournamentWeapon.cpp
+    Source/LeonTournament/Private/ALeonTournamentHUD.cpp
+    Source/LeonTournament/Private/ULeonTournamentAnimInstance.cpp
+    Source/LeonTournament/Private/ULeonTournamentCombatComponent.cpp
+    Source/LeonTournament/Private/ULeonTournamentGameInstance.cpp
+    Source/LeonTournament/Private/ULeonTournamentWidgets.cpp
 )
 
 target_include_directories(LeonTournament PRIVATE

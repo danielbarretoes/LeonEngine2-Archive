@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Base.hpp"
+#include "Engine/FParticleTypes.hpp"
 #include <glm/glm.hpp>
 #include <string>
 
@@ -11,6 +12,7 @@ namespace Leon {
     class AGameModeBase;
     class AGameStateBase;
     class APawn;
+    class UParticleComponent;
 
     /**
      * @brief Unreal Engine aligned static library for gameplay functions.
@@ -18,7 +20,7 @@ namespace Leon {
     class UGameplayStatics {
     public:
         /**
-         * @brief Requests loading of a new level map (e.g. "/Game/Maps/NightLevel").
+         * @brief Requests loading of a new level map (e.g. "/Game/Maps/MyMap").
          */
         static void OpenLevel(UWorld* InWorldContext, const std::string& InLevelName);
 
@@ -35,6 +37,9 @@ namespace Leon {
         static AGameModeBase* GetGameMode(UWorld* InWorldContext);
         static AGameStateBase* GetGameState(UWorld* InWorldContext);
         static APawn* GetPlayerPawn(UWorld* InWorldContext, int32_t InPlayerIndex = 0);
+
+        static UParticleComponent* SpawnEmitterAtLocation(UWorld* InWorld, const FParticleEmitterSettings& InSettings,
+                                                          const glm::vec3& InLocation);
     };
 
     /**

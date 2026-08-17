@@ -51,6 +51,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Renderer/Private/FIBLGenerator.cpp
     Source/Runtime/Renderer/Private/FDebugOverlay.cpp
     Source/Runtime/Renderer/Private/FDebugRenderer.cpp
+    Source/Runtime/Renderer/Private/FParticleRenderer.cpp
     Source/Runtime/Renderer/Private/FTextRenderer.cpp
     Source/Runtime/Renderer/Private/FShadowMath.cpp
     # UMG
@@ -98,14 +99,18 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Physics/Private/FSimplePhysicsScene.cpp
     Source/Runtime/Physics/Private/FCollisionQuery.cpp
     Source/Runtime/Gameplay/Private/UPrimitiveComponent.cpp
+    Source/Runtime/Gameplay/Private/UNavMovementComponent.cpp
     Source/Runtime/Gameplay/Private/UCharacterMovementComponent.cpp
     Source/Runtime/Gameplay/Private/USpringArmComponent.cpp
+    Source/Runtime/Gameplay/Private/UParticleComponent.cpp
     Source/Runtime/Gameplay/Private/AController.cpp
     Source/Runtime/Gameplay/Private/AAIController.cpp
     Source/Runtime/Gameplay/Private/ABlockingVolume.cpp
+    Source/Runtime/Gameplay/Private/APhysicsVolume.cpp
     Source/Runtime/Gameplay/Private/ANavMeshBoundsVolume.cpp
     Source/Runtime/Gameplay/Private/FGameplayDebugger.cpp
     Source/Runtime/AI/Private/UBlackboardData.cpp
+    Source/Runtime/AI/Private/UBlackboardComponent.cpp
     Source/Runtime/AI/Private/UBehaviorTree.cpp
     Source/Runtime/AI/Private/UBehaviorTreeComponent.cpp
     Source/Runtime/AI/Private/UNavigationSystem.cpp

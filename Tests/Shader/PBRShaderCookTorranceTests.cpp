@@ -6,10 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Cook-Torrance Evaluation") {
 
     TEST_CASE("PBR_Lit.glsl Exact Hardware GPU Numerical Output vs Analytical Formula") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         REQUIRE(std::filesystem::exists(shaderPath));
@@ -24,15 +21,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Cook-Torrance Evaluation") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f); // L = +Z
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);  // radiance = 1.0
-        lightData.LightCounts.x      = 0;
-        lightData.LightCounts.y      = 0;
-        lightData.EnvSkyColor        = glm::vec4(0.0f); // Zero ambient for pure direct lighting test
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);      // radiance = 1.0
+        lightData.LightCounts.x = 0;
+        lightData.LightCounts.y = 0;
+        lightData.EnvSkyColor = glm::vec4(0.0f); // Zero ambient for pure direct lighting test
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));

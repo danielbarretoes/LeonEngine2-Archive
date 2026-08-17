@@ -8,10 +8,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
 
     TEST_CASE("ACES Hardware Curve Numerical Accuracy & Strict Monotonicity") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
         REQUIRE(shader != nullptr);
@@ -37,14 +34,14 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         shader->SetInt("u_DebugMode", 0);
 
         // 1. Black FInput (0.0) -> Output strictly 0.0
-        float val0[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        float val0[4] = {0.0f, 0.0f, 0.0f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, val0);
         gl.DrawQuad();
         glm::vec4 pixel0 = gl.ReadPixel(0, 0);
         CHECK(pixel0.r == doctest::Approx(0.0f).epsilon(1e-5f));
 
         // 2. Middle Gray (0.18) -> Exact ACES value 0.266876 -> sRGB gamma = 0.54807
-        float valMid[4] = { 0.18f, 0.18f, 0.18f, 1.0f };
+        float valMid[4] = {0.18f, 0.18f, 0.18f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, valMid);
         gl.DrawQuad();
         glm::vec4 pixelMid = gl.ReadPixel(0, 0);
@@ -53,14 +50,14 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         CHECK(pixelMid.a == doctest::Approx(pixelMid.r).epsilon(0.01f));
 
         // 3. Unit White (1.0) -> Exact ACES value 0.803797 -> sRGB gamma = 0.90561
-        float val1[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float val1[4] = {1.0f, 1.0f, 1.0f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, val1);
         gl.DrawQuad();
         glm::vec4 pixel1 = gl.ReadPixel(0, 0);
         CHECK(pixel1.r == doctest::Approx(Leon::LinearToSRGB(0.803797f)).epsilon(0.015f));
 
         // 4. Extreme HDR Brightness (1000.0) -> Bounded strictly <= 1.0
-        float val1000[4] = { 1000.0f, 1000.0f, 1000.0f, 1.0f };
+        float val1000[4] = {1000.0f, 1000.0f, 1000.0f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, val1000);
         gl.DrawQuad();
         glm::vec4 pixel1000 = gl.ReadPixel(0, 0);
@@ -79,10 +76,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
 
     TEST_CASE("Tone Mapping Exposure Scaling & Multi-Operator Support") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
         REQUIRE(shader != nullptr);
@@ -100,7 +94,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         shader->SetFloat("u_Gamma", 2.2f);
         shader->SetInt("u_DebugMode", 0);
 
-        float val[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+        float val[4] = {0.5f, 0.5f, 0.5f, 1.0f};
         glTextureSubImage2D(hdrTex, 0, 0, 0, 1, 1, GL_RGBA, GL_FLOAT, val);
 
         // 1. Exposure 1.0 vs Exposure 2.0 (Double exposure must increase output)

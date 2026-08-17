@@ -6,8 +6,7 @@ TEST_SUITE("Renderer golden constraints (no pixel goldens from a broken pipeline
 
     TEST_CASE("Diagnostic PBR frame is finite and IBL diffuse energy holds") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid())
-            return;
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);

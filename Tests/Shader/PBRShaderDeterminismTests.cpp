@@ -6,10 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Hardware Determinism") {
 
     TEST_CASE("Repeatable 100% Deterministic GPU Shading across Multiple Runs") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -21,15 +18,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Hardware Determinism") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts.x      = 0;
-        lightData.LightCounts.y      = 0;
-        lightData.EnvSkyColor        = glm::vec4(0.0f); // Zero ambient to test direct Lo accumulation
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts.x = 0;
+        lightData.LightCounts.y = 0;
+        lightData.EnvSkyColor = glm::vec4(0.0f); // Zero ambient to test direct Lo accumulation
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -54,7 +51,8 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Hardware Determinism") {
         glm::vec4 firstPass = gl.ReadPixel(0, 0);
 
         CHECK(!std::isnan(firstPass.r));
-        CHECK(firstPass.r > 0.05f); // Validates that hdrColor = ambient + Lo + emissive accumulates Lo in normal mode (DebugMode=0)
+        CHECK(firstPass.r >
+              0.05f); // Validates that hdrColor = ambient + Lo + emissive accumulates Lo in normal mode (DebugMode=0)
 
         for (int run = 0; run < 10; ++run) {
             gl.DrawQuad();

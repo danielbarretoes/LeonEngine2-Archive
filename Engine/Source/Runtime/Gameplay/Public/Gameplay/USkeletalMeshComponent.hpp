@@ -41,6 +41,9 @@ namespace Leon {
         void SetRelativeScale(const glm::vec3& InScale) { RelativeScale = InScale; }
         const glm::vec3& GetRelativeScale() const { return RelativeScale; }
 
+        void SetHiddenInGame(bool bHidden) { bHiddenInGame = bHidden; }
+        bool IsHiddenInGame() const { return bHiddenInGame; }
+
         const std::vector<glm::mat4>& GetBonePalette() const { return BonePalette; }
 
     private:
@@ -56,6 +59,7 @@ namespace Leon {
         glm::vec3 RelativeScale{1.0f};
         std::vector<glm::mat4> BonePalette;
         FPose EvaluatedPose;
+        bool bHiddenInGame = false;
     };
 
 } // namespace Leon

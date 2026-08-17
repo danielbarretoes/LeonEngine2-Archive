@@ -1,5 +1,9 @@
 #pragma once
 
+// EnTT render/physics mirror PODs attached to AActor entities. These are not UActorComponent
+// subclasses. UObject components live under Gameplay/U*Component.hpp. Aggregation is intentional:
+// AActor.hpp includes this registry as the canonical ECS component set.
+
 #include "Core/Base.hpp"
 #include "RHI/FBuffer.hpp"
 #include "Renderer/FLight.hpp"
@@ -94,6 +98,7 @@ namespace Leon {
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
+        bool bVisible = true;
         EComponentMobility Mobility = EComponentMobility::Static;
         uint32_t LightmapResolution = 64;
         int32_t LightmapIndex = -1;
@@ -131,6 +136,7 @@ namespace Leon {
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
+        bool bVisible = true;
         EComponentMobility Mobility = EComponentMobility::Static;
         uint32_t LightmapResolution = 64;
         int32_t LightmapIndex = -1; ///< Index into world lightmap atlas entries (-1 = none)
@@ -159,6 +165,7 @@ namespace Leon {
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;
+        bool bVisible = true;
 
         FSkeletalMeshComponent() = default;
         FSkeletalMeshComponent(const FSkeletalMeshComponent&) = default;

@@ -49,6 +49,7 @@ namespace Leon {
 
         void SetOverrideSequence(const TRef<UAnimSequence>& InSeq, bool bLoop = true);
         void ClearOverrideSequence();
+        void ResetPoseState();
 
         float GetAnimTime() const { return AnimTime; }
 

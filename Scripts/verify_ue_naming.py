@@ -8,7 +8,7 @@ Checks (Engine / Plugins / Projects / Tests / Tools — skips ThirdParty/build):
   - Member prefixes m_ and s_ on typical C++ identifiers
   - OpenGL plugin files still named OpenGL*.hpp/.cpp (must be FOpenGL*)
   - Sandbox gameplay files still named SandboxGameMode* (must be A/U prefixed)
-  - Engine/ must not hardcode a product project (Projects/Sandbox or bare Sandbox defaults)
+  - Engine/ must not hardcode a product project (Projects/Sandbox, Projects/LeonTournament, or bare product names)
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ RE_USING_ALIAS = re.compile(
 RE_SCENE = re.compile(r"\b(FSceneRenderer|GetSceneRenderer|class SceneRenderer)\b")
 RE_MEMBER_M = re.compile(r"\bm_[A-Za-z]\w*")
 RE_MEMBER_S = re.compile(r"\bs_[A-Za-z]\w*")
-RE_ENGINE_PROJECT_PATH = re.compile(r"Projects[/\\]Sandbox")
-RE_ENGINE_SANDBOX = re.compile(r"\bSandbox\b")
+RE_ENGINE_PROJECT_PATH = re.compile(r"Projects[/\\](Sandbox|LeonTournament)")
+RE_ENGINE_PRODUCT = re.compile(r"\b(Sandbox|LeonTournament)\b")
 RE_EXT = {".hpp", ".h", ".cpp", ".c", ".inl"}
 
 FORBIDDEN_FILENAMES = {
@@ -114,10 +114,8 @@ def main() -> int:
             for m in RE_ENGINE_PROJECT_PATH.finditer(text):
                 violations.append(f"{rel}: engine hardcodes product path `{m.group(0)}`")
             for line_no, line in enumerate(text.splitlines(), 1):
-                if "SandboxGameMode" in line:
-                    continue  # legacy INI section suffix /Script/<Project>.SandboxGameMode
-                if RE_ENGINE_SANDBOX.search(line):
-                    violations.append(f"{rel}:{line_no}: engine references product name `Sandbox`")
+                if RE_ENGINE_PRODUCT.search(line):
+                    violations.append(f"{rel}:{line_no}: engine references product name")
         for m in RE_MEMBER_M.finditer(text):
             violations.append(f"{rel}: member prefix `{m.group(0)}`")
         for m in RE_MEMBER_S.finditer(text):

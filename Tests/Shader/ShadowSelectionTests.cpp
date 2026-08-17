@@ -8,7 +8,7 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Cascade Slice Selection by Depth") {
         auto& gl = FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         auto shader = FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -26,16 +26,17 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
 
         FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        camData.CascadeSplits  = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
-        camData.ShadowParams   = glm::vec4(0.001f, 0.002f, 0.02f, 0.0f); // No blend
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CascadeSplits = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
+        camData.ShadowParams = glm::vec4(0.001f, 0.002f, 0.02f, 0.0f); // No blend
         camData.ShadowSettings = glm::ivec4(1, 16, 0, 25);
 
-        for (int c = 0; c < 4; ++c) camData.LightSpaceMatrices[c] = glm::mat4(1.0f);
+        for (int c = 0; c < 4; ++c)
+            camData.LightSpaceMatrices[c] = glm::mat4(1.0f);
 
         FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         gl.UpdateLightingUBO(lightData);
 
         SUBCASE("Cascade 0 Selection (Depth < 5.0 -> Red)") {
@@ -91,12 +92,13 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
         }
 
         SUBCASE("Cascade Smooth Boundary Blending Invariant") {
-            shader->SetInt("u_DebugMode", 24); // Mode 24: Direct shadow factor (1 = lit, 0 = occluded)
+            shader->SetInt("u_DebugMode", 24);                 // Mode 24: Direct shadow factor (1 = lit, 0 = occluded)
             camData.ShadowSettings = glm::ivec4(0, 16, 0, 24); // Hard shadow (1 tap)
 
             // Layer 0 is lit (depth 1.0). Set layer 1 depth to 0.0f (occluded).
             float zeroDepth = 0.0f;
-            glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 1, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &zeroDepth);
+            glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 1, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT,
+                               &zeroDepth);
 
             // Both cascade matrices map (0,0,0) to z = 0.5
             camData.LightSpaceMatrices[0] = glm::mat4(1.0f);
@@ -104,7 +106,8 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
 
             // Cascade 0 split = 5.0, blendWidth = 0.20 (blendZone = [4.0, 5.0])
             camData.ShadowParams = glm::vec4(0.0f, 0.0f, 0.0f, 0.20f);
-            // Camera position at depth = 4.5 -> exact 50% blend between cascade 0 (lit 1.0) and cascade 1 (shadowed 0.0)
+            // Camera position at depth = 4.5 -> exact 50% blend between cascade 0 (lit 1.0) and cascade 1 (shadowed
+            // 0.0)
             camData.CameraPosition = glm::vec4(0.0f, 0.0f, 4.5f, 1.0f);
             gl.UpdateCameraUBO(camData);
 
@@ -114,16 +117,17 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
 
             // Restore layer 1 to 1.0f
             float oneDepth = 1.0f;
-            glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 1, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &oneDepth);
+            glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 1, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT,
+                               &oneDepth);
 
             // 50% interpolated blend factor = 0.5
             CHECK(pix.r == doctest::Approx(0.5f).epsilon(0.05f));
         }
 
         SUBCASE("Far Shadow Distance Fadeout Invariant") {
-            shader->SetInt("u_DebugMode", 24); // Shadow Factor (1 = lit, 0 = occluded)
+            shader->SetInt("u_DebugMode", 24);                            // Shadow Factor (1 = lit, 0 = occluded)
             camData.CameraPosition = glm::vec4(0.0f, 0.0f, 120.0f, 1.0f); // Far beyond 100.0
-            camData.ShadowParams   = glm::vec4(0.001f, 0.002f, 0.02f, 0.0f);
+            camData.ShadowParams = glm::vec4(0.001f, 0.002f, 0.02f, 0.0f);
             gl.UpdateCameraUBO(camData);
 
             gl.DrawQuad();

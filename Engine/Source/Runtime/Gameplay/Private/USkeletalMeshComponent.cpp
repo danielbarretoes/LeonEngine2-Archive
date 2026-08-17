@@ -81,6 +81,10 @@ namespace Leon {
 
     void USkeletalMeshComponent::Tick(float DeltaSeconds) {
         FFrameProfiler::FScope animScope(&FFrameProfiler::Working().AnimationMs);
+        if (bHiddenInGame) {
+            PushToRenderComponent();
+            return;
+        }
         if (!SkeletalMesh || !SkeletalMesh->GetSkeleton())
             return;
 
@@ -118,6 +122,8 @@ namespace Leon {
             rot.y += 180.0f;
         render.RelativeRotation = rot;
         render.RelativeScale = RelativeScale;
+        render.bVisible = !bHiddenInGame;
+        render.bCastShadows = !bHiddenInGame;
     }
 
 } // namespace Leon

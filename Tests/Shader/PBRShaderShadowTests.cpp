@@ -6,10 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
 
     TEST_CASE("PBR_Lit.glsl Directional Shadow Occlusion (Unshadowed vs Fully Shadowed)") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -21,14 +18,14 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f); // L = +Z
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 2.0f);  // Intensity = 2.0
-        lightData.LightCounts.x      = 0;
-        lightData.LightCounts.y      = 0;
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 2.0f);      // Intensity = 2.0
+        lightData.LightCounts.x = 0;
+        lightData.LightCounts.y = 0;
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -59,7 +56,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
 
     TEST_CASE("PBR_Lit.glsl Spot Light Shadow Evaluation") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -72,8 +69,8 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
         camData.ViewProjection = glm::mat4(1.0f);
         camData.SpotLightSpaceMatrix = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        camData.ShadowParams   = glm::vec4(0.001f, 0.002f, 0.02f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.ShadowParams = glm::vec4(0.001f, 0.002f, 0.02f, 0.0f);
         camData.ShadowSettings = glm::ivec4(1, 16, 0, 0);
         gl.UpdateCameraUBO(camData);
 
@@ -83,10 +80,10 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
         lightData.LightCounts.y = 1;
 
         // Spot light 0 active facing -Z
-        lightData.SpotLights[0].Position  = glm::vec4(0.0f, 0.0f, 2.0f, 1.0f);
+        lightData.SpotLights[0].Position = glm::vec4(0.0f, 0.0f, 2.0f, 1.0f);
         lightData.SpotLights[0].Direction = glm::vec4(0.0f, 0.0f, -1.0f, glm::cos(glm::radians(20.0f)));
-        lightData.SpotLights[0].Color     = glm::vec4(1.0f, 1.0f, 1.0f, glm::cos(glm::radians(45.0f)));
-        lightData.SpotLights[0].Params    = glm::vec4(10.0f, 5.0f, 0.0f, 0.0f);
+        lightData.SpotLights[0].Color = glm::vec4(1.0f, 1.0f, 1.0f, glm::cos(glm::radians(45.0f)));
+        lightData.SpotLights[0].Params = glm::vec4(10.0f, 5.0f, 0.0f, 0.0f);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));

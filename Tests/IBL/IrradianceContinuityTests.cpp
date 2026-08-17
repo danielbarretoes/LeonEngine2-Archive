@@ -2,21 +2,22 @@
 #include "Assets/FHDRImporter.hpp"
 #include "Renderer/FIBLMath.hpp"
 
+#include <cmath>
+#include <filesystem>
+#include <vector>
+
 TEST_SUITE("IBL - Irradiance Cubemap Spatial Continuity") {
 
     TEST_CASE("All 6 Faces x 32x32 Spatial Neighbor Outlier Ratio <= 1.25x (Zero Fireflies)") {
-        const std::string hdrPath = "Projects/Sandbox/Content/HDR/AutumnField1k.lhdr";
-        if (!std::filesystem::exists(hdrPath)) {
-            MESSAGE("AutumnField1k.lhdr not found — skipping asset continuity test.");
-            return;
-        }
+        const std::string hdrPath = "Projects/Sandbox/Content/HDR/DaySky1k.lhdr";
+        REQUIRE(std::filesystem::exists(hdrPath));
 
         Leon::FNativeHDRData nativeData;
         REQUIRE(nativeData.LoadFromFile(hdrPath));
         int width = nativeData.Header.Width;
         int height = nativeData.Header.Height;
-        REQUIRE(width == 1024);
-        REQUIRE(height == 512);
+        REQUIRE(width > 0);
+        REQUIRE(height > 0);
 
         Leon::FHDREquirectangularMipChain mipChain;
         mipChain.Build(nativeData.Pixels.data(), width, height);
@@ -68,7 +69,8 @@ TEST_SUITE("IBL - Irradiance Cubemap Spatial Continuity") {
                     int countNeigh = 0;
                     for (int dy = -1; dy <= 1; ++dy) {
                         for (int dx = -1; dx <= 1; ++dx) {
-                            if (dx == 0 && dy == 0) continue;
+                            if (dx == 0 && dy == 0)
+                                continue;
                             int nx = x + dx;
                             int ny = y + dy;
                             if (nx >= 0 && nx < irradSize && ny >= 0 && ny < irradSize) {
@@ -81,8 +83,10 @@ TEST_SUITE("IBL - Irradiance Cubemap Spatial Continuity") {
                         float meanNeigh = sumNeigh / static_cast<float>(countNeigh);
                         float ratio = val / std::max(meanNeigh, 0.001f);
                         float delta = std::abs(val - meanNeigh);
-                        if (ratio > maxRatio) maxRatio = ratio;
-                        if (delta > maxDelta) maxDelta = delta;
+                        if (ratio > maxRatio)
+                            maxRatio = ratio;
+                        if (delta > maxDelta)
+                            maxDelta = delta;
 
                         // Invariant: No isolated single-texel spikes (ratio must be < 1.25x)
                         CHECK(ratio <= 1.25f);

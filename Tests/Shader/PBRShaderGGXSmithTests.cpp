@@ -7,10 +7,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl GGX, Smith & Material Grid") {
 
     TEST_CASE("GGX NDF Hardware On-Axis Monotonic Scaling with Roughness") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -22,15 +19,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl GGX, Smith & Material Grid") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f); // L = +Z (on axis)
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts.x      = 0;
-        lightData.LightCounts.y      = 0;
-        lightData.EnvSkyColor        = glm::vec4(0.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts.x = 0;
+        lightData.LightCounts.y = 0;
+        lightData.EnvSkyColor = glm::vec4(0.0f);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -90,10 +87,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl GGX, Smith & Material Grid") {
 
     TEST_CASE("Comprehensive 7-Material Parameter Matrix in Real Hardware") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -105,15 +99,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl GGX, Smith & Material Grid") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts.x      = 0;
-        lightData.LightCounts.y      = 0;
-        lightData.EnvSkyColor        = glm::vec4(0.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts.x = 0;
+        lightData.LightCounts.y = 0;
+        lightData.EnvSkyColor = glm::vec4(0.0f);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -132,7 +126,10 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl GGX, Smith & Material Grid") {
         Leon::TestGPU::SetFloat3(shader, "u_EmissiveColor", glm::vec3(0.0f));
         Leon::TestGPU::SetFloat3(shader, "u_AlbedoColor", glm::vec3(0.9f, 0.7f, 0.3f));
 
-        struct FMatCase { float metallic; float roughness; };
+        struct FMatCase {
+            float metallic;
+            float roughness;
+        };
         std::vector<FMatCase> testCases = {
             {0.0f, 0.05f}, // 1. Metallic = 0, Roughness = 0.05
             {1.0f, 0.05f}, // 2. Metallic = 1, Roughness = 0.05

@@ -6,10 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Fresnel Evaluation") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Fresnel Schlick (cosTheta in {1.0, 0.5, 0.0})") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         REQUIRE(std::filesystem::exists(shaderPath));
@@ -25,16 +22,16 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Fresnel Evaluation") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f); // Identity maps Quad [-1, 1] directly to NDC
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         // Lighting UBO: Directional Light towards -Z (L = +Z, parallel to V)
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f); // xyz = -L, w = enabled
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);  // radiance = 1.0
-        lightData.LightCounts.x      = 0; // No point lights
-        lightData.LightCounts.y      = 0; // No spot lights
-        lightData.EnvSkyColor        = glm::vec4(0.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);      // radiance = 1.0
+        lightData.LightCounts.x = 0;                                       // No point lights
+        lightData.LightCounts.y = 0;                                       // No spot lights
+        lightData.EnvSkyColor = glm::vec4(0.0f);
         gl.UpdateLightingUBO(lightData);
 
         // Uniforms

@@ -9,7 +9,7 @@ TEST_SUITE("Shader GPU - Shadow Filtering Modes (Hard, PCF 3x3, PCF 5x5, Poisson
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Multi-Filter Shadow Evaluation") {
         auto& gl = FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         auto shader = FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -25,9 +25,9 @@ TEST_SUITE("Shader GPU - Shadow Filtering Modes (Hard, PCF 3x3, PCF 5x5, Poisson
         FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 2.0f, 1.0f); // Cascade 0
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        camData.CascadeSplits  = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
-        camData.ShadowParams   = glm::vec4(0.001f, 0.002f, 0.0f, 0.0f); // Zero normal bias
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CascadeSplits = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
+        camData.ShadowParams = glm::vec4(0.001f, 0.002f, 0.0f, 0.0f); // Zero normal bias
 
         for (int c = 0; c < 4; ++c) {
             camData.LightSpaceMatrices[c] = glm::mat4(1.0f);
@@ -35,7 +35,7 @@ TEST_SUITE("Shader GPU - Shadow Filtering Modes (Hard, PCF 3x3, PCF 5x5, Poisson
 
         FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         gl.UpdateLightingUBO(lightData);
 
         shader->SetInt("u_UseShadows", 1);
@@ -90,11 +90,12 @@ TEST_SUITE("Shader GPU - Shadow Filtering Modes (Hard, PCF 3x3, PCF 5x5, Poisson
             // deltaZ maps center to 1.000 (edge of shadow depth)
             glm::mat4 lightMat = glm::mat4(1.0f);
             lightMat[3][2] = 1.000f;
-            for (int c = 0; c < 4; ++c) camData.LightSpaceMatrices[c] = lightMat;
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = lightMat;
 
             // In Poisson mode, sampling points with radius > 0 sample outside center
             camData.ShadowSettings = glm::ivec4(3, 16, 0, 24); // Poisson (mode 3)
-            camData.ShadowParams   = glm::vec4(0.0005f, 0.0f, 0.0f, 0.0f);
+            camData.ShadowParams = glm::vec4(0.0005f, 0.0f, 0.0f, 0.0f);
             gl.UpdateCameraUBO(camData);
 
             gl.DrawQuad();

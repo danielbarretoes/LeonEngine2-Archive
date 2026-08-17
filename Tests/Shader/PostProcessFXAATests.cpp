@@ -7,10 +7,7 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
 
     TEST_CASE("FXAA Uniform Color Field Zero Distortion Invariant") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
         REQUIRE(shader != nullptr);
@@ -92,10 +89,7 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
 
     TEST_CASE("FXAA High-Contrast Edge Anti-Aliasing Response") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
         REQUIRE(shader != nullptr);
@@ -159,18 +153,15 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
 
         CHECK(!std::isnan(centerVal));
         CHECK(!std::isnan(neighborVal));
-        CHECK(centerVal < 0.95f);   // Center peak intensity softened
-        CHECK(neighborVal > 0.0f);  // Radiance distributed to orthogonal neighbor across the edge
+        CHECK(centerVal < 0.95f);  // Center peak intensity softened
+        CHECK(neighborVal > 0.0f); // Radiance distributed to orthogonal neighbor across the edge
 
         glDeleteTextures(1, &edgeTex);
     }
 
     TEST_CASE("FXAA Subpixel Anti-Aliasing on Isolated High-Frequency Feature") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
         REQUIRE(shader != nullptr);

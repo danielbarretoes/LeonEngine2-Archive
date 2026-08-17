@@ -1,4 +1,6 @@
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Gameplay/UParticleComponent.hpp"
+#include "Gameplay/AActor.hpp"
 #include "Core/FLog.hpp"
 #include "Engine/UEngine.hpp"
 #include "Gameplay/AGameModeBase.hpp"
@@ -47,6 +49,22 @@ namespace Leon {
     APawn* UGameplayStatics::GetPlayerPawn(UWorld* InWorldContext, int32_t InPlayerIndex) {
         APlayerController* pc = GetPlayerController(InWorldContext, InPlayerIndex);
         return pc ? pc->GetPawn() : nullptr;
+    }
+
+    UParticleComponent* UGameplayStatics::SpawnEmitterAtLocation(UWorld* InWorld,
+                                                                 const FParticleEmitterSettings& InSettings,
+                                                                 const glm::vec3& InLocation) {
+        if (!InWorld)
+            return nullptr;
+        AActor* actor = InWorld->SpawnActor<AActor>("ParticleEmitter");
+        if (!actor)
+            return nullptr;
+        actor->SetActorLocation(InLocation);
+        auto emitter = actor->AddActorComponent<UParticleComponent>("Particles");
+        emitter->SetEmitterSettings(InSettings);
+        emitter->SetDestroyOwnerWhenDone(true);
+        emitter->Activate(true);
+        return emitter.get();
     }
 
 } // namespace Leon

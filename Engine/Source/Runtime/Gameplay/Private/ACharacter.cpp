@@ -1,7 +1,7 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/AController.hpp"
-#include "Gameplay/ABlockingVolume.hpp"
+#include "Gameplay/APhysicsVolume.hpp"
 #include "Gameplay/UAnimInstance.hpp"
 #include "Gameplay/FGameplayDebugger.hpp"
 #include "Renderer/FRenderingMath.hpp"
@@ -156,6 +156,7 @@ namespace Leon {
         UpdatePhysicsVolume();
         UpdateAnimFromMovement(DeltaSeconds);
         UpdateCameraFromView();
+        UpdateMeshVisibility();
         DrawCharacterDebug();
     }
 
@@ -247,6 +248,45 @@ namespace Leon {
             Jump();
     }
 
+    float ACharacter::ComputeLocomotionDirection(const glm::vec3& InPlanarMove, const glm::vec3& InPlanarForward) {
+        glm::vec3 move = InPlanarMove;
+        move.y = 0.0f;
+        glm::vec3 fwd = InPlanarForward;
+        fwd.y = 0.0f;
+        if (glm::length(move) < 1e-5f || glm::length(fwd) < 1e-5f)
+            return 0.0f;
+        move = glm::normalize(move);
+        fwd = glm::normalize(fwd);
+        glm::vec3 right(-fwd.z, 0.0f, fwd.x);
+        return glm::degrees(std::atan2(glm::dot(move, right), glm::dot(move, fwd)));
+    }
+
+    void ACharacter::ResetMovementForRespawn() {
+        bMeshHiddenInGame = false;
+        if (CharacterMovement)
+            CharacterMovement->ResetForRespawn();
+        ApplyYawOnlyActorRotation();
+        LastLocation = GetActorLocation();
+        LastMoveDir = GetControlPlanarForward();
+        bHasLastLocation = true;
+        AnimRepState.Speed = 0.0f;
+        AnimRepState.Direction = 0.0f;
+        AnimRepState.SetFlag(FAnimRepState::FlagInAir, false);
+        UpdateMeshVisibility();
+    }
+
+    void ACharacter::SetMeshHiddenInGame(bool bHidden) {
+        bMeshHiddenInGame = bHidden;
+        UpdateMeshVisibility();
+    }
+
+    void ACharacter::UpdateMeshVisibility() {
+        if (!Mesh)
+            return;
+        const bool bHideBody = bMeshHiddenInGame || (!bThirdPerson && IsLocallyControlled());
+        Mesh->SetHiddenInGame(bHideBody);
+    }
+
     void ACharacter::AddMovementInput(const glm::vec3& InWorldDirection, float InScale) {
         if (!CharacterMovement || glm::length(InWorldDirection) < 1e-5f)
             return;
@@ -290,23 +330,15 @@ namespace Leon {
     }
 
     void ACharacter::UpdateAnimFromMovement(float DeltaSeconds) {
-        const glm::vec3 loc = GetActorLocation();
-        glm::vec3 delta(0.0f);
-        if (bHasLastLocation && DeltaSeconds > 1e-6f)
-            delta = loc - LastLocation;
-        LastLocation = loc;
-        bHasLastLocation = true;
-
-        glm::vec3 planar(delta.x, 0.0f, delta.z);
-        float speed = (DeltaSeconds > 1e-6f) ? glm::length(planar) / DeltaSeconds : 0.0f;
+        (void)DeltaSeconds;
+        glm::vec3 vel = CharacterMovement ? CharacterMovement->GetVelocity() : glm::vec3(0.0f);
+        glm::vec3 planar(vel.x, 0.0f, vel.z);
+        float speed = glm::length(planar);
         if (speed > 1e-3f)
-            LastMoveDir = glm::normalize(planar);
+            LastMoveDir = planar / speed;
 
         glm::vec3 forward = GetControlPlanarForward();
-        glm::vec3 right(-forward.z, 0.0f, forward.x);
-        float fwd = glm::dot(LastMoveDir, forward);
-        float rightDot = glm::dot(LastMoveDir, right);
-        float direction = glm::degrees(std::atan2(rightDot, fwd));
+        float direction = ComputeLocomotionDirection(LastMoveDir, forward);
 
         AnimRepState.Speed = speed * 100.0f;
         AnimRepState.Direction = direction;

@@ -71,6 +71,10 @@ namespace Leon {
             CHECK(registry.HasClass("ACameraActor"));
             CHECK(registry.HasClass("APlayerCameraManager"));
             CHECK(registry.HasClass("AHUD"));
+            CHECK(registry.HasClass("ABlockingVolume"));
+            CHECK(registry.HasClass("APhysicsVolume"));
+            CHECK_FALSE(registry.HasClass("Actor"));
+            CHECK_FALSE(registry.HasClass("HUD"));
 
             registry.RegisterClass<ATestLifecycleActor>("ATestLifecycleActor");
             CHECK(registry.HasClass("ATestLifecycleActor"));

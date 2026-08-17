@@ -2,7 +2,7 @@
 
 #include "Gameplay/AController.hpp"
 #include "AI/UBehaviorTreeComponent.hpp"
-#include "AI/UBlackboardData.hpp"
+#include "AI/UBlackboardComponent.hpp"
 #include "AI/UPathFollowingComponent.hpp"
 #include "AI/FNavTypes.hpp"
 

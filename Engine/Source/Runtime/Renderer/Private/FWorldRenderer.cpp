@@ -13,6 +13,7 @@
 #include "RHI/FRenderer.hpp"
 #include "Core/FFrameProfiler.hpp"
 #include "Renderer/FTextRenderer.hpp"
+#include "Renderer/FParticleRenderer.hpp"
 #include "RHI/FVertexArray.hpp"
 #include "Renderer/FRenderingMath.hpp"
 #include "Gameplay/AActor.hpp"
@@ -90,6 +91,8 @@ namespace Leon {
 
         bool IsSkeletalMeshCulled(const FTransformComponent& InTransform, const FSkeletalMeshComponent& InMesh,
                                   const FFrustumPlanes& InFrustum) {
+            if (!InMesh.bVisible)
+                return true;
             if (!InMesh.SkeletalMesh)
                 return false;
             glm::mat4 model = InTransform.GetTransform();
@@ -157,6 +160,8 @@ namespace Leon {
     FWorldRenderer::FWorldRenderer(UWorld* InWorld) : World(InWorld) {
         if (InWorld && InWorld->HasPendingRendererDefaults()) {
             ShadowSettings.CascadeResolution = InWorld->GetPendingShadowMapResolution();
+            ShadowSettings.CascadeCount = InWorld->GetPendingCascadeCount();
+            ShadowSettings.ShadowDistance = InWorld->GetPendingShadowDistance();
             bEnablePlanarReflection = InWorld->GetPendingPlanarReflectionEnabled();
         }
 
@@ -466,6 +471,11 @@ namespace Leon {
         }
         FTextRenderer::EndScene();
 
+        {
+            FFrameProfiler::FScope particles(&FFrameProfiler::Working().TransparentMs);
+            FParticleRenderer::Render(World, InCamera);
+        }
+
         FRenderCommand::SetWireframe(false);
 
         if (HDRSceneFramebuffer)
@@ -495,8 +505,12 @@ namespace Leon {
 
         auto splits = ShadowMath::CalculateCascadeSplits(ShadowSettings.CascadeCount, nearClip, farClip,
                                                          ShadowSettings.SplitLambda, ShadowSettings.SplitScheme);
+        // UBO always stores 4 far planes. Unused cascades repeat the last split.
+        float splitPlane[5] = {nearClip, farClip, farClip, farClip, farClip};
+        for (size_t i = 0; i < splits.size() && i < 5; ++i)
+            splitPlane[i] = splits[i];
 
-        OutCamData.CascadeSplits = glm::vec4(splits[1], splits[2], splits[3], splits[4]);
+        OutCamData.CascadeSplits = glm::vec4(splitPlane[1], splitPlane[2], splitPlane[3], splitPlane[4]);
         OutCamData.ShadowParams = glm::vec4(ShadowSettings.ConstantBias, ShadowSettings.SlopeBias,
                                             ShadowSettings.NormalBias, ShadowSettings.CascadeBlendWidth);
         OutCamData.ShadowSettings =
@@ -518,7 +532,7 @@ namespace Leon {
             CascadeShadowFramebuffer->AttachDepthTextureLayer(cascade);
             FRenderCommand::Clear();
 
-            glm::mat4 subProj = glm::perspective(glm::radians(fov), aspect, splits[cascade], splits[cascade + 1]);
+            glm::mat4 subProj = glm::perspective(glm::radians(fov), aspect, splitPlane[cascade], splitPlane[cascade + 1]);
             auto corners = ShadowMath::GetFrustumCornersWorldSpace(subProj, InCamera.GetViewMatrix());
 
             float worldUnitsPerTexel = 0.01f;
@@ -532,7 +546,7 @@ namespace Leon {
             auto meshView = World->GetRegistry().view<FTransformComponent, FMeshComponent>();
             for (auto entity : meshView) {
                 auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-                if (!mesh.VertexArray || !mesh.bCastShadows)
+                if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
                     continue;
 
                 glm::mat4 model = transform.GetTransform();
@@ -596,7 +610,8 @@ namespace Leon {
                 auto skelView = World->GetRegistry().view<FTransformComponent, FSkeletalMeshComponent>();
                 for (auto entity : skelView) {
                     auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
-                    if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows)
+                    if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows ||
+                        !skel.bVisible)
                         continue;
                     UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
                     skel.SkeletalMesh->GetVertexArray()->Bind();
@@ -653,7 +668,7 @@ namespace Leon {
         auto meshView = World->GetRegistry().view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.bCastShadows)
+            if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
                 continue;
             glm::mat4 model = transform.GetTransform();
             ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
@@ -684,7 +699,7 @@ namespace Leon {
             auto skelView = World->GetRegistry().view<FTransformComponent, FSkeletalMeshComponent>();
             for (auto entity : skelView) {
                 auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
-                if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows)
+                if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows || !skel.bVisible)
                     continue;
                 UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
                 skel.SkeletalMesh->GetVertexArray()->Bind();
@@ -1022,7 +1037,7 @@ namespace Leon {
 
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.Shader)
+            if (!mesh.VertexArray || !mesh.Shader || !mesh.bVisible)
                 continue;
 
             if (IsProceduralMeshCulled(transform, mesh, camFrustum))
@@ -1182,6 +1197,8 @@ namespace Leon {
         for (auto entity : skelGeomView) {
             auto [transform, skel] = skelGeomView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
             if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray())
+                continue;
+            if (!skel.bVisible)
                 continue;
             if (IsSkeletalMeshCulled(transform, skel, camFrustum))
                 continue;

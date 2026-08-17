@@ -55,7 +55,7 @@ Environment: `LEON_ENGINE_ROOT` (optional), `LEON_PROJECT` (or `--project`). Ful
 - There is no UBT / `.Build.cs` yet; CMake + these Python scripts are the lite equivalent.
 - Product shortcuts (e.g. Sandbox) live under `Projects/<Name>/Scripts/`, never as Engine defaults.
 
-**Isolation checklist:** `grep` / CI must not find `Projects/Sandbox` or bare product `Sandbox` under `Engine/Source` (legacy INI suffix `.SandboxGameMode` is allowlisted).
+**Isolation checklist:** `grep` / CI must not find `Projects/Sandbox`, `Projects/LeonTournament`, or bare product names (`Sandbox`, `LeonTournament`) under `Engine/Source`. Enforced by `Scripts/verify_ue_naming.py` and `Tests/Gameplay/EngineGameSeparationTests.cpp`.
 
 ---
 
@@ -131,7 +131,7 @@ Boot order (`UEngine::InternalRun`):
 | :--- | :--- |
 | Default map | `DefaultEngine.ini` `GameDefaultMap` → `.lproject` `DefaultMap` |
 | GameMode class | `DefaultGame.ini` `/Script/<Project>.GameMode` `GameModeClass` → `GlobalDefaultGameMode` → `.lproject` `DefaultGameMode` |
-| Pawn/PC/HUD/… | `/Script/<Project>.GameMode` → legacy `/Script/<Project>.SandboxGameMode` → `/Script/Engine.GameModeBase` |
+| Pawn/PC/HUD/… | `/Script/<Project>.GameMode` → `/Script/Engine.GameModeBase` |
 | Input | `DefaultInput.ini` only |
 
 This is **not** full Unreal config stacking (`Base.ini` + project + `Saved/Config`). It is a flat per-project Multi-INI.
@@ -375,7 +375,7 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 
 **PrintString** (`UGameplayStatics::PrintString` / `Leon::PrintString`) queues on-screen debug messages via `FOnScreenDebugMessageManager`. Messages are distinct from `FLog` and are painted inside the viewport by `AHUD::DrawHUD`.
 
-**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/NightLevel")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay. Sandbox `USandboxMainMenuWidget` uses this to toggle `ShowcaseLevel` ↔ `NightLevel`.
+**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/MyMap")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay. Sandbox `USandboxMainMenuWidget` uses this to toggle `ShowcaseLevel` ↔ `NightLevel`.
 
 **FInput modes** (`APlayerController`): `SetInputModeGameOnly`, `SetInputModeUIOnly`, `SetInputModeGameAndUI`. GameAndUI allows pawn movement and UI mouse interaction simultaneously.
 

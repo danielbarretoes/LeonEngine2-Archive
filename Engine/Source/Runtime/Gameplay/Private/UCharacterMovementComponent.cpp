@@ -1,7 +1,7 @@
 #include "Gameplay/UCharacterMovementComponent.hpp"
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APawn.hpp"
-#include "Gameplay/ABlockingVolume.hpp"
+#include "Gameplay/APhysicsVolume.hpp"
 #include "Engine/UWorld.hpp"
 #include "Physics/FHitResult.hpp"
 
@@ -10,21 +10,6 @@
 #include <vector>
 
 namespace Leon {
-
-    UNavMovementComponent::UNavMovementComponent(const std::string& InName) : UActorComponent(InName) {}
-
-    APawn* UNavMovementComponent::GetPawnOwner() const { return Owner ? dynamic_cast<APawn*>(Owner) : nullptr; }
-
-    void UNavMovementComponent::RequestDirectMove(const glm::vec3& InMoveVelocity, bool bForceMaxSpeed) {
-        (void)bForceMaxSpeed;
-        RequestedVelocity = InMoveVelocity;
-        bHasRequestedVelocity = glm::length(InMoveVelocity) > 1e-5f;
-    }
-
-    void UNavMovementComponent::StopActiveMovement() {
-        RequestedVelocity = glm::vec3(0.0f);
-        bHasRequestedVelocity = false;
-    }
 
     UCharacterMovementComponent::UCharacterMovementComponent(const std::string& InName)
         : UNavMovementComponent(InName) {}
@@ -198,9 +183,29 @@ namespace Leon {
         }
     }
 
+    void UCharacterMovementComponent::StopMovementImmediately() {
+        Velocity = glm::vec3(0.0f);
+        Acceleration = glm::vec3(0.0f);
+        PendingInputVector = glm::vec3(0.0f);
+        RequestedVelocity = glm::vec3(0.0f);
+        bHasRequestedVelocity = false;
+        bPressedJump = false;
+    }
+
+    void UCharacterMovementComponent::ResetForRespawn() {
+        StopMovementImmediately();
+        SetMovementMode(EMovementMode::Walking);
+    }
+
     void UCharacterMovementComponent::PerformMovement(float DeltaSeconds) {
         if (DeltaSeconds <= 0.0f)
             return;
+        if (MovementMode == EMovementMode::None) {
+            ConsumeInputVector();
+            bHasRequestedVelocity = false;
+            RequestedVelocity = glm::vec3(0.0f);
+            return;
+        }
         if (bPressedJump)
             DoJump();
 

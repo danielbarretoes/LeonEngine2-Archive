@@ -15,14 +15,14 @@ namespace Leon {
     void UHealthComponent::SetHealth(float InHealth) {
         const float old = Health;
         Health = std::clamp(InHealth, 0.0f, MaxHealth);
-        bDead = Health <= 0.0f;
+        bIsDead = Health <= 0.0f;
         BroadcastHealthChanged(old);
     }
 
     void UHealthComponent::ResetHealth() {
         const float old = Health;
         Health = MaxHealth;
-        bDead = false;
+        bIsDead = false;
         BroadcastHealthChanged(old);
     }
 
@@ -34,7 +34,7 @@ namespace Leon {
     }
 
     void UHealthComponent::ApplyDamage(const FDamageInfo& InInfo) {
-        if (bDead)
+        if (bIsDead)
             return;
 
         const float amount = std::max(InInfo.DamageAmount, 0.0f);
@@ -57,7 +57,7 @@ namespace Leon {
     }
 
     void UHealthComponent::Heal(float InAmount) {
-        if (bDead)
+        if (bIsDead)
             return;
         const float amount = std::max(InAmount, 0.0f);
         if (amount <= 0.0f)
@@ -81,9 +81,9 @@ namespace Leon {
     }
 
     void UHealthComponent::BecomeDead(const FDamageInfo& InInfo) {
-        if (bDead)
+        if (bIsDead)
             return;
-        bDead = true;
+        bIsDead = true;
         Health = 0.0f;
         for (auto& cb : OnDeath) {
             if (cb)

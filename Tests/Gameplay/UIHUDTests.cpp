@@ -187,7 +187,7 @@ namespace Leon {
 
         TEST_CASE("AHUD class registered") {
             CHECK(UClassRegistry::Get().HasClass("AHUD"));
-            CHECK(UClassRegistry::Get().HasClass("HUD"));
+            CHECK_FALSE(UClassRegistry::Get().HasClass("HUD"));
         }
 
         TEST_CASE("InputMode GameOnly / UIOnly / GameAndUI") {

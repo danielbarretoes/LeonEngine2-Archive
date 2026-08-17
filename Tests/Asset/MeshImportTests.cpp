@@ -19,11 +19,14 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
         auto mesh = UStaticMesh::Create("TestCube");
 
         // Populate mock vertices
-        FStaticMeshVertex v0{ glm::vec3(-1.0f), glm::vec3(0,1,0), glm::vec2(0,0), glm::vec4(1,0,0,1), glm::vec3(1.0f), glm::vec2(0.0f) };
-        FStaticMeshVertex v1{ glm::vec3(1.0f),  glm::vec3(0,1,0), glm::vec2(1,1), glm::vec4(1,0,0,1), glm::vec3(1.0f), glm::vec2(1.0f) };
-        FStaticMeshVertex v2{ glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(0,1,0), glm::vec2(1,0), glm::vec4(1,0,0,1), glm::vec3(1.0f), glm::vec2(1.0f, 0.0f) };
-        mesh->GetVertices() = { v0, v1, v2 };
-        mesh->GetIndices() = { 0, 1, 2 };
+        FStaticMeshVertex v0{glm::vec3(-1.0f),      glm::vec3(0, 1, 0), glm::vec2(0, 0),
+                             glm::vec4(1, 0, 0, 1), glm::vec3(1.0f),    glm::vec2(0.0f)};
+        FStaticMeshVertex v1{glm::vec3(1.0f),       glm::vec3(0, 1, 0), glm::vec2(1, 1),
+                             glm::vec4(1, 0, 0, 1), glm::vec3(1.0f),    glm::vec2(1.0f)};
+        FStaticMeshVertex v2{glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(0, 1, 0), glm::vec2(1, 0),
+                             glm::vec4(1, 0, 0, 1),        glm::vec3(1.0f),    glm::vec2(1.0f, 0.0f)};
+        mesh->GetVertices() = {v0, v1, v2};
+        mesh->GetIndices() = {0, 1, 2};
 
         FStaticSubmesh sub;
         sub.Name = "CubePart_0";
@@ -65,10 +68,7 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
     TEST_CASE("ResolveStaticSubmeshMaterial prefers MaterialOverrides (planar/geometry shared path)") {
         // Material creation loads PBR_Lit — needs a valid GL context
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto mesh = UStaticMesh::Create("OverrideResolve");
         FStaticSubmesh body;

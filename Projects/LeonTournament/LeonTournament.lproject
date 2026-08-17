@@ -3,5 +3,5 @@
   "EngineVersion": "0.15.0",
   "ProjectName": "LeonTournament",
   "DefaultMap": "/Game/Maps/MainMenu",
-  "DefaultGameMode": "AShooterGameMode"
+  "DefaultGameMode": "ALeonTournamentGameMode"
 }

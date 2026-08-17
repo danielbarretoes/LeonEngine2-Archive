@@ -52,12 +52,10 @@ namespace Leon {
             fs::remove(tmp);
         }
 
-        TEST_CASE("Sandbox DefaultInput.ini parses if present") {
+        TEST_CASE("Sandbox DefaultInput.ini parses") {
             namespace fs = std::filesystem;
             fs::path sandboxIni = "Projects/Sandbox/Config/DefaultInput.ini";
-            if (!fs::exists(sandboxIni)) {
-                return;
-            }
+            REQUIRE(fs::exists(sandboxIni));
             FConfigFile cfg;
             REQUIRE(cfg.Load(sandboxIni.string()));
             FInputSettings settings;

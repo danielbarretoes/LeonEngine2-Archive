@@ -52,19 +52,21 @@ namespace Leon {
             CHECK(cfg.DefaultPawnClass == "ADefaultPawn");
         }
 
-        TEST_CASE("BuildGameModeConfig accepts legacy Project.SandboxGameMode section") {
+        TEST_CASE("BuildGameModeConfig ignores obsolete SandboxGameMode INI section") {
             FProjectDescriptor desc;
             desc.ProjectName = "Sandbox";
             desc.DefaultGameMode = "AGameModeBase";
 
             FConfigFile engine;
+            engine.SetString("/Script/EngineSettings.GameMapsSettings", "GlobalDefaultGameMode", "AGameModeBase");
+
             FConfigFile game;
             game.SetString("/Script/Sandbox.SandboxGameMode", "GameModeClass", "ASandboxGameMode");
             game.SetString("/Script/Sandbox.SandboxGameMode", "HUDClass", "ASandboxHUD");
 
             FGameModeConfig cfg = UEngine::BuildGameModeConfig(engine, game, desc);
-            CHECK(cfg.GameModeClass == "ASandboxGameMode");
-            CHECK(cfg.HUDClass == "ASandboxHUD");
+            CHECK(cfg.GameModeClass == "AGameModeBase");
+            CHECK(cfg.HUDClass == "AHUD");
         }
 
         TEST_CASE("Sandbox default map resolves on disk") {

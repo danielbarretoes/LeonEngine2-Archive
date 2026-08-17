@@ -6,10 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Flat Normal Map Invariance") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         REQUIRE(std::filesystem::exists(shaderPath));
@@ -24,13 +21,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -85,7 +82,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Normal Map Perturbation and NormalScale") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -97,13 +94,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -122,7 +119,8 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
         Leon::TestGPU::SetFloat2(shader, "u_UVOffset", glm::vec2(0.0f));
         shader->SetInt("u_DebugMode", 17); // Normal Output
 
-        // Create +X tilted normal map: (255, 128, 255) -> TS normal ~= (1.0, 0.0, 1.0) normalized -> (+0.707, 0, +0.707)
+        // Create +X tilted normal map: (255, 128, 255) -> TS normal ~= (1.0, 0.0, 1.0) normalized -> (+0.707, 0,
+        // +0.707)
         GLuint tiltXTex = gl.Create1x1Texture(255, 128, 255, 255);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, tiltXTex);
@@ -161,5 +159,4 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
 
         gl.DestroyTexture(tiltXTex);
     }
-
 }

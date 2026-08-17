@@ -69,7 +69,7 @@ namespace Leon {
 
         /**
          * @brief Queues a map travel for the next safe frame (UGameplayStatics::OpenLevel).
-         * @param InLevelName Virtual path such as "/Game/Maps/NightLevel".
+         * @param InLevelName Virtual path such as "/Game/Maps/MyMap".
          */
         void RequestTravel(const std::string& InLevelName);
 
@@ -110,6 +110,8 @@ namespace Leon {
 
         uint32_t ProjectShadowMapResolution = 2048;
         bool bProjectEnablePlanarReflection = true;
+        uint32_t ProjectCascadeCount = 4;
+        float ProjectShadowDistance = 100.0f;
 
         // Non-owning pointer to the active viewport layer so travel can rebind the world.
         FGameViewportLayer* ViewportLayer = nullptr;

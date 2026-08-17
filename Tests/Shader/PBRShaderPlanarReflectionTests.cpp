@@ -8,10 +8,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Planar Reflections") {
 
     TEST_CASE("PBR_Lit.glsl Real-Time Planar Reflection Integration (Toggle 0 vs 1)") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -23,14 +20,14 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Planar Reflections") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction.w = 0.0f;
         lightData.LightCounts.x = 0;
         lightData.LightCounts.y = 0;
-        lightData.EnvSkyColor   = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.EnvSkyColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         gl.UpdateLightingUBO(lightData);
 
         // Metallic mirror: Fresnel≈1 so planar radiance replaces IBL specular (not BRDF LUT).

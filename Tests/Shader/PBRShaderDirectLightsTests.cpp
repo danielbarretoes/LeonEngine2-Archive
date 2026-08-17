@@ -6,10 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
 
     TEST_CASE("Directional Light Angle Response (NdotL in {1.0, 0.5, 0.0})") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         REQUIRE(std::filesystem::exists(shaderPath));
@@ -24,7 +21,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -48,11 +45,11 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
         Leon::FLightingBufferData lightData;
         lightData.LightCounts.x = 0;
         lightData.LightCounts.y = 0;
-        lightData.EnvSkyColor   = glm::vec4(0.0f); // Zero ambient for pure direct light test
+        lightData.EnvSkyColor = glm::vec4(0.0f); // Zero ambient for pure direct light test
 
         // 1. Perpendicular: L = (0, 0, 1) -> NdotL = 1.0
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         gl.UpdateLightingUBO(lightData);
 
         gl.DrawQuad();
@@ -82,10 +79,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
 
     TEST_CASE("Point Light UE4 Inverse-Square Radius Attenuation Response") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -97,7 +91,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -120,12 +114,12 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction.w = 0.0f; // Disable directional light
-        lightData.LightCounts.x = 1;          // 1 Point Light
+        lightData.LightCounts.x = 1;           // 1 Point Light
         lightData.LightCounts.y = 0;
-        lightData.EnvSkyColor   = glm::vec4(0.0f); // Zero ambient for pure direct light test
+        lightData.EnvSkyColor = glm::vec4(0.0f); // Zero ambient for pure direct light test
 
         // Point Light with radius = 10.0
-        lightData.PointLights[0].Color  = glm::vec4(1.0f, 1.0f, 1.0f, 10.0f);
+        lightData.PointLights[0].Color = glm::vec4(1.0f, 1.0f, 1.0f, 10.0f);
         lightData.PointLights[0].Params = glm::vec4(10.0f, 0.0f, 0.0f, 0.0f);
 
         // Distance d = 1.0: Position = (0, 0, 1)
@@ -154,10 +148,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
 
     TEST_CASE("Spot Light Conical Cutoff and Smoothstep Penumbra Response") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping shader GPU test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -169,7 +160,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -194,15 +185,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Direct Lighting & Attenuation") {
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction.w = 0.0f;
         lightData.LightCounts.x = 0;
-        lightData.LightCounts.y = 1; // 1 Spot Light
-        lightData.EnvSkyColor   = glm::vec4(0.0f); // Zero ambient for pure direct light test
+        lightData.LightCounts.y = 1;             // 1 Spot Light
+        lightData.EnvSkyColor = glm::vec4(0.0f); // Zero ambient for pure direct light test
 
         // Spot Light placed at (0, 0, 1) looking down -Z
         // cutOff = cos(15 deg) = 0.9659, outerCutOff = cos(30 deg) = 0.8660
-        lightData.SpotLights[0].Position  = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        lightData.SpotLights[0].Position = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
         lightData.SpotLights[0].Direction = glm::vec4(0.0f, 0.0f, -1.0f, 0.9659f);
-        lightData.SpotLights[0].Color     = glm::vec4(1.0f, 1.0f, 1.0f, 0.8660f);
-        lightData.SpotLights[0].Params    = glm::vec4(10.0f, 10.0f, 0.0f, 0.0f); // radius=10, intensity=10
+        lightData.SpotLights[0].Color = glm::vec4(1.0f, 1.0f, 1.0f, 0.8660f);
+        lightData.SpotLights[0].Params = glm::vec4(10.0f, 10.0f, 0.0f, 0.0f); // radius=10, intensity=10
 
         // 1. Center of cone: Direct hit (L is on axis)
         gl.UpdateLightingUBO(lightData);

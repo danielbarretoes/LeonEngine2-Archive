@@ -67,13 +67,16 @@ else()
     message(WARNING "LEON_PROJECT_DIR='${LEON_PROJECT_DIR}' not found — skipping game target")
 endif()
 
-# Extra monorepo game (engine does not depend on it). Skip if it is already the selected product.
-if(EXISTS "${CMAKE_SOURCE_DIR}/Projects/LeonTournament/CMakeLists.txt")
-    get_filename_component(_LEON_SELECTED_PROJECT "${LEON_PROJECT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
-    get_filename_component(_LEON_TOURNAMENT_DIR "${CMAKE_SOURCE_DIR}/Projects/LeonTournament" ABSOLUTE)
-    if(NOT _LEON_SELECTED_PROJECT STREQUAL _LEON_TOURNAMENT_DIR)
-        add_subdirectory(Projects/LeonTournament)
+# Extra monorepo games (engine does not depend on them). Skip the already-selected product.
+file(GLOB _LEON_MONOREPO_PROJECT_CMAKES "${CMAKE_SOURCE_DIR}/Projects/*/CMakeLists.txt")
+get_filename_component(_LEON_SELECTED_PROJECT "${LEON_PROJECT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
+foreach(_leon_proj_cmake ${_LEON_MONOREPO_PROJECT_CMAKES})
+    get_filename_component(_leon_proj_dir "${_leon_proj_cmake}" DIRECTORY)
+    get_filename_component(_leon_proj_abs "${_leon_proj_dir}" ABSOLUTE)
+    if(NOT _LEON_SELECTED_PROJECT STREQUAL _leon_proj_abs)
+        get_filename_component(_leon_proj_folder "${_leon_proj_dir}" NAME)
+        add_subdirectory("${_leon_proj_dir}" "${CMAKE_BINARY_DIR}/Projects/${_leon_proj_folder}")
     endif()
-endif()
+endforeach()
 
 add_subdirectory(Tests)

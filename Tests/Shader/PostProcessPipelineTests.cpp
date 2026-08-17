@@ -10,10 +10,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
 
     TEST_CASE("End-to-End Pipeline Synthetic Scene (HDR -> Bloom -> Tone Mapping -> FXAA -> Output)") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         gl.BindDefaultTextures();
 
@@ -26,7 +23,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
 
         // 1. Create a Synthetic HDR Scene FFramebuffer (32x32 RGBA16F)
         Leon::FFramebufferSpecification hdrSpec;
-        hdrSpec.Width  = width;
+        hdrSpec.Width = width;
         hdrSpec.Height = height;
         hdrSpec.Attachments = {Leon::EFramebufferTextureFormat::RGBA16F};
         auto hdrSceneFBO = Leon::FFramebuffer::Create(hdrSpec);
@@ -34,24 +31,24 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
 
         // 2. Create Target Output FFramebuffer (32x32 RGBA8)
         Leon::FFramebufferSpecification outSpec;
-        outSpec.Width  = width;
+        outSpec.Width = width;
         outSpec.Height = height;
         outSpec.Attachments = {Leon::EFramebufferTextureFormat::RGBA8};
         auto targetFBO = Leon::FFramebuffer::Create(outSpec);
         REQUIRE(targetFBO != nullptr);
 
         Leon::FPostProcessSettings settings;
-        settings.bEnabled       = true;
-        settings.bBloomEnabled  = true;
+        settings.bEnabled = true;
+        settings.bBloomEnabled = true;
         settings.BloomThreshold = 1.0f;
-        settings.BloomSoftKnee  = 0.5f;
+        settings.BloomSoftKnee = 0.5f;
         settings.BloomIntensity = 0.1f;
-        settings.BloomRadius    = 1.0f;
-        settings.ToneMapper     = 0; // ACES
-        settings.Exposure       = 1.0f;
-        settings.Gamma          = 2.2f;
-        settings.bFXAAEnabled   = true;
-        settings.DebugMode      = 0;
+        settings.BloomRadius = 1.0f;
+        settings.ToneMapper = 0; // ACES
+        settings.Exposure = 1.0f;
+        settings.Gamma = 2.2f;
+        settings.bFXAAEnabled = true;
+        settings.DebugMode = 0;
 
         // Case A: Pure Black Scene FInput -> Must produce strictly black output
         std::vector<float> blackPixels(width * height * 4, 0.0f);
@@ -109,10 +106,7 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
 
     TEST_CASE("Pipeline Dynamic Viewport Resize & FFramebuffer Lifetime Invariants") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) {
-            MESSAGE("Headless OpenGL context not available — skipping GPU shader test.");
-            return;
-        }
+        REQUIRE(gl.IsValid());
 
         Leon::FPostProcessPipeline pipeline;
         pipeline.Init();

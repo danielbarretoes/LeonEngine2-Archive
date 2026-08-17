@@ -48,10 +48,7 @@ TEST_SUITE("PBR - BRDF LUT Invariants") {
 
     TEST_CASE("Pre-baked BRDF_LUT.bin File Verification") {
         const std::string binPath = "Engine/Assets/Textures/BRDF_LUT.bin";
-        if (!std::filesystem::exists(binPath)) {
-            MESSAGE("BRDF_LUT.bin not found on disk — skipping file check.");
-            return;
-        }
+        REQUIRE(std::filesystem::exists(binPath));
 
         std::ifstream file(binPath, std::ios::binary);
         REQUIRE(file.is_open());
@@ -64,10 +61,7 @@ TEST_SUITE("PBR - BRDF LUT Invariants") {
         file.read(reinterpret_cast<char*>(&header), sizeof(header));
         REQUIRE(file);
         REQUIRE(std::string(header.Magic, 8) == "LEONBRDF");
-        if (header.Version != 2) {
-            MESSAGE("On-disk BRDF LUT is not v2 — runtime regenerates; skipping file payload check.");
-            return;
-        }
+        REQUIRE(header.Version == 2);
         const bool sizeOk = header.Size == 256 || header.Size == 512;
         REQUIRE(sizeOk);
         REQUIRE(header.SampleCount > 0);

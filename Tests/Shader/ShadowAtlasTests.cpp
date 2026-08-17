@@ -8,7 +8,7 @@ TEST_SUITE("Shader GPU - Shadow Layer & Atlas Mapping") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU 4-Layer Cascade Array Depth Sampling") {
         auto& gl = FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         auto shader = FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
@@ -23,8 +23,8 @@ TEST_SUITE("Shader GPU - Shadow Layer & Atlas Mapping") {
         FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 2.0f, 1.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        camData.CascadeSplits  = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CascadeSplits = glm::vec4(5.0f, 15.0f, 35.0f, 100.0f);
         camData.ShadowSettings = glm::ivec4(1, 16, 0, 0);
 
         for (int c = 0; c < 4; ++c) {
@@ -33,7 +33,7 @@ TEST_SUITE("Shader GPU - Shadow Layer & Atlas Mapping") {
 
         FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
         gl.UpdateCameraUBO(camData);
         gl.UpdateLightingUBO(lightData);

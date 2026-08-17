@@ -83,6 +83,18 @@ namespace Leon {
         return state;
     }
 
+    void UAnimInstance::ResetPoseState() {
+        AnimTime = 0.0f;
+        ClearOverrideSequence();
+        SetUpperBodySequence(nullptr);
+        SetBool("bIsDead", false);
+        SetBool("bIsFalling", false);
+        SetFloat("Speed", 0.0f);
+        SetFloat("Direction", 0.0f);
+        SetFloat("VerticalSpeed", 0.0f);
+        StateMachine.ResetToDefault();
+    }
+
     void UAnimInstance::SetOverrideSequence(const TRef<UAnimSequence>& InSeq, bool bLoop) {
         OverrideSequence = InSeq;
         bOverrideLoop = bLoop;

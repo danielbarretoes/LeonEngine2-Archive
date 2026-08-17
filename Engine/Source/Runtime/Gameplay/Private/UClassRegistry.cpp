@@ -11,7 +11,9 @@
 #include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/APlayerState.hpp"
 #include "Gameplay/AWorldSettings.hpp"
+#include "Gameplay/ABlockingVolume.hpp"
 #include "Gameplay/ANavMeshBoundsVolume.hpp"
+#include "Gameplay/APhysicsVolume.hpp"
 
 namespace Leon {
 
@@ -26,50 +28,21 @@ namespace Leon {
 
     void UClassRegistry::RegisterBuiltins() {
         RegisterClass<AActor>("AActor");
-        RegisterClass<AActor>("Actor");
-
         RegisterClass<APawn>("APawn");
-        RegisterClass<APawn>("Pawn");
-
         RegisterClass<ADefaultPawn>("ADefaultPawn");
-        RegisterClass<ADefaultPawn>("DefaultPawn");
-
         RegisterClass<ACharacter>("ACharacter");
-        RegisterClass<ACharacter>("Character");
-
         RegisterClass<APlayerController>("APlayerController");
-        RegisterClass<APlayerController>("PlayerController");
-        RegisterClass<APlayerController>("DefaultPlayerController");
-
         RegisterClass<APlayerState>("APlayerState");
-        RegisterClass<APlayerState>("PlayerState");
-        RegisterClass<APlayerState>("DefaultPlayerState");
-
         RegisterClass<AGameStateBase>("AGameStateBase");
-        RegisterClass<AGameStateBase>("GameStateBase");
-        RegisterClass<AGameStateBase>("DefaultGameState");
-
         RegisterClass<AGameModeBase>("AGameModeBase");
-        RegisterClass<AGameModeBase>("GameModeBase");
-        RegisterClass<AGameModeBase>("DefaultGameMode");
-
         RegisterClass<ACameraActor>("ACameraActor");
-        RegisterClass<ACameraActor>("CameraActor");
-
         RegisterClass<APlayerCameraManager>("APlayerCameraManager");
-        RegisterClass<APlayerCameraManager>("PlayerCameraManager");
-
         RegisterClass<AHUD>("AHUD");
-        RegisterClass<AHUD>("HUD");
-
         RegisterClass<APlayerStart>("APlayerStart");
-        RegisterClass<APlayerStart>("PlayerStart");
-
         RegisterClass<AWorldSettings>("AWorldSettings");
-        RegisterClass<AWorldSettings>("WorldSettings");
-
         RegisterClass<ANavMeshBoundsVolume>("ANavMeshBoundsVolume");
-        RegisterClass<ANavMeshBoundsVolume>("NavMeshBoundsVolume");
+        RegisterClass<ABlockingVolume>("ABlockingVolume");
+        RegisterClass<APhysicsVolume>("APhysicsVolume");
     }
 
     AActor* UClassRegistry::CreateActorOfClass(const std::string& InClassName, UWorld* InWorld,

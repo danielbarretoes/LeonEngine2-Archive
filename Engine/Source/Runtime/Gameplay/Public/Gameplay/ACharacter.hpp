@@ -100,11 +100,19 @@ namespace Leon {
         void ApplyYawOnlyActorRotation();
         void AddMovementInput(const glm::vec3& InWorldDirection, float InScale = 1.0f);
 
+        /** Degrees in [-180, 180]: 0 forward, +90 right, 180 back, -90 left. */
+        static float ComputeLocomotionDirection(const glm::vec3& InPlanarMove, const glm::vec3& InPlanarForward);
+
+        void ResetMovementForRespawn();
+        void SetMeshHiddenInGame(bool bHidden);
+        bool IsMeshHiddenInGame() const { return bMeshHiddenInGame; }
+
     private:
         void SnapToFloor();
         void UpdateCameraFromView();
         void UpdateAnimFromMovement(float DeltaSeconds);
         void UpdatePhysicsVolume();
+        void UpdateMeshVisibility();
         void DrawCharacterDebug() const;
 
         TRef<UCapsuleComponent> CapsuleComponent;
@@ -120,6 +128,7 @@ namespace Leon {
         float CapsuleRadius = 0.4f;
         float EyeHeight = 1.7f;
         bool bThirdPerson = false;
+        bool bMeshHiddenInGame = false;
 
         float Yaw = -90.0f;
         float Pitch = 0.0f;

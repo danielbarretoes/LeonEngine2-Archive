@@ -8,7 +8,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Color Space & Gamma") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU sRGB Decompression for Albedo and Emissive") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -20,13 +20,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Color Space & Gamma") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -80,7 +80,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Color Space & Gamma") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Linear Preservation for Metallic, Roughness, AO") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -92,13 +92,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Color Space & Gamma") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -150,5 +150,4 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Color Space & Gamma") {
 
         gl.DestroyTexture(midGrayTex);
     }
-
 }

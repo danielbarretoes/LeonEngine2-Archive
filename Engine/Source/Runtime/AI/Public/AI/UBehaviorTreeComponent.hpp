@@ -2,7 +2,7 @@
 
 #include "Gameplay/UActorComponent.hpp"
 #include "AI/UBehaviorTree.hpp"
-#include "AI/UBlackboardData.hpp"
+#include "AI/UBlackboardComponent.hpp"
 
 namespace Leon {
 

@@ -24,7 +24,7 @@ namespace Leon {
         void ApplyDamage(float InAmount);
         void ApplyDamage(const FDamageInfo& InInfo);
         void Heal(float InAmount);
-        bool IsDead() const { return bDead; }
+        bool IsDead() const { return bIsDead; }
 
         using FHealthChanged = std::function<void(float InOldHealth, float InNewHealth, float InMaxHealth)>;
         using FDamageEvent = std::function<void(const FDamageInfo& InInfo)>;
@@ -42,7 +42,7 @@ namespace Leon {
 
         float MaxHealth = 100.0f;
         float Health = 100.0f;
-        bool bDead = false;
+        bool bIsDead = false;
     };
 
 } // namespace Leon

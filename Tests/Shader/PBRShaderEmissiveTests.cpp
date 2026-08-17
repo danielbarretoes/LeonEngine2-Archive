@@ -7,7 +7,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Emissive Radiance") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Emissive Intensity and Color Output") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -19,17 +19,17 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Emissive Radiance") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         // Turn OFF all scene lights and IBL completely
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f); // Disabled
-        lightData.DirLight.Color     = glm::vec4(0.0f);
-        lightData.LightCounts        = glm::ivec4(0);
-        lightData.EnvSkyColor        = glm::vec4(0.0f);
-        lightData.EnvHorizonColor    = glm::vec4(0.0f);
-        lightData.EnvGroundColor     = glm::vec4(0.0f);
+        lightData.DirLight.Color = glm::vec4(0.0f);
+        lightData.LightCounts = glm::ivec4(0);
+        lightData.EnvSkyColor = glm::vec4(0.0f);
+        lightData.EnvHorizonColor = glm::vec4(0.0f);
+        lightData.EnvGroundColor = glm::vec4(0.0f);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -97,5 +97,4 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Emissive Radiance") {
 
         gl.DestroyTexture(emissiveTex);
     }
-
 }

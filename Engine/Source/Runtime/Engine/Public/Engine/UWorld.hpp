@@ -117,10 +117,13 @@ namespace Leon {
         FWorldRenderer* GetWorldRenderer();
 
         /** Project INI renderer defaults applied when the world renderer is first created. */
-        void SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection);
+        void SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
+                                        uint32_t InCascadeCount = 0, float InShadowDistance = 0.0f);
         bool HasPendingRendererDefaults() const { return bHasPendingRendererDefaults; }
         uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
         bool GetPendingPlanarReflectionEnabled() const { return bPendingPlanarReflection; }
+        uint32_t GetPendingCascadeCount() const { return PendingCascadeCount; }
+        float GetPendingShadowDistance() const { return PendingShadowDistance; }
 
         bool OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,
                          FHitResult& OutHit) const;
@@ -169,6 +172,8 @@ namespace Leon {
         bool bHasPendingRendererDefaults = false;
         uint32_t PendingShadowMapResolution = 2048;
         bool bPendingPlanarReflection = true;
+        uint32_t PendingCascadeCount = 4;
+        float PendingShadowDistance = 100.0f;
 
         friend class FMapSerializer;
     };

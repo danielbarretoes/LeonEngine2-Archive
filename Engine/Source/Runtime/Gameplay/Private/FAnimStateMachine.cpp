@@ -25,6 +25,7 @@ namespace Leon {
     }
 
     void FAnimStateMachine::SetDefaultState(const std::string& InName) {
+        DefaultState = InName;
         CurrentState = InName;
     }
 
@@ -34,8 +35,16 @@ namespace Leon {
         TransitionBlendTime = 0.0f;
         PreviousState.clear();
         PreviousPose = {};
-        if (!States.empty() && CurrentState.empty())
+        if (!DefaultState.empty())
+            CurrentState = DefaultState;
+        else if (!States.empty() && CurrentState.empty())
             CurrentState = States.front().Name;
+    }
+
+    void FAnimStateMachine::ResetToDefault() {
+        if (!DefaultState.empty())
+            CurrentState = DefaultState;
+        Reset();
     }
 
     const FAnimState* FAnimStateMachine::FindState(const std::string& InName) const {
@@ -66,6 +75,10 @@ namespace Leon {
                 return false;
             const float threshold = std::strtof(rest.c_str() + colon + 1, nullptr);
             return InInstance.GetFloat(rest.substr(0, colon)) <= threshold;
+        }
+        if (StartsWith(InName, "TimeGreater:")) {
+            const float threshold = std::strtof(InName.c_str() + 11, nullptr);
+            return StateTime > threshold;
         }
         return false;
     }

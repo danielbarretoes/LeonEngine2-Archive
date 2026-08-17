@@ -6,7 +6,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Tangent and Bitangent Reconstruction") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -18,13 +18,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -75,7 +75,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
 
     TEST_CASE("PBR_Lit.glsl Hardware GPU Gram-Schmidt Orthogonalization on Skewed Inputs") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
-        if (!gl.IsValid()) return;
+        REQUIRE(gl.IsValid());
 
         const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
@@ -87,13 +87,13 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
         camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward  = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
         lightData.DirLight.Direction = glm::vec4(0.0f, 0.0f, -1.0f, 1.0f);
-        lightData.DirLight.Color     = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightData.LightCounts        = glm::ivec4(0);
+        lightData.DirLight.Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightData.LightCounts = glm::ivec4(0);
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
@@ -117,12 +117,15 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
         // Gram-Schmidt MUST project T onto plane perp to N -> (1, 0, 0)
         // Gram-Schmidt MUST project B onto plane perp to N and T -> (0, 1, 0)
         std::vector<Leon::TestGPU::FTestVertex> skewedVertices = {
-            { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) },
-            { glm::vec3( 1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) },
-            { glm::vec3( 1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) },
-            { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f) }
-        };
-        std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
+            {glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f),
+             glm::vec4(1.0f, 0.0f, 1.0f, 1.0f)},
+            {glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f),
+             glm::vec4(1.0f, 0.0f, 1.0f, 1.0f)},
+            {glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f),
+             glm::vec4(1.0f, 0.0f, 1.0f, 1.0f)},
+            {glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 1.0f),
+             glm::vec4(1.0f, 0.0f, 1.0f, 1.0f)}};
+        std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0};
 
         GLuint vao = 0, vbo = 0, ebo = 0;
         glCreateVertexArrays(1, &vao);
@@ -130,24 +133,31 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
 
         glCreateBuffers(1, &vbo);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, skewedVertices.size() * sizeof(Leon::TestGPU::FTestVertex), skewedVertices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, skewedVertices.size() * sizeof(Leon::TestGPU::FTestVertex), skewedVertices.data(),
+                     GL_STATIC_DRAW);
 
         glCreateBuffers(1, &ebo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Position));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex),
+                              (void*)offsetof(Leon::TestGPU::FTestVertex, Position));
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Normal));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex),
+                              (void*)offsetof(Leon::TestGPU::FTestVertex, Normal));
         glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, TexCoord));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex),
+                              (void*)offsetof(Leon::TestGPU::FTestVertex, TexCoord));
         glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Tangent));
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex),
+                              (void*)offsetof(Leon::TestGPU::FTestVertex, Tangent));
         glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, Color));
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex),
+                              (void*)offsetof(Leon::TestGPU::FTestVertex, Color));
         glEnableVertexAttribArray(5);
-        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex), (void*)offsetof(Leon::TestGPU::FTestVertex, LightmapUV));
+        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(Leon::TestGPU::FTestVertex),
+                              (void*)offsetof(Leon::TestGPU::FTestVertex, LightmapUV));
 
         // 1. Tangent test: Skewed (1, 0, 1) MUST be reconstructed to pure +X (1, 0, 0) -> (1.0, 0.5, 0.5)
         shader->SetInt("u_DebugMode", 20);
@@ -172,5 +182,4 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Tangent Space & TBN Orthonormality") {
         glDeleteBuffers(1, &vbo);
         glDeleteVertexArrays(1, &vao);
     }
-
 }

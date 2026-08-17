@@ -5,6 +5,7 @@
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FDebugOverlay.hpp"
 #include "Renderer/FDebugRenderer.hpp"
+#include "Renderer/FParticleRenderer.hpp"
 #include "RHI/FRenderer.hpp"
 #include "Renderer/FTextRenderer.hpp"
 
@@ -31,6 +32,7 @@ namespace Leon {
         FRenderer::Init();
         UAssetManager::Init();
         FDebugRenderer::Init();
+        FParticleRenderer::Init();
         FTextRenderer::Init();
         FDebugOverlay::Init();
     }
@@ -38,6 +40,7 @@ namespace Leon {
     FApplication::~FApplication() {
         FDebugOverlay::Shutdown();
         FTextRenderer::Shutdown();
+        FParticleRenderer::Shutdown();
         FDebugRenderer::Shutdown();
         UAssetManager::Shutdown();
         FRenderer::Shutdown();

@@ -423,13 +423,9 @@ namespace Leon {
 
         const std::string name = InProjectDesc.ProjectName.empty() ? "Game" : InProjectDesc.ProjectName;
         const std::string projectSection = "/Script/" + name + ".GameMode";
-        // Legacy section suffix kept for older DefaultGame.ini files (not a product name)
-        const std::string legacyGameModeSection = "/Script/" + name + ".SandboxGameMode";
 
         auto readGameClass = [&](const char* key, const std::string& fallback) {
             std::string v = InGameConfig.GetString(projectSection, key, "");
-            if (v.empty())
-                v = InGameConfig.GetString(legacyGameModeSection, key, "");
             if (v.empty()) {
                 v = InGameConfig.GetString("/Script/Engine.GameModeBase", key,
                                            InEngineConfig.GetString("/Script/Engine.GameModeBase", key, fallback));
@@ -448,8 +444,6 @@ namespace Leon {
         config.PlayerStateClass = readGameClass("PlayerStateClass", "APlayerState");
 
         std::string gmOverride = InGameConfig.GetString(projectSection, "GameModeClass", "");
-        if (gmOverride.empty())
-            gmOverride = InGameConfig.GetString(legacyGameModeSection, "GameModeClass", "");
         if (!gmOverride.empty())
             config.GameModeClass = gmOverride;
 
@@ -529,7 +523,8 @@ namespace Leon {
 
         // Flow: load into a new UWorld first. Only on success: EndPlay+release old world, rebind, InitWorld/BeginPlay.
         auto newWorld = UWorld::Create("MainWorld");
-        newWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
+        newWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection,
+                                             ProjectCascadeCount, ProjectShadowDistance);
         if (GameInstance)
             newWorld->SetNetMode(GameInstance->GetNetMode());
 
@@ -667,6 +662,9 @@ namespace Leon {
             static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.RendererSettings", "ShadowMapResolution", 2048));
         bProjectEnablePlanarReflection =
             engineConfig.GetBool("/Script/Engine.RendererSettings", "EnablePlanarReflection", true);
+        ProjectCascadeCount =
+            static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.RendererSettings", "CascadeCount", 4));
+        ProjectShadowDistance = engineConfig.GetFloat("/Script/Engine.RendererSettings", "ShadowDistance", 100.0f);
         if (engineConfig.HasKey("/Script/Engine.RendererSettings", "Exposure") ||
             engineConfig.HasKey("/Script/Engine.RendererSettings", "SunIntensity")) {
             LE_CORE_INFO("UEngine: RendererSettings Exposure/SunIntensity are map-owned; INI values are not applied "
@@ -695,7 +693,8 @@ namespace Leon {
         if (!GameInstance)
             GameInstance = CreateRef<UGameInstance>("GameInstance");
         ActiveWorld = UWorld::Create("MainWorld");
-        ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
+        ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection,
+                                                ProjectCascadeCount, ProjectShadowDistance);
         GameInstance->SetWorld(ActiveWorld);
         GameInstance->Init();
 

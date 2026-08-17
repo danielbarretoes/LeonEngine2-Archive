@@ -1,5 +1,11 @@
 #include <doctest/doctest.h>
 
+#include "Engine/UWorld.hpp"
+#include "Gameplay/ACharacter.hpp"
+#include "Gameplay/UCharacterMovementComponent.hpp"
+#include "Gameplay/UPrimitiveComponent.hpp"
+
+#include <glm/glm.hpp>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -10,15 +16,13 @@ TEST_SUITE("Engine / Game separation") {
 
     TEST_CASE("Engine sources do not reference game types or assets") {
         const fs::path engineSrc = "Engine/Source";
-        if (!fs::exists(engineSrc)) {
-            MESSAGE("Engine/Source not found from cwd — skip scan.");
-            return;
-        }
+        REQUIRE(fs::exists(engineSrc));
 
         const char* forbidden[] = {
             "AShooter",
             "UShooter",
             "LeonTournament",
+            "Projects/LeonTournament",
             "SetupDefaultTPSGraph",
             "IsFiring",
             "FlagFiring",
@@ -54,8 +58,30 @@ TEST_SUITE("Engine / Game separation") {
         CHECK(hits == 0);
     }
 
-    TEST_CASE("Engine can spawn a bare ACharacter without shooter types") {
-        // Compile-time: this translation unit does not include game headers.
-        CHECK(true);
+    TEST_CASE("Engine can spawn a bare ACharacter without game-project types") {
+        using namespace Leon;
+        auto world = UWorld::Create("BareCharacterWorld");
+        REQUIRE(world);
+
+        auto* floor = world->SpawnActor<AActor>("Floor");
+        REQUIRE(floor);
+        floor->SetActorLocation({0.0f, -0.25f, 0.0f});
+        floor->SetActorScale({20.0f, 0.5f, 20.0f});
+        auto box = floor->AddActorComponent<UBoxComponent>("Box");
+        REQUIRE(box);
+        box->SetBoxExtent({0.5f, 0.5f, 0.5f});
+
+        auto* character = world->SpawnActor<ACharacter>("Hero");
+        REQUIRE(character);
+        auto movement = character->GetCharacterMovement();
+        REQUIRE(movement);
+        character->SetFloorZ(0.0f);
+        character->SetActorLocation({0.0f, 1.7f, 0.0f});
+        CHECK(character->IsMovingOnGround());
+
+        character->AddMovementInput({0.0f, 0.0f, 1.0f}, 1.0f);
+        movement->PerformMovement(0.05f);
+        const glm::vec3 velocity = movement->GetVelocity();
+        CHECK(glm::length(glm::vec2(velocity.x, velocity.z)) > 0.0f);
     }
 }
