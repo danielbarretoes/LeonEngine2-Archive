@@ -81,6 +81,12 @@ namespace Leon {
         int32_t MagazineSize = 30;
         float ReloadTime = 2.0f;
         float Range = 200.0f;
+        /** Half-angle cone (degrees) at rest; bloom opens the random aim field. */
+        float BaseSpreadDeg = 0.35f;
+        float MaxSpreadDeg = 2.8f;
+        float SpreadPerShotDeg = 0.55f;
+        float SpreadRecoveryPerSec = 6.0f;
+        float RecoilPitchDeg = 0.55f;
     };
 
     struct FLeonTournamentBotPersonality {

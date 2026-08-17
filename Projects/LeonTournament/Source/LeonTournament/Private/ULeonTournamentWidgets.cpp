@@ -252,10 +252,33 @@ namespace Leon {
 
         CrosshairText = std::make_shared<UTextBlock>("Crosshair");
         CrosshairText->SetText("+");
-        CrosshairText->SetFontScale(1.8f);
+        CrosshairText->SetFontScale(1.2f);
         CrosshairText->SetColor({0.95f, 0.97f, 1.0f, 0.95f});
         CrosshairText->SetJustification(ETextAlignment::Center);
-        Root->AddChild(CrosshairText, FAnchors::Center(), FMargin(-28.0f, -28.0f, -28.0f, -28.0f));
+        Root->AddChild(CrosshairText, FAnchors::Center(), FMargin(-14.0f, -14.0f, -14.0f, -14.0f));
+
+        auto makeBar = [&](const char* name) {
+            auto bar = std::make_shared<UImage>(name);
+            bar->SetTintColor({0.95f, 0.97f, 1.0f, 0.9f});
+            Root->AddChild(bar, FAnchors::Center(), FMargin(0, 0, 0, 0));
+            return bar;
+        };
+        CrosshairBarT = makeBar("CH_T");
+        CrosshairBarB = makeBar("CH_B");
+        CrosshairBarL = makeBar("CH_L");
+        CrosshairBarR = makeBar("CH_R");
+
+        auto makeHit = [&](const char* name) {
+            auto mark = std::make_shared<UImage>(name);
+            mark->SetTintColor({1.0f, 0.85f, 0.15f, 1.0f});
+            mark->SetVisibility(ESlateVisibility::Collapsed);
+            Root->AddChild(mark, FAnchors::Center(), FMargin(0, 0, 0, 0));
+            return mark;
+        };
+        HitMarkTL = makeHit("HM_TL");
+        HitMarkTR = makeHit("HM_TR");
+        HitMarkBL = makeHit("HM_BL");
+        HitMarkBR = makeHit("HM_BR");
 
         HealthText = std::make_shared<UTextBlock>("HP");
         HealthText->SetFontScale(1.0f);
@@ -346,12 +369,64 @@ namespace Leon {
             }
         }
         auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer);
+        const float spreadAlpha = (ch && ch->GetWeapon()) ? ch->GetWeapon()->GetSpreadAlpha() : 0.0f;
+        const float gap = 6.0f + spreadAlpha * 26.0f;
+        constexpr float barLen = 12.0f;
+        constexpr float barThick = 2.0f;
+        const auto center = FAnchors::Center();
+        if (Root) {
+            if (CrosshairBarT)
+                Root->SetChildLayout(CrosshairBarT, center,
+                                     FMargin(-(barLen * 0.5f), -(gap + barThick), -(barLen * 0.5f), gap));
+            if (CrosshairBarB)
+                Root->SetChildLayout(CrosshairBarB, center,
+                                     FMargin(-(barLen * 0.5f), gap, -(barLen * 0.5f), -(gap + barThick)));
+            if (CrosshairBarL)
+                Root->SetChildLayout(CrosshairBarL, center,
+                                     FMargin(-(gap + barThick), -(barLen * 0.5f), gap, -(barLen * 0.5f)));
+            if (CrosshairBarR)
+                Root->SetChildLayout(CrosshairBarR, center,
+                                     FMargin(gap, -(barLen * 0.5f), -(gap + barThick), -(barLen * 0.5f)));
+        }
+        const bool bHit = spc && spc->IsHitMarkerActive();
+        constexpr float hitGap = 14.0f;
+        constexpr float hitLen = 9.0f;
+        constexpr float hitThick = 2.5f;
+        if (Root && HitMarkTL && HitMarkTR && HitMarkBL && HitMarkBR) {
+            const float d = hitGap + spreadAlpha * 3.0f;
+            // Four corner ticks (classic FPS hit-confirm ring).
+            Root->SetChildLayout(HitMarkTL, center,
+                                 FMargin(-(d + hitLen), -(d + hitThick), d, d - hitThick));
+            Root->SetChildLayout(HitMarkTR, center,
+                                 FMargin(d, -(d + hitThick), -(d + hitLen), d - hitThick));
+            Root->SetChildLayout(HitMarkBL, center,
+                                 FMargin(-(d + hitLen), d - hitThick, d, -(d + hitThick)));
+            Root->SetChildLayout(HitMarkBR, center,
+                                 FMargin(d, d - hitThick, -(d + hitLen), -(d + hitThick)));
+        }
+        const auto barVis = ESlateVisibility::HitTestInvisible;
+        const auto hitVis = bHit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+        if (CrosshairBarT)
+            CrosshairBarT->SetVisibility(barVis);
+        if (CrosshairBarB)
+            CrosshairBarB->SetVisibility(barVis);
+        if (CrosshairBarL)
+            CrosshairBarL->SetVisibility(barVis);
+        if (CrosshairBarR)
+            CrosshairBarR->SetVisibility(barVis);
+        if (HitMarkTL)
+            HitMarkTL->SetVisibility(hitVis);
+        if (HitMarkTR)
+            HitMarkTR->SetVisibility(hitVis);
+        if (HitMarkBL)
+            HitMarkBL->SetVisibility(hitVis);
+        if (HitMarkBR)
+            HitMarkBR->SetVisibility(hitVis);
         if (CrosshairText) {
-            const bool bHit = spc && spc->IsHitMarkerActive();
             CrosshairText->SetVisibility(ESlateVisibility::HitTestInvisible);
             CrosshairText->SetText(bHit ? "X" : "+");
-            CrosshairText->SetFontScale(bHit ? 2.2f : 1.8f);
-            CrosshairText->SetColor(bHit ? glm::vec4(1.0f, 0.85f, 0.2f, 1.0f) : glm::vec4(0.95f, 0.97f, 1.0f, 0.95f));
+            CrosshairText->SetFontScale(bHit ? 1.5f : 1.15f);
+            CrosshairText->SetColor(bHit ? glm::vec4(1.0f, 0.85f, 0.15f, 1.0f) : glm::vec4(0.95f, 0.97f, 1.0f, 0.95f));
         }
         if (KillText)
             KillText->SetVisibility(spc && spc->IsKillConfirmActive() ? ESlateVisibility::HitTestInvisible

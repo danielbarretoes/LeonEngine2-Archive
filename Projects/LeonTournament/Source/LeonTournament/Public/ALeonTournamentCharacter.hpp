@@ -58,6 +58,7 @@ namespace Leon {
         void ApplyLookRotation();
         void FlushPendingNetInput(float DeltaSeconds);
         void UpdatePresentationVisibility();
+        void UpdateTeamOutline();
         void BeginDeathRagdoll();
         void StopDeathRagdoll();
 

@@ -14,8 +14,17 @@
 #include "Renderer/FDebugRenderer.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <random>
 
 namespace Leon {
+
+    namespace {
+        std::mt19937& WeaponRng() {
+            static thread_local std::mt19937 rng{std::random_device{}()};
+            return rng;
+        }
+    } // namespace
 
     namespace {
         void EnsureWeaponMesh(AActor& InActor) {
@@ -55,6 +64,31 @@ namespace Leon {
     void ALeonTournamentWeapon::SetConfig(const FLeonTournamentRifleConfig& InConfig) {
         Config = InConfig;
         CurrentAmmo = Config.MagazineSize;
+        CurrentSpreadDeg = Config.BaseSpreadDeg;
+    }
+
+    float ALeonTournamentWeapon::GetSpreadAlpha() const {
+        const float range = std::max(1e-4f, Config.MaxSpreadDeg - Config.BaseSpreadDeg);
+        return std::clamp((CurrentSpreadDeg - Config.BaseSpreadDeg) / range, 0.0f, 1.0f);
+    }
+
+    void ALeonTournamentWeapon::AddShotBloom() {
+        CurrentSpreadDeg = std::min(Config.MaxSpreadDeg, CurrentSpreadDeg + Config.SpreadPerShotDeg);
+    }
+
+    glm::vec3 ALeonTournamentWeapon::ApplyAimSpread(const glm::vec3& InForward) const {
+        const float halfRad = glm::radians(std::max(0.0f, CurrentSpreadDeg));
+        if (halfRad < 1e-5f)
+            return glm::normalize(InForward);
+
+        glm::vec3 right, up;
+        StableViewBasis(InForward, right, up);
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        std::uniform_real_distribution<float> angle(0.0f, 6.2831853f);
+        const float r = std::sqrt(unit(WeaponRng()));
+        const float phi = angle(WeaponRng());
+        const float offset = std::tan(halfRad) * r;
+        return glm::normalize(InForward + right * (std::cos(phi) * offset) + up * (std::sin(phi) * offset));
     }
 
     void ALeonTournamentWeapon::AttachVisual() {
@@ -170,12 +204,18 @@ namespace Leon {
         --CurrentAmmo;
         FireCooldown = Config.FireRate > 0.0f ? 1.0f / Config.FireRate : 0.1f;
         bFiring = true;
+        AddShotBloom();
 
         if (CurrentAmmo <= 0)
             StartReload();
 
         glm::vec3 origin, dir;
         OwnerCharacter->GetAimRay(origin, dir);
+        dir = ApplyAimSpread(dir);
+        if (Config.RecoilPitchDeg > 0.0f) {
+            std::uniform_real_distribution<float> kick(0.55f, 1.0f);
+            OwnerCharacter->SetControlPitch(OwnerCharacter->GetControlPitch() + Config.RecoilPitchDeg * kick(WeaponRng()));
+        }
         UWorld::FHitResult hit;
         const glm::vec3 end = origin + dir * Config.Range;
         const bool bHit = World->LineTraceByChannel(origin, end, ECollisionChannel::Visibility, OwnerCharacter, hit);
@@ -239,6 +279,7 @@ namespace Leon {
         CancelReload();
         CurrentAmmo = Config.MagazineSize;
         FireCooldown = 0.0f;
+        CurrentSpreadDeg = Config.BaseSpreadDeg;
         bFiring = false;
         bFireHeld = false;
     }
@@ -267,6 +308,9 @@ namespace Leon {
     void ALeonTournamentWeapon::Tick(float DeltaSeconds) {
         if (FireCooldown > 0.0f)
             FireCooldown = std::max(0.0f, FireCooldown - DeltaSeconds);
+        if (CurrentSpreadDeg > Config.BaseSpreadDeg)
+            CurrentSpreadDeg =
+                std::max(Config.BaseSpreadDeg, CurrentSpreadDeg - Config.SpreadRecoveryPerSec * DeltaSeconds);
 
         const bool bAuthority = !World || World->GetNetMode() != ENetMode::Client;
         if (bAuthority && CurrentAmmo <= 0 && !bReloading)

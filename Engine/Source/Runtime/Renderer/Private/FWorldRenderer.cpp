@@ -1282,6 +1282,41 @@ namespace Leon {
             }
         }
 
+        // Friend/foe silhouette: inverted-hull (expand along normals, cull front faces).
+        if (TRef<FShader> outlineShader = UAssetManager::GetShader("Engine/Assets/Shaders/Outline_Skinned.glsl")) {
+            FRenderCommand::SetCulling(true, ECullMode::Front);
+            FRenderCommand::SetDepthMask(false);
+            FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
+            FRenderCommand::SetBlendState(false);
+            for (auto entity : skelGeomView) {
+                auto [transform, skel] = skelGeomView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
+                if (!skel.bDrawOutline || !skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray())
+                    continue;
+                if (!skel.bVisible)
+                    continue;
+                if (IsSkeletalMeshCulled(transform, skel, camFrustum))
+                    continue;
+                UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
+                outlineShader->Bind();
+                outlineShader->SetFloat3("u_OutlineColor", skel.OutlineColor.x, skel.OutlineColor.y, skel.OutlineColor.z);
+                outlineShader->SetFloat("u_OutlineWidth", skel.OutlineWidth);
+                skel.SkeletalMesh->GetVertexArray()->Bind();
+                for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
+                    if (submesh.IndexCount == 0)
+                        continue;
+                    glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                    outlineShader->SetMat4("u_Model", glm::value_ptr(model));
+                    glm::mat3 normalMatrix = SafeNormalMatrix(model);
+                    outlineShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+                    FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
+                                                      submesh.IndexOffset);
+                }
+            }
+            FRenderCommand::SetDepthMask(true);
+            FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+            FRenderCommand::SetCulling(true, ECullMode::Back);
+        }
+
         std::sort(transparents.begin(), transparents.end(),
                   [](const FTransparentDraw& a, const FTransparentDraw& b) { return a.DistanceSq > b.DistanceSq; });
         for (const auto& draw : transparents) {

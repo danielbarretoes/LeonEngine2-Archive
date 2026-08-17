@@ -8,7 +8,7 @@
 namespace Leon {
 
     namespace {
-        constexpr float kHitMarkerSeconds = 0.12f;
+        constexpr float kHitMarkerSeconds = 0.18f;
         constexpr float kKillConfirmSeconds = 0.85f;
         constexpr float kDamageFlashSeconds = 0.22f;
     } // namespace

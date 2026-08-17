@@ -507,7 +507,7 @@ namespace Leon {
             CHECK_FALSE(pc->IsKillConfirmActive());
             pc->NotifyConfirmedHit(true);
             CHECK(pc->IsKillConfirmActive());
-            pc->Tick(0.2f);
+            pc->Tick(0.25f);
             CHECK_FALSE(pc->IsHitMarkerActive());
             pc->NotifyTookDamage();
             CHECK(pc->IsDamageFlashActive());

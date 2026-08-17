@@ -60,6 +60,14 @@ namespace Leon {
         TRef<UTextBlock> HealthText;
         TRef<UTextBlock> AmmoText;
         TRef<UTextBlock> CrosshairText;
+        TRef<UImage> CrosshairBarT;
+        TRef<UImage> CrosshairBarB;
+        TRef<UImage> CrosshairBarL;
+        TRef<UImage> CrosshairBarR;
+        TRef<UImage> HitMarkTL;
+        TRef<UImage> HitMarkTR;
+        TRef<UImage> HitMarkBL;
+        TRef<UImage> HitMarkBR;
         TRef<UTextBlock> KillText;
         TRef<UTextBlock> HintText;
         TRef<UImage> DamageFlash;

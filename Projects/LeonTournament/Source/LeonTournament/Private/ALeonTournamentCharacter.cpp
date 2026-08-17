@@ -120,6 +120,37 @@ namespace Leon {
         SetMeshHiddenInGame(bDeadFrozen && !IsThirdPerson());
         if (Weapon)
             Weapon->SetVisualHidden(bDeadFrozen && !IsThirdPerson());
+        UpdateTeamOutline();
+    }
+
+    void ALeonTournamentCharacter::UpdateTeamOutline() {
+        if (!HasComponent<FSkinnedMeshRenderState>())
+            return;
+        auto& skel = GetComponent<FSkinnedMeshRenderState>();
+        // Local first-person body is hidden; no silhouette on self.
+        if (IsLocallyControlled() && !IsThirdPerson()) {
+            skel.bDrawOutline = false;
+            return;
+        }
+        if (!skel.bVisible) {
+            skel.bDrawOutline = false;
+            return;
+        }
+
+        ELeonTournamentTeam localTeam = ELeonTournamentTeam::None;
+        if (World) {
+            if (auto* pc = World->GetFirstPlayerController()) {
+                if (auto* localPawn = pc->GetPawn<ALeonTournamentCharacter>())
+                    localTeam = localPawn->GetTeam();
+            }
+        }
+
+        const ELeonTournamentTeam myTeam = GetTeam();
+        const bool bAlly = localTeam != ELeonTournamentTeam::None && myTeam != ELeonTournamentTeam::None &&
+                           myTeam == localTeam;
+        skel.bDrawOutline = true;
+        skel.OutlineColor = bAlly ? glm::vec3(0.15f, 0.95f, 0.35f) : glm::vec3(1.0f, 0.12f, 0.1f);
+        skel.OutlineWidth = 0.038f;
     }
 
     void ALeonTournamentCharacter::BeginDeathRagdoll() {

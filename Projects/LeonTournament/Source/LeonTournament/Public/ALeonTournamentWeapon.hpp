@@ -42,10 +42,17 @@ namespace Leon {
         glm::vec3 GetMuzzleLocation() const;
         int32_t GetLastVfxSpawnCount() const { return LastVfxSpawnCount; }
 
+        /** Current half-angle spread in degrees (for HUD bloom + aim jitter). */
+        float GetCurrentSpreadDeg() const { return CurrentSpreadDeg; }
+        /** 0 = tight crosshair, 1 = fully open at MaxSpread. */
+        float GetSpreadAlpha() const;
+
     private:
         void SpawnFireEffects(const glm::vec3& InMuzzle, const glm::vec3& InTraceEnd, bool bHitWorld,
                               bool bHitCharacter);
         void UpdateFirstPersonVisual();
+        glm::vec3 ApplyAimSpread(const glm::vec3& InForward) const;
+        void AddShotBloom();
 
     protected:
         FLeonTournamentRifleConfig Config;
@@ -53,6 +60,7 @@ namespace Leon {
         int32_t CurrentAmmo = 30;
         float FireCooldown = 0.0f;
         float ReloadRemaining = 0.0f;
+        float CurrentSpreadDeg = 0.35f;
         bool bReloading = false;
         bool bFireHeld = false;
         bool bFiring = false;
