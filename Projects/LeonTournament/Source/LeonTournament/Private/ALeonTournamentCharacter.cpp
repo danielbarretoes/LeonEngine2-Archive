@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/quaternion.hpp>
 
 namespace Leon {
 
@@ -35,7 +36,8 @@ namespace Leon {
 
     void ALeonTournamentCharacter::BeginPlay() {
         ACharacter::BeginPlay();
-        EnsureWeapon();
+        if (ShouldSpawnWeapon())
+            EnsureWeapon();
         if (Health && !bDeathBound) {
             Health->OnDeath.push_back([this](const FDamageInfo& info) { OnServerDeath(info); });
             bDeathBound = true;
@@ -116,9 +118,32 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::UpdatePresentationVisibility() {
-        SetMeshHiddenInGame(bDeadFrozen);
+        SetMeshHiddenInGame(bDeadFrozen && !IsThirdPerson());
         if (Weapon)
-            Weapon->SetVisualHidden(bDeadFrozen);
+            Weapon->SetVisualHidden(bDeadFrozen && !IsThirdPerson());
+    }
+
+    void ALeonTournamentCharacter::BeginDeathRagdoll() {
+        if (!IsThirdPerson())
+            return;
+        if (auto cap = GetCapsuleComponent()) {
+            cap->SetMass(70.0f);
+            cap->SetLinearDamping(3.5f);
+            cap->SetSimulatePhysics(true);
+            // Soft knockback — hard impulses fly forever without XZ collision.
+            glm::vec3 impulse = GetControlLookDirection() * -80.0f;
+            impulse.y = 120.0f;
+            cap->AddImpulse(impulse);
+        }
+    }
+
+    void ALeonTournamentCharacter::StopDeathRagdoll() {
+        if (auto cap = GetCapsuleComponent()) {
+            cap->SetSimulatePhysics(false);
+            cap->SetLinearDamping(0.01f);
+            if (auto* body = cap->GetPhysicsBody())
+                body->SetLinearVelocity(glm::vec3(0.0f));
+        }
     }
 
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
@@ -131,6 +156,9 @@ namespace Leon {
             Combat->SetFireHeld(false);
         if (Weapon)
             Weapon->SetFireHeld(false);
+        if (AnimInst)
+            AnimInst->PlayDeathMontage();
+        BeginDeathRagdoll();
         UpdatePresentationVisibility();
         if (!IsNetworkAuthority())
             return;
@@ -140,6 +168,9 @@ namespace Leon {
 
     void ALeonTournamentCharacter::OnServerRespawn(const glm::vec3& InLocation) {
         bDeadFrozen = false;
+        StopDeathRagdoll();
+        if (AnimInst)
+            AnimInst->ClearOverrideSequence();
         SetControlPitch(0.0f);
         SetActorLocation(InLocation);
         SnapToFloorPublic();
@@ -184,6 +215,37 @@ namespace Leon {
         if (GetLocalRole() == ENetRole::Authority && !IsLocallyControlled())
             FlushPendingNetInput(DeltaSeconds);
         ACharacter::Tick(DeltaSeconds);
+        if (bDeadFrozen) {
+            if (auto cap = GetCapsuleComponent(); cap && cap->IsSimulatingPhysics()) {
+                glm::vec3 loc = GetActorLocation();
+                const float minY = GetFloorZ() + GetEyeHeight();
+                bool bTouchedFloor = false;
+                if (loc.y < minY) {
+                    loc.y = minY;
+                    bTouchedFloor = true;
+                }
+                loc.x = std::clamp(loc.x, -22.0f, 22.0f);
+                loc.z = std::clamp(loc.z, -22.0f, 22.0f);
+                SetActorLocation(loc);
+                if (auto* body = cap->GetPhysicsBody()) {
+                    glm::vec3 bodyLoc;
+                    glm::quat rot;
+                    body->GetTransform(bodyLoc, rot);
+                    bodyLoc = loc + cap->GetRelativeLocation();
+                    body->SetTransform(bodyLoc, rot);
+                    glm::vec3 vel = body->GetLinearVelocity();
+                    if (bTouchedFloor) {
+                        vel.y = std::max(0.0f, vel.y);
+                        vel.x *= 0.35f;
+                        vel.z *= 0.35f;
+                    }
+                    const float speed = glm::length(vel);
+                    if (speed > 14.0f)
+                        vel *= 14.0f / speed;
+                    body->SetLinearVelocity(vel);
+                }
+            }
+        }
         UpdatePresentationVisibility();
     }
 

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Monorepo shortcut: build & run LeonTournament via Engine Scripts."""
+"""Monorepo shortcut: build & run LeonTournament via Engine Scripts.
+
+Extra args are forwarded (for example --anim-lab for the third-person anim lab).
+"""
 
 from __future__ import annotations
 

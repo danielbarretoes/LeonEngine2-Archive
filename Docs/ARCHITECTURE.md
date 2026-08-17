@@ -384,6 +384,7 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 | Key | Behavior |
 |-----|----------|
 | F1 | Diagnostics performance overlay (`FDebugOverlay`) |
+| Shift+F1 | Gameplay debug: line traces, hitboxes, and colliders (`FDebugRenderer`) |
 | F2 | 3D light gizmos (`FDebugRenderer`) |
 | F3–F12 | Existing render debug views / wireframe (unchanged) |
 

@@ -63,6 +63,25 @@ namespace Leon {
             return actor;
         }
 
+        bool WorldHasTeamPlayerStart(UWorld* InWorld, int32_t InTeamIndex) {
+            if (!InWorld)
+                return false;
+            for (const auto& actor : InWorld->GetAllActors()) {
+                auto* start = dynamic_cast<APlayerStart*>(actor.get());
+                if (start && start->IsEnabled() && start->GetTeamIndex() == InTeamIndex)
+                    return true;
+            }
+            return false;
+        }
+
+        void SetTravelGameModeClass(const std::string& InClassName) {
+            if (!UEngine::HasInstance())
+                return;
+            FGameModeConfig cfg = UEngine::Get().GetGameModeConfig();
+            cfg.GameModeClass = InClassName;
+            UEngine::Get().SetGameModeConfig(cfg);
+        }
+
         void FaceIntoArena(ALeonTournamentCharacter& InCharacter, ELeonTournamentTeam InTeam) {
             InCharacter.SetControlYaw(InTeam == ELeonTournamentTeam::Team2 ? 180.0f : 0.0f);
             InCharacter.SetControlPitch(0.0f);
@@ -217,44 +236,72 @@ namespace Leon {
         bArenaBuilt = true;
 
         SpawnCollisionBox(World, "Floor", {0.0f, -0.25f, 0.0f}, {48.0f, 0.5f, 48.0f}, {0.22f, 0.24f, 0.26f});
-        SpawnCollisionBox(World, "WallN", {0.0f, 1.5f, -24.0f}, {48.0f, 3.0f, 0.6f}, {0.18f, 0.2f, 0.22f});
-        SpawnCollisionBox(World, "WallS", {0.0f, 1.5f, 24.0f}, {48.0f, 3.0f, 0.6f}, {0.18f, 0.2f, 0.22f});
-        SpawnCollisionBox(World, "WallW", {-24.0f, 1.5f, 0.0f}, {0.6f, 3.0f, 48.0f}, {0.18f, 0.2f, 0.22f});
-        SpawnCollisionBox(World, "WallE", {24.0f, 1.5f, 0.0f}, {0.6f, 3.0f, 48.0f}, {0.18f, 0.2f, 0.22f});
-        SpawnCollisionBox(World, "CoverA", {-6.0f, 0.7f, 0.0f}, {3.0f, 1.4f, 1.2f}, {0.35f, 0.22f, 0.18f});
-        SpawnCollisionBox(World, "CoverB", {6.0f, 0.7f, 0.0f}, {3.0f, 1.4f, 1.2f}, {0.18f, 0.28f, 0.40f});
-        SpawnCollisionBox(World, "CoverC", {0.0f, 0.7f, -8.0f}, {1.4f, 1.4f, 4.0f}, {0.30f, 0.30f, 0.20f});
-        SpawnCollisionBox(World, "CoverD", {0.0f, 0.7f, 8.0f}, {1.4f, 1.4f, 4.0f}, {0.30f, 0.30f, 0.20f});
-        SpawnCollisionBox(World, "RampL", {-12.0f, 0.5f, 6.0f}, {4.0f, 1.0f, 2.0f}, {0.28f, 0.28f, 0.30f});
-        SpawnCollisionBox(World, "RampR", {12.0f, 0.5f, -6.0f}, {4.0f, 1.0f, 2.0f}, {0.28f, 0.28f, 0.30f});
-        SpawnCollisionBox(World, "MidBlock", {0.0f, 0.6f, 0.0f}, {2.2f, 1.2f, 2.2f}, {0.40f, 0.35f, 0.22f});
-        SpawnCollisionBox(World, "LaneCoverW", {-10.0f, 0.7f, -12.0f}, {2.4f, 1.4f, 1.0f}, {0.32f, 0.26f, 0.20f});
-        SpawnCollisionBox(World, "LaneCoverE", {10.0f, 0.7f, 12.0f}, {2.4f, 1.4f, 1.0f}, {0.20f, 0.26f, 0.34f});
+        const glm::vec3 wallColor{0.16f, 0.18f, 0.20f};
+        const glm::vec3 mazeColor{0.20f, 0.22f, 0.26f};
+        const glm::vec3 coverColor{0.34f, 0.24f, 0.18f};
+        SpawnCollisionBox(World, "WallN", {0.0f, 2.5f, -24.0f}, {48.0f, 5.0f, 0.7f}, wallColor);
+        SpawnCollisionBox(World, "WallS", {0.0f, 2.5f, 24.0f}, {48.0f, 5.0f, 0.7f}, wallColor);
+        SpawnCollisionBox(World, "WallW", {-24.0f, 2.5f, 0.0f}, {0.7f, 5.0f, 48.0f}, wallColor);
+        SpawnCollisionBox(World, "WallE", {24.0f, 2.5f, 0.0f}, {0.7f, 5.0f, 48.0f}, wallColor);
+
+        SpawnCollisionBox(World, "MazeW_A", {-8.0f, 2.25f, -20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeW_B", {-8.0f, 2.25f, -8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeW_C", {-8.0f, 2.25f, 8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeW_D", {-8.0f, 2.25f, 20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeE_A", {8.0f, 2.25f, -20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeE_B", {8.0f, 2.25f, -8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeE_C", {8.0f, 2.25f, 8.0f}, {0.7f, 4.5f, 10.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeE_D", {8.0f, 2.25f, 20.0f}, {0.7f, 4.5f, 6.0f}, mazeColor);
+        SpawnCollisionBox(World, "MazeN_A", {-20.0f, 2.25f, -8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeN_B", {-8.0f, 2.25f, -8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeN_C", {8.0f, 2.25f, -8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeN_D", {20.0f, 2.25f, -8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeS_A", {-20.0f, 2.25f, 8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeS_B", {-8.0f, 2.25f, 8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeS_C", {8.0f, 2.25f, 8.0f}, {10.0f, 4.5f, 0.7f}, mazeColor);
+        SpawnCollisionBox(World, "MazeS_D", {20.0f, 2.25f, 8.0f}, {6.0f, 4.5f, 0.7f}, mazeColor);
+
+        SpawnCollisionBox(World, "CoverA", {-14.0f, 1.15f, -14.0f}, {3.2f, 2.3f, 1.2f}, coverColor);
+        SpawnCollisionBox(World, "CoverB", {14.0f, 1.15f, 14.0f}, {3.2f, 2.3f, 1.2f}, {0.18f, 0.28f, 0.40f});
+        SpawnCollisionBox(World, "CoverC", {-14.0f, 1.15f, 14.0f}, {1.4f, 2.3f, 3.2f}, {0.30f, 0.30f, 0.20f});
+        SpawnCollisionBox(World, "CoverD", {14.0f, 1.15f, -14.0f}, {1.4f, 2.3f, 3.2f}, {0.30f, 0.30f, 0.20f});
+        SpawnCollisionBox(World, "CoverMidW", {-3.0f, 1.15f, 0.0f}, {2.4f, 2.3f, 1.1f}, coverColor);
+        SpawnCollisionBox(World, "CoverMidE", {3.0f, 1.15f, 0.0f}, {2.4f, 2.3f, 1.1f}, {0.20f, 0.26f, 0.34f});
+        SpawnCollisionBox(World, "RampL", {-16.0f, 0.6f, 0.0f}, {4.0f, 1.2f, 2.0f}, {0.28f, 0.28f, 0.30f});
+        SpawnCollisionBox(World, "RampR", {16.0f, 0.6f, 0.0f}, {4.0f, 1.2f, 2.0f}, {0.28f, 0.28f, 0.30f});
 
         SpawnCollisionBox(World, "ScaleCube1m", {0.0f, 0.5f, -20.0f}, {1.0f, 1.0f, 1.0f}, {0.9f, 0.2f, 0.2f});
         SpawnCollisionBox(World, "ScaleCube10cm", {1.2f, 0.05f, -20.0f}, {0.1f, 0.1f, 0.1f}, {0.2f, 0.9f, 0.2f});
 
-        Team1Spawns = {{-18.0f, 2.0f, -8.0f},  {-18.0f, 2.0f, -2.0f}, {-18.0f, 2.0f, 4.0f}, {-18.0f, 2.0f, 10.0f},
-                       {-14.0f, 2.0f, -10.0f}, {-14.0f, 2.0f, 8.0f},  {-20.0f, 2.0f, 0.0f}, {-16.0f, 2.0f, 12.0f}};
-        Team2Spawns = {{18.0f, 2.0f, 8.0f},  {18.0f, 2.0f, 2.0f},  {18.0f, 2.0f, -4.0f}, {18.0f, 2.0f, -10.0f},
-                       {14.0f, 2.0f, 10.0f}, {14.0f, 2.0f, -8.0f}, {20.0f, 2.0f, 0.0f},  {16.0f, 2.0f, -12.0f}};
-        Waypoints = {{-10, 2, -10}, {-10, 2, 10}, {10, 2, -10}, {10, 2, 10}, {0, 2, -14}, {0, 2, 14},
-                     {-14, 2, 0},   {14, 2, 0},   {-6, 2, 4},   {6, 2, -4},  {0, 2, 0}};
-        CoverPoints = {{-8.0f, 2.0f, 0.0f},  {-4.0f, 2.0f, 0.0f}, {8.0f, 2.0f, 0.0f},  {4.0f, 2.0f, 0.0f},
-                       {0.0f, 2.0f, -10.0f}, {0.0f, 2.0f, -6.0f}, {0.0f, 2.0f, 10.0f}, {0.0f, 2.0f, 6.0f},
-                       {-12.0f, 2.0f, 8.0f}, {12.0f, 2.0f, -8.0f}};
+        Team1Spawns = {{-18.0f, 2.0f, -16.0f}, {-18.0f, 2.0f, -4.0f}, {-18.0f, 2.0f, 4.0f}, {-18.0f, 2.0f, 16.0f},
+                       {-16.0f, 2.0f, -16.0f}, {-16.0f, 2.0f, 16.0f}, {-20.0f, 2.0f, 0.0f}, {-14.0f, 2.0f, 0.0f}};
+        Team2Spawns = {{18.0f, 2.0f, 16.0f}, {18.0f, 2.0f, 4.0f},   {18.0f, 2.0f, -4.0f}, {18.0f, 2.0f, -16.0f},
+                       {16.0f, 2.0f, 16.0f}, {16.0f, 2.0f, -16.0f}, {20.0f, 2.0f, 0.0f},  {14.0f, 2.0f, 0.0f}};
+        Waypoints = {{-16.0f, 2.0f, -16.0f}, {-16.0f, 2.0f, 0.0f},  {-16.0f, 2.0f, 16.0f}, {0.0f, 2.0f, -16.0f},
+                     {0.0f, 2.0f, 0.0f},     {0.0f, 2.0f, 16.0f},   {16.0f, 2.0f, -16.0f}, {16.0f, 2.0f, 0.0f},
+                     {16.0f, 2.0f, 16.0f},   {-8.0f, 2.0f, 0.0f},   {8.0f, 2.0f, 0.0f},    {0.0f, 2.0f, -8.0f},
+                     {0.0f, 2.0f, 8.0f},     {-16.0f, 2.0f, -4.0f}, {-16.0f, 2.0f, 4.0f},  {16.0f, 2.0f, -4.0f},
+                     {16.0f, 2.0f, 4.0f},    {-4.0f, 2.0f, -16.0f}, {4.0f, 2.0f, -16.0f},  {-4.0f, 2.0f, 16.0f},
+                     {4.0f, 2.0f, 16.0f}};
+        CoverPoints = {{-16.0f, 2.0f, -12.0f}, {-12.0f, 2.0f, -16.0f}, {16.0f, 2.0f, 12.0f},  {12.0f, 2.0f, 16.0f},
+                       {-16.0f, 2.0f, 12.0f},  {-12.0f, 2.0f, 16.0f},  {16.0f, 2.0f, -12.0f}, {12.0f, 2.0f, -16.0f},
+                       {-5.0f, 2.0f, 0.0f},    {5.0f, 2.0f, 0.0f},     {0.0f, 2.0f, -10.0f},  {0.0f, 2.0f, 10.0f}};
 
-        for (size_t i = 0; i < Team1Spawns.size(); ++i) {
-            auto* start = World->SpawnActor<APlayerStart>("Team1Start_" + std::to_string(i));
-            start->SetActorLocation(Team1Spawns[i]);
-            start->SetTeamIndex(1);
-            start->SetPlayerStartTag("Team1");
+        if (!WorldHasTeamPlayerStart(World, 1)) {
+            for (size_t i = 0; i < Team1Spawns.size(); ++i) {
+                auto* start = World->SpawnActor<APlayerStart>("Team1Start_" + std::to_string(i));
+                start->SetActorLocation(Team1Spawns[i]);
+                start->SetTeamIndex(1);
+                start->SetPlayerStartTag("Team1");
+            }
         }
-        for (size_t i = 0; i < Team2Spawns.size(); ++i) {
-            auto* start = World->SpawnActor<APlayerStart>("Team2Start_" + std::to_string(i));
-            start->SetActorLocation(Team2Spawns[i]);
-            start->SetTeamIndex(2);
-            start->SetPlayerStartTag("Team2");
+        if (!WorldHasTeamPlayerStart(World, 2)) {
+            for (size_t i = 0; i < Team2Spawns.size(); ++i) {
+                auto* start = World->SpawnActor<APlayerStart>("Team2Start_" + std::to_string(i));
+                start->SetActorLocation(Team2Spawns[i]);
+                start->SetTeamIndex(2);
+                start->SetPlayerStartTag("Team2");
+            }
         }
 
         auto* navBounds = World->SpawnActor<ANavMeshBoundsVolume>("NavBounds");
@@ -414,6 +461,14 @@ namespace Leon {
         StartMatch();
     }
 
+    void ALeonTournamentGameMode::OpenAnimLab() {
+        if (!IsNetworkAuthority() || !UEngine::HasInstance())
+            return;
+        SetTravelGameModeClass("ALeonTournamentAnimLabGameMode");
+        if (World)
+            UGameplayStatics::OpenLevel(World, "/Game/Maps/AnimLab");
+    }
+
     void ALeonTournamentGameMode::StartMatch() {
         // Flow: start TDM
         // 1. Build arena once; assign human teams; fill remaining slots with bots.
@@ -484,6 +539,7 @@ namespace Leon {
         if (auto* gi = GetLeonTournamentGameInstance())
             gi->ShutdownSession();
         EnterMainMenu();
+        SetTravelGameModeClass("ALeonTournamentGameMode");
         if (World)
             UGameplayStatics::OpenLevel(World, "/Game/Maps/MainMenu");
     }
@@ -642,8 +698,9 @@ namespace Leon {
             WriteAutoPlayReport();
         else if (static_cast<int>(AutoPlayElapsed) / 5 != static_cast<int>(AutoPlayElapsed - DeltaSeconds) / 5) {
             const auto& t = FFrameProfiler::Last();
-            LE_CORE_INFO("AutoPlay t={:.0f}s frame={:.2f}ms game={:.2f} render={:.2f} shadow={:.2f} anim={:.2f} ai={:.2f}",
-                         AutoPlayElapsed, t.FrameMs, t.GameMs, t.RenderMs, t.ShadowMs, t.AnimationMs, t.AIMs);
+            LE_CORE_INFO(
+                "AutoPlay t={:.0f}s frame={:.2f}ms game={:.2f} render={:.2f} shadow={:.2f} anim={:.2f} ai={:.2f}",
+                AutoPlayElapsed, t.FrameMs, t.GameMs, t.RenderMs, t.ShadowMs, t.AnimationMs, t.AIMs);
         }
     }
 
@@ -654,7 +711,8 @@ namespace Leon {
         auto* gi = GetLeonTournamentGameInstance();
         auto* gs = GetGameState();
         std::string path = gi ? gi->GetAutoReportPath() : "";
-        std::filesystem::path fallback = std::filesystem::path(FProjectPaths::ProjectSavedDir()) / "offline_match_report.txt";
+        std::filesystem::path fallback =
+            std::filesystem::path(FProjectPaths::ProjectSavedDir()) / "offline_match_report.txt";
         std::error_code ec;
         std::filesystem::create_directories(fallback.parent_path(), ec);
         if (path.empty())

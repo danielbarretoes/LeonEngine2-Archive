@@ -73,6 +73,7 @@ set(LEON_TOURNAMENT_TEST_SOURCES
     LeonTournament/PlayabilityIntegrationTests.cpp
     LeonTournament/BotAIIntegrationTests.cpp
     LeonTournament/FirstPersonArenaTests.cpp
+    LeonTournament/AnimLabTests.cpp
     LeonTournament/SkeletalImportTests.cpp
     LeonTournament/NamingConventionTests.cpp
 )
@@ -86,6 +87,8 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentBotController.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentWeapon.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentHUD.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentDummy.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentAnimLabGameMode.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentAnimInstance.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentCombatComponent.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentGameInstance.cpp

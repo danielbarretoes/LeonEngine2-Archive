@@ -1,4 +1,5 @@
 #include "ULeonTournamentWidgets.hpp"
+#include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
 #include "ALeonTournamentPlayerController.hpp"
@@ -21,8 +22,9 @@ namespace Leon {
 
     namespace {
         ULeonTournamentGameInstance* GI() {
-            return UEngine::HasInstance() ? dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get())
-                                          : nullptr;
+            return UEngine::HasInstance()
+                       ? dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get())
+                       : nullptr;
         }
 
         ALeonTournamentGameMode* GM(APlayerController* InPC) {
@@ -82,19 +84,23 @@ namespace Leon {
         offline->OnClicked.AddLambda([this]() { OnOffline(); });
         Root->AddChild(offline, FAnchors::TopLeft(), FMargin(80, 220, -360, -268));
 
+        auto animLab = MakeButton("AnimLab", "ANIM LAB");
+        animLab->OnClicked.AddLambda([this]() { OnAnimLab(); });
+        Root->AddChild(animLab, FAnchors::TopLeft(), FMargin(80, 280, -360, -328));
+
         auto host = MakeButton("Host", "HOST LAN");
         host->OnClicked.AddLambda([this]() { OnHostLan(); });
-        Root->AddChild(host, FAnchors::TopLeft(), FMargin(80, 280, -360, -328));
+        Root->AddChild(host, FAnchors::TopLeft(), FMargin(80, 340, -360, -388));
 
         auto join = MakeButton("Join", "JOIN LAN");
         join->OnClicked.AddLambda([this]() { OnJoinLan(); });
-        Root->AddChild(join, FAnchors::TopLeft(), FMargin(80, 340, -360, -388));
+        Root->AddChild(join, FAnchors::TopLeft(), FMargin(80, 400, -360, -448));
 
         auto ipLabel = std::make_shared<UTextBlock>("IpLabel");
         ipLabel->SetText("IP Address");
         ipLabel->SetFontScale(0.75f);
         ipLabel->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        Root->AddChild(ipLabel, FAnchors::TopLeft(), FMargin(80, 400, -360, -424));
+        Root->AddChild(ipLabel, FAnchors::TopLeft(), FMargin(80, 460, -360, -484));
 
         AddressField = std::make_shared<UEditableText>("JoinAddress");
         auto* session = GI();
@@ -105,11 +111,11 @@ namespace Leon {
             if (auto* inst = GI())
                 inst->SetJoinAddress(InText.empty() ? "127.0.0.1" : InText);
         };
-        Root->AddChild(AddressField, FAnchors::TopLeft(), FMargin(80, 428, -360, -468));
+        Root->AddChild(AddressField, FAnchors::TopLeft(), FMargin(80, 488, -360, -528));
 
         auto quit = MakeButton("Quit", "QUIT");
         quit->OnClicked.AddLambda([this]() { OnQuit(); });
-        Root->AddChild(quit, FAnchors::TopLeft(), FMargin(80, 488, -360, -536));
+        Root->AddChild(quit, FAnchors::TopLeft(), FMargin(80, 548, -360, -596));
 
         SetWidgetTree(Root);
         SetSize({1280, 720});
@@ -122,6 +128,13 @@ namespace Leon {
             gi->SetSessionMode(ELeonTournamentSessionMode::Offline);
         if (auto* gm = GM(OwningPlayer))
             gm->EnterLobby();
+    }
+
+    void ULeonTournamentMainMenuWidget::OnAnimLab() {
+        if (IsClientWorld(OwningPlayer))
+            return;
+        if (auto* gm = GM(OwningPlayer))
+            gm->OpenAnimLab();
     }
 
     void ULeonTournamentMainMenuWidget::OnHostLan() {
@@ -266,6 +279,12 @@ namespace Leon {
         Root->AddChild(DamageFlash, FAnchors::Fill(), FMargin(0, 0, 0, 0));
         DamageFlash->SetVisibility(ESlateVisibility::Collapsed);
 
+        HintText = std::make_shared<UTextBlock>("Hints");
+        HintText->SetFontScale(0.75f);
+        HintText->SetColor({0.75f, 0.82f, 0.92f, 0.9f});
+        HintText->SetVisibility(ESlateVisibility::Collapsed);
+        Root->AddChild(HintText, FAnchors::TopLeft(), FMargin(40, 90, -520, -160));
+
         SetWidgetTree(Root);
         SetSize({1280, 720});
         SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -274,15 +293,26 @@ namespace Leon {
     void ULeonTournamentHUDWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
         auto* gs = GS(OwningPlayer);
-        if (gs && Team1Text && Team2Text && TimerText) {
-            Team1Text->SetText(std::string("TEAM 1    ") + std::to_string(gs->GetTeam1Kills()));
-            Team2Text->SetText(std::string("TEAM 2    ") + std::to_string(gs->GetTeam2Kills()));
-            const float seconds = gs->GetMatchState() == ELeonTournamentMatchState::Starting ? gs->GetCountdownRemaining()
-                                                                                      : gs->GetRemainingTime();
-            int t = static_cast<int>(std::max(0.0f, seconds));
-            char buf[16];
-            std::snprintf(buf, sizeof(buf), "%02d:%02d", t / 60, t % 60);
-            TimerText->SetText(buf);
+        UWorld* world = OwningPlayer ? OwningPlayer->GetWorld() : nullptr;
+        auto* animLab = world ? dynamic_cast<ALeonTournamentAnimLabGameMode*>(world->GetGameMode()) : nullptr;
+        const bool bLab = animLab != nullptr;
+
+        if (Team1Text && Team2Text && TimerText) {
+            if (bLab) {
+                Team1Text->SetText("ANIM LAB");
+                Team2Text->SetText(animLab->PrefersThirdPerson() ? "CAMERA  3RD" : "CAMERA  1ST");
+                TimerText->SetText("ESC MENU");
+            } else if (gs) {
+                Team1Text->SetText(std::string("TEAM 1    ") + std::to_string(gs->GetTeam1Kills()));
+                Team2Text->SetText(std::string("TEAM 2    ") + std::to_string(gs->GetTeam2Kills()));
+                const float seconds = gs->GetMatchState() == ELeonTournamentMatchState::Starting
+                                          ? gs->GetCountdownRemaining()
+                                          : gs->GetRemainingTime();
+                int t = static_cast<int>(std::max(0.0f, seconds));
+                char buf[16];
+                std::snprintf(buf, sizeof(buf), "%02d:%02d", t / 60, t % 60);
+                TimerText->SetText(buf);
+            }
         }
 
         ALeonTournamentCharacter* ch = OwningPlayer ? OwningPlayer->GetPawn<ALeonTournamentCharacter>() : nullptr;
@@ -296,7 +326,9 @@ namespace Leon {
                 HealthText->SetText(std::to_string(static_cast<int>(health->GetHealth())) + " HP");
         }
         if (AmmoText) {
-            if (!ch || !ch->GetWeapon()) {
+            if (bLab && ch && !ch->GetWeapon()) {
+                AmmoText->SetText("MELEE LAB");
+            } else if (!ch || !ch->GetWeapon()) {
                 AmmoText->SetText("0 / 0");
             } else if (ch->GetWeapon()->IsReloading()) {
                 AmmoText->SetText("RELOADING");
@@ -305,9 +337,19 @@ namespace Leon {
                                   std::to_string(ch->GetWeapon()->GetMagazineSize()));
             }
         }
+        if (HintText) {
+            if (bLab) {
+                HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
+                HintText->SetText("V = Camera   LMB = Fire   R = Reload   Shift+F1 = Debug");
+            } else {
+                HintText->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
         auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer);
         if (CrosshairText) {
             const bool bHit = spc && spc->IsHitMarkerActive();
+            const bool bShow = !bLab || (ch && !ch->IsThirdPerson());
+            CrosshairText->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
             CrosshairText->SetText(bHit ? "X" : "+");
             CrosshairText->SetFontScale(bHit ? 2.2f : 1.8f);
             CrosshairText->SetColor(bHit ? glm::vec4(1.0f, 0.85f, 0.2f, 1.0f) : glm::vec4(0.95f, 0.97f, 1.0f, 0.95f));

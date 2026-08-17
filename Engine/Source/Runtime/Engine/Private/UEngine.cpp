@@ -349,9 +349,16 @@ namespace Leon {
 
     static UEngine* EngineInstance = nullptr;
     static UEngine::FGameInstanceFactory GGameInstanceFactory;
+    static std::string GStartupMapOverride;
+    static std::string GStartupGameModeOverride;
 
     void UEngine::SetGameInstanceFactory(FGameInstanceFactory InFactory) {
         GGameInstanceFactory = std::move(InFactory);
+    }
+
+    void UEngine::SetStartupOverrides(const std::string& InMapPath, const std::string& InGameModeClass) {
+        GStartupMapOverride = InMapPath;
+        GStartupGameModeOverride = InGameModeClass;
     }
 
     UEngine::UEngine() : UObject("Engine") {
@@ -673,6 +680,28 @@ namespace Leon {
 
         std::string rawMapPath = ResolveStartupMap(engineConfig, projectDesc);
         GameModeConfig = BuildGameModeConfig(engineConfig, gameConfig, projectDesc);
+        if (!GStartupMapOverride.empty())
+            rawMapPath = GStartupMapOverride;
+        if (!GStartupGameModeOverride.empty())
+            GameModeConfig.GameModeClass = GStartupGameModeOverride;
+        auto readArgValue = [&](const char* keyEquals, const char* keyBare) -> std::string {
+            const std::string prefix = keyEquals;
+            for (int i = 1; i < InArgs.Count; ++i) {
+                const char* raw = InArgs.Args ? InArgs.Args[i] : nullptr;
+                if (!raw)
+                    continue;
+                std::string arg = raw;
+                if (arg.rfind(prefix, 0) == 0)
+                    return arg.substr(prefix.size());
+                if (arg == keyBare && i + 1 < InArgs.Count && InArgs.Args[i + 1])
+                    return InArgs.Args[i + 1];
+            }
+            return {};
+        };
+        if (const std::string mapArg = readArgValue("--map=", "--map"); !mapArg.empty())
+            rawMapPath = mapArg;
+        if (const std::string gmArg = readArgValue("--gamemode=", "--gamemode"); !gmArg.empty())
+            GameModeConfig.GameModeClass = gmArg;
 
         // 3. Initialize FApplication
         FApplicationProps appProps;

@@ -51,6 +51,8 @@ namespace Leon {
         void SetHUDEnabled(bool InbEnabled) { bShowHUD = InbEnabled; }
         void SetLightGizmosEnabled(bool InbEnabled) { bShowLightGizmos = InbEnabled; }
         void SetGameplayDebugEnabled(bool InbEnabled) { bShowGameplayDebug = InbEnabled; }
+        void SetDebugPhysicsEnabled(bool InbEnabled) { bDebugPhysics = InbEnabled; }
+        void SetDebugCharacterEnabled(bool InbEnabled) { bDebugCharacter = InbEnabled; }
         void ToggleDebugPhysics() { bDebugPhysics = !bDebugPhysics; }
         void ToggleDebugCharacter() { bDebugCharacter = !bDebugCharacter; }
         void ToggleDebugAI() { bDebugAI = !bDebugAI; }

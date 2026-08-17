@@ -21,6 +21,9 @@ namespace Leon {
         static TRef<UBlendSpace> BuildLocomotionBlendSpace(const TRef<USkeleton>& InSkeleton);
         static bool LocomotionBlendCoversEightDirections(const UBlendSpace& InBlend);
 
+        void PlayDeathMontage();
+        TRef<UAnimSequence> GetDeathSequence() const { return DeathSequence; }
+
     private:
         TRef<UAnimSequence> LoadLinked(const std::string& InPath);
         TRef<UBlendSpace> LocomotionBlend;

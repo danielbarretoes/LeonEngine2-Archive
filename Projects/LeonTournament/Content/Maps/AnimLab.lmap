@@ -1,0 +1,289 @@
+# LeonEngine2 Map Asset File (.lmap)
+# Human-Readable & Deterministic Serialization
+Map:
+  Name: "AnimLab"
+  Version: "2.1"
+
+Environment:
+  WorldSettings:
+    StaticLighting: true
+    LightingBuildQuality: Draft
+    LightmapResolution: 64
+    NumIndirectBounces: 2
+    SamplesPerTexel: 8
+    IndirectIntensity: 1
+    AmbientOcclusion: false
+    AOIntensity: 1
+    AORadius: 0.35
+    TexelPadding: 2
+    WorldScale: 1
+    LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    LightmapBakeHash: "631c66a35dee292b"
+  Skybox:
+    Enabled: true
+    Exposure: 0.85
+    SunIntensity: 2.8
+    EnvironmentIntensity: 0.9
+    UseHDREnvironmentMap: true
+    HDREnvironmentMap: "/Game/HDR/DaySky1k.lhdr"
+    SkyZenithColor: [0.12, 0.22, 0.45]
+    HorizonColor: [0.55, 0.62, 0.75]
+    GroundColor: [0.12, 0.13, 0.14]
+    SunColor: [1, 0.96, 0.88]
+
+Actors:
+  - Name: "PlayerStart"
+    Class: "APlayerStart"
+    GUID: "4c454f4e00000000c0ffee0000000201"
+    PlayerStartTag: "Player"
+    TeamIndex: 1
+    Transform:
+      Translation: [-4, 2, 0]
+      Rotation: [0, 90, 0]
+      Scale: [1, 1, 1]
+  - Name: "DummyStart"
+    Class: "APlayerStart"
+    GUID: "4c454f4e00000000c0ffee0000000202"
+    PlayerStartTag: "Dummy"
+    TeamIndex: 2
+    Transform:
+      Translation: [5, 2, 0]
+      Rotation: [0, -90, 0]
+      Scale: [1, 1, 1]
+  - Name: "Directional Sunlight"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000203"
+    Transform:
+      Translation: [0, 8, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    DirectionalLight:
+      Enabled: true
+      Direction: [-0.4, -1, -0.3]
+      Color: [1, 0.98, 0.92]
+      Intensity: 3.2
+      Mobility: Stationary
+  - Name: "LabFloor"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000210"
+    Transform:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Plane"
+      Size: 1
+      Width: 32
+      Height: 1
+      Depth: 32
+      Radius: 0.5
+      SubdivisionsX: 32
+      SubdivisionsZ: 32
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: false
+      Mobility: Static
+      LightmapResolution: 128
+      LightmapIndex: 0
+      LightmapScale: [0.5, 0.5]
+      LightmapBias: [0.0078125, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabFloor.lmat"
+  - Name: "LabWallN"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000211"
+    Transform:
+      Translation: [0, 1.5, -16]
+      Rotation: [0, 0, 0]
+      Scale: [32, 3, 0.5]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 1
+      LightmapScale: [0.25, 0.25]
+      LightmapBias: [0.515625, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LabWallS"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000212"
+    Transform:
+      Translation: [0, 1.5, 16]
+      Rotation: [0, 0, 0]
+      Scale: [32, 3, 0.5]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 2
+      LightmapScale: [0.25, 0.25]
+      LightmapBias: [0.0078125, 0.515625]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LabWallW"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000213"
+    Transform:
+      Translation: [-16, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.5, 3, 32]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 3
+      LightmapScale: [0.25, 0.25]
+      LightmapBias: [0.265625, 0.515625]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LabWallE"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000214"
+    Transform:
+      Translation: [16, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.5, 3, 32]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 4
+      LightmapScale: [0.25, 0.25]
+      LightmapBias: [0.523438, 0.515625]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "JumpPadLow"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000215"
+    Transform:
+      Translation: [6, 0.6, 6]
+      Rotation: [0, 0, 0]
+      Scale: [4, 1.2, 4]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 5
+      LightmapScale: [0.125, 0.125]
+      LightmapBias: [0.78125, 0.515625]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "JumpPadHigh"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000216"
+    Transform:
+      Translation: [6, 1.8, 12]
+      Rotation: [0, 0, 0]
+      Scale: [3, 0.4, 3]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 6
+      LightmapScale: [0.125, 0.125]
+      LightmapBias: [0.0078125, 0.773438]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "FallLedge"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee0000000217"
+    Transform:
+      Translation: [-8, 1.2, 8]
+      Rotation: [0, 0, 0]
+      Scale: [3.5, 2.4, 2]
+    StaticMesh:
+      Type: "Cube"
+      Size: 1
+      Width: 1
+      Height: 1
+      Depth: 1
+      Radius: 0.5
+      SubdivisionsX: 1
+      SubdivisionsZ: 1
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 32
+      LightmapIndex: 7
+      LightmapScale: [0.125, 0.125]
+      LightmapBias: [0.140625, 0.773438]
+      LightmapAsset: "/Game/Lightmaps/AnimLab.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"

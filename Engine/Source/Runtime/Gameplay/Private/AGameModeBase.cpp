@@ -80,13 +80,21 @@ namespace Leon {
     APlayerStart* AGameModeBase::ChoosePlayerStart() const {
         if (!World)
             return nullptr;
+        APlayerStart* fallback = nullptr;
         for (const auto& actorRef : World->GetAllActors()) {
             if (!actorRef || actorRef->IsPendingKill())
                 continue;
-            if (auto* start = dynamic_cast<APlayerStart*>(actorRef.get()))
+            auto* start = dynamic_cast<APlayerStart*>(actorRef.get());
+            if (!start || !start->IsEnabled())
+                continue;
+            if (start->GetPlayerStartTag() == "Dummy")
+                continue;
+            if (!fallback)
+                fallback = start;
+            if (start->GetPlayerStartTag() == "Player" || start->GetTeamIndex() == 1)
                 return start;
         }
-        return nullptr;
+        return fallback;
     }
 
     AActor* AGameModeBase::FindPlayerStart(const std::string& InIncomingName) const {
@@ -183,8 +191,8 @@ namespace Leon {
 
         APawn* pawn = nullptr;
         if (!DefaultPawnClass.empty() && DefaultPawnClass != "None") {
-            pawn = dynamic_cast<APawn*>(
-                UClassRegistry::Get().CreateActorOfClass(DefaultPawnClass, World, "DefaultPawn"));
+            pawn =
+                dynamic_cast<APawn*>(UClassRegistry::Get().CreateActorOfClass(DefaultPawnClass, World, "DefaultPawn"));
         }
         if (!pawn && DefaultPawnClass != "None") {
             pawn = World->SpawnActor<ADefaultPawn>("DefaultPawn");

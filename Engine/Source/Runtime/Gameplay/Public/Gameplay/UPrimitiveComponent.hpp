@@ -41,6 +41,7 @@ namespace Leon {
 
         void SetSimulatePhysics(bool bSimulate);
         bool IsSimulatingPhysics() const { return bSimulatePhysics; }
+        void AddImpulse(const glm::vec3& InImpulse);
 
         void SetEnableGravity(bool bEnable);
         bool IsGravityEnabled() const { return bEnableGravity; }

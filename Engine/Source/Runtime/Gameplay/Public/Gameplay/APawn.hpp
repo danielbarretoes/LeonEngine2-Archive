@@ -21,6 +21,7 @@ namespace Leon {
 
         AController* GetController() const { return Controller; }
         APlayerState* GetPlayerState() const;
+        void SetPlayerState(APlayerState* InPlayerState) { PlayerState = InPlayerState; }
         bool IsControlled() const { return Controller != nullptr; }
         bool IsLocallyControlled() const;
 

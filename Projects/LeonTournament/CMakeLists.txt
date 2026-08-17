@@ -8,6 +8,8 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/ALeonTournamentBotController.cpp
     Source/LeonTournament/Private/ALeonTournamentWeapon.cpp
     Source/LeonTournament/Private/ALeonTournamentHUD.cpp
+    Source/LeonTournament/Private/ALeonTournamentDummy.cpp
+    Source/LeonTournament/Private/ALeonTournamentAnimLabGameMode.cpp
     Source/LeonTournament/Private/ULeonTournamentAnimInstance.cpp
     Source/LeonTournament/Private/ULeonTournamentCombatComponent.cpp
     Source/LeonTournament/Private/ULeonTournamentGameInstance.cpp

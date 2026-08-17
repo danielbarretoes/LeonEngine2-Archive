@@ -18,6 +18,7 @@ namespace Leon {
     private:
         void Build();
         void OnOffline();
+        void OnAnimLab();
         void OnHostLan();
         void OnJoinLan();
         void OnQuit();
@@ -44,9 +45,7 @@ namespace Leon {
         ULeonTournamentHUDWidget(const std::string& InName = "LeonTournamentHUD");
         void Construct() override;
         void Tick(float InDeltaTime) override;
-        bool IsCrosshairVisible() const {
-            return CrosshairText && CrosshairText->IsVisible() && IsVisible();
-        }
+        bool IsCrosshairVisible() const { return CrosshairText && CrosshairText->IsVisible() && IsVisible(); }
         const std::string& GetCrosshairGlyph() const {
             static const std::string empty;
             return CrosshairText ? CrosshairText->GetText() : empty;
@@ -62,6 +61,7 @@ namespace Leon {
         TRef<UTextBlock> AmmoText;
         TRef<UTextBlock> CrosshairText;
         TRef<UTextBlock> KillText;
+        TRef<UTextBlock> HintText;
         TRef<UImage> DamageFlash;
     };
 

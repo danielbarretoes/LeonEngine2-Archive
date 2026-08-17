@@ -8,6 +8,8 @@
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ALeonTournamentWeapon.hpp"
+#include "ALeonTournamentDummy.hpp"
+#include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ULeonTournamentGameInstance.hpp"
 #include "FOpenGLRenderDriver.hpp"
 #include "FJoltPhysicsDriver.hpp"
@@ -74,19 +76,27 @@ int main(int argc, char** argv) {
     registry.RegisterClass<Leon::ALeonTournamentBotController>("ALeonTournamentBotController");
     registry.RegisterClass<Leon::ALeonTournamentRifle>("ALeonTournamentRifle");
     registry.RegisterClass<Leon::ALeonTournamentWeapon>("ALeonTournamentWeapon");
+    registry.RegisterClass<Leon::ALeonTournamentDummy>("ALeonTournamentDummy");
+    registry.RegisterClass<Leon::ALeonTournamentAnimLabGameMode>("ALeonTournamentAnimLabGameMode");
 
     bool autoOffline = false;
+    bool animLab = false;
     float validateSeconds = 65.0f;
     std::string reportPath;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i] ? argv[i] : "";
         if (arg == "--offline-match")
             autoOffline = true;
+        else if (arg == "--anim-lab")
+            animLab = true;
         else if (arg.rfind("--validate-seconds=", 0) == 0)
             validateSeconds = std::strtof(arg.c_str() + 19, nullptr);
         else if (arg.rfind("--report=", 0) == 0)
             reportPath = arg.substr(9);
     }
+
+    if (animLab)
+        Leon::UEngine::SetStartupOverrides("/Game/Maps/AnimLab", "ALeonTournamentAnimLabGameMode");
 
     Leon::UEngine::SetGameInstanceFactory([autoOffline, validateSeconds, reportPath]() {
         auto gi = Leon::CreateRef<Leon::ULeonTournamentGameInstance>("LeonTournamentGameInstance");

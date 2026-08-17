@@ -2,6 +2,7 @@
 #include "Physics/FCollisionQuery.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/ACharacter.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 
 #include <algorithm>
@@ -20,17 +21,39 @@ namespace Leon {
         OutRotation = Rotation;
     }
 
-    void FSimplePhysicsBody::AddForce(const glm::vec3& InForce) { PendingForce += InForce; }
-    void FSimplePhysicsBody::AddImpulse(const glm::vec3& InImpulse) { PendingImpulse += InImpulse; }
-    void FSimplePhysicsBody::SetLinearVelocity(const glm::vec3& InVelocity) { LinearVelocity = InVelocity; }
-    void FSimplePhysicsBody::SetAngularVelocity(const glm::vec3& InVelocity) { AngularVelocity = InVelocity; }
-    glm::vec3 FSimplePhysicsBody::GetLinearVelocity() const { return LinearVelocity; }
-    glm::vec3 FSimplePhysicsBody::GetAngularVelocity() const { return AngularVelocity; }
-    bool FSimplePhysicsBody::IsSimulating() const { return bSimulating; }
-    void FSimplePhysicsBody::SetSimulatePhysics(bool bSimulate) { bSimulating = bSimulate; }
-    AActor* FSimplePhysicsBody::GetActor() const { return Info.Actor; }
-    UActorComponent* FSimplePhysicsBody::GetComponent() const { return Info.Component; }
-    ECollisionChannel FSimplePhysicsBody::GetObjectType() const { return Info.ObjectType; }
+    void FSimplePhysicsBody::AddForce(const glm::vec3& InForce) {
+        PendingForce += InForce;
+    }
+    void FSimplePhysicsBody::AddImpulse(const glm::vec3& InImpulse) {
+        PendingImpulse += InImpulse;
+    }
+    void FSimplePhysicsBody::SetLinearVelocity(const glm::vec3& InVelocity) {
+        LinearVelocity = InVelocity;
+    }
+    void FSimplePhysicsBody::SetAngularVelocity(const glm::vec3& InVelocity) {
+        AngularVelocity = InVelocity;
+    }
+    glm::vec3 FSimplePhysicsBody::GetLinearVelocity() const {
+        return LinearVelocity;
+    }
+    glm::vec3 FSimplePhysicsBody::GetAngularVelocity() const {
+        return AngularVelocity;
+    }
+    bool FSimplePhysicsBody::IsSimulating() const {
+        return bSimulating;
+    }
+    void FSimplePhysicsBody::SetSimulatePhysics(bool bSimulate) {
+        bSimulating = bSimulate;
+    }
+    AActor* FSimplePhysicsBody::GetActor() const {
+        return Info.Actor;
+    }
+    UActorComponent* FSimplePhysicsBody::GetComponent() const {
+        return Info.Component;
+    }
+    ECollisionChannel FSimplePhysicsBody::GetObjectType() const {
+        return Info.ObjectType;
+    }
     ECollisionResponse FSimplePhysicsBody::GetResponseToChannel(ECollisionChannel InChannel) const {
         return Info.Responses.Get(InChannel);
     }
@@ -73,11 +96,34 @@ namespace Leon {
             body->PendingForce = glm::vec3(0.0f);
             body->PendingImpulse = glm::vec3(0.0f);
             body->LinearVelocity *= std::max(0.0f, 1.0f - body->Info.LinearDamping * InDeltaSeconds);
+            // Cap runaway velocities — simple dynamics have no world collision on XZ.
+            const float speed = glm::length(body->LinearVelocity);
+            constexpr float kMaxSimSpeed = 14.0f;
+            if (speed > kMaxSimSpeed)
+                body->LinearVelocity *= kMaxSimSpeed / speed;
             body->Location += body->LinearVelocity * InDeltaSeconds;
             if (body->Info.Actor) {
                 glm::vec3 actorLoc = body->Location;
+                glm::vec3 relative(0.0f);
                 if (auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component))
-                    actorLoc -= prim->GetRelativeLocation();
+                    relative = prim->GetRelativeLocation();
+                actorLoc -= relative;
+                // Simple dynamics have no world collision; keep ragdolls on the character floor.
+                if (auto* character = dynamic_cast<ACharacter*>(body->Info.Actor)) {
+                    const float minActorY = character->GetFloorZ() + character->GetEyeHeight();
+                    if (actorLoc.y < minActorY) {
+                        actorLoc.y = minActorY;
+                        body->Location = actorLoc + relative;
+                        body->LinearVelocity.y = std::max(0.0f, body->LinearVelocity.y);
+                        body->LinearVelocity.x *= 0.35f;
+                        body->LinearVelocity.z *= 0.35f;
+                    }
+                    // Soft arena clamp so dead bodies do not leave the playable volume.
+                    constexpr float kArenaHalf = 22.0f;
+                    actorLoc.x = std::clamp(actorLoc.x, -kArenaHalf, kArenaHalf);
+                    actorLoc.z = std::clamp(actorLoc.z, -kArenaHalf, kArenaHalf);
+                    body->Location = actorLoc + relative;
+                }
                 body->Info.Actor->SetActorLocation(actorLoc);
             }
         }
@@ -95,9 +141,10 @@ namespace Leon {
     }
 
     void FSimplePhysicsScene::DestroyRigidBody(IPhysicsBody* InBody) {
-        Bodies.erase(std::remove_if(Bodies.begin(), Bodies.end(),
-                                    [InBody](const std::unique_ptr<FSimplePhysicsBody>& b) { return b.get() == InBody; }),
-                     Bodies.end());
+        Bodies.erase(
+            std::remove_if(Bodies.begin(), Bodies.end(),
+                           [InBody](const std::unique_ptr<FSimplePhysicsBody>& b) { return b.get() == InBody; }),
+            Bodies.end());
     }
 
     bool FSimplePhysicsScene::LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,

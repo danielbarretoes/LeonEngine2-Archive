@@ -41,6 +41,7 @@ namespace Leon {
         void EnterMainMenu();
         void EnterLobby();
         void RequestStartMatch();
+        void OpenAnimLab();
         void StartMatch();
         void EndMatch(ELeonTournamentMatchWinner InWinner);
         void ReturnToMenu();

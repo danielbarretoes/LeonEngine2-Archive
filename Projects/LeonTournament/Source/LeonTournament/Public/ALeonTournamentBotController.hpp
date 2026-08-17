@@ -15,7 +15,7 @@ namespace Leon {
     public:
         ALeonTournamentBotController() = default;
         ALeonTournamentBotController(entt::entity InHandle, UWorld* InWorld,
-                              const std::string& InName = "LeonTournamentBotController");
+                                     const std::string& InName = "LeonTournamentBotController");
 
         void PostInitializeComponents() override;
         void Possess(APawn* InPawn) override;
@@ -54,6 +54,8 @@ namespace Leon {
         float StrafeTimer = 0.0f;
         float StrafeSign = 1.0f;
         float LookAroundTimer = 0.0f;
+        mutable glm::vec3 LastPatrolGoal{0.0f};
+        mutable bool bHasLastPatrolGoal = false;
         bool bDamageBound = false;
         ELeonTournamentBotState CachedState = ELeonTournamentBotState::Idle;
     };

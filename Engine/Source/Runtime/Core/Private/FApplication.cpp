@@ -93,8 +93,10 @@ namespace Leon {
         if (bShift) {
             if (InEvent.GetKeyCode() == Key::F1 && !InEvent.IsRepeat()) {
                 bShowGameplayDebug = !bShowGameplayDebug;
+                bDebugPhysics = bShowGameplayDebug;
+                bDebugCharacter = bShowGameplayDebug;
                 FDebugRenderer::SetTraceCaptureEnabled(bShowGameplayDebug);
-                LE_CORE_INFO("Gameplay debug (traces / collision): {0}  [Shift+F1]",
+                LE_CORE_INFO("Gameplay debug (traces / hitboxes / colliders): {0}  [Shift+F1]",
                              bShowGameplayDebug ? "ENABLED" : "DISABLED");
                 return true;
             }

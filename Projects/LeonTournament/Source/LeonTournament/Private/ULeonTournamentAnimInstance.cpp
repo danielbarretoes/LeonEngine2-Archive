@@ -124,11 +124,16 @@ namespace Leon {
             UAssetManager::AddBlendSpace("/Game/BlendSpaces/BS_Locomotion.lblend", LocomotionBlend);
         }
 
+        auto jumpUp = LoadLinked("/Game/Animations/JumpUp.lanim");
         auto jumpLoop = LoadLinked("/Game/Animations/JumpLoop.lanim");
         auto jumpDown = LoadLinked("/Game/Animations/JumpDown.lanim");
         DeathSequence = LoadLinked("/Game/Animations/DeathFromTheFront.lanim");
         if (DeathSequence)
             DeathSequence->SetLooping(false);
+        if (jumpUp)
+            jumpUp->SetLooping(false);
+        if (jumpDown)
+            jumpDown->SetLooping(false);
 
         StateMachine = FAnimStateMachine{};
         SetBlendParamNames("Speed", "Direction");
@@ -139,6 +144,12 @@ namespace Leon {
         loco.BlendSpace = LocomotionBlend;
         loco.bLoop = true;
         StateMachine.AddState(loco);
+
+        FAnimState jumpStart;
+        jumpStart.Name = "JumpStart";
+        jumpStart.Sequence = jumpUp ? jumpUp : jumpLoop;
+        jumpStart.bLoop = false;
+        StateMachine.AddState(jumpStart);
 
         FAnimState falling;
         falling.Name = "Falling";
@@ -158,6 +169,10 @@ namespace Leon {
         death.bLoop = false;
         StateMachine.AddState(death);
 
+        StateMachine.AddTransition({"Locomotion", "JumpStart", "FloatGreater:VerticalSpeed:1.5", 0.06f});
+        StateMachine.AddTransition({"JumpStart", "Falling", "TimeGreater:0.08", 0.08f});
+        StateMachine.AddTransition({"JumpStart", "Falling", "FloatLessEqual:VerticalSpeed:0.2", 0.08f});
+        StateMachine.AddTransition({"JumpStart", "Locomotion", "NotBool:bIsFalling", 0.08f});
         StateMachine.AddTransition({"Locomotion", "Falling", "Bool:bIsFalling", 0.08f});
         StateMachine.AddTransition({"Falling", "Landing", "NotBool:bIsFalling", 0.08f});
         StateMachine.AddTransition({"Landing", "Locomotion", "TimeGreater:0.12", 0.10f});
@@ -167,6 +182,11 @@ namespace Leon {
         StateMachine.SetDefaultState("Locomotion");
         StateMachine.ResetToDefault();
         bGraphBuilt = true;
+    }
+
+    void ULeonTournamentAnimInstance::PlayDeathMontage() {
+        if (DeathSequence)
+            SetOverrideSequence(DeathSequence, false);
     }
 
     void ULeonTournamentAnimInstance::NativeUpdateAnimation(float InDeltaSeconds) {

@@ -50,6 +50,9 @@ namespace Leon {
         using FGameInstanceFactory = std::function<TRef<UGameInstance>()>;
         static void SetGameInstanceFactory(FGameInstanceFactory InFactory);
 
+        /** Optional boot overrides applied after INI (empty string leaves that field unchanged). */
+        static void SetStartupOverrides(const std::string& InMapPath, const std::string& InGameModeClass);
+
         /**
          * @brief Resolve GameMode class names from Engine/Game INI + .lproject (testable without full boot).
          */

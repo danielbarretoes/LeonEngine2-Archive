@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace Leon {
@@ -200,8 +201,8 @@ namespace Leon {
             ss << "SkyZenithColor: [" << sky.SkyZenithColor.r << ", " << sky.SkyZenithColor.g << ", "
                << sky.SkyZenithColor.b << "]\n";
             Indent(ss, 2);
-            ss << "HorizonColor: [" << sky.HorizonColor.r << ", " << sky.HorizonColor.g << ", "
-               << sky.HorizonColor.b << "]\n";
+            ss << "HorizonColor: [" << sky.HorizonColor.r << ", " << sky.HorizonColor.g << ", " << sky.HorizonColor.b
+               << "]\n";
             Indent(ss, 2);
             ss << "GroundColor: [" << sky.GroundColor.r << ", " << sky.GroundColor.g << ", " << sky.GroundColor.b
                << "]\n";
@@ -241,6 +242,10 @@ namespace Leon {
                 if (!start->GetPlayerStartTag().empty()) {
                     Indent(ss, 2);
                     ss << "PlayerStartTag: \"" << start->GetPlayerStartTag() << "\"\n";
+                }
+                if (start->GetTeamIndex() != 0) {
+                    Indent(ss, 2);
+                    ss << "TeamIndex: " << start->GetTeamIndex() << "\n";
                 }
             }
 
@@ -483,6 +488,7 @@ namespace Leon {
         std::string ClassName = "AActor";
         FUUID Guid;
         std::string PlayerStartTag;
+        int32_t TeamIndex = 0;
         glm::vec3 Translation{0.0f};
         glm::vec3 Rotation{0.0f};
         glm::vec3 Scale{1.0f};
@@ -811,6 +817,8 @@ namespace Leon {
                             currentActor.Guid = FUUID::FromString(val);
                         else if (key == "PlayerStartTag")
                             currentActor.PlayerStartTag = val;
+                        else if (key == "TeamIndex")
+                            currentActor.TeamIndex = std::stoi(val);
                         break;
 
                     case EActorComponentSection::Transform:
@@ -1087,6 +1095,8 @@ namespace Leon {
             if (auto* start = dynamic_cast<APlayerStart*>(entity)) {
                 if (!actorData.PlayerStartTag.empty())
                     start->SetPlayerStartTag(actorData.PlayerStartTag);
+                if (actorData.TeamIndex != 0)
+                    start->SetTeamIndex(actorData.TeamIndex);
             }
 
             // Transform
@@ -1168,11 +1178,11 @@ namespace Leon {
                         va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, 0.0f, actorData.MeshHeight,
                                                              actorData.MeshSubdivX, true);
                     } else if (actorData.MeshType == "Ramp") {
-                        va = FMeshPrimitives::CreateRamp(actorData.MeshWidth, actorData.MeshHeight,
-                                                         actorData.MeshDepth);
+                        va =
+                            FMeshPrimitives::CreateRamp(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
                     } else if (actorData.MeshType == "Pyramid") {
                         va = FMeshPrimitives::CreatePyramid(actorData.MeshWidth, actorData.MeshHeight,
-                                                          actorData.MeshDepth);
+                                                            actorData.MeshDepth);
                     } else if (actorData.MeshType == "Quad") {
                         va = FMeshPrimitives::CreateQuad(actorData.MeshWidth, actorData.MeshHeight);
                     }

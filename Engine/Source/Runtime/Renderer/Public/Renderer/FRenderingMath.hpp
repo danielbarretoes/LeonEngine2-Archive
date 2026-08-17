@@ -46,6 +46,18 @@ namespace Leon {
     }
 
     /**
+     * Actor Euler that maps local +Y (cylinder barrel axis) to InForward.
+     */
+    inline glm::vec3 EulerAligningLocalY(const glm::vec3& InForward) {
+        glm::vec3 right, up;
+        StableViewBasis(InForward, right, up);
+        glm::vec3 forward = SafeNormalize(InForward, glm::vec3(0.0f, 0.0f, -1.0f));
+        glm::mat3 rotation(right, forward, up);
+        glm::quat q = glm::normalize(glm::quat_cast(rotation));
+        return glm::degrees(glm::eulerAngles(q));
+    }
+
+    /**
      * Actor Euler (degrees, Pitch/Yaw/Roll = GLM XYZ) that maps local -Z to InForward.
      * Matches FPerspectiveCamera look direction so pawn meshes face the camera heading.
      */

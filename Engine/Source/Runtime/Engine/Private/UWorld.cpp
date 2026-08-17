@@ -18,6 +18,7 @@
 #include "Physics/IPhysicsScene.hpp"
 #include "AI/UNavigationSystem.hpp"
 #include "Gameplay/FGameplayDebugger.hpp"
+#include "Renderer/FDebugRenderer.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -490,6 +491,10 @@ namespace Leon {
         bool bHit = false;
         if (PhysicsScene)
             bHit = PhysicsScene->LineTraceSingleByChannel(InStart, InEnd, InChannel, InIgnore, OutHit);
+        if (FDebugRenderer::IsTraceCaptureEnabled()) {
+            FDebugRenderer::RecordLineTrace(InStart, InEnd, bHit && OutHit.bBlockingHit, OutHit.Location, OutHit.Normal,
+                                            static_cast<uint8_t>(InChannel));
+        }
         return bHit;
     }
 

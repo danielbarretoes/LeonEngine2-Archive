@@ -15,7 +15,8 @@ namespace Leon {
     class ALeonTournamentCharacter : public ACharacter {
     public:
         ALeonTournamentCharacter() = default;
-        ALeonTournamentCharacter(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentCharacter");
+        ALeonTournamentCharacter(entt::entity InHandle, UWorld* InWorld,
+                                 const std::string& InName = "LeonTournamentCharacter");
 
         void PostInitializeComponents() override;
         void BeginPlay() override;
@@ -40,6 +41,8 @@ namespace Leon {
         void OnServerDeath(const FDamageInfo& InInfo);
         void OnServerRespawn(const glm::vec3& InLocation);
 
+        virtual bool ShouldSpawnWeapon() const { return true; }
+
         void BotMoveToward(const glm::vec3& InWorldTarget, float DeltaSeconds, float InSpeedScale = 1.0f);
         void BotLookAt(const glm::vec3& InWorldPoint);
         void BotSetFireHeld(bool bHeld);
@@ -55,6 +58,8 @@ namespace Leon {
         void ApplyLookRotation();
         void FlushPendingNetInput(float DeltaSeconds);
         void UpdatePresentationVisibility();
+        void BeginDeathRagdoll();
+        void StopDeathRagdoll();
 
         TRef<UHealthComponent> Health;
         TRef<ULeonTournamentCombatComponent> Combat;

@@ -236,7 +236,7 @@ namespace Leon {
         const float kick = bFiring ? 0.03f : 0.0f;
         glm::vec3 loc = origin + dir * (0.38f - kick) + right * 0.18f + up * (-0.14f);
         SetActorLocation(loc);
-        SetActorRotation(Leon::EulerLookingAlong(dir));
+        SetActorRotation(Leon::EulerAligningLocalY(dir));
         SetVisualHidden(bVisualHidden);
     }
 

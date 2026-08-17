@@ -22,8 +22,8 @@
 namespace Leon {
 
     namespace {
-        constexpr float kDetectionRadius = 35.0f;
-        constexpr float kAwarenessRadius = 12.0f;
+        constexpr float kDetectionRadius = 42.0f;
+        constexpr float kAwarenessRadius = 20.0f;
         constexpr float kFovDegrees = 120.0f;
         constexpr float kLastKnownMemory = 4.0f;
         constexpr float kMinRange = 7.0f;
@@ -44,7 +44,8 @@ namespace Leon {
         }
     } // namespace
 
-    ALeonTournamentBotController::ALeonTournamentBotController(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
+    ALeonTournamentBotController::ALeonTournamentBotController(entt::entity InHandle, UWorld* InWorld,
+                                                               const std::string& InName)
         : AAIController(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentBotController");
     }
@@ -55,7 +56,9 @@ namespace Leon {
         return static_cast<ALeonTournamentCharacter*>(Blackboard->GetValueAsObject("TargetActor"));
     }
 
-    ELeonTournamentBotState ALeonTournamentBotController::GetBotState() const { return CachedState; }
+    ELeonTournamentBotState ALeonTournamentBotController::GetBotState() const {
+        return CachedState;
+    }
 
     bool ALeonTournamentBotController::HasLineOfSight(ALeonTournamentCharacter& InTarget) const {
         auto* self = GetPawn<ALeonTournamentCharacter>();
@@ -119,6 +122,7 @@ namespace Leon {
         AcquireTime = 0.0f;
         StrafeTimer = 0.0f;
         LookAroundTimer = 0.0f;
+        bHasLastPatrolGoal = false;
         CachedState = ELeonTournamentBotState::Respawn;
         if (Blackboard && BoardAsset)
             Blackboard->InitializeFrom(BoardAsset);
@@ -144,10 +148,12 @@ namespace Leon {
         StopMovement();
     }
 
-    bool ALeonTournamentBotController::IsBehaviorTreeRunning() const { return Brain && Brain->IsRunning(); }
+    bool ALeonTournamentBotController::IsBehaviorTreeRunning() const {
+        return Brain && Brain->IsRunning();
+    }
 
     glm::vec3 ALeonTournamentBotController::PickApproachLocation(const glm::vec3& InFrom, const glm::vec3& InTarget,
-                                                          float InRange) const {
+                                                                 float InRange) const {
         glm::vec3 delta = InFrom - InTarget;
         delta.y = 0.0f;
         float dist = glm::length(delta);
@@ -162,7 +168,8 @@ namespace Leon {
         return pos;
     }
 
-    glm::vec3 ALeonTournamentBotController::PickCoverLocation(ALeonTournamentCharacter& InSelf, ALeonTournamentCharacter* InTarget) const {
+    glm::vec3 ALeonTournamentBotController::PickCoverLocation(ALeonTournamentCharacter& InSelf,
+                                                              ALeonTournamentCharacter* InTarget) const {
         glm::vec3 best = InSelf.GetActorLocation();
         float bestScore = -1e9f;
         for (const glm::vec3& p : CoverPoints) {
@@ -189,13 +196,29 @@ namespace Leon {
     glm::vec3 ALeonTournamentBotController::PickPatrolLocation(ALeonTournamentCharacter& InSelf) const {
         if (Waypoints.empty())
             return InSelf.GetActorLocation() + glm::vec3(4.0f, 0.0f, 0.0f);
-        const size_t n = Waypoints.size();
-        size_t idx = static_cast<size_t>(rand()) % n;
-        if (Personality.Tactic == 2)
-            idx = std::min(idx, n / 2);
-        else if (Personality.Tactic == 0)
-            idx = n / 2 + (idx % std::max<size_t>(1, n / 2));
-        return Waypoints[idx];
+        const glm::vec3 from = InSelf.GetActorLocation();
+        std::vector<size_t> ranked;
+        ranked.reserve(Waypoints.size());
+        for (size_t i = 0; i < Waypoints.size(); ++i) {
+            const float d = PlanarDistance(from, Waypoints[i]);
+            if (d < 3.0f)
+                continue;
+            if (bHasLastPatrolGoal && PlanarDistance(Waypoints[i], LastPatrolGoal) < 2.5f)
+                continue;
+            ranked.push_back(i);
+        }
+        if (ranked.empty()) {
+            for (size_t i = 0; i < Waypoints.size(); ++i)
+                ranked.push_back(i);
+        }
+        std::sort(ranked.begin(), ranked.end(), [&](size_t a, size_t b) {
+            return PlanarDistance(from, Waypoints[a]) > PlanarDistance(from, Waypoints[b]);
+        });
+        const size_t pickCount = std::min<size_t>(3, ranked.size());
+        const size_t idx = ranked[static_cast<size_t>(rand()) % pickCount];
+        LastPatrolGoal = Waypoints[idx];
+        bHasLastPatrolGoal = true;
+        return LastPatrolGoal;
     }
 
     void ALeonTournamentBotController::TickAim(float DeltaSeconds, const glm::vec3& InWorldPoint) {
@@ -308,7 +331,8 @@ namespace Leon {
             board->SetValueAsBool("HasLineOfSight", false);
             board->SetValueAsFloat("DistanceToTarget", 0.0f);
         }
-        board->SetValueAsBool("HasLastKnown", LastKnownAge < kLastKnownMemory && glm::length(LastKnownLocation) > 0.01f);
+        board->SetValueAsBool("HasLastKnown",
+                              LastKnownAge < kLastKnownMemory && glm::length(LastKnownLocation) > 0.01f);
     }
 
     void ALeonTournamentBotController::BuildBehaviorTree() {
@@ -327,18 +351,16 @@ namespace Leon {
         BoardAsset->AddKey({"IsDead", EBlackboardKeyType::Bool, false});
         BoardAsset->AddKey({"HasCover", EBlackboardKeyType::Bool, false});
 
-        auto perception = MakeRef<UBTService_Native>("Perception", [this](UBehaviorTreeComponent&, float) {
-            TickPerception();
-        });
+        auto perception =
+            MakeRef<UBTService_Native>("Perception", [this](UBehaviorTreeComponent&, float) { TickPerception(); });
         perception->Interval = 0.12f;
         perception->TimeAccumulator = perception->Interval;
 
         auto dead = MakeRef<UBTTask_Native>("Dead", [this](UBehaviorTreeComponent& owner, float) {
             auto board = owner.GetBlackboard();
             auto* pawn = GetPawn<ALeonTournamentCharacter>();
-            const bool bDead =
-                (pawn && pawn->GetHealthComponent() && pawn->GetHealthComponent()->IsDead()) ||
-                (board && board->GetValueAsBool("IsDead"));
+            const bool bDead = (pawn && pawn->GetHealthComponent() && pawn->GetHealthComponent()->IsDead()) ||
+                               (board && board->GetValueAsBool("IsDead"));
             if (!bDead)
                 return EBTNodeResult::Failed;
             if (board)
@@ -358,7 +380,7 @@ namespace Leon {
             pawn->BotSetFireHeld(false);
             pawn->BotRequestReload();
             return pawn->GetWeapon() && pawn->GetWeapon()->IsReloading() ? EBTNodeResult::InProgress
-                                                                        : EBTNodeResult::Succeeded;
+                                                                         : EBTNodeResult::Succeeded;
         });
 
         auto cover = MakeRef<UBTTask_Native>("TakeCover", [this](UBehaviorTreeComponent& owner, float dt) {
@@ -417,10 +439,8 @@ namespace Leon {
             const bool bLos = board->GetValueAsBool("HasLineOfSight");
             if (!bLos) {
                 pawn->BotSetFireHeld(false);
-                CachedState = ELeonTournamentBotState::Search;
-                const glm::vec3 last = board->GetValueAsVector("LastKnownTargetLocation");
-                if (glm::length(last) > 0.01f)
-                    MoveToLocation(last, 1.0f);
+                CachedState = ELeonTournamentBotState::MoveToTarget;
+                MoveToLocation(tgt, 1.0f);
                 return EBTNodeResult::InProgress;
             }
 
@@ -530,7 +550,8 @@ namespace Leon {
             if (ais[i] == this)
                 myIndex = static_cast<int32_t>(i);
         }
-        const bool bSelected = (myIndex == FGameplayDebugger::GetSelectedAIIndex() % std::max<int32_t>(1, static_cast<int32_t>(ais.size())));
+        const bool bSelected = (myIndex == FGameplayDebugger::GetSelectedAIIndex() %
+                                               std::max<int32_t>(1, static_cast<int32_t>(ais.size())));
 
         const glm::vec3 from = pawn->GetActorLocation();
         if (auto* tgt = GetCurrentTarget()) {
@@ -555,17 +576,16 @@ namespace Leon {
         if (auto* ps = GetPlayerState())
             id = ps->GetPlayerId();
         char label[256];
-        std::snprintf(label, sizeof(label),
-                      "BOT[%d] %s node=%s tgt=%s los=%s dist=%.1f hp=%.0f ammo=%d path=%s move=%s v=%.1f", id,
-                      LeonTournamentBotStateName(CachedState), Brain ? Brain->GetActiveNodeName().c_str() : "-",
-                      GetCurrentTarget() ? GetCurrentTarget()->GetName().c_str() : "-",
-                      Blackboard && Blackboard->GetValueAsBool("HasLineOfSight") ? "yes" : "no",
-                      Blackboard ? Blackboard->GetValueAsFloat("DistanceToTarget") : 0.0f,
-                      pawn->GetHealthComponent() ? pawn->GetHealthComponent()->GetHealth() : 0.0f,
-                      pawn->GetWeapon() ? pawn->GetWeapon()->GetCurrentAmmo() : 0, NavPathStatusName(GetPathStatus()),
-                      PathFollowingStatusName(GetMoveStatus()),
-                      glm::length(pawn->GetCharacterMovement() ? pawn->GetCharacterMovement()->GetVelocity()
-                                                               : glm::vec3(0.0f)));
+        std::snprintf(
+            label, sizeof(label), "BOT[%d] %s node=%s tgt=%s los=%s dist=%.1f hp=%.0f ammo=%d path=%s move=%s v=%.1f",
+            id, LeonTournamentBotStateName(CachedState), Brain ? Brain->GetActiveNodeName().c_str() : "-",
+            GetCurrentTarget() ? GetCurrentTarget()->GetName().c_str() : "-",
+            Blackboard && Blackboard->GetValueAsBool("HasLineOfSight") ? "yes" : "no",
+            Blackboard ? Blackboard->GetValueAsFloat("DistanceToTarget") : 0.0f,
+            pawn->GetHealthComponent() ? pawn->GetHealthComponent()->GetHealth() : 0.0f,
+            pawn->GetWeapon() ? pawn->GetWeapon()->GetCurrentAmmo() : 0, NavPathStatusName(GetPathStatus()),
+            PathFollowingStatusName(GetMoveStatus()),
+            glm::length(pawn->GetCharacterMovement() ? pawn->GetCharacterMovement()->GetVelocity() : glm::vec3(0.0f)));
         PrintString(label, 0.18f, glm::vec4(1.0f, 0.92f, 0.35f, 1.0f), 4000 + id);
         FDebugRenderer::DrawDebugSphere(from, kDetectionRadius, glm::vec4(0.2f, 0.6f, 1.0f, 0.15f), 20);
     }
