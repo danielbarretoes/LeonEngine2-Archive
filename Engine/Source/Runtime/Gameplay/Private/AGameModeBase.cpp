@@ -1,4 +1,5 @@
 #include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AController.hpp"
 #include "Core/FLog.hpp"
 #include "Gameplay/ADefaultPawn.hpp"
 #include "Gameplay/AHUD.hpp"
@@ -37,7 +38,43 @@ namespace Leon {
     }
 
     void AGameModeBase::StartPlay() {
+        if (World && World->GetNetMode() == ENetMode::Client)
+            return;
         Login("Player_0");
+    }
+
+    void AGameModeBase::RestartPlayer(AController* NewPlayer) {
+        if (!NewPlayer || !World || World->GetNetMode() == ENetMode::Client)
+            return;
+
+        glm::vec3 spawnLoc = DefaultSpawnLocation;
+        glm::vec3 spawnRot = DefaultSpawnRotation;
+        if (AActor* start = FindPlayerStart()) {
+            spawnLoc = start->GetActorLocation();
+            spawnRot = start->GetActorRotation();
+        }
+        RestartPlayerAtTransform(NewPlayer, spawnLoc, spawnRot);
+    }
+
+    void AGameModeBase::RestartPlayerAtTransform(AController* NewPlayer, const glm::vec3& InLocation,
+                                                 const glm::vec3& InRotation) {
+        if (!NewPlayer || !World || World->GetNetMode() == ENetMode::Client)
+            return;
+
+        // Flow: RestartPlayer
+        // 1. UnPossess and destroy the current pawn (controller + PlayerState persist).
+        // 2. If DefaultPawnClass is empty/"None", leave the controller without a pawn.
+        // 3. Otherwise spawn a new default pawn and Possess.
+        if (APawn* oldPawn = NewPlayer->GetPawn()) {
+            NewPlayer->UnPossess();
+            World->DestroyActor(oldPawn);
+        }
+        if (DefaultPawnClass.empty() || DefaultPawnClass == "None")
+            return;
+
+        APawn* pawn = SpawnDefaultPawnAtTransform(InLocation, InRotation);
+        if (pawn)
+            NewPlayer->Possess(pawn);
     }
 
     APlayerStart* AGameModeBase::ChoosePlayerStart() const {

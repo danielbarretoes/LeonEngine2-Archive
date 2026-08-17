@@ -16,27 +16,59 @@ namespace Leon {
         ALeonTournamentGameState(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentGameState");
 
         ELeonTournamentMatchState GetMatchState() const { return MatchState; }
-        void SetMatchState(ELeonTournamentMatchState InState) { MatchState = InState; }
+        void SetMatchState(ELeonTournamentMatchState InState) {
+            if (!IsNetworkAuthority())
+                return;
+            MatchState = InState;
+        }
 
         float GetRemainingTime() const { return RemainingTime; }
-        void SetRemainingTime(float InTime) { RemainingTime = InTime; }
+        void SetRemainingTime(float InTime) {
+            if (!IsNetworkAuthority())
+                return;
+            RemainingTime = InTime;
+        }
 
         int32_t GetTeam1Kills() const { return Team1Kills; }
         int32_t GetTeam2Kills() const { return Team2Kills; }
-        void SetTeam1Kills(int32_t InKills) { Team1Kills = InKills; }
-        void SetTeam2Kills(int32_t InKills) { Team2Kills = InKills; }
+        void SetTeam1Kills(int32_t InKills) {
+            if (!IsNetworkAuthority())
+                return;
+            Team1Kills = InKills;
+        }
+        void SetTeam2Kills(int32_t InKills) {
+            if (!IsNetworkAuthority())
+                return;
+            Team2Kills = InKills;
+        }
         void AddTeamKill(ELeonTournamentTeam InTeam);
 
         int32_t GetTeam1PlayerCount() const { return Team1PlayerCount; }
         int32_t GetTeam2PlayerCount() const { return Team2PlayerCount; }
-        void SetTeam1PlayerCount(int32_t InCount) { Team1PlayerCount = InCount; }
-        void SetTeam2PlayerCount(int32_t InCount) { Team2PlayerCount = InCount; }
+        void SetTeam1PlayerCount(int32_t InCount) {
+            if (!IsNetworkAuthority())
+                return;
+            Team1PlayerCount = InCount;
+        }
+        void SetTeam2PlayerCount(int32_t InCount) {
+            if (!IsNetworkAuthority())
+                return;
+            Team2PlayerCount = InCount;
+        }
 
         ELeonTournamentMatchWinner GetMatchWinner() const { return MatchWinner; }
-        void SetMatchWinner(ELeonTournamentMatchWinner InWinner) { MatchWinner = InWinner; }
+        void SetMatchWinner(ELeonTournamentMatchWinner InWinner) {
+            if (!IsNetworkAuthority())
+                return;
+            MatchWinner = InWinner;
+        }
 
         float GetCountdownRemaining() const { return CountdownRemaining; }
-        void SetCountdownRemaining(float InTime) { CountdownRemaining = InTime; }
+        void SetCountdownRemaining(float InTime) {
+            if (!IsNetworkAuthority())
+                return;
+            CountdownRemaining = InTime;
+        }
 
         std::vector<ALeonTournamentPlayerState*> GetSortedScoreboard() const;
 

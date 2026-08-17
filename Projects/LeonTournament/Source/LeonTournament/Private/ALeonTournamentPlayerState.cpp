@@ -8,19 +8,39 @@ namespace Leon {
     }
 
     void ALeonTournamentPlayerState::AddKill() {
+        if (!IsNetworkAuthority())
+            return;
         ++Kills;
         SetScore(static_cast<float>(Kills));
     }
 
     void ALeonTournamentPlayerState::AddDeath() {
+        if (!IsNetworkAuthority())
+            return;
         ++Deaths;
     }
 
     void ALeonTournamentPlayerState::AddAssist() {
+        if (!IsNetworkAuthority())
+            return;
         ++Assists;
     }
 
+    void ALeonTournamentPlayerState::SetTeam(ELeonTournamentTeam InTeam) {
+        if (!IsNetworkAuthority())
+            return;
+        Team = InTeam;
+    }
+
+    void ALeonTournamentPlayerState::SetIsBot(bool bInBot) {
+        if (!IsNetworkAuthority())
+            return;
+        bBot = bInBot;
+    }
+
     void ALeonTournamentPlayerState::ResetStats() {
+        if (!IsNetworkAuthority())
+            return;
         Kills = 0;
         Deaths = 0;
         Assists = 0;

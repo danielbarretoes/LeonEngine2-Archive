@@ -28,6 +28,7 @@ namespace Leon {
 
     protected:
         AController* Controller = nullptr;
+        APlayerState* PlayerState = nullptr;
     };
 
 } // namespace Leon

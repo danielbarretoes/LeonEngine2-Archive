@@ -11,6 +11,8 @@ namespace Leon {
     }
 
     void ALeonTournamentGameState::AddTeamKill(ELeonTournamentTeam InTeam) {
+        if (!IsNetworkAuthority())
+            return;
         if (InTeam == ELeonTournamentTeam::Team1)
             ++Team1Kills;
         else if (InTeam == ELeonTournamentTeam::Team2)

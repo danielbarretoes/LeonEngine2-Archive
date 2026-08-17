@@ -35,6 +35,11 @@ namespace Leon {
             return world ? dynamic_cast<ALeonTournamentGameState*>(world->GetGameState()) : nullptr;
         }
 
+        bool IsClientWorld(APlayerController* InPC) {
+            UWorld* world = InPC ? InPC->GetWorld() : nullptr;
+            return world && world->GetNetMode() == ENetMode::Client;
+        }
+
         TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = 1.0f) {
             auto btn = std::make_shared<UButton>(InName);
             btn->SetNormalColor({0.12f, 0.18f, 0.30f, 0.95f});
@@ -111,6 +116,8 @@ namespace Leon {
     }
 
     void ULeonTournamentMainMenuWidget::OnOffline() {
+        if (IsClientWorld(OwningPlayer))
+            return;
         if (auto* gi = GI())
             gi->SetSessionMode(ELeonTournamentSessionMode::Offline);
         if (auto* gm = GM(OwningPlayer))
@@ -200,6 +207,8 @@ namespace Leon {
     }
 
     void ULeonTournamentLobbyWidget::OnBack() {
+        if (IsClientWorld(OwningPlayer))
+            return;
         if (auto* gm = GM(OwningPlayer))
             gm->ReturnToMenu();
     }
@@ -402,6 +411,8 @@ namespace Leon {
     }
 
     void ULeonTournamentMatchEndWidget::OnReturn() {
+        if (IsClientWorld(OwningPlayer))
+            return;
         if (auto* gm = GM(OwningPlayer))
             gm->ReturnToMenu();
     }

@@ -51,6 +51,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Asset/SkeletalAnimationTests.cpp
     Asset/AssetValidationTests.cpp
     Gameplay/GameplayFrameworkTests.cpp
+    Gameplay/GameplayLifecycleTests.cpp
     Gameplay/ProjectBootTests.cpp
     Gameplay/UIHUDTests.cpp
     Gameplay/InputSettingsTests.cpp
@@ -68,6 +69,7 @@ set(LEON_ENGINE_TEST_SOURCES
 set(LEON_TOURNAMENT_TEST_SOURCES
     Main.cpp
     LeonTournament/LeonTournamentGameplayTests.cpp
+    LeonTournament/LifecycleIntegrationTests.cpp
     LeonTournament/PlayabilityIntegrationTests.cpp
     LeonTournament/BotAIIntegrationTests.cpp
     LeonTournament/FirstPersonArenaTests.cpp

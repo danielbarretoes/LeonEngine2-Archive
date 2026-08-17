@@ -177,16 +177,22 @@ namespace Leon {
             CHECK(ch->GetHealthComponent()->IsDead());
             CHECK(ch->GetCharacterMovement()->GetMovementMode() == EMovementMode::None);
 
+            const FUUID oldGuid = ch->GetActorGuid();
             f.GM->RespawnCharacter(*ch);
-            CHECK_FALSE(ch->GetHealthComponent()->IsDead());
-            CHECK(ch->GetHealthComponent()->GetHealth() == doctest::Approx(ch->GetHealthComponent()->GetMaxHealth()));
-            CHECK(ch->GetCharacterMovement()->GetMovementMode() == EMovementMode::Walking);
-            CHECK_FALSE(ch->GetCharacterMovement()->IsFalling());
-            CHECK(glm::length(ch->GetCharacterMovement()->GetVelocity()) < 0.05f);
-            CHECK(std::abs(ch->GetActorRotation().x) < 0.01f);
-            CHECK(std::abs(ch->GetActorRotation().z) < 0.01f);
-            CHECK(glm::length(ch->GetActorUpVector() - glm::vec3(0.0f, 1.0f, 0.0f)) < 0.02f);
-            if (auto anim = ch->GetMesh() ? ch->GetMesh()->GetAnimInstance() : nullptr) {
+            auto* spawned = pc->GetPawn<ALeonTournamentCharacter>();
+            REQUIRE(spawned);
+            CHECK(spawned->GetActorGuid() != oldGuid);
+            CHECK(f.World->FindActorByGuid(oldGuid) == nullptr);
+            CHECK_FALSE(spawned->GetHealthComponent()->IsDead());
+            CHECK(spawned->GetHealthComponent()->GetHealth() ==
+                  doctest::Approx(spawned->GetHealthComponent()->GetMaxHealth()));
+            CHECK(spawned->GetCharacterMovement()->GetMovementMode() == EMovementMode::Walking);
+            CHECK_FALSE(spawned->GetCharacterMovement()->IsFalling());
+            CHECK(glm::length(spawned->GetCharacterMovement()->GetVelocity()) < 0.05f);
+            CHECK(std::abs(spawned->GetActorRotation().x) < 0.01f);
+            CHECK(std::abs(spawned->GetActorRotation().z) < 0.01f);
+            CHECK(glm::length(spawned->GetActorUpVector() - glm::vec3(0.0f, 1.0f, 0.0f)) < 0.02f);
+            if (auto anim = spawned->GetMesh() ? spawned->GetMesh()->GetAnimInstance() : nullptr) {
                 anim->NativeUpdateAnimation(0.016f);
                 CHECK(anim->GetStateMachine().GetCurrentState() != "Death");
                 CHECK(anim->GetFloat("Speed") == doctest::Approx(0.0f).epsilon(1.0f));

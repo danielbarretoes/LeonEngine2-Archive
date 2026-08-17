@@ -67,6 +67,13 @@ namespace Leon {
         void SetLocalRole(ENetRole InRole) { LocalRole = InRole; }
         bool HasAuthority() const { return LocalRole == ENetRole::Authority; }
 
+        /** True on Standalone/ListenServer authority. False on clients even if a leftover actor still has Authority role. */
+        bool IsNetworkAuthority() const {
+            if (World && World->GetNetMode() == ENetMode::Client)
+                return false;
+            return HasAuthority();
+        }
+
         /**
          * @brief Optional extra bytes appended to net snapshots. Override in subclasses.
          */

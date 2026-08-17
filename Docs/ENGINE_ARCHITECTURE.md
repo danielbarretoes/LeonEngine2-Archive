@@ -70,6 +70,10 @@ Process
   → Tick (input → controller → pawn/movement → world → render)
 ```
 
+`AGameModeBase::StartPlay` calls `Login` on Standalone and ListenServer only. Client worlds never spawn a local GameMode during travel; if a leftover GameMode exists on a client world, `StartPlay` does not Login.
+
+Death/respawn uses `RestartPlayer` (destroy pawn, spawn new, same Controller + PlayerState). `UGameInstance` survives `TravelToMap`; the old world is EndPlay + Clear after the new map loads.
+
 Default classes are **not** compiled into the engine as product types. `FGameModeConfig` is filled from:
 
 1. `DefaultEngine.ini` `/Script/EngineSettings.GameMapsSettings` `GlobalDefaultGameMode`

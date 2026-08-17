@@ -94,6 +94,8 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::ApplyDamageFrom(const FDamageInfo& InInfo) {
+        if (!IsNetworkAuthority())
+            return;
         if (Health)
             Health->ApplyDamage(InInfo);
         PendingDamageFlash = 1;
@@ -130,6 +132,8 @@ namespace Leon {
         if (Weapon)
             Weapon->SetFireHeld(false);
         UpdatePresentationVisibility();
+        if (!IsNetworkAuthority())
+            return;
         if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr))
             gm->NotifyDeath(*this, InInfo);
     }

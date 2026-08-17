@@ -20,8 +20,8 @@ namespace Leon {
         void AddKill();
         void AddDeath();
         void AddAssist();
-        void SetTeam(ELeonTournamentTeam InTeam) { Team = InTeam; }
-        void SetIsBot(bool bInBot) { bBot = bInBot; }
+        void SetTeam(ELeonTournamentTeam InTeam);
+        void SetIsBot(bool bInBot);
         void ResetStats();
 
         void SerializeReplication(std::vector<uint8_t>& OutBytes) const override;

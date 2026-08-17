@@ -13,7 +13,9 @@ namespace Leon {
     }
 
     APlayerState* APawn::GetPlayerState() const {
-        return Controller ? Controller->GetPlayerState() : nullptr;
+        if (Controller && Controller->GetPlayerState())
+            return Controller->GetPlayerState();
+        return PlayerState;
     }
 
     bool APawn::IsLocallyControlled() const {
@@ -29,6 +31,8 @@ namespace Leon {
 
     void APawn::PossessedBy(AController* InController) {
         Controller = InController;
+        if (InController)
+            PlayerState = InController->GetPlayerState();
         LE_CORE_INFO("APawn '{0}' possessed", GetName());
     }
 

@@ -87,6 +87,8 @@ namespace Leon {
     }
 
     void ALeonTournamentBotController::Possess(APawn* InPawn) {
+        if (GetPawn() != InPawn)
+            bDamageBound = false;
         AAIController::Possess(InPawn);
         AssignPersonality();
         auto* ch = GetPawn<ALeonTournamentCharacter>();
@@ -112,12 +114,15 @@ namespace Leon {
     }
 
     void ALeonTournamentBotController::NotifyRespawned() {
+        LastKnownLocation = glm::vec3(0.0f);
         LastKnownAge = kLastKnownMemory;
         AcquireTime = 0.0f;
         StrafeTimer = 0.0f;
         LookAroundTimer = 0.0f;
         CachedState = ELeonTournamentBotState::Respawn;
-        if (Blackboard) {
+        if (Blackboard && BoardAsset)
+            Blackboard->InitializeFrom(BoardAsset);
+        else if (Blackboard) {
             Blackboard->SetValueAsBool("IsDead", false);
             Blackboard->SetValueAsObject("TargetActor", nullptr);
             Blackboard->SetValueAsBool("HasTarget", false);
@@ -125,10 +130,16 @@ namespace Leon {
             Blackboard->SetValueAsBool("IsLowHealth", false);
             Blackboard->SetValueAsBool("HasAmmo", true);
             Blackboard->SetValueAsBool("IsReloading", false);
+            Blackboard->SetValueAsBool("HasCover", false);
+            Blackboard->SetValueAsBool("HasLastKnown", false);
+            Blackboard->SetValueAsVector("TargetLocation", glm::vec3(0.0f));
+            Blackboard->SetValueAsVector("LastKnownTargetLocation", glm::vec3(0.0f));
+            Blackboard->SetValueAsVector("DesiredLocation", glm::vec3(0.0f));
+            Blackboard->SetValueAsFloat("DistanceToTarget", 0.0f);
         }
         if (Brain && Tree) {
-            if (!Brain->IsRunning())
-                Brain->StartTree(Tree);
+            Brain->StopTree();
+            Brain->StartTree(Tree);
         }
         StopMovement();
     }

@@ -178,15 +178,25 @@ namespace Leon {
             f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
             f.GM->BuildArena();
             auto* ch = f.World->SpawnActor<ALeonTournamentCharacter>("P");
+            auto* ps = f.World->SpawnActor<ALeonTournamentPlayerState>("PS");
+            auto* pc = f.World->SpawnActor<ALeonTournamentPlayerController>("PC");
+            ps->SetTeam(ELeonTournamentTeam::Team1);
+            pc->SetPlayerState(ps);
+            pc->Possess(ch);
             ch->GetHealthComponent()->ApplyDamage(100.0f);
             CHECK(ch->GetHealthComponent()->IsDead());
             if (ch->GetWeapon())
                 ch->GetWeapon()->ServerFire();
+            const FUUID oldGuid = ch->GetActorGuid();
             f.GM->RespawnCharacter(*ch);
-            CHECK_FALSE(ch->GetHealthComponent()->IsDead());
-            CHECK(ch->GetHealthComponent()->GetHealth() == doctest::Approx(100.0f));
-            REQUIRE(ch->GetWeapon());
-            CHECK(ch->GetWeapon()->GetCurrentAmmo() == ch->GetWeapon()->GetMagazineSize());
+            auto* spawned = pc->GetPawn<ALeonTournamentCharacter>();
+            REQUIRE(spawned);
+            CHECK(spawned->GetActorGuid() != oldGuid);
+            CHECK(f.World->FindActorByGuid(oldGuid) == nullptr);
+            CHECK_FALSE(spawned->GetHealthComponent()->IsDead());
+            CHECK(spawned->GetHealthComponent()->GetHealth() == doctest::Approx(100.0f));
+            REQUIRE(spawned->GetWeapon());
+            CHECK(spawned->GetWeapon()->GetCurrentAmmo() == spawned->GetWeapon()->GetMagazineSize());
         }
 
         TEST_CASE("starting state rejects combat and StartMatch is idempotent") {
@@ -348,11 +358,17 @@ namespace Leon {
             ps->AddKill();
             ps->AddDeath();
             ps->AddAssist();
+            const FUUID oldGuid = ch->GetActorGuid();
             f.GM->RespawnCharacter(*ch);
             CHECK(ps->GetKills() == 1);
             CHECK(ps->GetDeaths() == 1);
             CHECK(ps->GetAssists() == 1);
-            CHECK(ch->GetHealthComponent()->GetHealth() == doctest::Approx(100.0f));
+            auto* spawned = pc->GetPawn<ALeonTournamentCharacter>();
+            REQUIRE(spawned);
+            CHECK(spawned->GetActorGuid() != oldGuid);
+            CHECK(f.World->FindActorByGuid(oldGuid) == nullptr);
+            CHECK(spawned->GetPlayerState() == ps);
+            CHECK(spawned->GetHealthComponent()->GetHealth() == doctest::Approx(100.0f));
         }
 
         TEST_CASE("ammo lives on the weapon only") {

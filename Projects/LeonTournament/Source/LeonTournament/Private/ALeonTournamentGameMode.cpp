@@ -85,11 +85,6 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::InitGame() {
-        DefaultPawnClass = "None";
-        PlayerControllerClass = "ALeonTournamentPlayerController";
-        HUDClass = "ALeonTournamentHUD";
-        GameStateClass = "ALeonTournamentGameState";
-        PlayerStateClass = "ALeonTournamentPlayerState";
         AGameModeBase::InitGame();
         if (auto* gs = GetGameState()) {
             gs->SetMatchState(ELeonTournamentMatchState::MainMenu);
@@ -98,11 +93,8 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::StartPlay() {
-        if (World && World->GetNetMode() == ENetMode::Client) {
-            AGameModeBase::StartPlay();
-            EnterMainMenu();
+        if (World && World->GetNetMode() == ENetMode::Client)
             return;
-        }
         AGameModeBase::StartPlay();
         EnterMainMenu();
     }
@@ -119,17 +111,19 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::EnterMainMenu() {
+        if (!IsNetworkAuthority())
+            return;
         if (auto* gs = GetGameState()) {
             gs->SetMatchState(ELeonTournamentMatchState::MainMenu);
             gs->SetMatchWinner(ELeonTournamentMatchWinner::None);
             gs->SetTeam1Kills(0);
             gs->SetTeam2Kills(0);
         }
-        if (auto* pc = World ? World->GetFirstPlayerController() : nullptr)
-            pc->SetInputModeUIOnly();
     }
 
     void ALeonTournamentGameMode::EnterLobby() {
+        if (!IsNetworkAuthority())
+            return;
         if (auto* gs = GetGameState())
             gs->SetMatchState(ELeonTournamentMatchState::Lobby);
         if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
@@ -138,7 +132,6 @@ namespace Leon {
                     ps->SetTeam(AssignTeam());
                 ps->SetIsBot(false);
             }
-            pc->SetInputModeUIOnly();
         }
         if (ShouldFillBotsOnEnterLobby())
             FillBotsToCapacity();
@@ -377,23 +370,42 @@ namespace Leon {
         if (!World)
             return;
         for (APlayerController* pc : World->GetPlayerControllers()) {
-            if (!pc)
-                continue;
-            if (pc->GetPawn<ALeonTournamentCharacter>())
-                continue;
-            auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(pc->GetPlayerState());
-            if (ps && ps->GetTeam() == ELeonTournamentTeam::None)
-                ps->SetTeam(AssignTeam());
-            glm::vec3 spawn = GetTeamSpawnLocation(ps ? ps->GetTeam() : ELeonTournamentTeam::Team1);
-            auto* pawn = World->SpawnActor<ALeonTournamentCharacter>("PlayerPawn");
-            pawn->SetActorLocation(spawn);
-            pawn->SetFloorZ(0.0f);
-            pc->Possess(pawn);
-            FaceIntoArena(*pawn, ps ? ps->GetTeam() : ELeonTournamentTeam::Team1);
-            pc->SetInputModeGameOnly();
-            pc->SetShowMouseCursor(false);
-            ValidateSpawnedCharacter(*pawn, ps ? ps->GetTeam() : ELeonTournamentTeam::Team1);
+            if (pc)
+                RestartPlayer(pc);
         }
+    }
+
+    void ALeonTournamentGameMode::RestartPlayer(AController* NewPlayer) {
+        if (!NewPlayer || !World || !IsNetworkAuthority())
+            return;
+
+        auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(NewPlayer->GetPlayerState());
+        if (ps && ps->GetTeam() == ELeonTournamentTeam::None)
+            ps->SetTeam(AssignTeam());
+        const ELeonTournamentTeam team = ps ? ps->GetTeam() : ELeonTournamentTeam::Team1;
+        const glm::vec3 spawn = GetTeamSpawnLocation(team);
+        const bool bBot = dynamic_cast<ALeonTournamentBotController*>(NewPlayer) != nullptr;
+
+        if (APawn* oldPawn = NewPlayer->GetPawn()) {
+            if (auto* oldChar = dynamic_cast<ALeonTournamentCharacter*>(oldPawn))
+                DamageLog.erase(oldChar);
+            NewPlayer->UnPossess();
+            World->DestroyActor(oldPawn);
+        }
+
+        const std::string pawnName = (bBot && ps) ? ps->GetPlayerName() : "PlayerPawn";
+        auto* pawn = World->SpawnActor<ALeonTournamentCharacter>(pawnName);
+        pawn->SetBotControlled(bBot);
+        pawn->SetActorLocation(spawn);
+        pawn->SetFloorZ(0.0f);
+        NewPlayer->Possess(pawn);
+        FaceIntoArena(*pawn, team);
+        if (auto* bot = dynamic_cast<ALeonTournamentBotController*>(NewPlayer)) {
+            bot->SetWaypoints(Waypoints);
+            bot->SetCoverPoints(CoverPoints);
+            bot->NotifyRespawned();
+        }
+        ValidateSpawnedCharacter(*pawn, team);
     }
 
     void ALeonTournamentGameMode::RequestStartMatch() {
@@ -405,8 +417,10 @@ namespace Leon {
     void ALeonTournamentGameMode::StartMatch() {
         // Flow: start TDM
         // 1. Build arena once; assign human teams; fill remaining slots with bots.
-        // 2. Reset scores; possess every human PC; spawn a pawn per bot PC.
+        // 2. Reset scores; RestartPlayer every human PC and bot (new pawn, same PlayerState).
         // 3. Enter Starting countdown — combat is rejected until Playing.
+        if (!IsNetworkAuthority())
+            return;
         auto* gs = GetGameState();
         if (gs && (gs->GetMatchState() == ELeonTournamentMatchState::Starting ||
                    gs->GetMatchState() == ELeonTournamentMatchState::Playing))
@@ -444,26 +458,11 @@ namespace Leon {
             gs->SetCountdownRemaining(StartingRemaining);
         PossessHumanPawns();
 
-        if (!World)
-            return;
-        for (AAIController* ai : World->GetAIControllers()) {
-            auto* bot = dynamic_cast<ALeonTournamentBotController*>(ai);
-            if (!bot)
-                continue;
-            if (bot->GetPawn<ALeonTournamentCharacter>())
-                continue;
-            auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(bot->GetPlayerState());
-            ELeonTournamentTeam team = ps ? ps->GetTeam() : ELeonTournamentTeam::Team2;
-            glm::vec3 spawn = GetTeamSpawnLocation(team);
-            auto* pawn = World->SpawnActor<ALeonTournamentCharacter>(ps ? ps->GetPlayerName() : "Bot");
-            pawn->SetBotControlled(true);
-            pawn->SetActorLocation(spawn);
-            pawn->SetFloorZ(0.0f);
-            bot->Possess(pawn);
-            FaceIntoArena(*pawn, team);
-            bot->SetWaypoints(Waypoints);
-            bot->SetCoverPoints(CoverPoints);
-            ValidateSpawnedCharacter(*pawn, team);
+        if (World) {
+            for (AAIController* ai : World->GetAIControllers()) {
+                if (auto* bot = dynamic_cast<ALeonTournamentBotController*>(ai))
+                    RestartPlayer(bot);
+            }
         }
         RefreshTeamCounts();
         DamageLog.clear();
@@ -471,19 +470,17 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::EndMatch(ELeonTournamentMatchWinner InWinner) {
+        if (!IsNetworkAuthority())
+            return;
         if (auto* gs = GetGameState()) {
             gs->SetMatchState(ELeonTournamentMatchState::Finished);
             gs->SetMatchWinner(InWinner);
         }
-        if (!World)
-            return;
-        for (APlayerController* pc : World->GetPlayerControllers()) {
-            if (pc)
-                pc->SetInputModeUIOnly();
-        }
     }
 
     void ALeonTournamentGameMode::ReturnToMenu() {
+        if (!IsNetworkAuthority())
+            return;
         if (auto* gi = GetLeonTournamentGameInstance())
             gi->ShutdownSession();
         EnterMainMenu();
@@ -519,6 +516,8 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::NotifyDeath(ALeonTournamentCharacter& InVictim, const FDamageInfo& InInfo) {
+        if (!IsNetworkAuthority())
+            return;
         auto* gs = GetGameState();
         if (gs && gs->GetMatchState() == ELeonTournamentMatchState::Finished)
             return;
@@ -545,7 +544,8 @@ namespace Leon {
                 credit.Attacker->AddAssist();
         }
         credits.clear();
-        RespawnTimers[&InVictim] = Config.RespawnDelaySeconds;
+        if (AController* ctrl = InVictim.GetController())
+            RespawnTimers[ctrl] = Config.RespawnDelaySeconds;
 
         if (gs) {
             if (gs->GetTeam1Kills() >= Config.ScoreLimit)
@@ -556,11 +556,11 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::RespawnCharacter(ALeonTournamentCharacter& InCharacter) {
-        glm::vec3 loc = GetTeamSpawnLocation(InCharacter.GetTeam());
-        InCharacter.OnServerRespawn(loc);
-        FaceIntoArena(InCharacter, InCharacter.GetTeam());
-        if (auto* bot = dynamic_cast<ALeonTournamentBotController*>(InCharacter.GetController()))
-            bot->NotifyRespawned();
+        AController* ctrl = InCharacter.GetController();
+        if (!ctrl)
+            return;
+        RespawnTimers.erase(ctrl);
+        RestartPlayer(ctrl);
     }
 
     void ALeonTournamentGameMode::TickMatch(float DeltaSeconds) {
@@ -590,15 +590,15 @@ namespace Leon {
                 EndMatch(ELeonTournamentMatchWinner::Draw);
         }
 
-        std::vector<ALeonTournamentCharacter*> ready;
-        for (auto& [ch, t] : RespawnTimers) {
+        std::vector<AController*> ready;
+        for (auto& [ctrl, t] : RespawnTimers) {
             t -= DeltaSeconds;
-            if (t <= 0.0f && ch)
-                ready.push_back(ch);
+            if (t <= 0.0f && ctrl && !ctrl->IsPendingKill())
+                ready.push_back(ctrl);
         }
-        for (auto* ch : ready) {
-            RespawnTimers.erase(ch);
-            RespawnCharacter(*ch);
+        for (auto* ctrl : ready) {
+            RespawnTimers.erase(ctrl);
+            RestartPlayer(ctrl);
         }
     }
 
@@ -755,6 +755,8 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::EndPlay() {
+        DamageLog.clear();
+        RespawnTimers.clear();
         if (!bAutoPlayFinished) {
             auto* gi = GetLeonTournamentGameInstance();
             if (gi && gi->IsAutoOfflineMatch())

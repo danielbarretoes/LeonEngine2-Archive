@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AController.hpp"
 #include "FLeonTournamentTypes.hpp"
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerState.hpp"
@@ -31,6 +32,7 @@ namespace Leon {
         void EndPlay() override;
 
         virtual APlayerController* Login(const std::string& InPlayerName = "Player_0") override;
+        void RestartPlayer(AController* NewPlayer) override;
 
         ALeonTournamentGameState* GetGameState() const;
         const FLeonTournamentMatchConfig& GetMatchConfig() const { return Config; }
@@ -81,7 +83,7 @@ namespace Leon {
         std::vector<glm::vec3> Team1Spawns;
         std::vector<glm::vec3> Team2Spawns;
         std::unordered_map<ALeonTournamentCharacter*, std::vector<FLeonTournamentDamageCredit>> DamageLog;
-        std::unordered_map<ALeonTournamentCharacter*, float> RespawnTimers;
+        std::unordered_map<AController*, float> RespawnTimers;
         int32_t NextBotId = 0;
         mutable int32_t NextTeam1Spawn = 0;
         mutable int32_t NextTeam2Spawn = 0;

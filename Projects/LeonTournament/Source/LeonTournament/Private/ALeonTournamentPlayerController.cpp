@@ -23,10 +23,13 @@ namespace Leon {
         APlayerController::Tick(DeltaSeconds);
         if (auto* gs = World ? dynamic_cast<ALeonTournamentGameState*>(World->GetGameState()) : nullptr) {
             const ELeonTournamentMatchState state = gs->GetMatchState();
-            if (state == ELeonTournamentMatchState::Playing || state == ELeonTournamentMatchState::Starting)
+            if (state == ELeonTournamentMatchState::Playing || state == ELeonTournamentMatchState::Starting) {
                 SetInputModeGameOnly();
-            else
+                SetShowMouseCursor(false);
+            } else {
                 SetInputModeUIOnly();
+                SetShowMouseCursor(true);
+            }
         }
         bScoreboardHeld = FInput::IsKeyPressed(Key::Tab);
         const bool bEsc = FInput::IsKeyPressed(Key::Escape);

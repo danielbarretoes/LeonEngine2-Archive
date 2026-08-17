@@ -42,6 +42,8 @@ namespace Leon {
             InWorld->SetNetMode(ENetMode::Client);
             InWorld->SetNetDriver(SessionNetDriver.get());
             SessionNetDriver->SetWorld(InWorld);
+            // Clients must not keep a local GameMode as match authority.
+            InWorld->SetGameMode(nullptr);
         }
         return true;
     }

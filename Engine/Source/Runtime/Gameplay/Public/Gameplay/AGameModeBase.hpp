@@ -24,6 +24,9 @@ namespace Leon {
         virtual void StartPlay();
 
         virtual APlayerController* Login(const std::string& InPlayerName = "Player_0");
+        virtual void RestartPlayer(AController* NewPlayer);
+        virtual void RestartPlayerAtTransform(AController* NewPlayer, const glm::vec3& InLocation,
+                                              const glm::vec3& InRotation);
         virtual APawn* SpawnDefaultPawnAtTransform(const glm::vec3& InLocation, const glm::vec3& InRotation);
 
         virtual AActor* FindPlayerStart(const std::string& InIncomingName = "") const;

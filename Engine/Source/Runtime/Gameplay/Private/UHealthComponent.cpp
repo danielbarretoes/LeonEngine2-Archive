@@ -1,10 +1,18 @@
 #include "Gameplay/UHealthComponent.hpp"
+#include "Gameplay/AActor.hpp"
 
 #include <algorithm>
 
 namespace Leon {
 
     UHealthComponent::UHealthComponent(const std::string& InName) : UActorComponent(InName) {}
+
+    void UHealthComponent::EndPlay() {
+        OnHealthChanged.clear();
+        OnDamage.clear();
+        OnHealed.clear();
+        OnDeath.clear();
+    }
 
     void UHealthComponent::SetMaxHealth(float InMax) {
         MaxHealth = std::max(InMax, 0.0f);
@@ -34,6 +42,8 @@ namespace Leon {
     }
 
     void UHealthComponent::ApplyDamage(const FDamageInfo& InInfo) {
+        if (Owner && !Owner->IsNetworkAuthority())
+            return;
         if (bIsDead)
             return;
 
@@ -57,6 +67,8 @@ namespace Leon {
     }
 
     void UHealthComponent::Heal(float InAmount) {
+        if (Owner && !Owner->IsNetworkAuthority())
+            return;
         if (bIsDead)
             return;
         const float amount = std::max(InAmount, 0.0f);

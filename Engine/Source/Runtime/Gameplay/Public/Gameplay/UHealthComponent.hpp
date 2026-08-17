@@ -15,6 +15,8 @@ namespace Leon {
     public:
         UHealthComponent(const std::string& InName = "HealthComponent");
 
+        void EndPlay() override;
+
         float GetHealth() const { return Health; }
         float GetMaxHealth() const { return MaxHealth; }
         void SetMaxHealth(float InMax);

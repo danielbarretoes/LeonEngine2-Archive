@@ -49,6 +49,26 @@ namespace Leon {
             CHECK(health.GetHealth() == doctest::Approx(100.0f));
         }
 
+        TEST_CASE("EndPlay clears death callbacks") {
+            UHealthComponent health;
+            int deaths = 0;
+            health.OnDeath.push_back([&](const FDamageInfo&) { ++deaths; });
+            health.EndPlay();
+            health.ApplyDamage(200.0f);
+            CHECK(health.IsDead());
+            CHECK(deaths == 0);
+        }
+
+        TEST_CASE("simulated proxy does not apply damage") {
+            auto world = UWorld::Create("HealthAuthority");
+            auto* actor = world->SpawnActor<AActor>("Body");
+            auto health = actor->AddActorComponent<UHealthComponent>("Health");
+            actor->SetLocalRole(ENetRole::SimulatedProxy);
+            health->ApplyDamage(40.0f);
+            CHECK(health->GetHealth() == doctest::Approx(100.0f));
+            CHECK_FALSE(health->IsDead());
+        }
+
         TEST_CASE("SetHealth clamps and zero health is dead") {
             UHealthComponent health;
             health.SetHealth(250.0f);

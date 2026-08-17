@@ -264,15 +264,23 @@ namespace Leon {
             bot->Tick(0.05f);
             CHECK(bot->GetBotState() == ELeonTournamentBotState::Dead);
             CHECK(pawn->GetHealthComponent()->IsDead());
+            ALeonTournamentPlayerState* ps = dynamic_cast<ALeonTournamentPlayerState*>(bot->GetPlayerState());
+            REQUIRE(ps);
+            const FUUID oldGuid = pawn->GetActorGuid();
 
             f.TickSeconds(1.2f);
-            CHECK_FALSE(pawn->GetHealthComponent()->IsDead());
+            auto* spawned = bot->GetPawn<ALeonTournamentCharacter>();
+            REQUIRE(spawned);
+            CHECK(spawned->GetActorGuid() != oldGuid);
+            CHECK(f.World->FindActorByGuid(oldGuid) == nullptr);
+            CHECK(bot->GetPlayerState() == ps);
+            CHECK_FALSE(spawned->GetHealthComponent()->IsDead());
             CHECK(bot->IsBehaviorTreeRunning());
             CHECK(bot->GetBotState() != ELeonTournamentBotState::Dead);
 
-            const glm::vec3 start = pawn->GetActorLocation();
+            const glm::vec3 start = spawned->GetActorLocation();
             f.TickSeconds(2.5f);
-            glm::vec3 delta = pawn->GetActorLocation() - start;
+            glm::vec3 delta = spawned->GetActorLocation() - start;
             delta.y = 0.0f;
             CHECK(glm::length(delta) > 0.8f);
         }

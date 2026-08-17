@@ -7,7 +7,7 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 | Type | Owns | Must not own |
 | :--- | :--- | :--- |
 | `UGameInstance` | Application/session lifetime, travel URL, net mode, project services that survive map changes | Match score, kills, current pawn, match timer, combat state |
-| `AGameModeBase` | Authority rules, login, spawn/respawn, default class selection, match start/end | HUD widgets, camera, input, animation, replicated per-player stats |
+| `AGameModeBase` | Authority rules, login, `RestartPlayer`, spawn/respawn, default class selection, match start/end | HUD widgets, camera, input, animation, replicated per-player stats |
 | `AGameStateBase` | Replicated world/match facts (phase, timer, team scores, winner) | Input, camera, weapon impl, local UI, spawn algorithms |
 | `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement | Movement, mesh, weapons |
 | `APlayerController` | Input, possession, camera, local HUD interaction, commands to authority | Health, score, weapon implementation, match rules |
@@ -25,9 +25,18 @@ Menu (GameInstance + HUD widgets)
   → Spawn pawn/character → Possess
   → Match start (GameMode writes rules; GameState exposes phase)
   → Gameplay
-  → Death (Character/Health) → GameMode respawn timer → new Pawn, same PlayerState
+  → Death (Health on authority) → GameMode.NotifyDeath writes PlayerState/GameState + respawn timer
+  → RestartPlayer: destroy pawn, spawn new pawn, Possess (same Controller + PlayerState)
   → Match end (GameMode) → GameState winner/scores
 ```
+
+`AGameModeBase::RestartPlayer` is the single respawn path. If `DefaultPawnClass` is empty or `"None"`, the base implementation UnPossesses and destroys the old pawn without spawning. Game subclasses that keep `DefaultPawnClass = "None"` (menu-first) override `RestartPlayer` to spawn their character.
+
+`AGameStateBase` / game `GameState` mutators and `PlayerState` score setters no-op unless `AActor::IsNetworkAuthority()` (not `ENetMode::Client`). Replication writes fields in `DeserializeReplication` and does not go through those setters.
+
+`UHealthComponent::ApplyDamage` / `Heal` run only on network authority. `EndPlay` clears `OnDeath` / `OnDamage` delegates.
+
+`APawn::GetPlayerState()` prefers the possessing Controller, then the PlayerState cached at `PossessedBy`.
 
 Only `AGameModeBase` (and game subclasses) decides when a match starts or ends. `UGameInstance` may request travel; it does not increment kills.
 
