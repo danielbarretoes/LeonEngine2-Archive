@@ -25,10 +25,12 @@ namespace Leon {
     private:
         void ApplyLabClasses();
         void BuildAnimLab();
+        void SpawnLabWeaponPickups();
         void SpawnDummy();
         void RespawnDummy();
         void TickDummyRespawn(float DeltaSeconds);
         void EnsureLabColliders();
+        void ForceLabTeams();
 
         ALeonTournamentDummy* Dummy = nullptr;
         float DummyRespawnRemaining = -1.0f;

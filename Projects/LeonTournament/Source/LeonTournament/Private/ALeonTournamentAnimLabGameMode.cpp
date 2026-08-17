@@ -1,6 +1,7 @@
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentDummy.hpp"
 #include "ALeonTournamentCharacter.hpp"
+#include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentPlayerState.hpp"
 #include "Assets/UAssetManager.hpp"
@@ -45,6 +46,16 @@ namespace Leon {
             }
             return actor;
         }
+
+        void PlaceGrounded(ALeonTournamentCharacter* InCharacter, const glm::vec3& InLocation, float InFloorZ) {
+            if (!InCharacter)
+                return;
+            InCharacter->SetFloorZ(InFloorZ);
+            glm::vec3 loc = InLocation;
+            loc.y = InFloorZ + InCharacter->GetCapsuleHalfHeight();
+            InCharacter->SetActorLocation(loc);
+            InCharacter->SnapToFloorPublic();
+        }
     } // namespace
 
     ALeonTournamentAnimLabGameMode::ALeonTournamentAnimLabGameMode(entt::entity InHandle, UWorld* InWorld,
@@ -58,6 +69,8 @@ namespace Leon {
         cfg.RespawnDelaySeconds = 4.0f;
         cfg.StartCountdownSeconds = 0.0f;
         cfg.MatchDurationSeconds = 0.0f;
+        // Lab: always allow hits on the dummy even if lobby team state leaked.
+        cfg.bFriendlyFire = true;
         SetMatchConfig(cfg);
     }
 
@@ -74,6 +87,22 @@ namespace Leon {
         ALeonTournamentGameMode::InitGame();
     }
 
+    void ALeonTournamentAnimLabGameMode::ForceLabTeams() {
+        if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
+            if (auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(pc->GetPlayerState())) {
+                ps->SetTeam(ELeonTournamentTeam::Team1);
+                ps->SetIsBot(false);
+            }
+        }
+        if (Dummy) {
+            if (auto* dps = Dummy->GetPlayerState()) {
+                dps->SetTeam(ELeonTournamentTeam::Team2);
+                dps->SetIsBot(true);
+            }
+            Dummy->SetBotControlled(true);
+        }
+    }
+
     void ALeonTournamentAnimLabGameMode::StartPlay() {
         if (World && World->GetNetMode() == ENetMode::Client)
             return;
@@ -81,21 +110,20 @@ namespace Leon {
         AGameModeBase::StartPlay();
         BuildAnimLab();
         EnsureLabColliders();
+        SpawnLabWeaponPickups();
         if (auto* gs = GetGameState())
             gs->SetMatchState(ELeonTournamentMatchState::Playing);
         if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
             pc->SetInputModeGameOnly();
-            if (auto* pawn = pc->GetPawn<ALeonTournamentCharacter>())
+            if (auto* pawn = pc->GetPawn<ALeonTournamentCharacter>()) {
                 ApplyCameraPreference(pawn);
-            else if (pc->GetPawn()) {
+                PlaceGrounded(pawn, pawn->GetActorLocation(), 0.0f);
+            } else if (pc->GetPawn()) {
                 RestartPlayer(pc);
-            }
-            if (auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(pc->GetPlayerState())) {
-                if (ps->GetTeam() == ELeonTournamentTeam::None)
-                    ps->SetTeam(ELeonTournamentTeam::Team1);
             }
         }
         SpawnDummy();
+        ForceLabTeams();
     }
 
     void ALeonTournamentAnimLabGameMode::Tick(float DeltaSeconds) {
@@ -111,6 +139,9 @@ namespace Leon {
     void ALeonTournamentAnimLabGameMode::RestartPlayer(AController* NewPlayer) {
         AGameModeBase::RestartPlayer(NewPlayer);
         ApplyCameraPreference(NewPlayer ? NewPlayer->GetPawn<ALeonTournamentCharacter>() : nullptr);
+        if (auto* pawn = NewPlayer ? NewPlayer->GetPawn<ALeonTournamentCharacter>() : nullptr)
+            PlaceGrounded(pawn, pawn->GetActorLocation(), 0.0f);
+        ForceLabTeams();
     }
 
     void ALeonTournamentAnimLabGameMode::TickDummyRespawn(float DeltaSeconds) {
@@ -171,6 +202,27 @@ namespace Leon {
         SpawnLabBox(World, "FallLedge", {-8.0f, 1.2f, 8.0f}, {3.5f, 2.4f, 2.0f}, {0.28f, 0.30f, 0.34f});
     }
 
+    void ALeonTournamentAnimLabGameMode::SpawnLabWeaponPickups() {
+        if (!World)
+            return;
+        constexpr float kLabRespawn = 5.0f;
+        auto spawnWeapon = [&](const char* name, ELeonTournamentWeaponId id, const glm::vec3& loc) {
+            auto* p = World->SpawnActor<ALeonTournamentWeaponPickup>(name);
+            if (!p)
+                return;
+            p->SetWeaponId(id);
+            p->SetRespawnDelay(kLabRespawn);
+            p->SetAnchorLocation(loc);
+        };
+        // One of each arsenal weapon in a short arc for quick lab testing.
+        spawnWeapon("LabPU_Rifle", ELeonTournamentWeaponId::Rifle, {-4.0f, 1.0f, 3.0f});
+        spawnWeapon("LabPU_Shotgun", ELeonTournamentWeaponId::Shotgun, {-2.0f, 1.0f, 4.0f});
+        spawnWeapon("LabPU_Rocket", ELeonTournamentWeaponId::Rocket, {0.0f, 1.0f, 4.5f});
+        spawnWeapon("LabPU_Laser", ELeonTournamentWeaponId::Laser, {2.0f, 1.0f, 4.0f});
+        spawnWeapon("LabPU_Grenade", ELeonTournamentWeaponId::Grenade, {4.0f, 1.0f, 3.0f});
+        spawnWeapon("LabPU_Flamer", ELeonTournamentWeaponId::Flamethrower, {5.0f, 1.0f, 1.5f});
+    }
+
     void ALeonTournamentAnimLabGameMode::SpawnDummy() {
         if (!World || Dummy)
             return;
@@ -178,13 +230,14 @@ namespace Leon {
         if (AActor* start = FindPlayerStart("Dummy"))
             loc = start->GetActorLocation();
         Dummy = World->SpawnActor<ALeonTournamentDummy>("Dummy");
-        Dummy->SetActorLocation(loc);
-        Dummy->SetFloorZ(0.0f);
-        Dummy->SetThirdPerson(true);
         auto* ps = World->SpawnActor<ALeonTournamentPlayerState>("DummyPS");
         ps->SetPlayerName("Dummy");
         ps->SetTeam(ELeonTournamentTeam::Team2);
+        ps->SetIsBot(true);
         Dummy->SetPlayerState(ps);
+        Dummy->SetBotControlled(true);
+        Dummy->SetThirdPerson(true);
+        PlaceGrounded(Dummy, loc, 0.0f);
     }
 
     void ALeonTournamentAnimLabGameMode::RespawnDummy() {
@@ -195,7 +248,8 @@ namespace Leon {
             loc = start->GetActorLocation();
         Dummy->OnServerRespawn(loc);
         Dummy->SetThirdPerson(true);
-        Dummy->SetFloorZ(0.0f);
+        PlaceGrounded(Dummy, loc, 0.0f);
+        ForceLabTeams();
     }
 
 } // namespace Leon

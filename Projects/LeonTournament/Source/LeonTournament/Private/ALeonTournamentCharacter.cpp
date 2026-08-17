@@ -65,8 +65,10 @@ namespace Leon {
                 uniformScale = targetH / meshH;
         }
         GetMesh()->SetRelativeScale3D(glm::vec3(uniformScale));
-        // Capsule bottom is -halfHeight; compensate bind-pose foot offset after scale.
-        GetMesh()->SetRelativeLocation(glm::vec3(0.0f, -GetCapsuleHalfHeight() - feetY * uniformScale, 0.0f));
+        // Capsule bottom is -halfHeight; plant bind-pose feet on that plane (small sink covers loose bounds).
+        constexpr float kFootPlantBias = 0.035f;
+        GetMesh()->SetRelativeLocation(
+            glm::vec3(0.0f, -GetCapsuleHalfHeight() - feetY * uniformScale - kFootPlantBias, 0.0f));
     }
 
     void ALeonTournamentCharacter::BeginPlay() {

@@ -1054,8 +1054,8 @@ namespace Leon {
         Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.45f});
 
         const float titleH = MeasurePadded("SCOREBOARD", kFsTitle).y;
-        const float headerH = MeasurePadded("PLAYER                      TEAM         K     D     A", kFsCaption).y;
-        const float rowsH = MeasurePadded(std::string(12, '\n') + "x", kFsBody).y;
+        const float headerH = MeasurePadded("PLAYER                        K    D    A", kFsCaption).y;
+        const float rowsH = MeasurePadded(std::string(16, '\n') + "x", kFsBody).y;
         const float footerH = MeasurePadded("T1  99     T2  99", kFsCaption).y;
         const float panelPad = 28.0f;
         const float panelW = 880.0f;
@@ -1075,7 +1075,7 @@ namespace Leon {
         y += titleH + 12.0f;
 
         HeaderText = std::make_shared<UTextBlock>("SBHeader");
-        HeaderText->SetText("PLAYER                      TEAM         K     D     A");
+        HeaderText->SetText("PLAYER                        K    D    A");
         HeaderText->SetFontScale(kFsCaption);
         HeaderText->SetColor({0.65f, 0.74f, 0.90f, 0.95f});
         PlaceTextC(*Root, HeaderText, 0.0f, y + headerH * 0.5f, panelW - panelPad * 2.0f);
@@ -1115,15 +1115,36 @@ namespace Leon {
         }
 
         std::ostringstream ss;
-        for (auto* ps : gs->GetSortedScoreboard()) {
-            if (!ps)
-                continue;
-            const bool bYou = localPs && ps == localPs;
-            const char* mark = bYou ? ">" : " ";
-            char line[160];
-            std::snprintf(line, sizeof(line), "%s %-22s  %-10s  %3d   %3d   %3d\n", mark, ps->GetPlayerName().c_str(),
-                          LeonTournamentTeamName(ps->GetTeam()), ps->GetKills(), ps->GetDeaths(), ps->GetAssists());
-            ss << line;
+        auto appendGroup = [&](ELeonTournamentTeam team, const char* title) {
+            ss << title << "\n";
+            ss << "  PLAYER                      K    D    A\n";
+            bool any = false;
+            for (auto* ps : gs->GetSortedScoreboard()) {
+                if (!ps || ps->GetTeam() != team)
+                    continue;
+                any = true;
+                const bool bYou = localPs && ps == localPs;
+                char line[160];
+                std::snprintf(line, sizeof(line), "%s %-24s  %3d  %3d  %3d\n", bYou ? ">" : " ",
+                              ps->GetPlayerName().c_str(), ps->GetKills(), ps->GetDeaths(), ps->GetAssists());
+                ss << line;
+            }
+            if (!any)
+                ss << "  --\n";
+            ss << "\n";
+        };
+        appendGroup(ELeonTournamentTeam::Team1, "TEAM 1");
+        appendGroup(ELeonTournamentTeam::Team2, "TEAM 2");
+        {
+            bool anyNone = false;
+            for (auto* ps : gs->GetSortedScoreboard()) {
+                if (ps && ps->GetTeam() == ELeonTournamentTeam::None) {
+                    anyNone = true;
+                    break;
+                }
+            }
+            if (anyNone)
+                appendGroup(ELeonTournamentTeam::None, "UNASSIGNED");
         }
         RowsText->SetText(ss.str());
         if (FooterText) {
