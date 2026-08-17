@@ -135,7 +135,7 @@ namespace Leon {
                 move->AddInputVector(forward * move->GetMaxWalkSpeed());
                 world->Tick(FTimestep(1.0f / 60.0f));
             }
-            CHECK(ch->GetActorLocation().y == doctest::Approx(ch->GetEyeHeight()).epsilon(0.2f));
+            CHECK(ch->GetActorLocation().y == doctest::Approx(ch->GetCapsuleHalfHeight()).epsilon(0.2f));
             const glm::vec3 planar(ch->GetActorLocation().x - start.x, 0.0f, ch->GetActorLocation().z - start.z);
             CHECK(glm::length(planar) > 0.5f);
         }

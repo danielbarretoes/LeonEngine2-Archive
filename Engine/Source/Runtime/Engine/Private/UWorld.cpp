@@ -17,7 +17,6 @@
 #include "Assets/UStaticMesh.hpp"
 #include "Physics/IPhysicsScene.hpp"
 #include "AI/UNavigationSystem.hpp"
-#include "Gameplay/FGameplayDebugger.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 
 #include <algorithm>
@@ -450,8 +449,6 @@ namespace Leon {
 
     void UWorld::OnRender(const FPerspectiveCamera& InCamera) {
         GetWorldRenderer()->RenderScene(InCamera);
-        if (FGameplayDebugger::ShowAI() && NavigationSystem && NavigationSystem->IsBuilt())
-            NavigationSystem->DrawDebug();
     }
 
     bool UWorld::OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,

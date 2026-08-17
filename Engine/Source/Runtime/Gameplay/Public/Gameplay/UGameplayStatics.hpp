@@ -40,6 +40,13 @@ namespace Leon {
 
         static UParticleComponent* SpawnEmitterAtLocation(UWorld* InWorld, const FParticleEmitterSettings& InSettings,
                                                           const glm::vec3& InLocation);
+
+        /** Fire-and-forget 2D one-shot from a virtual/physical sound path. */
+        static void PlaySound2D(const std::string& InSoundPath, float InVolume = 1.0f);
+
+        /** Fire-and-forget 3D one-shot with distance attenuation. */
+        static void PlaySoundAtLocation(const std::string& InSoundPath, const glm::vec3& InLocation,
+                                        float InVolume = 1.0f, float InAttenuationRadius = 2500.0f);
     };
 
     /**

@@ -152,8 +152,9 @@ namespace Leon {
 
     /**
      * Render-side skinned mesh (EnTT POD). Gameplay ticks USkeletalMeshComponent which writes BonePalette here.
+     * Named F* (not U*) — render state POD, not a UObject component.
      */
-    struct FSkeletalMeshComponent {
+    struct FSkinnedMeshRenderState {
         TRef<USkeletalMesh> SkeletalMesh = nullptr;
         std::vector<TRef<FMaterialInstance>> MaterialOverrides;
         std::string AssetPath;
@@ -167,8 +168,8 @@ namespace Leon {
         bool bVisibleInReflection = true;
         bool bVisible = true;
 
-        FSkeletalMeshComponent() = default;
-        FSkeletalMeshComponent(const FSkeletalMeshComponent&) = default;
+        FSkinnedMeshRenderState() = default;
+        FSkinnedMeshRenderState(const FSkinnedMeshRenderState&) = default;
     };
 
     struct FMaterialComponent {

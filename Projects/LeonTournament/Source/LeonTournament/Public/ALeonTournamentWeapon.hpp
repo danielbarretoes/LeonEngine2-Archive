@@ -25,7 +25,7 @@ namespace Leon {
         bool IsReloading() const { return bReloading; }
         bool IsFiring() const { return bFiring; }
 
-        void SetFireHeld(bool bHeld) { bFireHeld = bHeld; }
+        void SetFireHeld(bool bHeld);
         bool CanFire() const;
         bool ServerFire();
         bool StartReload();
@@ -33,6 +33,9 @@ namespace Leon {
         void ResetMagazine();
         void ApplyReplicatedState(int32_t InAmmo, bool bInReloading);
         float GetReloadRemaining() const { return ReloadRemaining; }
+
+        /** True when magazine is empty and a reload can start. */
+        bool NeedsReload() const;
 
         void AttachVisual();
         void SetVisualHidden(bool bHidden);

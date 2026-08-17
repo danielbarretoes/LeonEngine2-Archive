@@ -4,6 +4,7 @@
 #include "Gameplay/AActor.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Renderer/FDebugRenderer.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -298,6 +299,44 @@ namespace Leon {
             if (!actorRef || actorRef.get() == InIgnore || actorRef->IsPendingKill())
                 continue;
             GatherActorColliders(*actorRef, OutColliders);
+        }
+    }
+
+    void DrawDebugWorldColliders(UWorld& InWorld) {
+        std::vector<FColliderDesc> colliders;
+        GatherWorldColliders(InWorld, nullptr, colliders);
+        constexpr float kInflate = 0.02f; // slight expand so coplanar edges remain readable with depth test
+        for (const auto& c : colliders) {
+            glm::vec4 color(0.15f, 1.0f, 0.35f, 1.0f); // WorldStatic — bright green
+            switch (c.ObjectType) {
+            case ECollisionChannel::Pawn:
+                color = glm::vec4(1.0f, 0.55f, 0.05f, 1.0f); // orange capsule / pawn
+                break;
+            case ECollisionChannel::Visibility:
+                color = glm::vec4(1.0f, 0.95f, 0.2f, 1.0f);
+                break;
+            case ECollisionChannel::Camera:
+                color = glm::vec4(0.3f, 0.75f, 1.0f, 1.0f);
+                break;
+            case ECollisionChannel::WorldDynamic:
+                color = glm::vec4(0.95f, 0.3f, 1.0f, 1.0f);
+                break;
+            default:
+                break;
+            }
+            switch (c.Shape) {
+            case EPhysicsShapeType::Sphere:
+                FDebugRenderer::DrawDebugSphere(c.Center, c.SphereRadius + kInflate, color);
+                break;
+            case EPhysicsShapeType::Capsule:
+                FDebugRenderer::DrawDebugCapsule(c.Center, c.CapsuleRadius + kInflate, c.CapsuleHalfHeight + kInflate,
+                                                 color);
+                break;
+            case EPhysicsShapeType::Box:
+            default:
+                FDebugRenderer::DrawDebugBox(c.Center, c.BoxHalfExtent + glm::vec3(kInflate), color);
+                break;
+            }
         }
     }
 

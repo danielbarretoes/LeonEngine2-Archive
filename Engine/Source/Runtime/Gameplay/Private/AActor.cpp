@@ -1,4 +1,5 @@
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/USceneComponent.hpp"
 #include "Engine/UWorld.hpp"
 
 namespace Leon {
@@ -59,6 +60,19 @@ namespace Leon {
 
     const FTransformComponent& AActor::GetTransform() const {
         return GetComponent<FTransformComponent>();
+    }
+
+    void AActor::SetRootComponent(USceneComponent* NewRoot) {
+        if (RootComponent == NewRoot)
+            return;
+        // Previous root stays owned by the actor component list; only the pointer changes.
+        RootComponent = NewRoot;
+        if (RootComponent) {
+            // Invariant: root relative transform is identity (actor transform owns world pose).
+            RootComponent->SetRelativeLocation(glm::vec3(0.0f));
+            RootComponent->SetRelativeRotation(glm::vec3(0.0f));
+            RootComponent->SetRegistered(true);
+        }
     }
 
     glm::vec3 AActor::GetActorLocation() const {

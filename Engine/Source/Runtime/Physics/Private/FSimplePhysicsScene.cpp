@@ -110,7 +110,7 @@ namespace Leon {
                 actorLoc -= relative;
                 // Simple dynamics have no world collision; keep ragdolls on the character floor.
                 if (auto* character = dynamic_cast<ACharacter*>(body->Info.Actor)) {
-                    const float minActorY = character->GetFloorZ() + character->GetEyeHeight();
+                    const float minActorY = character->GetFloorZ() + character->GetCapsuleHalfHeight();
                     if (actorLoc.y < minActorY) {
                         actorLoc.y = minActorY;
                         body->Location = actorLoc + relative;

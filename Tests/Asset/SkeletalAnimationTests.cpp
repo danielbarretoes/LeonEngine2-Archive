@@ -137,6 +137,28 @@ TEST_SUITE("Skeletal Animation") {
         fs::remove(path);
     }
 
+    TEST_CASE("BlendSpace 2D prefers local direction neighbors over opposite heading") {
+        auto skel = MakeTwoBoneSkeleton();
+        auto fwd = MakeSpinAnim(skel);
+        auto right = MakeSpinAnim(skel);
+        auto back = MakeSpinAnim(skel);
+        fwd->SetAssetPath("/Game/Animations/Fwd.lanim");
+        right->SetAssetPath("/Game/Animations/Right.lanim");
+        back->SetAssetPath("/Game/Animations/Back.lanim");
+        auto bs = UBlendSpace::Create("EightDir");
+        bs->Set2D(true);
+        bs->SetAxisRange({0.0f, -180.0f}, {600.0f, 180.0f});
+        bs->AddSample({500.0f, 0.0f}, fwd);
+        bs->AddSample({500.0f, 90.0f}, right);
+        bs->AddSample({500.0f, 180.0f}, back);
+        std::vector<float> w;
+        bs->EvaluateWeights({500.0f, 45.0f}, w);
+        REQUIRE(w.size() == 3);
+        CHECK(w[0] + w[1] > w[2] * 4.0f);
+        CHECK(w[0] > 0.2f);
+        CHECK(w[1] > 0.2f);
+    }
+
     TEST_CASE("Layered blend applies bone mask") {
         auto skel = MakeTwoBoneSkeleton();
         FPose base = skel->GetRestPose();
@@ -235,7 +257,7 @@ TEST_SUITE("Skeletal Animation") {
         character->SetActorLocation({0.0f, 1.7f, 0.0f});
         character->Tick(0.016f);
         CHECK(character->GetMesh() != nullptr);
-        CHECK(character->HasComponent<FSkeletalMeshComponent>());
+        CHECK(character->HasComponent<FSkinnedMeshRenderState>());
         CHECK(character->GetAnimRepState().Speed >= 0.0f);
     }
 

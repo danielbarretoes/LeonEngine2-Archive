@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gameplay/UActorComponent.hpp"
+#include "Gameplay/USceneComponent.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Assets/UAnimSequence.hpp"
 #include "Gameplay/UAnimInstance.hpp"
@@ -11,9 +11,11 @@
 namespace Leon {
 
     /**
-     * Ticks AnimInstance, writes the skinning palette to the owner's FSkeletalMeshComponent.
+     * Visual skeletal mesh (Unreal USkeletalMeshComponent lite).
+     * Attach under CapsuleComponent via SetupAttachment; no collision of its own.
+     * Writes the skinning palette to the owner's FSkinnedMeshRenderState EnTT POD.
      */
-    class USkeletalMeshComponent : public UActorComponent {
+    class USkeletalMeshComponent : public USceneComponent {
     public:
         USkeletalMeshComponent(const std::string& InName = "SkeletalMeshComponent");
         ~USkeletalMeshComponent() override = default;
@@ -34,13 +36,6 @@ namespace Leon {
         void PlayAnimation(const TRef<UAnimSequence>& InSequence, bool bLoop = true);
         void StopOverrideAnimation();
 
-        void SetRelativeLocation(const glm::vec3& InLocation) { RelativeLocation = InLocation; }
-        const glm::vec3& GetRelativeLocation() const { return RelativeLocation; }
-        void SetRelativeRotation(const glm::vec3& InRotation) { RelativeRotation = InRotation; }
-        const glm::vec3& GetRelativeRotation() const { return RelativeRotation; }
-        void SetRelativeScale(const glm::vec3& InScale) { RelativeScale = InScale; }
-        const glm::vec3& GetRelativeScale() const { return RelativeScale; }
-
         void SetHiddenInGame(bool bHidden) { bHiddenInGame = bHidden; }
         bool IsHiddenInGame() const { return bHiddenInGame; }
 
@@ -54,9 +49,6 @@ namespace Leon {
         TRef<USkeletalMesh> SkeletalMesh;
         TRef<UAnimInstance> AnimInstance;
         std::string MeshAssetPath;
-        glm::vec3 RelativeLocation{0.0f};
-        glm::vec3 RelativeRotation{0.0f};
-        glm::vec3 RelativeScale{1.0f};
         std::vector<glm::mat4> BonePalette;
         FPose EvaluatedPose;
         bool bHiddenInGame = false;

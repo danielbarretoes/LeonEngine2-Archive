@@ -40,6 +40,20 @@ Menu (GameInstance + HUD widgets)
 
 Only `AGameModeBase` (and game subclasses) decides when a match starts or ends. `UGameInstance` may request travel; it does not increment kills.
 
+## Character component hierarchy (Unreal)
+
+```text
+ACharacter
+└── CapsuleComponent = RootComponent   // collision + actor location (capsule center)
+    └── Mesh (USkeletalMeshComponent)  // SetupAttachment(Capsule); relative feet offset
+```
+
+- `FTransformComponent` is the single world-pose source for the actor (capsule center). Root relative transform is identity.
+- `GetActorLocation()` reads EnTT, not a separate root transform. Children resolve via `USceneComponent` attach.
+- First-person camera uses `GetPawnViewLocation()` = center + (EyeHeight − HalfHeight).
+- Mesh is visual-only; movement and traces use the capsule.
+- Capsule half-height is Unreal-style: half of total height including hemispheres (`cylinderHalf = HalfHeight − Radius`).
+
 ## Default class chain
 
 ```text

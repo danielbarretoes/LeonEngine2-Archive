@@ -26,6 +26,8 @@
 #include "LeonTournamentTestSetup.hpp"
 
 #include <cmath>
+#include <string>
+#include <vector>
 
 namespace Leon {
 
@@ -152,6 +154,50 @@ namespace Leon {
             REQUIRE(bs);
             REQUIRE_FALSE(bs->GetSamples().empty());
             CHECK(ULeonTournamentAnimInstance::LocomotionBlendCoversEightDirections(*bs));
+
+            bool hasWalkRight = false;
+            bool hasForward = false;
+            bool hasRight = false;
+            bool hasForwardLeft = false;
+            bool hasForwardRightSample = false;
+            for (const auto& sample : bs->GetSamples()) {
+                if (sample.SequencePath.find("WalkForwardRight") != std::string::npos)
+                    hasWalkRight = true;
+                if (sample.Coord.x < 300.0f)
+                    continue;
+                if (sample.SequencePath.find("RunForward.lanim") != std::string::npos &&
+                    std::abs(sample.Coord.y) <= 6.0f)
+                    hasForward = true;
+                if (sample.SequencePath.find("RunRight.lanim") != std::string::npos)
+                    hasRight = true;
+                if (sample.SequencePath.find("RunForwardLeft.lanim") != std::string::npos)
+                    hasForwardLeft = true;
+                if (std::abs(sample.Coord.y - 45.0f) <= 6.0f)
+                    hasForwardRightSample = true;
+            }
+            CHECK_FALSE(hasWalkRight);
+            CHECK(hasForward);
+            CHECK(hasRight);
+            CHECK(hasForwardLeft);
+            CHECK_FALSE(hasForwardRightSample);
+
+            std::vector<float> w;
+            bs->EvaluateWeights({600.0f, 45.0f}, w);
+            float forwardW = 0.0f;
+            float rightW = 0.0f;
+            float backW = 0.0f;
+            for (size_t i = 0; i < bs->GetSamples().size(); ++i) {
+                const auto& s = bs->GetSamples()[i];
+                if (s.SequencePath.find("RunForward.lanim") != std::string::npos)
+                    forwardW += w[i];
+                if (s.SequencePath.find("RunRight.lanim") != std::string::npos)
+                    rightW += w[i];
+                if (s.SequencePath.find("RunBackward.lanim") != std::string::npos)
+                    backW += w[i];
+            }
+            CHECK(forwardW > 0.15f);
+            CHECK(rightW > 0.15f);
+            CHECK(forwardW + rightW > backW * 3.0f);
         }
     }
 

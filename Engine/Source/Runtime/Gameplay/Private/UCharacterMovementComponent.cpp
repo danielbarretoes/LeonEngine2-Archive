@@ -139,7 +139,7 @@ namespace Leon {
 
         FHitResult floorHit;
         const bool bGeoFloor = FindFloor(0.2f, floorHit);
-        const float groundedY = FloorZ + character->GetEyeHeight();
+        const float groundedY = FloorZ + character->GetCapsuleHalfHeight();
         if (!bGeoFloor && character->GetActorLocation().y > groundedY + 0.25f)
             SetMovementMode(EMovementMode::Falling);
     }
@@ -175,7 +175,7 @@ namespace Leon {
 
         FHitResult floorHit;
         const bool bFloor = FindFloor(0.15f, floorHit);
-        const float groundedY = FloorZ + character->GetEyeHeight();
+        const float groundedY = FloorZ + character->GetCapsuleHalfHeight();
         if (Velocity.y <= 0.0f && (bFloor || character->GetActorLocation().y <= groundedY + 0.02f)) {
             character->SnapToFloorPublic();
             Velocity.y = 0.0f;

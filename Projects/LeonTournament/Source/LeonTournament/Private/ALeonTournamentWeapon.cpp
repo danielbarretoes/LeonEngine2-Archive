@@ -83,6 +83,23 @@ namespace Leon {
         return true;
     }
 
+    bool ALeonTournamentWeapon::NeedsReload() const {
+        if (!OwnerCharacter || bReloading || CurrentAmmo > 0)
+            return false;
+        if (auto health = OwnerCharacter->GetHealthComponent()) {
+            if (health->IsDead())
+                return false;
+        }
+        return CurrentAmmo < Config.MagazineSize;
+    }
+
+    void ALeonTournamentWeapon::SetFireHeld(bool bHeld) {
+        bFireHeld = bHeld;
+        // Empty magazine + fire input → auto-reload (Unreal-style).
+        if (bFireHeld && NeedsReload())
+            StartReload();
+    }
+
     void ALeonTournamentWeapon::SpawnFireEffects(const glm::vec3& InMuzzle, const glm::vec3& InTraceEnd, bool bHitWorld,
                                                  bool bHitCharacter) {
         LastVfxSpawnCount = 0;
@@ -133,6 +150,10 @@ namespace Leon {
             if (UGameplayStatics::SpawnEmitterAtLocation(World, impact, InTraceEnd))
                 ++LastVfxSpawnCount;
         }
+
+        UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_RifleFire", InMuzzle, 0.85f, 3500.0f);
+        if (bHitCharacter)
+            UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_HitConfirm", InTraceEnd, 0.7f, 2500.0f);
     }
 
     bool ALeonTournamentWeapon::ServerFire() {
@@ -149,6 +170,9 @@ namespace Leon {
         --CurrentAmmo;
         FireCooldown = Config.FireRate > 0.0f ? 1.0f / Config.FireRate : 0.1f;
         bFiring = true;
+
+        if (CurrentAmmo <= 0)
+            StartReload();
 
         glm::vec3 origin, dir;
         OwnerCharacter->GetAimRay(origin, dir);
@@ -202,7 +226,7 @@ namespace Leon {
             return false;
         bReloading = true;
         ReloadRemaining = Config.ReloadTime;
-        bFireHeld = false;
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleReload", 0.7f);
         return true;
     }
 
@@ -245,6 +269,8 @@ namespace Leon {
             FireCooldown = std::max(0.0f, FireCooldown - DeltaSeconds);
 
         const bool bAuthority = !World || World->GetNetMode() != ENetMode::Client;
+        if (bAuthority && CurrentAmmo <= 0 && !bReloading)
+            StartReload();
         if (bAuthority && bReloading) {
             ReloadRemaining -= DeltaSeconds;
             if (ReloadRemaining <= 0.0f) {

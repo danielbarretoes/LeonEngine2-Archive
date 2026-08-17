@@ -264,8 +264,6 @@ namespace Leon {
                 weap->ServerFire();
             }
             CHECK(weap->GetCurrentAmmo() == 0);
-            CHECK_FALSE(weap->CanFire());
-            CHECK(weap->StartReload());
             CHECK(weap->IsReloading());
             CHECK_FALSE(weap->CanFire());
             weap->Tick(2.1f);

@@ -14,6 +14,8 @@ namespace Leon {
     std::vector<FDebugRenderer::FDebugVertex> FDebugRenderer::LineVertices;
     glm::mat4 FDebugRenderer::ViewProjection = glm::mat4(1.0f);
     bool FDebugRenderer::bTraceCapture = false;
+    bool FDebugRenderer::bInScene = false;
+    bool FDebugRenderer::bSceneDepthTest = true;
     std::vector<FDebugRenderer::FQueuedTrace> FDebugRenderer::QueuedTraces;
     std::vector<std::pair<glm::vec3, glm::vec3>> FDebugRenderer::QueuedExtraLines;
     std::vector<glm::vec4> FDebugRenderer::QueuedExtraColors;
@@ -40,23 +42,31 @@ namespace Leon {
     }
 
     void FDebugRenderer::BeginScene(const FPerspectiveCamera& InCamera) {
+        // Keep lines queued during Tick/OnRender; only EndScene/Flush clears the buffer.
         ViewProjection = InCamera.GetViewProjectionMatrix();
-        LineVertices.clear();
+        bInScene = true;
+        bSceneDepthTest = true;
     }
 
-    void FDebugRenderer::EndScene() {
-        Flush();
+    void FDebugRenderer::EndScene(bool bDepthTest) {
+        bSceneDepthTest = bDepthTest;
+        Flush(bDepthTest);
+        bInScene = false;
     }
 
-    void FDebugRenderer::Flush() {
+    void FDebugRenderer::Flush(bool bDepthTest) {
         if (LineVertices.empty() || !Shader)
             return;
 
-        // Configure render states for debug wireframe rendering
+        // Depth-test against the scene so meshes occlude traces/colliders; do not write depth.
         FRenderCommand::SetBlendState(true);
         FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
-        FRenderCommand::SetDepthTesting(false);
+        FRenderCommand::SetDepthTesting(bDepthTest);
         FRenderCommand::SetDepthMask(false);
+        if (bDepthTest) {
+            FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
+            FRenderCommand::SetPolygonOffset(true, -1.0f, -2.0f);
+        }
         FRenderCommand::SetCulling(false);
 
         Shader->Bind();
@@ -67,19 +77,25 @@ namespace Leon {
                               static_cast<unsigned int>(LineVertices.size() * sizeof(FDebugVertex)));
 
         VertexArray->Bind();
-        FRenderCommand::SetLineWidth(2.0f);
+        FRenderCommand::SetLineWidth(2.5f);
         FRenderCommand::DrawLines(VertexArray, static_cast<unsigned int>(LineVertices.size()));
 
-        // Restore standard 3D depth testing defaults
+        FRenderCommand::SetPolygonOffset(false);
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetDepthFunc(EDepthFunc::Less);
 
         LineVertices.clear();
     }
 
     void FDebugRenderer::DrawLine(const glm::vec3& InP0, const glm::vec3& InP1, const glm::vec4& InColor) {
-        if (LineVertices.size() + 2 >= MaxLineVertices)
-            Flush();
+        if (LineVertices.size() + 2 >= MaxLineVertices) {
+            // Never GPU-flush outside an active debug scene (wrong FBO / no scene depth).
+            if (bInScene)
+                Flush(bSceneDepthTest);
+            else
+                LineVertices.clear();
+        }
 
         LineVertices.push_back({InP0, InColor});
         LineVertices.push_back({InP1, InColor});
@@ -108,6 +124,7 @@ namespace Leon {
 
     void FDebugRenderer::DrawDebugCapsule(const glm::vec3& InCenter, float InRadius, float InHalfHeight,
                                           const glm::vec4& InColor) {
+        // UE half-height includes hemispheres → cylinder extent = HalfHeight − Radius.
         const float cyl = std::max(InHalfHeight - InRadius, 0.0f);
         glm::vec3 top = InCenter + glm::vec3(0.0f, cyl, 0.0f);
         glm::vec3 bot = InCenter + glm::vec3(0.0f, -cyl, 0.0f);

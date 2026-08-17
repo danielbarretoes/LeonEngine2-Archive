@@ -11,7 +11,10 @@ out vec4 v_Color;
 
 void main() {
     v_Color = aColor;
-    gl_Position = u_ViewProjection * u_Model * vec4(aPos, 1.0);
+    vec4 clip = u_ViewProjection * u_Model * vec4(aPos, 1.0);
+    // Tiny pull toward camera so coplanar wall edges stay visible; keep small so meshes still occlude.
+    clip.z -= 0.0004 * clip.w;
+    gl_Position = clip;
 }
 
 #type fragment

@@ -19,8 +19,8 @@ namespace Leon {
     class APhysicsVolume;
 
     /**
-     * Ground character: CapsuleComponent + CharacterMovement + Mesh.
-     * Movement physics lives on CharacterMovement, not on the actor.
+     * Ground character: CapsuleComponent (RootComponent) + CharacterMovement + Mesh.
+     * Actor location is the capsule center (Unreal convention). Mesh attaches under the capsule.
      */
     class ACharacter : public APawn {
     public:
@@ -55,6 +55,7 @@ namespace Leon {
 
         float GetCapsuleRadius() const { return CapsuleRadius; }
         void SetCapsuleRadius(float InRadius) { CapsuleRadius = InRadius; }
+        float GetCapsuleHalfHeight() const { return GetCapsuleHeight() * 0.5f; }
 
         bool IsThirdPerson() const { return bThirdPerson; }
         void SetThirdPerson(bool bEnabled) { bThirdPerson = bEnabled; }
@@ -76,8 +77,13 @@ namespace Leon {
 
         glm::vec3 MoveBlocked(const glm::vec3& InWorldDelta);
         void GetCapsuleAABB(glm::vec3& OutMin, glm::vec3& OutMax) const;
-        float GetCapsuleHeight() const { return EyeHeight + 0.2f; }
+        /** Full capsule height (diameter along up axis). */
+        /** Full capsule height (diameter along up axis). Tuned near human mesh (~1.8 m for EyeHeight 1.7). */
+        float GetCapsuleHeight() const { return EyeHeight + 0.1f; }
         void SnapToFloorPublic() { SnapToFloor(); }
+
+        /** World-space eye / first-person view location (Unreal GetPawnViewLocation lite). */
+        glm::vec3 GetPawnViewLocation() const;
 
         APhysicsVolume* GetPhysicsVolume() const { return PhysicsVolume; }
 

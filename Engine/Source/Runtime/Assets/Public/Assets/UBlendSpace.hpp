@@ -17,8 +17,8 @@ namespace Leon {
     };
 
     /**
-     * 1D or 2D blend space. 1D uses AxisX only; 2D uses inverse-distance weights
-     * (deterministic, no triangulation).
+     * 1D or 2D blend space. 1D uses AxisX only; 2D uses axis-normalized IDW over the
+     * nearest samples (deterministic, circular Direction wrap).
      */
     class UBlendSpace : public std::enable_shared_from_this<UBlendSpace> {
     public:

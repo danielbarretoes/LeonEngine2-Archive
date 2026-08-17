@@ -1,6 +1,4 @@
 #include "Gameplay/ABlockingVolume.hpp"
-#include "Gameplay/FGameplayDebugger.hpp"
-#include "Renderer/FDebugRenderer.hpp"
 
 namespace Leon {
 
@@ -16,14 +14,11 @@ namespace Leon {
         Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Box->SetCollisionResponseToAllChannels(ECollisionResponse::Block);
         Box->SetBoxExtent(GetActorScale() * 0.5f);
-        SetCanEverTick(true);
+        SetCanEverTick(false);
     }
 
     void ABlockingVolume::Tick(float DeltaSeconds) {
         (void)DeltaSeconds;
-        if (!FGameplayDebugger::IsEnabled() || !FGameplayDebugger::ShowPhysics() || !Box)
-            return;
-        FDebugRenderer::DrawDebugBox(GetActorLocation(), Box->GetBoxExtent(), glm::vec4(0.2f, 1.0f, 0.3f, 0.8f));
     }
 
 } // namespace Leon

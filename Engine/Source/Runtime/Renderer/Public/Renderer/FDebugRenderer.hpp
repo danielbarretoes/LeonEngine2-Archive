@@ -22,8 +22,8 @@ namespace Leon {
         static void Shutdown();
 
         static void BeginScene(const FPerspectiveCamera& InCamera);
-        static void EndScene();
-        static void Flush();
+        static void EndScene(bool bDepthTest = true);
+        static void Flush(bool bDepthTest = true);
 
         // Basic Line & Shape Primitives
         static void DrawLine(const glm::vec3& InP0, const glm::vec3& InP1, const glm::vec4& InColor = glm::vec4(1.0f));
@@ -47,6 +47,10 @@ namespace Leon {
         }
         static void DrawDebugBox(const glm::vec3& InCenter, const glm::vec3& InExtent,
                                  const glm::vec4& InColor = glm::vec4(0.2f, 1.0f, 0.3f, 1.0f));
+        /**
+         * InHalfHeight = Unreal half of total capsule height (hemispheres included).
+         * Cylinder half drawn = HalfHeight − Radius; tip-to-tip = 2 * HalfHeight.
+         */
         static void DrawDebugCapsule(const glm::vec3& InCenter, float InRadius, float InHalfHeight,
                                      const glm::vec4& InColor = glm::vec4(0.2f, 0.9f, 1.0f, 1.0f));
         static void DrawDebugPoint(const glm::vec3& InPoint, float InSize = 0.06f,
@@ -102,6 +106,8 @@ namespace Leon {
         static glm::mat4 ViewProjection;
         static constexpr size_t MaxLineVertices = 65536;
         static bool bTraceCapture;
+        static bool bInScene;
+        static bool bSceneDepthTest;
         struct FQueuedTrace {
             glm::vec3 Start{0.0f};
             glm::vec3 End{0.0f};

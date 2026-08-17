@@ -41,8 +41,26 @@ namespace Leon {
             character->SetEyeHeight(1.5f);
             character->SetActorLocation({10.0f, 99.0f, -3.0f});
             character->Tick(0.016f);
-            CHECK(character->GetActorLocation().y == doctest::Approx(3.5f));
+            CHECK(character->GetActorLocation().y == doctest::Approx(2.0f + character->GetCapsuleHalfHeight()));
             CHECK(character->GetActorLocation().x == doctest::Approx(10.0f));
+        }
+
+        TEST_CASE("ACharacter RootComponent capsule hierarchy and half-height contract") {
+            auto world = UWorld::Create("RootWorld");
+            auto* character = world->SpawnActor<ACharacter>("RootHero");
+            REQUIRE(character != nullptr);
+
+            auto capsule = character->GetCapsuleComponent();
+            auto mesh = character->GetMesh();
+            REQUIRE(capsule);
+            REQUIRE(mesh);
+            CHECK(character->GetRootComponent() == capsule.get());
+            CHECK(mesh->GetAttachParent() == capsule.get());
+            CHECK(2.0f * capsule->GetUnscaledCapsuleHalfHeight() ==
+                  doctest::Approx(character->GetCapsuleHeight()).epsilon(0.01f));
+            CHECK(character->GetActorLocation().y ==
+                  doctest::Approx(character->GetFloorZ() + character->GetCapsuleHalfHeight()).epsilon(0.05f));
+            CHECK(mesh->GetComponentLocation().y == doctest::Approx(character->GetFloorZ()).epsilon(0.05f));
         }
 
         TEST_CASE("UActorComponent lifecycle with ExecuteBeginPlay/Tick/EndPlay") {

@@ -1,25 +1,17 @@
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/AActor.hpp"
-#include "Gameplay/FGameplayDebugger.hpp"
 #include "Engine/UWorld.hpp"
 #include "Physics/IPhysicsScene.hpp"
-#include "Renderer/FDebugRenderer.hpp"
 
 #include <algorithm>
 #include <glm/gtc/quaternion.hpp>
 
 namespace Leon {
 
-    UPrimitiveComponent::UPrimitiveComponent(const std::string& InName) : UActorComponent(InName) {}
+    UPrimitiveComponent::UPrimitiveComponent(const std::string& InName) : USceneComponent(InName) {}
 
     UPrimitiveComponent::~UPrimitiveComponent() {
         UnregisterPhysics();
-    }
-
-    glm::vec3 UPrimitiveComponent::GetComponentLocation() const {
-        if (!Owner)
-            return RelativeLocation;
-        return Owner->GetActorLocation() + RelativeLocation;
     }
 
     void UPrimitiveComponent::BeginPlay() {
@@ -34,23 +26,6 @@ namespace Leon {
         (void)DeltaSeconds;
         if (PhysicsBody && !bSimulatePhysics)
             SyncPhysicsTransform();
-        if (!FGameplayDebugger::ShowPhysics() || CollisionEnabled == ECollisionEnabled::NoCollision)
-            return;
-        const FPhysicsBodyCreateInfo info = MakeBodyCreateInfo();
-        const glm::vec4 color(0.25f, 0.95f, 0.35f, 0.9f);
-        switch (info.Shape) {
-        case EPhysicsShapeType::Box:
-            FDebugRenderer::DrawDebugBox(GetComponentLocation(), info.BoxHalfExtent, color);
-            break;
-        case EPhysicsShapeType::Sphere:
-            FDebugRenderer::DrawDebugSphere(GetComponentLocation(), info.SphereRadius, color);
-            break;
-        case EPhysicsShapeType::Capsule:
-            FDebugRenderer::DrawDebugCapsule(GetComponentLocation(), info.CapsuleRadius, info.CapsuleHalfHeight, color);
-            break;
-        default:
-            break;
-        }
     }
 
     FPhysicsBodyCreateInfo UPrimitiveComponent::MakeBodyCreateInfo() const {
@@ -91,8 +66,11 @@ namespace Leon {
     }
 
     void UPrimitiveComponent::SyncPhysicsTransform() {
-        if (PhysicsBody)
-            PhysicsBody->SetTransform(GetComponentLocation(), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+        if (!PhysicsBody)
+            return;
+        const glm::vec3 rot = GetComponentRotation();
+        const glm::quat q = glm::quat(glm::radians(rot));
+        PhysicsBody->SetTransform(GetComponentLocation(), q);
     }
 
     void UPrimitiveComponent::SetCollisionEnabled(ECollisionEnabled InEnabled) {
@@ -195,7 +173,8 @@ namespace Leon {
         info.Shape = EPhysicsShapeType::Capsule;
         info.CapsuleRadius = CapsuleRadius;
         info.CapsuleHalfHeight = CapsuleHalfHeight;
-        info.Motion = EPhysicsMotionType::Kinematic;
+        if (!bSimulatePhysics)
+            info.Motion = EPhysicsMotionType::Kinematic;
         return info;
     }
 

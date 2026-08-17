@@ -64,6 +64,10 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/UMG/Private/UUserWidget.cpp
     Source/Runtime/UMG/Private/UImage.cpp
     Source/Runtime/UMG/Private/FUIRenderer.cpp
+    # Audio
+    Source/Runtime/Audio/Private/FAudioDevice.cpp
+    Source/Runtime/Audio/Private/USoundWave.cpp
+    Source/Runtime/Audio/Private/UAudioComponent.cpp
     # Engine + Gameplay
     Source/Runtime/Engine/Private/UEngine.cpp
     Source/Runtime/Engine/Private/UWorld.cpp
@@ -89,6 +93,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/UGameplayStatics.cpp
     Source/Runtime/Gameplay/Private/FOnScreenDebugMessage.cpp
     Source/Runtime/Gameplay/Private/UActorComponent.cpp
+    Source/Runtime/Gameplay/Private/USceneComponent.cpp
     Source/Runtime/Gameplay/Private/UHealthComponent.cpp
     Source/Runtime/Gameplay/Private/UCombatComponent.cpp
     Source/Runtime/Gameplay/Private/UClassRegistry.cpp
@@ -138,6 +143,7 @@ target_include_directories(LeonEngineCore
         "${LEON_RUNTIME_ROOT}/Gameplay/Public"
         "${LEON_RUNTIME_ROOT}/Physics/Public"
         "${LEON_RUNTIME_ROOT}/AI/Public"
+        "${LEON_RUNTIME_ROOT}/Audio/Public"
         "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
 )
 
@@ -149,6 +155,7 @@ target_link_libraries(LeonEngineCore
         glm::glm
         EnTT::EnTT
         stb_image
+        miniaudio
 )
 
 if(WIN32)

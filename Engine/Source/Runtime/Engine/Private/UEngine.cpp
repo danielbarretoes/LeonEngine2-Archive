@@ -21,6 +21,7 @@
 #include "RHI/FRenderCommand.hpp"
 #include "Renderer/FWorldRenderer.hpp"
 #include "UMG/FUIRenderer.hpp"
+#include "Audio/FAudioDevice.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/FMapSerializer.hpp"
 
@@ -61,6 +62,7 @@ namespace Leon {
 
             FFrameProfiler::BeginFrame();
             FOnScreenDebugMessageManager::Get().Tick(InTs.GetSeconds());
+            FAudioDevice::Get().Tick(InTs.GetSeconds());
 
             {
                 FFrameProfiler::FScope game(&FFrameProfiler::Working().GameMs);
@@ -74,6 +76,11 @@ namespace Leon {
             APlayerController* pc = World->GetFirstPlayerController();
             if (pc) {
                 pc->GetPlayerViewPoint(activeCamera);
+            }
+            {
+                const glm::vec3 loc = activeCamera.GetPosition();
+                const glm::vec3 fwd = activeCamera.GetForwardDirection();
+                FAudioDevice::Get().SetListener(loc, fwd, glm::vec3(0.0f, 1.0f, 0.0f));
             }
 
             {
@@ -278,45 +285,39 @@ namespace Leon {
             if (!World || !FApplication::HasInstance())
                 return;
             const bool bGizmos = FApplication::Get().IsLightGizmosEnabled();
-            const bool bGameplay = FApplication::Get().IsGameplayDebugEnabled();
-            FDebugRenderer::SetTraceCaptureEnabled(bGameplay);
-            if (!bGizmos && !bGameplay)
+            if (!bGizmos)
                 return;
 
+            // Light gizmos overlay the final image (no scene depth after post-process).
             FDebugRenderer::BeginScene(InCamera);
             auto& reg = World->GetRegistry();
 
-            if (bGizmos) {
-                auto dirView = reg.view<UDirectionalLightComponent, FTransformComponent>();
-                for (auto entity : dirView) {
-                    auto [dirComp, transform] = dirView.get<UDirectionalLightComponent, FTransformComponent>(entity);
-                    if (dirComp.bEnabled) {
-                        FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, transform.Translation, 2.5f);
-                    }
-                }
-
-                auto pointView = reg.view<UPointLightComponent, FTransformComponent>();
-                for (auto entity : pointView) {
-                    auto [pointComp, transform] = pointView.get<UPointLightComponent, FTransformComponent>(entity);
-                    if (pointComp.bEnabled) {
-                        FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
-                    }
-                }
-
-                auto spotView = reg.view<USpotLightComponent, FTransformComponent>();
-                for (auto entity : spotView) {
-                    auto [spotComp, transform] = spotView.get<USpotLightComponent, FTransformComponent>(entity);
-                    if (spotComp.bEnabled) {
-                        FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
-                    }
+            auto dirView = reg.view<UDirectionalLightComponent, FTransformComponent>();
+            for (auto entity : dirView) {
+                auto [dirComp, transform] = dirView.get<UDirectionalLightComponent, FTransformComponent>(entity);
+                if (dirComp.bEnabled) {
+                    FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, transform.Translation, 2.5f);
                 }
             }
 
-            if (bGameplay)
-                FDebugRenderer::DrawQueuedTraces();
+            auto pointView = reg.view<UPointLightComponent, FTransformComponent>();
+            for (auto entity : pointView) {
+                auto [pointComp, transform] = pointView.get<UPointLightComponent, FTransformComponent>(entity);
+                if (pointComp.bEnabled) {
+                    FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
+                }
+            }
 
-            FDebugRenderer::EndScene();
-            FDebugRenderer::ClearQueuedTraces();
+            auto spotView = reg.view<USpotLightComponent, FTransformComponent>();
+            for (auto entity : spotView) {
+                auto [spotComp, transform] = spotView.get<USpotLightComponent, FTransformComponent>(entity);
+                if (spotComp.bEnabled) {
+                    FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
+                }
+            }
+
+            // Overlay gizmos intentionally ignore depth so they stay readable on screen.
+            FDebugRenderer::EndScene(false);
         }
 
         void DrawHUDAndUI() {
@@ -745,8 +746,9 @@ namespace Leon {
         ApplyGameModeConfig(gameMode);
         ActiveWorld->SetGameMode(gameMode);
 
-        // 7. Initialize UI renderer before BeginPlay so widget MeasureString works
+        // 7. Initialize UI + audio before BeginPlay
         FUIRenderer::Init();
+        FAudioDevice::Get().Init();
 
         ActiveWorld->InitWorld();
         ActiveWorld->BeginPlay();
@@ -762,6 +764,7 @@ namespace Leon {
         if (ActiveWorld) {
             ActiveWorld->EndPlay();
         }
+        FAudioDevice::Get().Shutdown();
         FUIRenderer::Shutdown();
         if (GameInstance) {
             GameInstance->Shutdown();

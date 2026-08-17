@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <vector>
 
 namespace Leon {
 
@@ -110,19 +111,37 @@ namespace Leon {
             return;
         }
 
-        float weightSum = 0.0f;
+        // Normalize Speed/Direction into a unit rectangle so IDW is not dominated by
+        // the larger numeric axis (cm/s vs degrees). Keep only the nearest samples
+        // so opposite-direction clips do not leak into 8-way locomotion.
+        const float rangeX = std::max(AxisMax.x - AxisMin.x, 1e-3f);
+        const float rangeY = std::max(AxisMax.y - AxisMin.y, 1e-3f);
+
+        std::vector<float> distSq(Samples.size(), 0.0f);
         for (size_t i = 0; i < Samples.size(); ++i) {
             glm::vec2 d = p - Samples[i].Coord;
-            // Wrap direction (Y) so 180 and -180 are neighbors.
-            float spanY = AxisMax.y - AxisMin.y;
-            if (spanY > 1.0f) {
-                while (d.y > spanY * 0.5f)
-                    d.y -= spanY;
-                while (d.y < -spanY * 0.5f)
-                    d.y += spanY;
+            d.x /= rangeX;
+            d.y /= rangeY;
+            if (rangeY > 1e-3f) {
+                while (d.y > 0.5f)
+                    d.y -= 1.0f;
+                while (d.y < -0.5f)
+                    d.y += 1.0f;
             }
-            float distSq = glm::dot(d, d);
-            float w = 1.0f / (distSq + 1e-4f);
+            distSq[i] = glm::dot(d, d);
+        }
+
+        std::vector<size_t> order(Samples.size());
+        for (size_t i = 0; i < Samples.size(); ++i)
+            order[i] = i;
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return distSq[a] < distSq[b]; });
+
+        constexpr size_t kMaxNeighbors = 6;
+        const size_t neighborCount = std::min(kMaxNeighbors, order.size());
+        float weightSum = 0.0f;
+        for (size_t n = 0; n < neighborCount; ++n) {
+            const size_t i = order[n];
+            const float w = 1.0f / (distSq[i] + 1e-6f);
             OutWeights[i] = w;
             weightSum += w;
         }

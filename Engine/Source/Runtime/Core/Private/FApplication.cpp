@@ -96,7 +96,7 @@ namespace Leon {
                 bDebugPhysics = bShowGameplayDebug;
                 bDebugCharacter = bShowGameplayDebug;
                 FDebugRenderer::SetTraceCaptureEnabled(bShowGameplayDebug);
-                LE_CORE_INFO("Gameplay debug (traces / hitboxes / colliders): {0}  [Shift+F1]",
+                LE_CORE_INFO("Gameplay debug (colliders + traces, depth-tested): {0}  [Shift+F1]",
                              bShowGameplayDebug ? "ENABLED" : "DISABLED");
                 return true;
             }

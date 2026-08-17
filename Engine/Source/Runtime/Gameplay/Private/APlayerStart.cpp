@@ -17,7 +17,7 @@ namespace Leon {
         if (!FGameplayDebugger::ShowPhysics())
             return;
         const glm::vec3 origin = GetActorLocation();
-        FDebugRenderer::DrawDebugCapsule(origin, 0.4f, 0.95f, glm::vec4(0.95f, 0.85f, 0.15f, 1.0f));
+        FDebugRenderer::DrawDebugCapsule(origin, 0.4f, 0.9f, glm::vec4(0.95f, 0.85f, 0.15f, 1.0f));
         const glm::vec3 rot = GetActorRotation();
         const float yawRad = glm::radians(rot.y);
         const glm::vec3 fwd(std::cos(yawRad), 0.0f, std::sin(yawRad));

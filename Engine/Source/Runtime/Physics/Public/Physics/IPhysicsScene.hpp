@@ -24,7 +24,8 @@ namespace Leon {
         glm::vec3 BoxHalfExtent{0.5f};
         float SphereRadius = 0.5f;
         float CapsuleRadius = 0.4f;
-        float CapsuleHalfHeight = 0.95f;
+        /** Unreal-style: half of total capsule height including hemispheres. */
+        float CapsuleHalfHeight = 0.9f;
         float Mass = 1.0f;
         float LinearDamping = 0.01f;
         float AngularDamping = 0.05f;

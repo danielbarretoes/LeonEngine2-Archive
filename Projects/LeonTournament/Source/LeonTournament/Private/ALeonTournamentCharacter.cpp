@@ -89,9 +89,8 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::GetAimRay(glm::vec3& OutOrigin, glm::vec3& OutDirection) const {
-        // Eye origin lives on the actor; yaw/pitch live on control rotation.
-        // Camera.GetForwardDirection() is only valid after UpdateCameraFromView.
-        OutOrigin = GetActorLocation();
+        // Eye origin (Unreal GetPawnViewLocation); control yaw/pitch for aim direction.
+        OutOrigin = GetPawnViewLocation();
         OutDirection = GetControlLookDirection();
     }
 
@@ -218,7 +217,7 @@ namespace Leon {
         if (bDeadFrozen) {
             if (auto cap = GetCapsuleComponent(); cap && cap->IsSimulatingPhysics()) {
                 glm::vec3 loc = GetActorLocation();
-                const float minY = GetFloorZ() + GetEyeHeight();
+                const float minY = GetFloorZ() + GetCapsuleHalfHeight();
                 bool bTouchedFloor = false;
                 if (loc.y < minY) {
                     loc.y = minY;

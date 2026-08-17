@@ -61,6 +61,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Gameplay/NamingConventionTests.cpp
     Gameplay/HealthComponentTests.cpp
     Gameplay/PhysicsMovementAITests.cpp
+    Gameplay/AudioDeviceTests.cpp
     Lightmass/StaticLightingTests.cpp
     Renderer/ViewportResizeTests.cpp
     Renderer/GoldenSceneTests.cpp

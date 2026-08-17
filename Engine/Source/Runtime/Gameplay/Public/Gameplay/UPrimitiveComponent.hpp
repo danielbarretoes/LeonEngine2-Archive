@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gameplay/UActorComponent.hpp"
+#include "Gameplay/USceneComponent.hpp"
 #include "Physics/ECollisionTypes.hpp"
 #include "Physics/IPhysicsScene.hpp"
 
@@ -13,8 +13,9 @@ namespace Leon {
 
     /**
      * Scene component with collision / physics. Gameplay never includes Jolt headers.
+     * Unreal: UPrimitiveComponent : USceneComponent.
      */
-    class UPrimitiveComponent : public UActorComponent {
+    class UPrimitiveComponent : public USceneComponent {
     public:
         UPrimitiveComponent(const std::string& InName = "PrimitiveComponent");
         ~UPrimitiveComponent() override;
@@ -62,15 +63,9 @@ namespace Leon {
         void RegisterPhysics();
         void SyncPhysicsTransform();
 
-        void SetRelativeLocation(const glm::vec3& InLocation) { RelativeLocation = InLocation; }
-        const glm::vec3& GetRelativeLocation() const { return RelativeLocation; }
-
-        glm::vec3 GetComponentLocation() const;
-
         virtual FPhysicsBodyCreateInfo MakeBodyCreateInfo() const;
 
     protected:
-        glm::vec3 RelativeLocation{0.0f};
         ECollisionEnabled CollisionEnabled = ECollisionEnabled::QueryAndPhysics;
         ECollisionChannel ObjectType = ECollisionChannel::WorldStatic;
         FCollisionResponseContainer Responses;
@@ -116,6 +111,10 @@ namespace Leon {
     class UCapsuleComponent : public UShapeComponent {
     public:
         UCapsuleComponent(const std::string& InName = "CapsuleComponent");
+        /**
+         * Unreal-style capsule size: InHalfHeight is half of the total capsule height including
+         * hemispheres. Cylinder half-height used by Jolt/debug = InHalfHeight − InRadius.
+         */
         void SetCapsuleSize(float InRadius, float InHalfHeight);
         float GetUnscaledCapsuleRadius() const { return CapsuleRadius; }
         float GetUnscaledCapsuleHalfHeight() const { return CapsuleHalfHeight; }
@@ -123,7 +122,7 @@ namespace Leon {
 
     private:
         float CapsuleRadius = 0.4f;
-        float CapsuleHalfHeight = 0.95f;
+        float CapsuleHalfHeight = 0.9f;
     };
 
 } // namespace Leon

@@ -163,10 +163,13 @@ namespace Leon {
 
     void FOpenGLRenderAPI::SetPolygonOffset(bool InEnabled, float InFactor, float InUnits) {
         if (InEnabled) {
+            // FILL for meshes; LINE so wireframe debug colliders/traces can bias against coplanar surfaces.
             glEnable(GL_POLYGON_OFFSET_FILL);
+            glEnable(GL_POLYGON_OFFSET_LINE);
             glPolygonOffset(InFactor, InUnits);
         } else {
             glDisable(GL_POLYGON_OFFSET_FILL);
+            glDisable(GL_POLYGON_OFFSET_LINE);
             glPolygonOffset(0.0f, 0.0f);
         }
     }

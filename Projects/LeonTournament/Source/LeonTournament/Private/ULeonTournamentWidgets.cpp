@@ -340,7 +340,7 @@ namespace Leon {
         if (HintText) {
             if (bLab) {
                 HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
-                HintText->SetText("V = Camera   LMB = Fire   R = Reload   Shift+F1 = Debug");
+                HintText->SetText("V = Camera   LMB = Fire   R = Reload   Shift+F1 = Colliders/Traces");
             } else {
                 HintText->SetVisibility(ESlateVisibility::Collapsed);
             }
@@ -348,8 +348,7 @@ namespace Leon {
         auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer);
         if (CrosshairText) {
             const bool bHit = spc && spc->IsHitMarkerActive();
-            const bool bShow = !bLab || (ch && !ch->IsThirdPerson());
-            CrosshairText->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+            CrosshairText->SetVisibility(ESlateVisibility::HitTestInvisible);
             CrosshairText->SetText(bHit ? "X" : "+");
             CrosshairText->SetFontScale(bHit ? 2.2f : 1.8f);
             CrosshairText->SetColor(bHit ? glm::vec4(1.0f, 0.85f, 0.2f, 1.0f) : glm::vec4(0.95f, 0.97f, 1.0f, 0.95f));

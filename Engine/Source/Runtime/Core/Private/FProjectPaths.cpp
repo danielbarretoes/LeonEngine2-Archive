@@ -91,7 +91,8 @@ namespace Leon {
 
             if (FAssetPath::GetExtension(subPath).empty()) {
                 const std::vector<std::string> candidateExts = {".lmap", ".lmat", ".lmesh", ".ltex",
-                                                                ".lhdr", ".lmi",  ".png",   ".glsl"};
+                                                                ".lhdr", ".lmi",  ".png",   ".glsl",
+                                                                ".wav",  ".ogg"};
                 for (const auto& ext : candidateExts) {
                     std::string testPath = directCombined + ext;
                     if (std::filesystem::exists(testPath)) {

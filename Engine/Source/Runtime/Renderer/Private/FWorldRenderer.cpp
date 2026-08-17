@@ -16,7 +16,11 @@
 #include "Renderer/FParticleRenderer.hpp"
 #include "RHI/FVertexArray.hpp"
 #include "Renderer/FRenderingMath.hpp"
+#include "Renderer/FDebugRenderer.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/FGameplayDebugger.hpp"
+#include "Physics/FCollisionQuery.hpp"
+#include "AI/UNavigationSystem.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -89,7 +93,7 @@ namespace Leon {
             return false;
         }
 
-        bool IsSkeletalMeshCulled(const FTransformComponent& InTransform, const FSkeletalMeshComponent& InMesh,
+        bool IsSkeletalMeshCulled(const FTransformComponent& InTransform, const FSkinnedMeshRenderState& InMesh,
                                   const FFrustumPlanes& InFrustum) {
             if (!InMesh.bVisible)
                 return true;
@@ -110,7 +114,7 @@ namespace Leon {
             return false;
         }
 
-        glm::mat4 SkeletalModelMatrix(const FTransformComponent& InTransform, const FSkeletalMeshComponent& InMesh,
+        glm::mat4 SkeletalModelMatrix(const FTransformComponent& InTransform, const FSkinnedMeshRenderState& InMesh,
                                       const glm::mat4& InSubmeshLocal) {
             glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
                                  glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
@@ -478,6 +482,25 @@ namespace Leon {
 
         FRenderCommand::SetWireframe(false);
 
+        // Gameplay debug must run on the HDR target while scene depth is still valid
+        // (post-process blits color only — occluding traces/colliders requires this pass).
+        const bool bGameplayDebug = FGameplayDebugger::IsEnabled();
+        if (bGameplayDebug) {
+            FRenderCommand::SetDepthTesting(true);
+            FRenderCommand::SetDepthMask(false);
+            FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
+            FDebugRenderer::BeginScene(InCamera);
+            if (FGameplayDebugger::ShowPhysics())
+                DrawDebugWorldColliders(*World);
+            if (FGameplayDebugger::ShowAI() && World->GetNavigationSystem() && World->GetNavigationSystem()->IsBuilt())
+                World->GetNavigationSystem()->DrawDebug();
+            FDebugRenderer::DrawQueuedTraces();
+            FDebugRenderer::EndScene(true);
+            FDebugRenderer::ClearQueuedTraces();
+            FRenderCommand::SetDepthMask(true);
+            FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        }
+
         if (HDRSceneFramebuffer)
             HDRSceneFramebuffer->Unbind();
 
@@ -532,7 +555,8 @@ namespace Leon {
             CascadeShadowFramebuffer->AttachDepthTextureLayer(cascade);
             FRenderCommand::Clear();
 
-            glm::mat4 subProj = glm::perspective(glm::radians(fov), aspect, splitPlane[cascade], splitPlane[cascade + 1]);
+            glm::mat4 subProj =
+                glm::perspective(glm::radians(fov), aspect, splitPlane[cascade], splitPlane[cascade + 1]);
             auto corners = ShadowMath::GetFrustumCornersWorldSpace(subProj, InCamera.GetViewMatrix());
 
             float worldUnitsPerTexel = 0.01f;
@@ -607,9 +631,9 @@ namespace Leon {
             if (ShadowDepthSkinnedShader) {
                 ShadowDepthSkinnedShader->Bind();
                 ShadowDepthSkinnedShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
-                auto skelView = World->GetRegistry().view<FTransformComponent, FSkeletalMeshComponent>();
+                auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
                 for (auto entity : skelView) {
-                    auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+                    auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
                     if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows ||
                         !skel.bVisible)
                         continue;
@@ -696,9 +720,9 @@ namespace Leon {
         if (ShadowDepthSkinnedShader) {
             ShadowDepthSkinnedShader->Bind();
             ShadowDepthSkinnedShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));
-            auto skelView = World->GetRegistry().view<FTransformComponent, FSkeletalMeshComponent>();
+            auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
             for (auto entity : skelView) {
-                auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+                auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
                 if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows || !skel.bVisible)
                     continue;
                 UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
@@ -940,9 +964,9 @@ namespace Leon {
             }
         }
 
-        auto skelView = reg.view<FTransformComponent, FSkeletalMeshComponent>();
+        auto skelView = reg.view<FTransformComponent, FSkinnedMeshRenderState>();
         for (auto entity : skelView) {
-            auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+            auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
             if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bVisibleInReflection)
                 continue;
             if (IsSkeletalMeshCulled(transform, skel, reflectionFrustum))
@@ -1193,9 +1217,9 @@ namespace Leon {
             }
         }
 
-        auto skelGeomView = reg.view<FTransformComponent, FSkeletalMeshComponent>();
+        auto skelGeomView = reg.view<FTransformComponent, FSkinnedMeshRenderState>();
         for (auto entity : skelGeomView) {
-            auto [transform, skel] = skelGeomView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+            auto [transform, skel] = skelGeomView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
             if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray())
                 continue;
             if (!skel.bVisible)

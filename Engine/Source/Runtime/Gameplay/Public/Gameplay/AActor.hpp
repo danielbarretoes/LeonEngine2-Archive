@@ -18,12 +18,17 @@
 namespace Leon {
 
     class UWorld;
+    class USceneComponent;
 
     /**
      * @brief Base class for any object placed or spawned within a UWorld.
      *
      * Lifecycle: PostInitializeComponents -> BeginPlay -> Tick -> EndPlay -> Destroy
      * Owns optional lite UActorComponent list (logic). EnTT POD comps via AddComponent<T>().
+     *
+     * Transform contract (Unreal-lite): FTransformComponent is the actor world pose and the
+     * RootComponent's world pose. Root relative transform stays identity. Get/SetActorLocation
+     * read/write EnTT only; attached USceneComponents resolve through the attach hierarchy.
      */
     class AActor : public UObject {
     public:
@@ -99,6 +104,10 @@ namespace Leon {
 
         FTransformComponent& GetTransform();
         const FTransformComponent& GetTransform() const;
+
+        /** Unreal RootComponent — typically CapsuleComponent on ACharacter. */
+        void SetRootComponent(USceneComponent* NewRoot);
+        USceneComponent* GetRootComponent() const { return RootComponent; }
 
         glm::vec3 GetActorLocation() const;
         void SetActorLocation(const glm::vec3& InLocation);
@@ -179,6 +188,7 @@ namespace Leon {
         bool bPendingKill = false;
         ENetRole LocalRole = ENetRole::Authority;
         std::vector<TRef<UActorComponent>> ActorComponents;
+        USceneComponent* RootComponent = nullptr;
 
         friend class UWorld;
         friend class FMapSerializer;

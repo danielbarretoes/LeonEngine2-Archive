@@ -13,7 +13,7 @@
 
 namespace Leon {
 
-    USkeletalMeshComponent::USkeletalMeshComponent(const std::string& InName) : UActorComponent(InName) {}
+    USkeletalMeshComponent::USkeletalMeshComponent(const std::string& InName) : USceneComponent(InName) {}
 
     void USkeletalMeshComponent::BeginPlay() {
         EnsureRenderComponent();
@@ -34,8 +34,8 @@ namespace Leon {
         AActor* owner = GetOwner();
         if (!owner)
             return;
-        if (!owner->HasComponent<FSkeletalMeshComponent>())
-            owner->AddComponent<FSkeletalMeshComponent>();
+        if (!owner->HasComponent<FSkinnedMeshRenderState>())
+            owner->AddComponent<FSkinnedMeshRenderState>();
     }
 
     void USkeletalMeshComponent::SetSkeletalMesh(const TRef<USkeletalMesh>& InMesh) {
@@ -112,7 +112,7 @@ namespace Leon {
         if (!owner)
             return;
         EnsureRenderComponent();
-        auto& render = owner->GetComponent<FSkeletalMeshComponent>();
+        auto& render = owner->GetComponent<FSkinnedMeshRenderState>();
         render.SkeletalMesh = SkeletalMesh;
         render.AssetPath = MeshAssetPath;
         render.BonePalette = BonePalette;

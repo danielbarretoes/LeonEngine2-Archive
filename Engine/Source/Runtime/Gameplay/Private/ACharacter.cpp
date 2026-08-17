@@ -27,10 +27,17 @@ namespace Leon {
     }
 
     void ACharacter::GetCapsuleAABB(glm::vec3& OutMin, glm::vec3& OutMax) const {
+        // Actor location is CapsuleComponent (RootComponent) center — Unreal convention.
         const glm::vec3 pos = GetActorLocation();
         const float r = CapsuleRadius;
-        OutMin = glm::vec3(pos.x - r, pos.y - EyeHeight, pos.z - r);
-        OutMax = glm::vec3(pos.x + r, pos.y + 0.2f, pos.z + r);
+        const float halfH = GetCapsuleHalfHeight();
+        OutMin = glm::vec3(pos.x - r, pos.y - halfH, pos.z - r);
+        OutMax = glm::vec3(pos.x + r, pos.y + halfH, pos.z + r);
+    }
+
+    glm::vec3 ACharacter::GetPawnViewLocation() const {
+        const float halfH = GetCapsuleHalfHeight();
+        return GetActorLocation() + glm::vec3(0.0f, EyeHeight - halfH, 0.0f);
     }
 
     glm::vec3 ACharacter::MoveBlocked(const glm::vec3& InWorldDelta) {
@@ -69,12 +76,13 @@ namespace Leon {
     void ACharacter::SnapToFloor() {
         auto& transform = GetTransform();
         float standY = FloorZ;
+        const float halfH = GetCapsuleHalfHeight();
         if (World) {
             glm::vec3 feetMin, feetMax;
             GetCapsuleAABB(feetMin, feetMax);
             glm::vec3 probe = transform.Translation;
-            probe.y = (FloorZ + transform.Translation.y - EyeHeight) * 0.5f;
-            glm::vec3 half(CapsuleRadius, std::max(0.2f, (transform.Translation.y - EyeHeight - FloorZ) * 0.5f + 0.1f),
+            probe.y = (FloorZ + transform.Translation.y - halfH) * 0.5f;
+            glm::vec3 half(CapsuleRadius, std::max(0.2f, (transform.Translation.y - halfH - FloorZ) * 0.5f + 0.1f),
                            CapsuleRadius);
             std::vector<FHitResult> hits;
             if (World->OverlapMultiByChannel(probe, half, ECollisionChannel::WorldStatic, this, hits) > 0) {
@@ -105,7 +113,7 @@ namespace Leon {
                 }
             }
         }
-        transform.Translation.y = standY + EyeHeight;
+        transform.Translation.y = standY + halfH;
         if (CharacterMovement && CharacterMovement->IsMovingOnGround()) {
             auto v = CharacterMovement->GetVelocity();
             v.y = 0.0f;
@@ -114,14 +122,19 @@ namespace Leon {
     }
 
     void ACharacter::PostInitializeComponents() {
-        const float halfHeight = GetCapsuleHeight() * 0.5f;
+        const float halfHeight = GetCapsuleHalfHeight();
+        // Flow: Unreal ACharacter defaults
+        // 1. CapsuleComponent = RootComponent (collision + movement origin)
+        // 2. Mesh SetupAttachment(Capsule) — visual only, offset to feet
+        // 3. CharacterMovement drives the capsule/actor transform
         if (!CapsuleComponent) {
             CapsuleComponent = AddActorComponent<UCapsuleComponent>("CapsuleComponent");
             CapsuleComponent->SetCapsuleSize(CapsuleRadius, halfHeight);
-            CapsuleComponent->SetRelativeLocation(glm::vec3(0.0f, -EyeHeight + halfHeight, 0.0f));
             CapsuleComponent->SetCollisionObjectType(ECollisionChannel::Pawn);
             CapsuleComponent->SetCollisionProfileName("Pawn");
         }
+        SetRootComponent(CapsuleComponent.get());
+
         if (!CharacterMovement)
             CharacterMovement = AddActorComponent<UCharacterMovementComponent>("CharacterMovement");
         if (CharacterMovement)
@@ -135,12 +148,13 @@ namespace Leon {
             SpringArm = AddActorComponent<USpringArmComponent>("SpringArm");
         if (!Mesh) {
             Mesh = AddActorComponent<USkeletalMeshComponent>("CharacterMesh");
-            Mesh->SetRelativeLocation(glm::vec3(0.0f, -EyeHeight, 0.0f));
+            Mesh->SetupAttachment(CapsuleComponent.get());
+            Mesh->SetRelativeLocation(glm::vec3(0.0f, -halfHeight, 0.0f));
         }
-        if (!HasComponent<FSkeletalMeshComponent>())
-            AddComponent<FSkeletalMeshComponent>();
+        if (!HasComponent<FSkinnedMeshRenderState>())
+            AddComponent<FSkinnedMeshRenderState>();
         auto& t = GetTransform();
-        t.Translation.y = FloorZ + EyeHeight;
+        t.Translation.y = FloorZ + halfHeight;
         LastLocation = t.Translation;
         bHasLastLocation = true;
     }
@@ -310,15 +324,14 @@ namespace Leon {
     }
 
     void ACharacter::UpdateCameraFromView() {
-        auto& transform = GetTransform();
         glm::vec3 look = GetControlLookDirection();
         glm::vec3 right, up;
         StableViewBasis(look, right, up);
 
-        glm::vec3 camPos = transform.Translation;
+        glm::vec3 camPos = GetPawnViewLocation();
         if (bThirdPerson && SpringArm) {
             SpringArm->bDoCollisionTest = true;
-            SpringArm->UpdateDesiredArmLocation(transform.Translation, look, right, up);
+            SpringArm->UpdateDesiredArmLocation(GetPawnViewLocation(), look, right, up);
             camPos = SpringArm->GetTargetLocation();
         }
 
@@ -426,12 +439,6 @@ namespace Leon {
         FDebugRenderer::DrawDebugLine(origin + glm::vec3(0, 0.3f, 0), origin + glm::vec3(0, 0.3f, 0) + camFwd * 1.6f,
                                       glm::vec4(0.3f, 0.7f, 1.0f, 1.0f));
 
-        if (FGameplayDebugger::ShowPhysics() && CapsuleComponent) {
-            glm::vec3 minB, maxB;
-            GetCapsuleAABB(minB, maxB);
-            FDebugRenderer::DrawDebugCapsule((minB + maxB) * 0.5f, CapsuleRadius, (maxB.y - minB.y) * 0.5f,
-                                             glm::vec4(0.2f, 0.9f, 1.0f, 1.0f));
-        }
         char line[160];
         std::snprintf(line, sizeof(line),
                       "Authority:%s Local:%s Mode:%s V=%.1f Falling:%s Ground:%s pitch=%.1f yaw=%.1f actorP=%.1f",
