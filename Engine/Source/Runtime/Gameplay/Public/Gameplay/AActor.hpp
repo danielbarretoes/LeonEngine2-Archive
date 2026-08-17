@@ -10,6 +10,7 @@
 #include "Engine/ENetTypes.hpp"
 
 #include <entt/entt.hpp>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -64,6 +65,30 @@ namespace Leon {
 
         ENetRole GetLocalRole() const { return LocalRole; }
         void SetLocalRole(ENetRole InRole) { LocalRole = InRole; }
+        bool HasAuthority() const { return LocalRole == ENetRole::Authority; }
+
+        /**
+         * @brief Optional extra bytes appended to net snapshots. Override in subclasses.
+         */
+        virtual void SerializeReplication(std::vector<uint8_t>& OutBytes) const { (void)OutBytes; }
+        virtual void DeserializeReplication(const uint8_t* InData, size_t InSize) {
+            (void)InData;
+            (void)InSize;
+        }
+
+        virtual void SerializeControlInput(std::vector<uint8_t>& OutBytes) const { (void)OutBytes; }
+        virtual void ApplyControlInput(const uint8_t* InData, size_t InSize) {
+            (void)InData;
+            (void)InSize;
+        }
+
+        template <typename T> TRef<T> FindActorComponent() const {
+            for (const auto& comp : ActorComponents) {
+                if (auto typed = std::dynamic_pointer_cast<T>(comp))
+                    return typed;
+            }
+            return nullptr;
+        }
 
         FTransformComponent& GetTransform();
         const FTransformComponent& GetTransform() const;
@@ -76,6 +101,11 @@ namespace Leon {
 
         glm::vec3 GetActorScale() const;
         void SetActorScale(const glm::vec3& InScale);
+
+        /** Engine local -Z mapped through the actor transform. */
+        glm::vec3 GetActorForwardVector() const;
+        glm::vec3 GetActorRightVector() const;
+        glm::vec3 GetActorUpVector() const;
 
         template <typename T, typename... TArgs> TRef<T> AddActorComponent(TArgs&&... InArgs) {
             auto comp = std::make_shared<T>(std::forward<TArgs>(InArgs)...);
@@ -114,8 +144,7 @@ namespace Leon {
         }
 
         template <typename T> bool HasComponent() const {
-            return World != nullptr && EntityHandle != entt::null &&
-                   World->GetRegistry().all_of<T>(EntityHandle);
+            return World != nullptr && EntityHandle != entt::null && World->GetRegistry().all_of<T>(EntityHandle);
         }
 
         template <typename T> void RemoveComponent() {

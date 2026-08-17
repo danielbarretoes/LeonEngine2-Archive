@@ -13,6 +13,11 @@ namespace Leon {
     TRef<FVertexBuffer> FDebugRenderer::VertexBuffer = nullptr;
     std::vector<FDebugRenderer::FDebugVertex> FDebugRenderer::LineVertices;
     glm::mat4 FDebugRenderer::ViewProjection = glm::mat4(1.0f);
+    bool FDebugRenderer::bTraceCapture = false;
+    std::vector<FDebugRenderer::FQueuedTrace> FDebugRenderer::QueuedTraces;
+    std::vector<std::pair<glm::vec3, glm::vec3>> FDebugRenderer::QueuedExtraLines;
+    std::vector<glm::vec4> FDebugRenderer::QueuedExtraColors;
+    FDebugRenderer::FLastTrace FDebugRenderer::LastTrace{};
 
     void FDebugRenderer::Init() {
         LE_CORE_INFO("Initializing DebugRenderer Subsystem...");
@@ -59,7 +64,7 @@ namespace Leon {
         Shader->SetMat4("u_Model", glm::value_ptr(glm::mat4(1.0f)));
 
         VertexBuffer->SetData(LineVertices.data(),
-                                static_cast<unsigned int>(LineVertices.size() * sizeof(FDebugVertex)));
+                              static_cast<unsigned int>(LineVertices.size() * sizeof(FDebugVertex)));
 
         VertexArray->Bind();
         FRenderCommand::SetLineWidth(2.0f);
@@ -78,6 +83,46 @@ namespace Leon {
 
         LineVertices.push_back({InP0, InColor});
         LineVertices.push_back({InP1, InColor});
+    }
+
+    void FDebugRenderer::DrawDebugBox(const glm::vec3& InCenter, const glm::vec3& InExtent, const glm::vec4& InColor) {
+        glm::vec3 minB = InCenter - InExtent;
+        glm::vec3 maxB = InCenter + InExtent;
+        glm::vec3 c[8] = {
+            {minB.x, minB.y, minB.z}, {maxB.x, minB.y, minB.z}, {maxB.x, maxB.y, minB.z}, {minB.x, maxB.y, minB.z},
+            {minB.x, minB.y, maxB.z}, {maxB.x, minB.y, maxB.z}, {maxB.x, maxB.y, maxB.z}, {minB.x, maxB.y, maxB.z},
+        };
+        DrawLine(c[0], c[1], InColor);
+        DrawLine(c[1], c[2], InColor);
+        DrawLine(c[2], c[3], InColor);
+        DrawLine(c[3], c[0], InColor);
+        DrawLine(c[4], c[5], InColor);
+        DrawLine(c[5], c[6], InColor);
+        DrawLine(c[6], c[7], InColor);
+        DrawLine(c[7], c[4], InColor);
+        DrawLine(c[0], c[4], InColor);
+        DrawLine(c[1], c[5], InColor);
+        DrawLine(c[2], c[6], InColor);
+        DrawLine(c[3], c[7], InColor);
+    }
+
+    void FDebugRenderer::DrawDebugCapsule(const glm::vec3& InCenter, float InRadius, float InHalfHeight,
+                                          const glm::vec4& InColor) {
+        const float cyl = std::max(InHalfHeight - InRadius, 0.0f);
+        glm::vec3 top = InCenter + glm::vec3(0.0f, cyl, 0.0f);
+        glm::vec3 bot = InCenter + glm::vec3(0.0f, -cyl, 0.0f);
+        DrawWireSphere(top, InRadius, InColor, 16);
+        DrawWireSphere(bot, InRadius, InColor, 16);
+        DrawLine(top + glm::vec3(InRadius, 0, 0), bot + glm::vec3(InRadius, 0, 0), InColor);
+        DrawLine(top + glm::vec3(-InRadius, 0, 0), bot + glm::vec3(-InRadius, 0, 0), InColor);
+        DrawLine(top + glm::vec3(0, 0, InRadius), bot + glm::vec3(0, 0, InRadius), InColor);
+        DrawLine(top + glm::vec3(0, 0, -InRadius), bot + glm::vec3(0, 0, -InRadius), InColor);
+    }
+
+    void FDebugRenderer::DrawDebugPoint(const glm::vec3& InPoint, float InSize, const glm::vec4& InColor) {
+        DrawLine(InPoint + glm::vec3(InSize, 0, 0), InPoint - glm::vec3(InSize, 0, 0), InColor);
+        DrawLine(InPoint + glm::vec3(0, InSize, 0), InPoint - glm::vec3(0, InSize, 0), InColor);
+        DrawLine(InPoint + glm::vec3(0, 0, InSize), InPoint - glm::vec3(0, 0, InSize), InColor);
     }
 
     void FDebugRenderer::DrawWireSphere(const glm::vec3& InCenter, float InRadius, const glm::vec4& InColor,
@@ -212,6 +257,55 @@ namespace Leon {
                 DrawArrow(rayStart, rayEnd, sunColor, 0.3f);
             }
         }
+    }
+
+    void FDebugRenderer::RecordLineTrace(const glm::vec3& InStart, const glm::vec3& InEnd, bool bHit,
+                                         const glm::vec3& InHitLocation, const glm::vec3& InHitNormal,
+                                         uint8_t InChannel) {
+        LastTrace.Start = InStart;
+        LastTrace.End = InEnd;
+        LastTrace.Hit = InHitLocation;
+        LastTrace.Normal = InHitNormal;
+        LastTrace.Channel = InChannel;
+        LastTrace.bHit = bHit;
+        LastTrace.bValid = true;
+        if (!bTraceCapture)
+            return;
+        if (QueuedTraces.size() > 256)
+            return;
+        QueuedTraces.push_back({InStart, InEnd, InHitLocation, InHitNormal, InChannel, bHit});
+    }
+
+    void FDebugRenderer::QueueLine(const glm::vec3& InP0, const glm::vec3& InP1, const glm::vec4& InColor) {
+        if (!bTraceCapture)
+            return;
+        if (QueuedExtraLines.size() > 512)
+            return;
+        QueuedExtraLines.push_back({InP0, InP1});
+        QueuedExtraColors.push_back(InColor);
+    }
+
+    void FDebugRenderer::DrawQueuedTraces() {
+        const glm::vec4 missColor{0.2f, 0.85f, 1.0f, 0.9f};
+        const glm::vec4 hitColor{1.0f, 0.25f, 0.15f, 0.95f};
+        for (const auto& t : QueuedTraces) {
+            const glm::vec4 color = t.bHit ? hitColor : missColor;
+            DrawLine(t.Start, t.bHit ? t.Hit : t.End, color);
+            if (t.bHit) {
+                DrawWireSphere(t.Hit, 0.08f, hitColor, 12);
+                DrawLine(t.Hit, t.Hit + t.Normal * 0.35f, glm::vec4(1.0f, 1.0f, 0.2f, 1.0f));
+            }
+        }
+        for (size_t i = 0; i < QueuedExtraLines.size(); ++i) {
+            const glm::vec4 c = i < QueuedExtraColors.size() ? QueuedExtraColors[i] : glm::vec4(1.0f);
+            DrawLine(QueuedExtraLines[i].first, QueuedExtraLines[i].second, c);
+        }
+    }
+
+    void FDebugRenderer::ClearQueuedTraces() {
+        QueuedTraces.clear();
+        QueuedExtraLines.clear();
+        QueuedExtraColors.clear();
     }
 
 } // namespace Leon

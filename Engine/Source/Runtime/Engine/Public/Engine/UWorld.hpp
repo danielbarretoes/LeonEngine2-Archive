@@ -7,6 +7,8 @@
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/ENetTypes.hpp"
+#include "Physics/FHitResult.hpp"
+#include "Physics/IPhysicsScene.hpp"
 
 #include <entt/entt.hpp>
 #include <memory>
@@ -19,8 +21,10 @@ namespace Leon {
     class AGameModeBase;
     class AGameStateBase;
     class APlayerController;
+    class AAIController;
     class FWorldRenderer;
     class UNetDriver;
+    class UNavigationSystem;
 
     /**
      * @brief Unreal Engine aligned UWorld runtime container representing loaded map instances.
@@ -93,6 +97,15 @@ namespace Leon {
         APlayerController* GetFirstPlayerController() const;
         const std::vector<APlayerController*>& GetPlayerControllers() const { return PlayerControllers; }
 
+        void AddAIController(AAIController* InAI);
+        const std::vector<AAIController*>& GetAIControllers() const { return AIControllers; }
+
+        IPhysicsScene* GetPhysicsScene() const { return PhysicsScene.get(); }
+        UNavigationSystem* GetNavigationSystem();
+        void RebuildNavigation();
+
+        using FHitResult = Leon::FHitResult;
+
         ENetMode GetNetMode() const { return NetMode; }
         void SetNetMode(ENetMode InMode) { NetMode = InMode; }
 
@@ -109,18 +122,26 @@ namespace Leon {
         uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
         bool GetPendingPlanarReflectionEnabled() const { return bPendingPlanarReflection; }
 
-        struct FHitResult {
-            bool bBlockingHit = false;
-            AActor* Actor = nullptr;
-            glm::vec3 Location{0.0f};
-            glm::vec3 Normal{0.0f, 1.0f, 0.0f};
-            float Distance = 0.0f;
-        };
-
         bool OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,
                          FHitResult& OutHit) const;
         bool SweepAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, const glm::vec3& InDelta,
                        AActor* InIgnore, FHitResult& OutHit) const;
+        bool LineTrace(const glm::vec3& InStart, const glm::vec3& InEnd, AActor* InIgnore, FHitResult& OutHit) const;
+        bool LineTraceByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
+                                AActor* InIgnore, FHitResult& OutHit) const;
+        bool LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
+                                      AActor* InIgnore, FHitResult& OutHit) const;
+        int32_t LineTraceMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
+                                        AActor* InIgnore, std::vector<FHitResult>& OutHits) const;
+        bool SweepSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                  ECollisionChannel InChannel, AActor* InIgnore, FHitResult& OutHit) const;
+        int32_t SweepMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                    ECollisionChannel InChannel, AActor* InIgnore,
+                                    std::vector<FHitResult>& OutHits) const;
+        bool OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
+                                     AActor* InIgnore) const;
+        int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
+                                      AActor* InIgnore, std::vector<FHitResult>& OutHits) const;
 
     private:
         void DestroyActorImmediate(AActor* InActor);
@@ -130,12 +151,15 @@ namespace Leon {
         entt::registry Registry;
         std::vector<TRef<AActor>> Actors;
         std::vector<APlayerController*> PlayerControllers;
+        std::vector<AAIController*> AIControllers;
         std::vector<AActor*> PendingDestroy;
 
         AGameModeBase* GameMode = nullptr;
         AGameStateBase* GameState = nullptr;
         ENetMode NetMode = ENetMode::Standalone;
         UNetDriver* NetDriver = nullptr;
+        TRef<IPhysicsScene> PhysicsScene;
+        TScope<UNavigationSystem> NavigationSystem;
 
         TScope<FWorldRenderer> Renderer;
         bool bBegunPlay = false;

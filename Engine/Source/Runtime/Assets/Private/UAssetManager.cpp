@@ -1,5 +1,6 @@
 #include "Assets/UAssetManager.hpp"
 #include "Assets/FAssetPath.hpp"
+#include "Assets/UBlendSpace.hpp"
 #include "Core/FLog.hpp"
 #include "Engine/FMaterialSerializer.hpp"
 #include "RHI/IRenderDriver.hpp"
@@ -14,6 +15,10 @@ namespace Leon {
     std::string UAssetManager::ContentRoot = "";
     std::unordered_map<std::string, TRef<FTexture2D>> UAssetManager::TextureCache;
     std::unordered_map<std::string, TRef<UStaticMesh>> UAssetManager::StaticMeshCache;
+    std::unordered_map<std::string, TRef<USkeleton>> UAssetManager::SkeletonCache;
+    std::unordered_map<std::string, TRef<USkeletalMesh>> UAssetManager::SkeletalMeshCache;
+    std::unordered_map<std::string, TRef<UAnimSequence>> UAssetManager::AnimSequenceCache;
+    std::unordered_map<std::string, TRef<UBlendSpace>> UAssetManager::BlendSpaceCache;
     std::unordered_map<std::string, TRef<FLightmapAsset>> UAssetManager::LightmapCache;
     std::unordered_map<std::string, TRef<FShader>> UAssetManager::ShaderCache;
     std::unordered_map<std::string, TRef<FMaterial>> UAssetManager::MaterialCache;
@@ -187,6 +192,121 @@ namespace Leon {
 
     bool UAssetManager::HasStaticMesh(const std::string& InPath) {
         return StaticMeshCache.find(InPath) != StaticMeshCache.end();
+    }
+
+    TRef<USkeleton> UAssetManager::GetSkeleton(const std::string& InPath) {
+        if (InPath.empty())
+            return nullptr;
+        std::string resolved = ResolveVirtualPath(InPath);
+        auto it = SkeletonCache.find(resolved);
+        if (it != SkeletonCache.end() && it->second)
+            return it->second;
+        auto skeleton = USkeleton::Create(FAssetPath::GetFileNameWithoutExtension(InPath));
+        if (skeleton->LoadFromFile(resolved)) {
+            SkeletonCache[resolved] = skeleton;
+            if (resolved != InPath)
+                SkeletonCache[InPath] = skeleton;
+            return skeleton;
+        }
+        LE_CORE_WARN("UAssetManager: Failed to load skeleton from \"{0}\"", InPath);
+        return nullptr;
+    }
+
+    void UAssetManager::AddSkeleton(const std::string& InName, const TRef<USkeleton>& InSkeleton) {
+        if (!InName.empty() && InSkeleton)
+            SkeletonCache[InName] = InSkeleton;
+    }
+
+    bool UAssetManager::HasSkeleton(const std::string& InPath) {
+        return SkeletonCache.find(InPath) != SkeletonCache.end();
+    }
+
+    TRef<USkeletalMesh> UAssetManager::GetSkeletalMesh(const std::string& InPath) {
+        if (InPath.empty())
+            return nullptr;
+        std::string resolved = ResolveVirtualPath(InPath);
+        auto it = SkeletalMeshCache.find(resolved);
+        if (it != SkeletalMeshCache.end() && it->second)
+            return it->second;
+        auto mesh = USkeletalMesh::Create(FAssetPath::GetFileNameWithoutExtension(InPath));
+        if (mesh->LoadFromFile(resolved)) {
+            if (FRenderDriverRegistry::GetActiveDriver())
+                mesh->CreateGPUResources();
+            SkeletalMeshCache[resolved] = mesh;
+            if (resolved != InPath)
+                SkeletalMeshCache[InPath] = mesh;
+            return mesh;
+        }
+        LE_CORE_WARN("UAssetManager: Failed to load skeletal mesh from \"{0}\"", InPath);
+        return nullptr;
+    }
+
+    void UAssetManager::AddSkeletalMesh(const std::string& InName, const TRef<USkeletalMesh>& InMesh) {
+        if (!InName.empty() && InMesh)
+            SkeletalMeshCache[InName] = InMesh;
+    }
+
+    bool UAssetManager::HasSkeletalMesh(const std::string& InPath) {
+        return SkeletalMeshCache.find(InPath) != SkeletalMeshCache.end();
+    }
+
+    TRef<UAnimSequence> UAssetManager::GetAnimSequence(const std::string& InPath) {
+        if (InPath.empty())
+            return nullptr;
+        std::string resolved = ResolveVirtualPath(InPath);
+        auto it = AnimSequenceCache.find(resolved);
+        if (it != AnimSequenceCache.end() && it->second)
+            return it->second;
+        auto anim = UAnimSequence::Create(FAssetPath::GetFileNameWithoutExtension(InPath));
+        if (anim->LoadFromFile(resolved)) {
+            const std::string virt = FProjectPaths::MakeVirtualPath(resolved);
+            anim->SetAssetPath(!virt.empty() ? virt : InPath);
+            AnimSequenceCache[resolved] = anim;
+            if (resolved != InPath)
+                AnimSequenceCache[InPath] = anim;
+            if (!virt.empty() && virt != resolved && virt != InPath)
+                AnimSequenceCache[virt] = anim;
+            return anim;
+        }
+        LE_CORE_WARN("UAssetManager: Failed to load animation from \"{0}\"", InPath);
+        return nullptr;
+    }
+
+    void UAssetManager::AddAnimSequence(const std::string& InName, const TRef<UAnimSequence>& InAnim) {
+        if (!InName.empty() && InAnim)
+            AnimSequenceCache[InName] = InAnim;
+    }
+
+    bool UAssetManager::HasAnimSequence(const std::string& InPath) {
+        return AnimSequenceCache.find(InPath) != AnimSequenceCache.end();
+    }
+
+    TRef<UBlendSpace> UAssetManager::GetBlendSpace(const std::string& InPath) {
+        if (InPath.empty())
+            return nullptr;
+        std::string resolved = ResolveVirtualPath(InPath);
+        auto it = BlendSpaceCache.find(resolved);
+        if (it != BlendSpaceCache.end() && it->second)
+            return it->second;
+        auto blend = UBlendSpace::Create(FAssetPath::GetFileNameWithoutExtension(InPath));
+        if (blend->LoadFromFile(resolved)) {
+            blend->ResolveSequences();
+            BlendSpaceCache[resolved] = blend;
+            if (resolved != InPath)
+                BlendSpaceCache[InPath] = blend;
+            return blend;
+        }
+        LE_CORE_WARN("UAssetManager: Failed to load blend space from \"{0}\"", InPath);
+        return nullptr;
+    }
+
+    void UAssetManager::AddBlendSpace(const std::string& InName, const TRef<UBlendSpace>& InBlend) {
+        if (!InName.empty() && InBlend)
+            BlendSpaceCache[InName] = InBlend;
+    }
+
+    bool UAssetManager::HasBlendSpace(const std::string& InPath) {
+        return BlendSpaceCache.find(InPath) != BlendSpaceCache.end();
     }
 
     TRef<FLightmapAsset> UAssetManager::GetLightmap(const std::string& InPath) {
@@ -382,6 +502,10 @@ namespace Leon {
     void UAssetManager::Clear() {
         TextureCache.clear();
         StaticMeshCache.clear();
+        SkeletonCache.clear();
+        SkeletalMeshCache.clear();
+        AnimSequenceCache.clear();
+        BlendSpaceCache.clear();
         LightmapCache.clear();
         ShaderCache.clear();
         MaterialCache.clear();
@@ -403,6 +527,10 @@ namespace Leon {
         };
         dropIfOnlyCached(TextureCache);
         dropIfOnlyCached(StaticMeshCache);
+        dropIfOnlyCached(SkeletonCache);
+        dropIfOnlyCached(SkeletalMeshCache);
+        dropIfOnlyCached(AnimSequenceCache);
+        dropIfOnlyCached(BlendSpaceCache);
         dropIfOnlyCached(LightmapCache);
         dropIfOnlyCached(MaterialCache);
         dropIfOnlyCached(MaterialInstanceCache);

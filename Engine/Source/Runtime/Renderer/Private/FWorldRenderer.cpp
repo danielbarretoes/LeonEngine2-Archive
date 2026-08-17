@@ -1,6 +1,8 @@
 #include "Renderer/FWorldRenderer.hpp"
 #include "Core/FLog.hpp"
 #include "Assets/UAssetManager.hpp"
+#include "Assets/FAnimTypes.hpp"
+#include "Assets/USkeletalMesh.hpp"
 #include "Assets/FLightmapAsset.hpp"
 #include "RHI/FBuffer.hpp"
 #include "RHI/FFramebuffer.hpp"
@@ -9,6 +11,7 @@
 #include "Renderer/FMeshPrimitives.hpp"
 #include "RHI/FRenderCommand.hpp"
 #include "RHI/FRenderer.hpp"
+#include "Core/FFrameProfiler.hpp"
 #include "Renderer/FTextRenderer.hpp"
 #include "RHI/FVertexArray.hpp"
 #include "Renderer/FRenderingMath.hpp"
@@ -18,8 +21,11 @@
 
 #include <algorithm>
 #include <cmath>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <limits>
 #include <vector>
 
@@ -64,6 +70,7 @@ namespace Leon {
             glm::vec2 LightmapScale{1.0f};
             glm::vec2 LightmapBias{0.0f};
             TRef<FTexture2D> Lightmap;
+            const std::vector<glm::mat4>* BonePalette = nullptr;
         };
 
         bool IsStaticMeshCulled(const FTransformComponent& InTransform, const UStaticMeshComponent& InMesh,
@@ -81,6 +88,42 @@ namespace Leon {
             return false;
         }
 
+        bool IsSkeletalMeshCulled(const FTransformComponent& InTransform, const FSkeletalMeshComponent& InMesh,
+                                  const FFrustumPlanes& InFrustum) {
+            if (!InMesh.SkeletalMesh)
+                return false;
+            glm::mat4 model = InTransform.GetTransform();
+            glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
+                                 glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
+                                 glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
+            glm::vec3 wMin, wMax;
+            TransformAABB(InMesh.SkeletalMesh->GetBoundsMin(), InMesh.SkeletalMesh->GetBoundsMax(), model * relative,
+                          wMin, wMax);
+            if (!AABBIntersectsFrustum(wMin, wMax, InFrustum)) {
+                FRenderer::GetStatsMutable().MeshesCulled++;
+                return true;
+            }
+            FRenderer::GetStatsMutable().MeshesDrawn++;
+            return false;
+        }
+
+        glm::mat4 SkeletalModelMatrix(const FTransformComponent& InTransform, const FSkeletalMeshComponent& InMesh,
+                                      const glm::mat4& InSubmeshLocal) {
+            glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
+                                 glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
+                                 glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
+            return InTransform.GetTransform() * relative * InSubmeshLocal;
+        }
+
+        void UploadBonePalette(FUniformBuffer* InUBO, const std::vector<glm::mat4>& InPalette) {
+            if (!InUBO)
+                return;
+            alignas(16) glm::mat4 padded[kMaxBones];
+            for (uint32_t i = 0; i < kMaxBones; ++i)
+                padded[i] = (i < InPalette.size()) ? InPalette[i] : glm::mat4(1.0f);
+            InUBO->SetData(padded, sizeof(padded), 0);
+        }
+
         bool IsProceduralMeshCulled(const FTransformComponent& InTransform, const FMeshComponent& InMesh,
                                     const FFrustumPlanes& InFrustum) {
             float e = std::max({InMesh.MeshSize * 0.5f, InMesh.MeshRadius, InMesh.MeshWidth * 0.5f,
@@ -96,9 +139,8 @@ namespace Leon {
             return false;
         }
 
-        void BindLightmapUniforms(FShader& InShader, bool bUseLightmap, bool bUseTexCoord,
-                                   const glm::vec2& InScale, const glm::vec2& InBias,
-                                   const TRef<FTexture2D>& InTexture) {
+        void BindLightmapUniforms(FShader& InShader, bool bUseLightmap, bool bUseTexCoord, const glm::vec2& InScale,
+                                  const glm::vec2& InBias, const TRef<FTexture2D>& InTexture) {
             if (bUseLightmap && InTexture) {
                 InTexture->Bind(12);
                 InShader.SetInt("u_Lightmap", 12);
@@ -158,11 +200,13 @@ namespace Leon {
         // -----------------------------------------------------------------------
         CameraUBO = FUniformBuffer::Create(sizeof(FCameraBufferData), 0);
         LightingUBO = FUniformBuffer::Create(sizeof(FLightingBufferData), 1);
+        BonePaletteUBO = FUniformBuffer::Create(static_cast<unsigned int>(sizeof(glm::mat4) * kMaxBones), 2);
 
         // -----------------------------------------------------------------------
         // 4. Pipeline shaders and geometry
         // -----------------------------------------------------------------------
         ShadowDepthShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth.glsl");
+        ShadowDepthSkinnedShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth_Skinned.glsl");
         SkyboxShader = FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
 
         SkyboxVA = FMeshPrimitives::CreateCube(2.0f);
@@ -214,12 +258,11 @@ namespace Leon {
 
         if (InWidth > 0 && InHeight > 0) {
             if (HDRSceneFramebuffer && (HDRSceneFramebuffer->GetSpecification().Width != InWidth ||
-                                          HDRSceneFramebuffer->GetSpecification().Height != InHeight)) {
+                                        HDRSceneFramebuffer->GetSpecification().Height != InHeight)) {
                 HDRSceneFramebuffer->Resize(InWidth, InHeight);
             }
-            if (PlanarReflectionFramebuffer &&
-                (PlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
-                 PlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
+            if (PlanarReflectionFramebuffer && (PlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
+                                                PlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
                 PlanarReflectionFramebuffer->Resize(InWidth, InHeight);
             }
             PostProcessPipeline.OnViewportResize(InWidth, InHeight);
@@ -233,8 +276,8 @@ namespace Leon {
         if (!World)
             return;
 
-        FRenderer::GetStatsMutable().MeshesCulled = 0;
-        FRenderer::GetStatsMutable().MeshesDrawn = 0;
+        FRenderer::ResetStats();
+        FFrameProfiler::Working().ShadowDrawCalls = 0;
 
         auto& reg = World->GetRegistry();
 
@@ -309,8 +352,10 @@ namespace Leon {
         }
 
         if (bHasSkybox) {
+            FFrameProfiler::FScope ibl(&FFrameProfiler::Working().IBLMs);
             UpdateIBL(skybox);
         } else if (!bEnvironmentGenerated) {
+            FFrameProfiler::FScope ibl(&FFrameProfiler::Working().IBLMs);
             UpdateIBL(FSkyboxComponent{});
         }
 
@@ -361,15 +406,21 @@ namespace Leon {
         // ------------------------------------------------------------------
         // PASS 1: Cascaded Shadow Pass
         // ------------------------------------------------------------------
-        if (bHasDirLight)
+        const uint32_t drawsBeforeShadow = FRenderer::GetStats().DrawCalls;
+        if (bHasDirLight) {
+            FFrameProfiler::FScope shadow(&FFrameProfiler::Working().ShadowMs);
             RenderCascadedShadowPass(InCamera, &dirLightComp, mainCamData);
-
-        // PASS 2: Spot Shadow Pass
-        if (bHasSpotLight)
+        }
+        if (bHasSpotLight) {
+            FFrameProfiler::FScope shadow(&FFrameProfiler::Working().ShadowMs);
             RenderSpotShadowPass(&firstSpotComp, firstSpotPos, mainCamData);
+        }
+        FFrameProfiler::Working().ShadowDrawCalls = FRenderer::GetStats().DrawCalls - drawsBeforeShadow;
 
-        // PASS 3: Planar Reflection
-        RenderPlanarReflectionPass(InCamera, bHasSkybox ? &skybox : nullptr, bHasDirLight, dirLightComp.Light);
+        {
+            FFrameProfiler::FScope planar(&FFrameProfiler::Working().TransparentMs);
+            RenderPlanarReflectionPass(InCamera, bHasSkybox ? &skybox : nullptr, bHasDirLight, dirLightComp.Light);
+        }
 
         // PASS 4: Main HDR Scene
         if (HDRSceneFramebuffer)
@@ -384,8 +435,6 @@ namespace Leon {
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
 
-        FRenderer::ResetStats();
-
         if (CameraUBO)
             CameraUBO->SetData(&mainCamData, sizeof(FCameraBufferData), 0);
 
@@ -394,12 +443,15 @@ namespace Leon {
             FRenderCommand::SetWireframe(true);
         }
 
-        // Geometry
-        RenderGeometryPass(InCamera, bHasDirLight, bHasSpotLight, vpWidth, vpHeight);
+        {
+            FFrameProfiler::FScope opaque(&FFrameProfiler::Working().OpaqueMs);
+            RenderGeometryPass(InCamera, bHasDirLight, bHasSpotLight, vpWidth, vpHeight);
+        }
 
-        // Skybox
-        if (bHasSkybox)
+        if (bHasSkybox) {
+            FFrameProfiler::FScope sky(&FFrameProfiler::Working().SkyMs);
             RenderSkyboxPass(InCamera, &skybox, bHasDirLight, dirLightComp.Light);
+        }
 
         // 3D World Text
         auto textView = World->GetRegistry().view<FTransformComponent, FTextComponent>();
@@ -419,8 +471,14 @@ namespace Leon {
         if (HDRSceneFramebuffer)
             HDRSceneFramebuffer->Unbind();
 
-        // PASS 5: Post-process (ACES tonemapping + gamma)
-        RenderPostProcessPass(skybox.Exposure, PreviousFBO, vpWidth, vpHeight);
+        {
+            FFrameProfiler::FScope pp(&FFrameProfiler::Working().PostProcessMs);
+            RenderPostProcessPass(skybox.Exposure, PreviousFBO, vpWidth, vpHeight);
+        }
+
+        const auto& stats = FRenderer::GetStats();
+        FFrameProfiler::Working().VisibleActors = static_cast<int32_t>(stats.MeshesDrawn);
+        FFrameProfiler::Working().CulledActors = static_cast<int32_t>(stats.MeshesCulled);
     }
 
     // =========================================================================
@@ -531,6 +589,31 @@ namespace Leon {
                                                       submesh.IndexOffset);
                 }
             }
+
+            if (ShadowDepthSkinnedShader) {
+                ShadowDepthSkinnedShader->Bind();
+                ShadowDepthSkinnedShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
+                auto skelView = World->GetRegistry().view<FTransformComponent, FSkeletalMeshComponent>();
+                for (auto entity : skelView) {
+                    auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+                    if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows)
+                        continue;
+                    UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
+                    skel.SkeletalMesh->GetVertexArray()->Bind();
+                    for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
+                        if (submesh.IndexCount == 0)
+                            continue;
+                        glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                        ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
+                        ShadowDepthSkinnedShader->SetInt("u_AlphaMode", 0);
+                        ShadowDepthSkinnedShader->SetInt("u_UseAlbedoMap", 0);
+                        FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
+                                                          submesh.IndexOffset);
+                    }
+                }
+                ShadowDepthShader->Bind();
+                ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
+            }
         }
 
         FRenderCommand::SetPolygonOffset(false);
@@ -595,6 +678,27 @@ namespace Leon {
             }
         }
 
+        if (ShadowDepthSkinnedShader) {
+            ShadowDepthSkinnedShader->Bind();
+            ShadowDepthSkinnedShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));
+            auto skelView = World->GetRegistry().view<FTransformComponent, FSkeletalMeshComponent>();
+            for (auto entity : skelView) {
+                auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+                if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows)
+                    continue;
+                UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
+                skel.SkeletalMesh->GetVertexArray()->Bind();
+                for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
+                    if (submesh.IndexCount == 0)
+                        continue;
+                    glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                    ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
+                    FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
+                                                      submesh.IndexOffset);
+                }
+            }
+        }
+
         FRenderCommand::SetPolygonOffset(false);
         FRenderCommand::SetCulling(false);
         SpotShadowFramebuffer->Unbind();
@@ -604,8 +708,8 @@ namespace Leon {
     // PASS 3: Planar Reflection Pass
     // =========================================================================
     void FWorldRenderer::RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera,
-                                                     const FSkyboxComponent* InSkybox, bool bHasDirLight,
-                                                     const FDirectionalLight& InDirLight) {
+                                                    const FSkyboxComponent* InSkybox, bool bHasDirLight,
+                                                    const FDirectionalLight& InDirLight) {
         if (!bEnablePlanarReflection || !PlanarReflectionFramebuffer)
             return;
 
@@ -657,13 +761,12 @@ namespace Leon {
                 glm::vec3 sunDir = bHasDirLight ? -glm::normalize(InDirLight.Direction) : glm::vec3(0.f, 1.f, 0.f);
                 SkyboxShader->SetFloat3("u_SunDir", sunDir.x, sunDir.y, sunDir.z);
                 SkyboxShader->SetFloat3("u_SkyColor", InSkybox->SkyZenithColor.r, InSkybox->SkyZenithColor.g,
-                                          InSkybox->SkyZenithColor.b);
+                                        InSkybox->SkyZenithColor.b);
                 SkyboxShader->SetFloat3("u_HorizonColor", InSkybox->HorizonColor.r, InSkybox->HorizonColor.g,
-                                          InSkybox->HorizonColor.b);
+                                        InSkybox->HorizonColor.b);
                 SkyboxShader->SetFloat3("u_GroundColor", InSkybox->GroundColor.r, InSkybox->GroundColor.g,
-                                          InSkybox->GroundColor.b);
-                SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g,
-                                          InSkybox->SunColor.b);
+                                        InSkybox->GroundColor.b);
+                SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g, InSkybox->SunColor.b);
                 SkyboxShader->SetFloat("u_SunIntensity", InSkybox->SunIntensity);
             }
             SkyboxVA->Bind();
@@ -818,6 +921,43 @@ namespace Leon {
                 glm::mat3 normalMatrix = NormalMatrixForReflection(model);
                 shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
                 FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
+                                                  submesh.IndexOffset);
+            }
+        }
+
+        auto skelView = reg.view<FTransformComponent, FSkeletalMeshComponent>();
+        for (auto entity : skelView) {
+            auto [transform, skel] = skelView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+            if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bVisibleInReflection)
+                continue;
+            if (IsSkeletalMeshCulled(transform, skel, reflectionFrustum))
+                continue;
+            TRef<FShader> shader =
+                skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Skinned.glsl");
+            if (!shader)
+                continue;
+            UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
+            shader->Bind();
+            shader->SetInt("u_UsePlanarReflection", 0);
+            shader->SetInt("u_UseShadows", 0);
+            shader->SetInt("u_UseSpotShadows", 0);
+            shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
+            shader->SetInt("u_DebugMode", 0);
+            shader->SetInt("u_EnableClipPlane", 1);
+            shader->SetFloat4("u_ClipPlane", 0.0f, 1.0f, 0.0f, 0.0f);
+            skel.SkeletalMesh->GetVertexArray()->Bind();
+            for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
+                if (submesh.IndexCount == 0)
+                    continue;
+                TRef<FMaterialInstance> matInst =
+                    ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
+                glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                ApplyMeshRasterState(*matInst, model, matInst->GetAlphaMode() == EAlphaMode::Blend);
+                matInst->Bind(shader);
+                shader->SetMat4("u_Model", glm::value_ptr(model));
+                glm::mat3 normalMatrix = NormalMatrixForReflection(model);
+                shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+                FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
                                                   submesh.IndexOffset);
             }
         }
@@ -1026,7 +1166,7 @@ namespace Leon {
                 ApplyMeshRasterState(*matInst, model, false);
                 matInst->Bind(activeShader);
                 BindLightmapUniforms(*activeShader, bUseLM, false, staticMeshComp.LightmapScale,
-                                      staticMeshComp.LightmapBias, lightmapTex);
+                                     staticMeshComp.LightmapBias, lightmapTex);
 
                 activeShader->SetInt("u_EnableClipPlane", 0);
                 activeShader->SetMat4("u_Model", glm::value_ptr(model));
@@ -1038,11 +1178,76 @@ namespace Leon {
             }
         }
 
+        auto skelGeomView = reg.view<FTransformComponent, FSkeletalMeshComponent>();
+        for (auto entity : skelGeomView) {
+            auto [transform, skel] = skelGeomView.get<FTransformComponent, FSkeletalMeshComponent>(entity);
+            if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray())
+                continue;
+            if (IsSkeletalMeshCulled(transform, skel, camFrustum))
+                continue;
+
+            TRef<FShader> activeShader =
+                skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Skinned.glsl");
+            if (!activeShader)
+                continue;
+            UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
+            activeShader->Bind();
+            activeShader->SetInt("u_UseShadows", (bShadowsAvailable && skel.bReceiveShadows) ? 1 : 0);
+            activeShader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && skel.bReceiveShadows) ? 1 : 0);
+            activeShader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
+            activeShader->SetInt("u_DebugMode", DebugMode);
+            skel.SkeletalMesh->GetVertexArray()->Bind();
+
+            for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
+                if (submesh.IndexCount == 0)
+                    continue;
+                TRef<FMaterialInstance> matInst =
+                    ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
+                glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                if (matInst->GetAlphaMode() == EAlphaMode::Blend) {
+                    FTransparentDraw draw;
+                    draw.Shader = activeShader;
+                    draw.VA = skel.SkeletalMesh->GetVertexArray();
+                    draw.Mat = matInst;
+                    draw.Model = model;
+                    glm::vec3 delta = glm::vec3(model[3]) - camPos;
+                    draw.DistanceSq = glm::dot(delta, delta);
+                    draw.IndexCount = submesh.IndexCount;
+                    draw.IndexOffset = submesh.IndexOffset;
+                    draw.bOffset = true;
+                    draw.bReceiveShadows = skel.bReceiveShadows;
+                    draw.BonePalette = &skel.BonePalette;
+                    transparents.push_back(std::move(draw));
+                    continue;
+                }
+                bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
+                if (bApplyPlanarReflection) {
+                    PlanarReflectionFramebuffer->BindTexture(0, 5);
+                    activeShader->SetInt("u_UsePlanarReflection", 1);
+                    activeShader->SetFloat2("u_ScreenSize", static_cast<float>(InVpWidth),
+                                            static_cast<float>(InVpHeight));
+                } else {
+                    activeShader->SetInt("u_UsePlanarReflection", 0);
+                }
+                ApplyMeshRasterState(*matInst, model, false);
+                matInst->Bind(activeShader);
+                BindLightmapUniforms(*activeShader, false, false, glm::vec2(1.0f), glm::vec2(0.0f), nullptr);
+                activeShader->SetInt("u_EnableClipPlane", 0);
+                activeShader->SetMat4("u_Model", glm::value_ptr(model));
+                glm::mat3 normalMatrix = SafeNormalMatrix(model);
+                activeShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+                FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
+                                                  submesh.IndexOffset);
+            }
+        }
+
         std::sort(transparents.begin(), transparents.end(),
                   [](const FTransparentDraw& a, const FTransparentDraw& b) { return a.DistanceSq > b.DistanceSq; });
         for (const auto& draw : transparents) {
             if (!draw.Shader || !draw.VA || !draw.Mat)
                 continue;
+            if (draw.BonePalette)
+                UploadBonePalette(BonePaletteUBO.get(), *draw.BonePalette);
             draw.Shader->Bind();
             draw.Shader->SetInt("u_EnableClipPlane", 0);
             draw.Shader->SetInt("u_UseShadows", (bShadowsAvailable && draw.bReceiveShadows) ? 1 : 0);
@@ -1097,11 +1302,11 @@ namespace Leon {
             glm::vec3 sunDir = bHasDirLight ? -glm::normalize(InDirLight.Direction) : glm::vec3(0.f, 1.f, 0.f);
             SkyboxShader->SetFloat3("u_SunDir", sunDir.x, sunDir.y, sunDir.z);
             SkyboxShader->SetFloat3("u_SkyColor", InSkybox->SkyZenithColor.r, InSkybox->SkyZenithColor.g,
-                                      InSkybox->SkyZenithColor.b);
+                                    InSkybox->SkyZenithColor.b);
             SkyboxShader->SetFloat3("u_HorizonColor", InSkybox->HorizonColor.r, InSkybox->HorizonColor.g,
-                                      InSkybox->HorizonColor.b);
+                                    InSkybox->HorizonColor.b);
             SkyboxShader->SetFloat3("u_GroundColor", InSkybox->GroundColor.r, InSkybox->GroundColor.g,
-                                      InSkybox->GroundColor.b);
+                                    InSkybox->GroundColor.b);
             SkyboxShader->SetFloat3("u_SunColor", InSkybox->SunColor.r, InSkybox->SunColor.g, InSkybox->SunColor.b);
             SkyboxShader->SetFloat("u_SunIntensity", InSkybox->SunIntensity);
         }

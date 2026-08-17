@@ -18,8 +18,15 @@ namespace Leon {
         const std::string& GetPlayerStartTag() const { return PlayerStartTag; }
         void SetPlayerStartTag(const std::string& InTag) { PlayerStartTag = InTag; }
 
+        int32_t GetTeamIndex() const { return TeamIndex; }
+        void SetTeamIndex(int32_t InTeam) { TeamIndex = InTeam; }
+        bool IsEnabled() const { return bEnabled; }
+        void SetEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
+
     private:
         std::string PlayerStartTag;
+        int32_t TeamIndex = 0;
+        bool bEnabled = true;
     };
 
 } // namespace Leon

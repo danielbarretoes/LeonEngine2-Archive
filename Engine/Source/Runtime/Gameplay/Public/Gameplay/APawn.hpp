@@ -4,10 +4,10 @@
 
 namespace Leon {
 
-    class APlayerController;
+    class AController;
 
     /**
-     * @brief Base class for any AActor that can be possessed and controlled by an APlayerController.
+     * @brief Base class for any AActor that can be possessed by an AController.
      */
     class APawn : public AActor {
     public:
@@ -15,16 +15,17 @@ namespace Leon {
         APawn(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "Pawn");
         ~APawn() override = default;
 
-        virtual void PossessedBy(APlayerController* InController);
+        virtual void PossessedBy(AController* InController);
         virtual void UnPossessed();
 
-        APlayerController* GetController() const { return Controller; }
+        AController* GetController() const { return Controller; }
         bool IsControlled() const { return Controller != nullptr; }
+        bool IsLocallyControlled() const;
 
         virtual void SetupPlayerInputComponent(float DeltaSeconds) {}
 
     protected:
-        APlayerController* Controller = nullptr;
+        AController* Controller = nullptr;
     };
 
 } // namespace Leon

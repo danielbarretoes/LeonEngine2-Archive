@@ -382,6 +382,13 @@ namespace Leon {
             // Test MakeVirtualPath
             std::string virtGame = FProjectPaths::MakeVirtualPath("Projects/TestProject/Content/Textures/T_Test.ltex");
             CHECK(virtGame == "/Game/Textures/T_Test.ltex");
+
+            std::string remapped = FProjectPaths::ResolveVirtualPath(
+                "c:/old/Projects/StaleName/Content/Animations/Idle.lanim");
+            CHECK(remapped == "Projects/TestProject/Content/Animations/Idle.lanim");
+            std::string virtStale =
+                FProjectPaths::MakeVirtualPath("c:/old/Projects/StaleName/Content/Animations/Idle.lanim");
+            CHECK(virtStale == "/Game/Animations/Idle.lanim");
         }
 
         TEST_CASE("21. Multi-INI Configuration System (Engine, Game, FInput)") {

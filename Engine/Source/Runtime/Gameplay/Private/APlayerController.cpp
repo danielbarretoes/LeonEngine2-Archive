@@ -6,7 +6,7 @@
 namespace Leon {
 
     APlayerController::APlayerController(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {
+        : AController(InHandle, InWorld, InName) {
         SetClass("APlayerController");
     }
 
@@ -21,27 +21,6 @@ namespace Leon {
 
     void APlayerController::Tick(float DeltaSeconds) {
         UpdateCameraManager(DeltaSeconds);
-    }
-
-    void APlayerController::Possess(APawn* InPawn) {
-        if (Pawn == InPawn)
-            return;
-
-        if (Pawn) {
-            UnPossess();
-        }
-
-        Pawn = InPawn;
-        if (Pawn) {
-            Pawn->PossessedBy(this);
-        }
-    }
-
-    void APlayerController::UnPossess() {
-        if (Pawn) {
-            Pawn->UnPossessed();
-            Pawn = nullptr;
-        }
     }
 
     void APlayerController::SetViewTarget(AActor* InNewTarget) {

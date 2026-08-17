@@ -1,6 +1,6 @@
 # LeonEngine2 — Native Asset Import Pipeline
 
-LeonEngine2 features a high-performance, deterministic **Native Asset Import Pipeline** and CLI toolchain. The engine decouples raw authoring formats (FBX, PNG, TGA, JPG, HDR) from runtime rendering formats (`.lmesh`, `.ltex`, `.lhdr`, `.lmat`, `.lmi`), ensuring zero runtime decoding overhead and rapid engine startup.
+LeonEngine2 features a high-performance, deterministic **Native Asset Import Pipeline** and CLI toolchain. The engine decouples raw authoring formats (FBX, PNG, TGA, JPG, HDR) from runtime rendering formats (`.lmesh`, `.lskeleton`, `.lskeletalmesh`, `.lanim`, `.ltex`, `.lhdr`, `.lmat`, `.lmi`), ensuring zero runtime decoding overhead and rapid engine startup.
 
 ---
 
@@ -18,8 +18,11 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
           ├─── HDR Importer (stb_image / float payload preservation / metadata container)
           │         └─── Native HDR Environment (.lhdr) [RGBA32F equirectangular panorama]
           │
-          ├─── Mesh Importer (ufbx right-handed Y-up parsing / multi-submesh preservation / tangents)
-          │         └─── Native Static Mesh (.lmesh v2) [positions, normals, UV0, UV1 lightmap, tangents, bitangents, bounds]
+          ├─── Mesh Importer (ufbx right-handed Y-up / static + skeletal)
+          │         ├─── Native Static Mesh (.lmesh v2)
+          │         ├─── Native Skeleton (.lskeleton)
+          │         ├─── Native Skeletal Mesh (.lskeletalmesh)
+          │         └─── Native Animation (.lanim)
           │
           ├─── Lightmass (offline CPU bake)
           │         └─── Native Lightmap (.llightmap) [RGBA32F irradiance atlas + header hash]
@@ -47,6 +50,14 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
 - **Magic**: `0x48534D4C` (`'LMESH'`)
 - **Version**: 2 (v1 still loads; UV1 defaults from UV0)
 - **Vertex Layout**: Pos, Normal, UV0, **UV1 (LightmapUV)**, Tangent, Bitangent, Color.
+
+### 1.2c Native Skeletal Assets (`.lskeleton`, `.lskeletalmesh`, `.lanim`)
+Skinned FBX (and Mixamo animation takes with bones but no mesh) import through the same `FMeshImporter` path — never as `.lmesh`.
+
+- **`.lskeleton`**: Magic `LSKL` (`0x4C4B534C`). Bone names, parent indices, rest pose, inverse bind matrices. Max 128 bones.
+- **`.lskeletalmesh`**: Magic `LSKM` (`0x4D4B534C`). Canonical skinned vertices (locations 0–5 + `ivec4` bone indices + `vec4` weights) and GPU palette via `PBR_Skinned.glsl`.
+- **`.lanim`**: Magic `LANM` (`0x4D4E414C`). Per-bone TRS key tracks. Linked to a skeleton by bone name (`mixamorig:` prefix is stripped). Pose is never replicated; gameplay sends `FAnimRepState` (speed, direction, aim pitch, flags).
+- **`.lblend`**: Magic `LBLD` (`0x444C424C`). 1D or 2D blend space samples (sequence paths + coordinates). Game projects own the sample layout.
 
 ### 1.2b Native Lightmap Format (`.llightmap`)
 - **Magic**: `LLLM` (`0x4D4C4C4C`)

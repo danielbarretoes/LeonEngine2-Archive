@@ -61,6 +61,18 @@ namespace Leon {
         return "Engine/Config";
     }
 
+    namespace {
+        // Absolute paths baked into assets (blend spaces, etc.) may still point at a
+        // renamed project's Content/. Keep the path after /Content/ and retarget it.
+        std::string ContentRelativeSuffix(const std::string& InNormPath) {
+            const std::string marker = "/Content/";
+            const size_t pos = InNormPath.find(marker);
+            if (pos == std::string::npos)
+                return {};
+            return InNormPath.substr(pos + marker.size());
+        }
+    } // namespace
+
     std::string FProjectPaths::ResolveVirtualPath(const std::string& InVirtualPath) {
         if (InVirtualPath.empty()) {
             return "";
@@ -122,6 +134,11 @@ namespace Leon {
             return norm;
         }
 
+        const std::string contentRel = ContentRelativeSuffix(norm);
+        if (!contentRel.empty()) {
+            return FAssetPath::Combine(ProjectContentDir(), contentRel);
+        }
+
         std::string inContent = FAssetPath::Combine(ProjectContentDir(), norm);
         if (std::filesystem::exists(inContent)) {
             return inContent;
@@ -137,6 +154,11 @@ namespace Leon {
 
     std::string FProjectPaths::MakeVirtualPath(const std::string& InPhysicalPath) {
         std::string norm = FAssetPath::Normalize(InPhysicalPath);
+        if (norm.rfind("Game/", 0) == 0)
+            return "/" + norm;
+        if (norm.rfind("Engine/", 0) == 0)
+            return "/" + norm;
+
         std::string contentDir = FAssetPath::Normalize(ProjectContentDir());
         std::string engineContent = FAssetPath::Normalize(EngineContentDir());
 
@@ -153,6 +175,10 @@ namespace Leon {
                 rel = rel.substr(1);
             return "/Engine/" + rel;
         }
+
+        const std::string contentRel = ContentRelativeSuffix(norm);
+        if (!contentRel.empty())
+            return "/Game/" + contentRel;
 
         return norm;
     }

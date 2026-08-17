@@ -29,7 +29,7 @@ namespace Leon {
 
     void ADefaultPawn::SetupPlayerInputComponent(float DeltaSeconds) {
         // Respect PlayerController input mode (UIOnly blocks game movement)
-        if (APlayerController* pc = GetController()) {
+        if (APlayerController* pc = dynamic_cast<APlayerController*>(GetController())) {
             if (!pc->IsGameInputAllowed()) {
                 bFirstMouse = true;
                 return;

@@ -1,6 +1,7 @@
 #include "Engine/UEngine.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FFrameProfiler.hpp"
 #include "Core/FProjectDescriptor.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Core/events/FKeyEvent.hpp"
@@ -26,6 +27,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdio>
+#include <utility>
 
 namespace Leon {
 
@@ -57,9 +59,13 @@ namespace Leon {
             if (!World)
                 return;
 
+            FFrameProfiler::BeginFrame();
             FOnScreenDebugMessageManager::Get().Tick(InTs.GetSeconds());
 
-            World->Tick(InTs);
+            {
+                FFrameProfiler::FScope game(&FFrameProfiler::Working().GameMs);
+                World->Tick(InTs);
+            }
 
             ApplyCursorFromPlayerController();
             DispatchUIMouseMove();
@@ -70,9 +76,16 @@ namespace Leon {
                 pc->GetPlayerViewPoint(activeCamera);
             }
 
-            World->OnRender(activeCamera);
+            {
+                FFrameProfiler::FScope render(&FFrameProfiler::Working().RenderMs);
+                World->OnRender(activeCamera);
+            }
             DrawLightGizmos(activeCamera);
-            DrawHUDAndUI();
+            {
+                FFrameProfiler::FScope ui(&FFrameProfiler::Working().UIMs);
+                DrawHUDAndUI();
+            }
+            FFrameProfiler::EndFrame(InTs.GetMilliseconds());
         }
 
         void OnEvent(FEvent& InEvent) override {
@@ -264,37 +277,46 @@ namespace Leon {
         void DrawLightGizmos(const FPerspectiveCamera& InCamera) {
             if (!World || !FApplication::HasInstance())
                 return;
-            if (!FApplication::Get().IsLightGizmosEnabled())
+            const bool bGizmos = FApplication::Get().IsLightGizmosEnabled();
+            const bool bGameplay = FApplication::Get().IsGameplayDebugEnabled();
+            FDebugRenderer::SetTraceCaptureEnabled(bGameplay);
+            if (!bGizmos && !bGameplay)
                 return;
 
             FDebugRenderer::BeginScene(InCamera);
             auto& reg = World->GetRegistry();
 
-            auto dirView = reg.view<UDirectionalLightComponent, FTransformComponent>();
-            for (auto entity : dirView) {
-                auto [dirComp, transform] = dirView.get<UDirectionalLightComponent, FTransformComponent>(entity);
-                if (dirComp.bEnabled) {
-                    FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, transform.Translation, 2.5f);
+            if (bGizmos) {
+                auto dirView = reg.view<UDirectionalLightComponent, FTransformComponent>();
+                for (auto entity : dirView) {
+                    auto [dirComp, transform] = dirView.get<UDirectionalLightComponent, FTransformComponent>(entity);
+                    if (dirComp.bEnabled) {
+                        FDebugRenderer::DrawDirectionalLightGizmo(dirComp.Light, transform.Translation, 2.5f);
+                    }
+                }
+
+                auto pointView = reg.view<UPointLightComponent, FTransformComponent>();
+                for (auto entity : pointView) {
+                    auto [pointComp, transform] = pointView.get<UPointLightComponent, FTransformComponent>(entity);
+                    if (pointComp.bEnabled) {
+                        FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
+                    }
+                }
+
+                auto spotView = reg.view<USpotLightComponent, FTransformComponent>();
+                for (auto entity : spotView) {
+                    auto [spotComp, transform] = spotView.get<USpotLightComponent, FTransformComponent>(entity);
+                    if (spotComp.bEnabled) {
+                        FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
+                    }
                 }
             }
 
-            auto pointView = reg.view<UPointLightComponent, FTransformComponent>();
-            for (auto entity : pointView) {
-                auto [pointComp, transform] = pointView.get<UPointLightComponent, FTransformComponent>(entity);
-                if (pointComp.bEnabled) {
-                    FDebugRenderer::DrawPointLightGizmo(pointComp.Light);
-                }
-            }
-
-            auto spotView = reg.view<USpotLightComponent, FTransformComponent>();
-            for (auto entity : spotView) {
-                auto [spotComp, transform] = spotView.get<USpotLightComponent, FTransformComponent>(entity);
-                if (spotComp.bEnabled) {
-                    FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
-                }
-            }
+            if (bGameplay)
+                FDebugRenderer::DrawQueuedTraces();
 
             FDebugRenderer::EndScene();
+            FDebugRenderer::ClearQueuedTraces();
         }
 
         void DrawHUDAndUI() {
@@ -326,6 +348,11 @@ namespace Leon {
     };
 
     static UEngine* EngineInstance = nullptr;
+    static UEngine::FGameInstanceFactory GGameInstanceFactory;
+
+    void UEngine::SetGameInstanceFactory(FGameInstanceFactory InFactory) {
+        GGameInstanceFactory = std::move(InFactory);
+    }
 
     UEngine::UEngine() : UObject("Engine") {
         EngineInstance = this;
@@ -391,7 +418,7 @@ namespace Leon {
     }
 
     FGameModeConfig UEngine::BuildGameModeConfig(const FConfigFile& InEngineConfig, const FConfigFile& InGameConfig,
-                                                   const FProjectDescriptor& InProjectDesc) {
+                                                 const FProjectDescriptor& InProjectDesc) {
         FGameModeConfig config;
 
         const std::string name = InProjectDesc.ProjectName.empty() ? "Game" : InProjectDesc.ProjectName;
@@ -405,7 +432,7 @@ namespace Leon {
                 v = InGameConfig.GetString(legacyGameModeSection, key, "");
             if (v.empty()) {
                 v = InGameConfig.GetString("/Script/Engine.GameModeBase", key,
-                                          InEngineConfig.GetString("/Script/Engine.GameModeBase", key, fallback));
+                                           InEngineConfig.GetString("/Script/Engine.GameModeBase", key, fallback));
             }
             return v;
         };
@@ -430,9 +457,9 @@ namespace Leon {
     }
 
     std::string UEngine::ResolveStartupMap(const FConfigFile& InEngineConfig, const FProjectDescriptor& InProjectDesc) {
-        return InEngineConfig.GetString(
-            "/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
-            InProjectDesc.DefaultMap.empty() ? "/Game/Maps/Empty" : InProjectDesc.DefaultMap);
+        return InEngineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
+                                        InProjectDesc.DefaultMap.empty() ? "/Game/Maps/Empty"
+                                                                         : InProjectDesc.DefaultMap);
     }
 
     void UEngine::RequestTravel(const std::string& InLevelName) {
@@ -636,8 +663,8 @@ namespace Leon {
         bool bFullscreen = engineConfig.GetBool("/Script/Engine.DisplaySettings", "Fullscreen", false);
 
         // Renderer project defaults (map skybox Exposure/SunIntensity are not overwritten)
-        ProjectShadowMapResolution = static_cast<uint32_t>(
-            engineConfig.GetInt("/Script/Engine.RendererSettings", "ShadowMapResolution", 2048));
+        ProjectShadowMapResolution =
+            static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.RendererSettings", "ShadowMapResolution", 2048));
         bProjectEnablePlanarReflection =
             engineConfig.GetBool("/Script/Engine.RendererSettings", "EnablePlanarReflection", true);
         if (engineConfig.HasKey("/Script/Engine.RendererSettings", "Exposure") ||
@@ -663,7 +690,10 @@ namespace Leon {
         }
 
         // 4. Create UGameInstance & UWorld
-        GameInstance = CreateRef<UGameInstance>("GameInstance");
+        if (GGameInstanceFactory)
+            GameInstance = GGameInstanceFactory();
+        if (!GameInstance)
+            GameInstance = CreateRef<UGameInstance>("GameInstance");
         ActiveWorld = UWorld::Create("MainWorld");
         ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection);
         GameInstance->SetWorld(ActiveWorld);
@@ -678,8 +708,8 @@ namespace Leon {
         // 6. Instantiate and Configure GameMode
         AGameModeBase* gameMode = nullptr;
         if (!GameModeConfig.GameModeClass.empty() && UClassRegistry::Get().HasClass(GameModeConfig.GameModeClass)) {
-            gameMode = dynamic_cast<AGameModeBase*>(UClassRegistry::Get().CreateActorOfClass(
-                GameModeConfig.GameModeClass, ActiveWorld.get(), "GameMode"));
+            gameMode = dynamic_cast<AGameModeBase*>(
+                UClassRegistry::Get().CreateActorOfClass(GameModeConfig.GameModeClass, ActiveWorld.get(), "GameMode"));
         }
         if (!gameMode) {
             gameMode = ActiveWorld->SpawnActor<AGameModeBase>("GameMode");

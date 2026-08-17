@@ -36,8 +36,8 @@ namespace Leon {
         glm::vec4 CascadeSplits{0.0f};                    // 16 bytes  (offset 416)
         glm::vec4 ShadowParams{0.0010f, 0.0035f, 0.040f,
                                0.10f}; // 16 bytes (offset 432) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
-        glm::ivec4 ShadowSettings{
-            1, 0, 0, 0}; // 16 bytes (offset 448) (x=filterMode, y=shadowedSpotIndex, z=0, w=debug)
+        glm::ivec4 ShadowSettings{1, 0, 0,
+                                  0}; // 16 bytes (offset 448) (x=filterMode, y=shadowedSpotIndex, z=0, w=debug)
     }; // Total: 464 bytes
 
     /** std140 GPU directional light (PBR — single Intensity, no Phong split) */
@@ -166,11 +166,13 @@ namespace Leon {
         TRef<FFramebuffer> HDRSceneFramebuffer;
 
         // Uniform buffer objects
-        TRef<FUniformBuffer> CameraUBO;   // Binding 0
-        TRef<FUniformBuffer> LightingUBO; // Binding 1
+        TRef<FUniformBuffer> CameraUBO;      // Binding 0
+        TRef<FUniformBuffer> LightingUBO;    // Binding 1
+        TRef<FUniformBuffer> BonePaletteUBO; // Binding 2 — GPU skinning palette
 
         // Built-in pipeline shaders
         TRef<FShader> ShadowDepthShader;
+        TRef<FShader> ShadowDepthSkinnedShader;
         TRef<FShader> SkyboxShader;
 
         TRef<FVertexArray> SkyboxVA;

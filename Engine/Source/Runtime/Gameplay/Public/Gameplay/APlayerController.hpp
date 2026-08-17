@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gameplay/AController.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerState.hpp"
@@ -14,7 +15,7 @@ namespace Leon {
     /**
      * @brief Unreal Engine aligned PlayerController managing input, pawn possession, and the camera manager.
      */
-    class APlayerController : public AActor {
+    class APlayerController : public AController {
     public:
         APlayerController() = default;
         APlayerController(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "PlayerController");
@@ -22,15 +23,6 @@ namespace Leon {
 
         void PostInitializeComponents() override;
         void Tick(float DeltaSeconds) override;
-
-        virtual void Possess(APawn* InPawn);
-        virtual void UnPossess();
-
-        APawn* GetPawn() const { return Pawn; }
-        template <typename T> T* GetPawn() const { return dynamic_cast<T*>(Pawn); }
-
-        APlayerState* GetPlayerState() const { return PlayerState; }
-        void SetPlayerState(APlayerState* InPlayerState) { PlayerState = InPlayerState; }
 
         APlayerCameraManager* GetPlayerCameraManager() const { return PlayerCameraManager; }
         void SetPlayerCameraManager(APlayerCameraManager* InManager) { PlayerCameraManager = InManager; }
@@ -65,8 +57,6 @@ namespace Leon {
         void GetPlayerViewPoint(FPerspectiveCamera& OutCamera) const;
 
     protected:
-        APawn* Pawn = nullptr;
-        APlayerState* PlayerState = nullptr;
         APlayerCameraManager* PlayerCameraManager = nullptr;
         AHUD* MyHUD = nullptr;
         EInputMode InputMode = EInputMode::GameAndUI;

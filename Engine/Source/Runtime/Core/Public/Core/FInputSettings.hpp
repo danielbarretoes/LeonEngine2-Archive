@@ -87,6 +87,7 @@ namespace Leon {
         int MoveUpKey = Key::Space;
         int MoveDownKey = Key::LeftControl;
         int SprintKey = Key::LeftShift;
+        int JumpKey = Key::Space;
 
         static constexpr const char* kSection = "/Script/Engine.InputSettings";
 
@@ -100,6 +101,7 @@ namespace Leon {
             MoveUpKey = FKeyName::FromString(InConfig.GetString(kSection, "MoveUpKey", "Space"), MoveUpKey);
             MoveDownKey = FKeyName::FromString(InConfig.GetString(kSection, "MoveDownKey", "LeftControl"), MoveDownKey);
             SprintKey = FKeyName::FromString(InConfig.GetString(kSection, "SprintKey", "LeftShift"), SprintKey);
+            JumpKey = FKeyName::FromString(InConfig.GetString(kSection, "JumpKey", "Space"), JumpKey);
         }
 
         static FInputSettings& GetMutable() {

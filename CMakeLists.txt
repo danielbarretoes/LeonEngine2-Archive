@@ -50,6 +50,8 @@ add_subdirectory(ThirdParty/ufbx)
 add_subdirectory(ThirdParty/doctest)
 add_subdirectory(Engine)
 add_subdirectory(Plugins/RHI/OpenGL)
+add_subdirectory(Plugins/Physics/Jolt)
+add_subdirectory(Plugins/Networking/ENet)
 add_subdirectory(Tools/LeonAssetTool)
 
 # Game project (monorepo default). Override: -DLEON_PROJECT_DIR=Projects/MyGame
@@ -63,6 +65,15 @@ elseif(EXISTS "${LEON_PROJECT_DIR}/CMakeLists.txt")
     add_subdirectory("${LEON_PROJECT_DIR}" "${CMAKE_BINARY_DIR}/Projects/${_LEON_PROJECT_FOLDER_NAME}")
 else()
     message(WARNING "LEON_PROJECT_DIR='${LEON_PROJECT_DIR}' not found — skipping game target")
+endif()
+
+# Extra monorepo game (engine does not depend on it). Skip if it is already the selected product.
+if(EXISTS "${CMAKE_SOURCE_DIR}/Projects/LeonTournament/CMakeLists.txt")
+    get_filename_component(_LEON_SELECTED_PROJECT "${LEON_PROJECT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
+    get_filename_component(_LEON_TOURNAMENT_DIR "${CMAKE_SOURCE_DIR}/Projects/LeonTournament" ABSOLUTE)
+    if(NOT _LEON_SELECTED_PROJECT STREQUAL _LEON_TOURNAMENT_DIR)
+        add_subdirectory(Projects/LeonTournament)
+    endif()
 endif()
 
 add_subdirectory(Tests)

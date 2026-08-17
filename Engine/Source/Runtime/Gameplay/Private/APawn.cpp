@@ -1,5 +1,8 @@
 #include "Gameplay/APawn.hpp"
 #include "Core/FLog.hpp"
+#include "Gameplay/AController.hpp"
+#include "Gameplay/APlayerController.hpp"
+#include "Engine/UWorld.hpp"
 
 namespace Leon {
 
@@ -8,9 +11,20 @@ namespace Leon {
         SetClass("APawn");
     }
 
-    void APawn::PossessedBy(APlayerController* InController) {
+    bool APawn::IsLocallyControlled() const {
+        if (!Controller)
+            return false;
+        if (!World)
+            return true;
+        const ENetMode mode = World->GetNetMode();
+        if (mode == ENetMode::Client)
+            return GetLocalRole() == ENetRole::AutonomousProxy;
+        return Controller == World->GetFirstPlayerController();
+    }
+
+    void APawn::PossessedBy(AController* InController) {
         Controller = InController;
-        LE_CORE_INFO("APawn '{0}' possessed by PlayerController", GetName());
+        LE_CORE_INFO("APawn '{0}' possessed", GetName());
     }
 
     void APawn::UnPossessed() {

@@ -8,7 +8,9 @@
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "RHI/FShader.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/USkeletalMesh.hpp"
 #include "Engine/EMobility.hpp"
+#include "Engine/ECollisionChannel.hpp"
 #include "RHI/FTexture.hpp"
 #include "RHI/FVertexArray.hpp"
 
@@ -28,11 +30,13 @@ namespace Leon {
         glm::vec3 LocalMin{-0.5f};
         glm::vec3 LocalMax{0.5f};
         bool bBlockMovement = true;
+        ECollisionChannel Channel = ECollisionChannel::WorldStatic;
 
         FBoxCollisionComponent() = default;
         FBoxCollisionComponent(const FBoxCollisionComponent&) = default;
-        FBoxCollisionComponent(const glm::vec3& InLocalMin, const glm::vec3& InLocalMax, bool bInBlock = true)
-            : LocalMin(InLocalMin), LocalMax(InLocalMax), bBlockMovement(bInBlock) {}
+        FBoxCollisionComponent(const glm::vec3& InLocalMin, const glm::vec3& InLocalMax, bool bInBlock = true,
+                               ECollisionChannel InChannel = ECollisionChannel::WorldStatic)
+            : LocalMin(InLocalMin), LocalMax(InLocalMax), bBlockMovement(bInBlock), Channel(InChannel) {}
     };
 
     /**
@@ -138,6 +142,26 @@ namespace Leon {
         UStaticMeshComponent(const UStaticMeshComponent&) = default;
         explicit UStaticMeshComponent(const TRef<UStaticMesh>& InMesh, const std::string& InAssetPath = "")
             : StaticMesh(InMesh), AssetPath(InAssetPath) {}
+    };
+
+    /**
+     * Render-side skinned mesh (EnTT POD). Gameplay ticks USkeletalMeshComponent which writes BonePalette here.
+     */
+    struct FSkeletalMeshComponent {
+        TRef<USkeletalMesh> SkeletalMesh = nullptr;
+        std::vector<TRef<FMaterialInstance>> MaterialOverrides;
+        std::string AssetPath;
+        TRef<FShader> Shader = nullptr;
+        std::vector<glm::mat4> BonePalette;
+        glm::vec3 RelativeLocation{0.0f};
+        glm::vec3 RelativeRotation{0.0f};
+        glm::vec3 RelativeScale{1.0f};
+        bool bCastShadows = true;
+        bool bReceiveShadows = true;
+        bool bVisibleInReflection = true;
+
+        FSkeletalMeshComponent() = default;
+        FSkeletalMeshComponent(const FSkeletalMeshComponent&) = default;
     };
 
     struct FMaterialComponent {

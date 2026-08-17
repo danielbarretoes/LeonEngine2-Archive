@@ -7,7 +7,10 @@
 #include "Assets/FMaterialImporter.hpp"
 #include "Assets/FAssetManifest.hpp"
 #include "Assets/FHDRImporter.hpp"
-#include "Assets/UStaticMesh.hpp"
+#include "Assets/USkeleton.hpp"
+#include "Assets/USkeletalMesh.hpp"
+#include "Assets/UAnimSequence.hpp"
+#include "Assets/UBlendSpace.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Assets/FLightmapAsset.hpp"
 #include "Engine/UWorld.hpp"
@@ -25,6 +28,8 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
 using namespace Leon;
@@ -40,7 +45,8 @@ void PrintUsage() {
     std::cout << "  LeonAssetTool validate_map --map <path.lmap>\n";
     std::cout << "  LeonAssetTool bake_lightmaps --map <path.lmap> [--force] [--quality=Preview|Draft|Production]\n";
     std::cout << "  LeonAssetTool validate_lightmaps --map <path.lmap>\n";
-    std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi | file.llightmap>\n\n";
+    std::cout << "  LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lskeleton | file.lskeletalmesh | "
+                 "file.lanim | file.lmat | file.lmi | file.llightmap>\n\n";
     std::cout << "Options:\n";
     std::cout << "  --project <path>   Project descriptor file (e.g. Projects/Sandbox/Sandbox.lproject)\n";
     std::cout << "  --raw <dir>        Source raw assets directory (e.g. Assets/Raw)\n";
@@ -71,6 +77,9 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
     fs::create_directories(contentPath / "Textures");
     fs::create_directories(contentPath / "Meshes");
     fs::create_directories(contentPath / "Materials");
+    fs::create_directories(contentPath / "Skeletons");
+    fs::create_directories(contentPath / "SkeletalMeshes");
+    fs::create_directories(contentPath / "BlendSpaces");
 
     // Unreal Engine Architecture: Manifest & Cache live in Intermediate/, NOT in Content/
     fs::path intermediateDir = contentPath.parent_path() / "Intermediate";
@@ -93,7 +102,8 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
     std::vector<fs::path> meshFiles;
 
     for (const auto& entry : fs::recursive_directory_iterator(rawPath)) {
-        if (!entry.is_regular_file()) continue;
+        if (!entry.is_regular_file())
+            continue;
 
         std::string ext = FAssetPath::GetExtension(entry.path().string());
         if (ext == "hdr" || ext == "exr") {
@@ -105,12 +115,13 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
         }
     }
 
-    std::cout << "[DISCOVER] Found " << hdrFiles.size() << " HDR environments, "
-              << textureFiles.size() << " textures, and " << meshFiles.size() << " meshes.\n\n";
+    std::cout << "[DISCOVER] Found " << hdrFiles.size() << " HDR environments, " << textureFiles.size()
+              << " textures, and " << meshFiles.size() << " meshes.\n\n";
 
     size_t importedHDRs = 0;
     size_t skippedHDRs = 0;
     size_t importedTextures = 0;
+    size_t importedAnims = 0;
     size_t skippedTextures = 0;
     size_t importedMeshes = 0;
     size_t skippedMeshes = 0;
@@ -135,7 +146,7 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
             FHDRImportSettings settings;
             if (FHDRImporter::ImportToFile(hdrPath.string(), destPath.string(), settings)) {
                 importedHDRs++;
-                manifest.RegisterImport(hdrPath.string(), { outRelPath }, {});
+                manifest.RegisterImport(hdrPath.string(), {outRelPath}, {});
             } else {
                 std::cerr << "  [ERROR] Failed to import HDR: " << hdrPath.string() << "\n";
                 errorCount++;
@@ -155,7 +166,8 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
         for (const auto& entry : fs::directory_iterator(contentPath / "Textures")) {
             if (entry.is_regular_file()) {
                 allAvailableTexturePaths.push_back("Textures/" + entry.path().filename().string());
-                allAvailableTexturePaths.push_back("Projects/Sandbox/Content/Textures/" + entry.path().filename().string());
+                allAvailableTexturePaths.push_back("Projects/Sandbox/Content/Textures/" +
+                                                   entry.path().filename().string());
             }
         }
     }
@@ -189,7 +201,7 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
             if (FTextureImporter::Import(texPath.string(), settings, nativeTex)) {
                 if (nativeTex.SaveToFile(outFilePath.string())) {
                     importedTextures++;
-                    manifest.RegisterImport(texPath.string(), { outRelPath }, {});
+                    manifest.RegisterImport(texPath.string(), {outRelPath}, {});
                 } else {
                     std::cerr << "  [ERROR] Failed to save native texture: " << outFilePath.string() << "\n";
                     errorCount++;
@@ -204,39 +216,107 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
     // 4. Import Meshes & Auto-generate Material Slots
     if (!meshFiles.empty()) {
         std::cout << "\n--- [PHASE 2] Processing Meshes & Materials ---\n";
+
+        struct FPendingMesh {
+            fs::path Source;
+            std::string Stem;
+            FMeshImportResult Result;
+        };
+        std::vector<FPendingMesh> pending;
+
+        auto sanitize = [](std::string s) {
+            s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); }), s.end());
+            return s;
+        };
+
         for (const auto& meshPath : meshFiles) {
-            std::string filename = meshPath.filename().string();
-            std::string stem = meshPath.stem().string();
-            std::string outRelPath = "Meshes/" + stem + ".lmesh";
-            fs::path outFilePath = contentPath / "Meshes" / (stem + ".lmesh");
-
-            bool bNeedsImport = bForce || manifest.NeedsReimport(meshPath.string()) || !fs::exists(outFilePath);
-
+            std::string stem = sanitize(meshPath.stem().string());
+            fs::path staticOut = contentPath / "Meshes" / (stem + ".lmesh");
+            fs::path skelOut = contentPath / "Skeletons" / (stem + ".lskeleton");
+            fs::path skmOut = contentPath / "SkeletalMeshes" / (stem + ".lskeletalmesh");
+            fs::path animOut = contentPath / "Animations" / (stem + ".lanim");
+            const bool bOutputsExist =
+                fs::exists(staticOut) || fs::exists(skelOut) || fs::exists(skmOut) || fs::exists(animOut);
+            bool bNeedsImport = bForce || manifest.NeedsReimport(meshPath.string()) || !bOutputsExist;
             if (!bNeedsImport) {
                 skippedMeshes++;
                 continue;
             }
 
-            std::cout << "  [IMPORT MESH] " << filename << " -> " << outRelPath << "\n";
-
+            std::cout << "  [IMPORT MESH] " << meshPath.filename().string() << "\n";
             FMeshImportSettings meshSettings;
             meshSettings.bGenerateTangents = true;
+            FPendingMesh entry;
+            entry.Source = meshPath;
+            entry.Stem = stem;
+            if (FMeshImporter::ImportFBX(meshPath.string(), meshSettings, entry.Result) &&
+                (entry.Result.StaticMesh || entry.Result.SkeletalMesh || !entry.Result.Animations.empty() ||
+                 entry.Result.Skeleton)) {
+                pending.push_back(std::move(entry));
+            } else {
+                std::cerr << "  [ERROR] Failed to import mesh: " << meshPath.string() << "\n";
+                errorCount++;
+            }
+        }
 
-            FMeshImportResult importResult;
-            if (FMeshImporter::ImportFBX(meshPath.string(), meshSettings, importResult) && importResult.StaticMesh) {
-                std::vector<std::string> generatedAssets = { outRelPath };
-                std::vector<std::string> dependencies;
+        TRef<USkeleton> sharedSkeleton;
+        std::string sharedSkelRel;
+        for (auto& entry : pending) {
+            if (entry.Result.SkeletalMesh && entry.Result.Skeleton) {
+                sharedSkeleton = entry.Result.Skeleton;
+                sharedSkelRel = "Skeletons/" + entry.Stem + ".lskeleton";
+                break;
+            }
+        }
+        if (!sharedSkeleton) {
+            fs::path skelDir = contentPath / "Skeletons";
+            if (fs::exists(skelDir)) {
+                for (const auto& skelFile : fs::directory_iterator(skelDir)) {
+                    if (skelFile.path().extension() != ".lskeleton")
+                        continue;
+                    auto loaded = USkeleton::Create(skelFile.path().stem().string());
+                    if (loaded->LoadFromFile(skelFile.path().string())) {
+                        sharedSkeleton = loaded;
+                        sharedSkelRel = "Skeletons/" + skelFile.path().filename().string();
+                        break;
+                    }
+                }
+            }
+        }
 
-                auto staticMesh = importResult.StaticMesh;
+        if (sharedSkeleton) {
+            for (auto& entry : pending) {
+                if (entry.Result.SkeletalMesh || entry.Result.Animations.empty())
+                    continue;
+                FMeshImportSettings retarget;
+                retarget.bGenerateTangents = true;
+                retarget.SharedSkeleton = sharedSkeleton;
+                FMeshImportResult retargeted;
+                if (FMeshImporter::ImportFBX(entry.Source.string(), retarget, retargeted) &&
+                    !retargeted.Animations.empty()) {
+                    entry.Result.Animations = std::move(retargeted.Animations);
+                    entry.Result.Skeleton = sharedSkeleton;
+                    std::cout << "    [RETARGET] " << entry.Source.filename().string() << " -> /Game/" << sharedSkelRel
+                              << "\n";
+                }
+            }
+        }
+
+        for (auto& entry : pending) {
+            auto& importResult = entry.Result;
+            const std::string& stem = entry.Stem;
+            std::vector<std::string> generatedAssets;
+            std::vector<std::string> dependencies;
+
+            auto writeMaterials = [&]() {
                 for (const auto& extMat : importResult.ExtractedMaterials) {
                     std::string formattedName = extMat.Name;
-                    if (formattedName.rfind("M_", 0) != 0) {
+                    if (formattedName.rfind("M_", 0) != 0)
                         formattedName = "M_" + formattedName;
-                    }
                     std::string matRelPath = "Materials/" + formattedName + ".lmat";
                     fs::path matFilePath = contentPath / matRelPath;
-
-                    bool bMatNeedsImport = bForce || manifest.NeedsReimport(matFilePath.string()) || !fs::exists(matFilePath);
+                    bool bMatNeedsImport =
+                        bForce || manifest.NeedsReimport(matFilePath.string()) || !fs::exists(matFilePath);
                     if (bMatNeedsImport) {
                         auto builtMat = FMaterialImporter::BuildMaterial(extMat, allAvailableTexturePaths);
                         if (builtMat && FMaterialImporter::SaveMaterialToFile(builtMat, matFilePath.string())) {
@@ -246,10 +326,64 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                     }
                     dependencies.push_back(matRelPath);
                 }
+            };
 
+            if (importResult.IsSkeletal()) {
+                writeMaterials();
+                if (importResult.Skeleton && importResult.SkeletalMesh) {
+                    fs::path skelPath = contentPath / sharedSkelRel;
+                    if (sharedSkelRel.empty())
+                        sharedSkelRel = "Skeletons/" + stem + ".lskeleton";
+                    skelPath = contentPath / sharedSkelRel;
+                    importResult.Skeleton->SetAssetPath("/Game/" + sharedSkelRel);
+                    if (importResult.Skeleton->SaveToFile(skelPath.string())) {
+                        generatedAssets.push_back(sharedSkelRel);
+                        std::cout << "    [SAVED SKELETON] Bones: " << importResult.Skeleton->GetNumBones() << " -> "
+                                  << sharedSkelRel << "\n";
+                    }
+                    importResult.SkeletalMesh->SetSkeletonPath("/Game/" + sharedSkelRel);
+                    for (auto& anim : importResult.Animations)
+                        anim->SetSkeletonPath("/Game/" + sharedSkelRel);
+                } else if (!sharedSkelRel.empty()) {
+                    for (auto& anim : importResult.Animations) {
+                        anim->SetSkeletonPath("/Game/" + sharedSkelRel);
+                        if (sharedSkeleton)
+                            anim->LinkSkeleton(sharedSkeleton);
+                    }
+                }
+                if (importResult.SkeletalMesh) {
+                    std::string meshRel = "SkeletalMeshes/" + stem + ".lskeletalmesh";
+                    fs::path skmPath = contentPath / meshRel;
+                    importResult.SkeletalMesh->SetAssetPath("/Game/" + meshRel);
+                    if (importResult.SkeletalMesh->SaveToFile(skmPath.string())) {
+                        generatedAssets.push_back(meshRel);
+                        importedMeshes++;
+                        std::cout << "    [SAVED SKELMESH] Verts: " << importResult.SkeletalMesh->GetVertices().size()
+                                  << ", Indices: " << importResult.SkeletalMesh->GetIndices().size() << "\n";
+                    }
+                }
+                for (auto& anim : importResult.Animations) {
+                    std::string animStem = sanitize(anim->GetName());
+                    std::string animRel = "Animations/" + animStem + ".lanim";
+                    fs::path animPath = contentPath / animRel;
+                    anim->SetAssetPath("/Game/" + animRel);
+                    if (anim->SaveToFile(animPath.string())) {
+                        generatedAssets.push_back(animRel);
+                        importedAnims++;
+                        std::cout << "    [SAVED ANIM] " << animRel << " duration=" << anim->GetDuration()
+                                  << "s tracks=" << anim->GetTracks().size() << "\n";
+                    }
+                }
+                manifest.RegisterImport(entry.Source.string(), generatedAssets, dependencies);
+            } else if (importResult.StaticMesh) {
+                writeMaterials();
+                auto staticMesh = importResult.StaticMesh;
+                std::string outRelPath = "Meshes/" + stem + ".lmesh";
+                fs::path outFilePath = contentPath / "Meshes" / (stem + ".lmesh");
+                generatedAssets.insert(generatedAssets.begin(), outRelPath);
                 if (staticMesh->SaveToFile(outFilePath.string())) {
                     importedMeshes++;
-                    manifest.RegisterImport(meshPath.string(), generatedAssets, dependencies);
+                    manifest.RegisterImport(entry.Source.string(), generatedAssets, dependencies);
                     std::cout << "    [SAVED] Verts: " << staticMesh->GetVertices().size()
                               << ", Indices: " << staticMesh->GetIndices().size()
                               << ", Submeshes: " << staticMesh->GetSubmeshes().size() << "\n";
@@ -257,9 +391,6 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                     std::cerr << "  [ERROR] Failed to save native mesh: " << outFilePath.string() << "\n";
                     errorCount++;
                 }
-            } else {
-                std::cerr << "  [ERROR] Failed to import mesh: " << meshPath.string() << "\n";
-                errorCount++;
             }
         }
     }
@@ -274,6 +405,7 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
     std::cout << " HDRs:     " << importedHDRs << " imported, " << skippedHDRs << " skipped\n";
     std::cout << " Textures: " << importedTextures << " imported, " << skippedTextures << " skipped\n";
     std::cout << " Meshes:   " << importedMeshes << " imported, " << skippedMeshes << " skipped\n";
+    std::cout << " Anims:    " << importedAnims << " imported\n";
     std::cout << " Errors:   " << errorCount << "\n";
     std::cout << "===============================================================\n";
 
@@ -298,7 +430,8 @@ int ExecuteValidate(const std::string& InContentDir) {
     size_t warningCount = 0;
 
     for (const auto& entry : fs::recursive_directory_iterator(contentPath)) {
-        if (!entry.is_regular_file()) continue;
+        if (!entry.is_regular_file())
+            continue;
 
         std::string ext = FAssetPath::GetExtension(entry.path().string());
         if (ext == "lhdr") {
@@ -308,11 +441,12 @@ int ExecuteValidate(const std::string& InContentDir) {
                 std::cerr << "  [FAIL] Invalid or corrupt HDR asset: " << entry.path().string() << "\n";
                 errorCount++;
             } else if (hdr.Header.Width == 0 || hdr.Header.Height == 0 || hdr.Pixels.empty()) {
-                std::cerr << "  [FAIL] HDR asset has zero dimensions or empty payload: " << entry.path().string() << "\n";
+                std::cerr << "  [FAIL] HDR asset has zero dimensions or empty payload: " << entry.path().string()
+                          << "\n";
                 errorCount++;
             } else {
-                std::cout << "  [PASS] HDR Environment: " << entry.path().filename().string()
-                          << " (" << hdr.Header.Width << "x" << hdr.Header.Height << ", RGBA32F, "
+                std::cout << "  [PASS] HDR Environment: " << entry.path().filename().string() << " ("
+                          << hdr.Header.Width << "x" << hdr.Header.Height << ", RGBA32F, "
                           << (hdr.Pixels.size() * sizeof(float)) / 1024 << " KB)\n";
             }
         } else if (ext == "ltex") {
@@ -325,8 +459,8 @@ int ExecuteValidate(const std::string& InContentDir) {
                 std::cerr << "  [FAIL] Texture has zero dimensions or no mips: " << entry.path().string() << "\n";
                 errorCount++;
             } else {
-                std::cout << "  [PASS] Texture: " << entry.path().filename().string() 
-                          << " (" << tex.Header.Width << "x" << tex.Header.Height << ", " << tex.Mips.size() << " mips)\n";
+                std::cout << "  [PASS] Texture: " << entry.path().filename().string() << " (" << tex.Header.Width << "x"
+                          << tex.Header.Height << ", " << tex.Mips.size() << " mips)\n";
             }
         } else if (ext == "lmesh") {
             validatedCount++;
@@ -338,10 +472,49 @@ int ExecuteValidate(const std::string& InContentDir) {
                 std::cerr << "  [FAIL] Mesh contains 0 vertices or indices: " << entry.path().string() << "\n";
                 errorCount++;
             } else {
-                std::cout << "  [PASS] Mesh: " << entry.path().filename().string()
-                          << " (" << mesh->GetVertices().size() << " verts, " 
-                          << mesh->GetIndices().size() / 3 << " tris, "
-                          << mesh->GetSubmeshes().size() << " submeshes)\n";
+                std::cout << "  [PASS] Mesh: " << entry.path().filename().string() << " (" << mesh->GetVertices().size()
+                          << " verts, " << mesh->GetIndices().size() / 3 << " tris, " << mesh->GetSubmeshes().size()
+                          << " submeshes)\n";
+            }
+        } else if (ext == "lskeleton") {
+            validatedCount++;
+            auto skeleton = USkeleton::Create(entry.path().stem().string());
+            if (!skeleton->LoadFromFile(entry.path().string()) || skeleton->GetNumBones() == 0) {
+                std::cerr << "  [FAIL] Invalid skeleton: " << entry.path().string() << "\n";
+                errorCount++;
+            } else {
+                std::cout << "  [PASS] Skeleton: " << entry.path().filename().string() << " ("
+                          << skeleton->GetNumBones() << " bones)\n";
+            }
+        } else if (ext == "lskeletalmesh") {
+            validatedCount++;
+            auto mesh = USkeletalMesh::Create(entry.path().stem().string());
+            if (!mesh->LoadFromFile(entry.path().string()) || mesh->GetVertices().empty()) {
+                std::cerr << "  [FAIL] Invalid skeletal mesh: " << entry.path().string() << "\n";
+                errorCount++;
+            } else {
+                std::cout << "  [PASS] SkeletalMesh: " << entry.path().filename().string() << " ("
+                          << mesh->GetVertices().size() << " verts, " << mesh->GetIndices().size() / 3 << " tris)\n";
+            }
+        } else if (ext == "lanim") {
+            validatedCount++;
+            auto anim = UAnimSequence::Create(entry.path().stem().string());
+            if (!anim->LoadFromFile(entry.path().string()) || anim->GetTracks().empty()) {
+                std::cerr << "  [FAIL] Invalid animation: " << entry.path().string() << "\n";
+                errorCount++;
+            } else {
+                std::cout << "  [PASS] Animation: " << entry.path().filename().string() << " (" << anim->GetDuration()
+                          << "s, " << anim->GetTracks().size() << " tracks)\n";
+            }
+        } else if (ext == "lblend") {
+            validatedCount++;
+            auto blend = UBlendSpace::Create(entry.path().stem().string());
+            if (!blend->LoadFromFile(entry.path().string()) || blend->GetSamples().empty()) {
+                std::cerr << "  [FAIL] Invalid blend space: " << entry.path().string() << "\n";
+                errorCount++;
+            } else {
+                std::cout << "  [PASS] BlendSpace: " << entry.path().filename().string() << " ("
+                          << blend->GetSamples().size() << " samples)\n";
             }
         } else if (ext == "lmat" || ext == "lmi") {
             validatedCount++;
@@ -350,8 +523,8 @@ int ExecuteValidate(const std::string& InContentDir) {
     }
 
     std::cout << "\n===============================================================\n";
-    std::cout << " Validation Summary: " << validatedCount << " assets checked, " 
-              << errorCount << " errors, " << warningCount << " warnings.\n";
+    std::cout << " Validation Summary: " << validatedCount << " assets checked, " << errorCount << " errors, "
+              << warningCount << " warnings.\n";
     std::cout << " Status: " << (errorCount == 0 ? "PASSED" : "FAILED") << "\n";
     std::cout << "===============================================================\n";
 
@@ -387,7 +560,8 @@ int ExecuteValidateMap(const std::string& InMapPath) {
     while (std::getline(file, line)) {
         std::string trimmed = line;
         size_t first = trimmed.find_first_not_of(" \t");
-        if (first == std::string::npos) continue;
+        if (first == std::string::npos)
+            continue;
         trimmed = trimmed.substr(first);
 
         if (trimmed.rfind("- Name:", 0) == 0) {
@@ -412,7 +586,8 @@ int ExecuteValidateMap(const std::string& InMapPath) {
                 assetPath = assetPath.substr(q1 + 1, q2 - q1 - 1);
             } else {
                 size_t p = assetPath.find_first_not_of(" \t\r\n");
-                if (p != std::string::npos) assetPath = assetPath.substr(p);
+                if (p != std::string::npos)
+                    assetPath = assetPath.substr(p);
             }
 
             if (!assetPath.empty()) {
@@ -529,11 +704,13 @@ int ExecuteInspect(const std::string& InFilePath) {
         std::cout << "Width:       " << tex.Header.Width << "\n";
         std::cout << "Height:      " << tex.Header.Height << "\n";
         std::cout << "Channels:    " << static_cast<int>(tex.Header.Channels) << "\n";
-        std::cout << "ColorSpace:  " << (tex.Header.ColorSpace == static_cast<uint32_t>(ETextureColorSpace::sRGB) ? "sRGB" : "Linear") << "\n";
+        std::cout << "ColorSpace:  "
+                  << (tex.Header.ColorSpace == static_cast<uint32_t>(ETextureColorSpace::sRGB) ? "sRGB" : "Linear")
+                  << "\n";
         std::cout << "Mip Levels:  " << tex.Mips.size() << "\n";
         for (size_t m = 0; m < tex.Mips.size(); ++m) {
-            std::cout << "  Mip " << m << ": " << tex.Mips[m].Width << "x" << tex.Mips[m].Height
-                      << " (" << tex.Mips[m].Pixels.size() << " bytes)\n";
+            std::cout << "  Mip " << m << ": " << tex.Mips[m].Width << "x" << tex.Mips[m].Height << " ("
+                      << tex.Mips[m].Pixels.size() << " bytes)\n";
         }
     } else if (ext == "lmesh") {
         auto mesh = UStaticMesh::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
@@ -544,11 +721,12 @@ int ExecuteInspect(const std::string& InFilePath) {
         glm::vec3 minB = mesh->GetBoundsMin();
         glm::vec3 maxB = mesh->GetBoundsMax();
         std::cout << "Vertices:    " << mesh->GetVertices().size() << "\n";
-        std::cout << "Indices:     " << mesh->GetIndices().size() << " (" << mesh->GetIndices().size() / 3 << " triangles)\n";
+        std::cout << "Indices:     " << mesh->GetIndices().size() << " (" << mesh->GetIndices().size() / 3
+                  << " triangles)\n";
         std::cout << "Submeshes:   " << mesh->GetSubmeshes().size() << "\n";
         for (size_t s = 0; s < mesh->GetSubmeshes().size(); ++s) {
             const auto& sub = mesh->GetSubmeshes()[s];
-            std::cout << "  Submesh " << s << ": \"" << sub.Name << "\" (Offset: " << sub.IndexOffset 
+            std::cout << "  Submesh " << s << ": \"" << sub.Name << "\" (Offset: " << sub.IndexOffset
                       << ", Count: " << sub.IndexCount << ", MatSlot: " << sub.MaterialSlotIndex << ")\n";
         }
         std::cout << "Material Slots: " << mesh->GetMaterialSlots().size() << "\n";
@@ -559,6 +737,47 @@ int ExecuteInspect(const std::string& InFilePath) {
         std::cout << "Bounding Box Min: (" << minB.x << ", " << minB.y << ", " << minB.z << ")\n";
         std::cout << "Bounding Box Max: (" << maxB.x << ", " << maxB.y << ", " << maxB.z << ")\n";
         std::cout << "Bounding Radius:  " << mesh->GetSphereRadius() << "\n";
+    } else if (ext == "lskeleton") {
+        auto skeleton = USkeleton::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
+        if (!skeleton->LoadFromFile(InFilePath)) {
+            std::cerr << "[ERROR] Failed to load .lskeleton file\n";
+            return 1;
+        }
+        std::cout << "Bones: " << skeleton->GetNumBones() << "\n";
+        for (uint32_t i = 0; i < skeleton->GetNumBones(); ++i) {
+            const auto& b = skeleton->GetBones()[i];
+            std::cout << "  [" << i << "] " << b.Name << " parent=" << b.ParentIndex << "\n";
+        }
+    } else if (ext == "lskeletalmesh") {
+        auto mesh = USkeletalMesh::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
+        if (!mesh->LoadFromFile(InFilePath)) {
+            std::cerr << "[ERROR] Failed to load .lskeletalmesh file\n";
+            return 1;
+        }
+        std::cout << "Vertices:  " << mesh->GetVertices().size() << "\n";
+        std::cout << "Indices:   " << mesh->GetIndices().size() << "\n";
+        std::cout << "Submeshes: " << mesh->GetSubmeshes().size() << "\n";
+        std::cout << "Skeleton:  " << mesh->GetSkeletonPath() << "\n";
+    } else if (ext == "lanim") {
+        auto anim = UAnimSequence::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
+        if (!anim->LoadFromFile(InFilePath)) {
+            std::cerr << "[ERROR] Failed to load .lanim file\n";
+            return 1;
+        }
+        std::cout << "Duration: " << anim->GetDuration() << "s\n";
+        std::cout << "Tracks:   " << anim->GetTracks().size() << "\n";
+        std::cout << "Skeleton: " << anim->GetSkeletonPath() << "\n";
+    } else if (ext == "lblend") {
+        auto blend = UBlendSpace::Create(FAssetPath::GetFileNameWithoutExtension(InFilePath));
+        if (!blend->LoadFromFile(InFilePath)) {
+            std::cerr << "[ERROR] Failed to load .lblend file\n";
+            return 1;
+        }
+        std::cout << "2D:       " << (blend->Is2D() ? "yes" : "no") << "\n";
+        std::cout << "Skeleton: " << blend->GetSkeletonPath() << "\n";
+        std::cout << "Samples:  " << blend->GetSamples().size() << "\n";
+        for (const auto& s : blend->GetSamples())
+            std::cout << "  (" << s.Coord.x << ", " << s.Coord.y << ") " << s.SequencePath << "\n";
     } else if (ext == "llightmap") {
         FLightmapAsset lm;
         if (!lm.LoadFromFile(InFilePath)) {
@@ -648,8 +867,8 @@ int ExecuteValidateProject(const std::string& InProjectPath) {
     // 4. Resolve Default Map
     std::string physicalMap = FProjectPaths::ResolveVirtualPath(desc.DefaultMap);
     if (!fs::exists(physicalMap)) {
-        std::cerr << "  [FAIL] Default map '" << desc.DefaultMap << "' resolved to '"
-                  << physicalMap << "' which does NOT exist on disk.\n";
+        std::cerr << "  [FAIL] Default map '" << desc.DefaultMap << "' resolved to '" << physicalMap
+                  << "' which does NOT exist on disk.\n";
         return 1;
     }
     std::cout << "  [PASS] Virtual path resolved: " << desc.DefaultMap << " -> " << physicalMap << "\n\n";

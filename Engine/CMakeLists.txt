@@ -29,6 +29,11 @@ set(LEON_ENGINE_SOURCES
     # Assets
     Source/Runtime/Assets/Private/UAssetManager.cpp
     Source/Runtime/Assets/Private/UStaticMesh.cpp
+    Source/Runtime/Assets/Private/USkeleton.cpp
+    Source/Runtime/Assets/Private/USkeletalMesh.cpp
+    Source/Runtime/Assets/Private/UAnimSequence.cpp
+    Source/Runtime/Assets/Private/UBlendSpace.cpp
+    Source/Runtime/Assets/Private/FAnimRuntime.cpp
     Source/Runtime/Assets/Private/FAssetManifest.cpp
     Source/Runtime/Assets/Private/FAssetPath.cpp
     # Native .lhdr / .ltex loaders are runtime (OpenGL + IBL). Source import stays callable from Core
@@ -53,6 +58,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/UMG/Private/UPanelWidget.cpp
     Source/Runtime/UMG/Private/UCanvasPanel.cpp
     Source/Runtime/UMG/Private/UTextBlock.cpp
+    Source/Runtime/UMG/Private/UEditableText.cpp
     Source/Runtime/UMG/Private/UButton.cpp
     Source/Runtime/UMG/Private/UUserWidget.cpp
     Source/Runtime/UMG/Private/UImage.cpp
@@ -65,6 +71,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Engine/Private/FMaterialSerializer.cpp
     Source/Runtime/Engine/Private/UNetDriver.cpp
     Source/Runtime/Engine/Private/FLoopbackNetDriver.cpp
+    Source/Runtime/Engine/Private/UIpNetDriver.cpp
     Source/Runtime/Gameplay/Private/AActor.cpp
     Source/Runtime/Gameplay/Private/ACameraActor.cpp
     Source/Runtime/Gameplay/Private/ACharacter.cpp
@@ -81,7 +88,29 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/UGameplayStatics.cpp
     Source/Runtime/Gameplay/Private/FOnScreenDebugMessage.cpp
     Source/Runtime/Gameplay/Private/UActorComponent.cpp
+    Source/Runtime/Gameplay/Private/UHealthComponent.cpp
+    Source/Runtime/Gameplay/Private/UCombatComponent.cpp
     Source/Runtime/Gameplay/Private/UClassRegistry.cpp
+    Source/Runtime/Gameplay/Private/UAnimInstance.cpp
+    Source/Runtime/Gameplay/Private/USkeletalMeshComponent.cpp
+    Source/Runtime/Gameplay/Private/FAnimStateMachine.cpp
+    Source/Runtime/Physics/Private/FPhysicsModule.cpp
+    Source/Runtime/Physics/Private/FSimplePhysicsScene.cpp
+    Source/Runtime/Physics/Private/FCollisionQuery.cpp
+    Source/Runtime/Gameplay/Private/UPrimitiveComponent.cpp
+    Source/Runtime/Gameplay/Private/UCharacterMovementComponent.cpp
+    Source/Runtime/Gameplay/Private/USpringArmComponent.cpp
+    Source/Runtime/Gameplay/Private/AController.cpp
+    Source/Runtime/Gameplay/Private/AAIController.cpp
+    Source/Runtime/Gameplay/Private/ABlockingVolume.cpp
+    Source/Runtime/Gameplay/Private/ANavMeshBoundsVolume.cpp
+    Source/Runtime/Gameplay/Private/FGameplayDebugger.cpp
+    Source/Runtime/AI/Private/UBlackboardData.cpp
+    Source/Runtime/AI/Private/UBehaviorTree.cpp
+    Source/Runtime/AI/Private/UBehaviorTreeComponent.cpp
+    Source/Runtime/AI/Private/UNavigationSystem.cpp
+    Source/Runtime/AI/Private/UPathFollowingComponent.cpp
+    Source/Runtime/Assets/Private/UPhysicsAsset.cpp
 )
 
 add_library(LeonEngineCore STATIC ${LEON_ENGINE_SOURCES})
@@ -102,6 +131,8 @@ target_include_directories(LeonEngineCore
         "${LEON_RUNTIME_ROOT}/UMG/Public"
         "${LEON_RUNTIME_ROOT}/Engine/Public"
         "${LEON_RUNTIME_ROOT}/Gameplay/Public"
+        "${LEON_RUNTIME_ROOT}/Physics/Public"
+        "${LEON_RUNTIME_ROOT}/AI/Public"
         "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
 )
 
@@ -116,12 +147,13 @@ target_link_libraries(LeonEngineCore
 )
 
 if(WIN32)
-    target_link_libraries(LeonEngineCore PRIVATE psapi dxgi)
+    target_link_libraries(LeonEngineCore PRIVATE psapi dxgi ws2_32)
 endif()
 
 set(LEON_PIPELINE_SOURCES
     Source/Runtime/Assets/Private/FMaterialImporter.cpp
     Source/Runtime/Assets/Private/FMeshImporter.cpp
+    Source/Runtime/Assets/Private/FSkeletalImporter.cpp
     Source/Runtime/Assets/Private/FLightmapUV.cpp
     Source/Runtime/Lightmass/Private/FLightmapBuilder.cpp
     Source/Runtime/Lightmass/Private/FLightBaker.cpp

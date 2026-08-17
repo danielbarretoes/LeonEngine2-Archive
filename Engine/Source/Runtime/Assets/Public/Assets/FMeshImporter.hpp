@@ -4,6 +4,9 @@
 #include "Assets/FAssetTypes.hpp"
 #include "Renderer/FMaterial.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/USkeleton.hpp"
+#include "Assets/USkeletalMesh.hpp"
+#include "Assets/UAnimSequence.hpp"
 
 #include <glm/glm.hpp>
 #include <string>
@@ -39,10 +42,15 @@ namespace Leon {
         bool bFlipUVs = false;
         bool bExtractMaterials = true;
         float ScaleFactor = 1.0f; // 1.0 = auto-detect / standard
+        /** When set, animation FBX files retarget onto this skeleton instead of extracting a new one. */
+        TRef<USkeleton> SharedSkeleton;
     };
 
     struct FMeshImportResult {
         TRef<UStaticMesh> StaticMesh = nullptr;
+        TRef<USkeleton> Skeleton = nullptr;
+        TRef<USkeletalMesh> SkeletalMesh = nullptr;
+        std::vector<TRef<UAnimSequence>> Animations;
         std::vector<TRef<UStaticMesh>> SeparateMeshes;
         std::vector<FExtractedMaterial> ExtractedMaterials;
         std::vector<std::string> ReferencedTextureNames;
@@ -50,6 +58,7 @@ namespace Leon {
         std::vector<std::string> Warnings;
 
         bool HasErrors() const { return !Errors.empty(); }
+        bool IsSkeletal() const { return SkeletalMesh != nullptr || Skeleton != nullptr; }
     };
 
     class FMeshImporter {

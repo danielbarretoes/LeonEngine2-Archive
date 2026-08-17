@@ -1,4 +1,5 @@
 #include "Renderer/FDebugOverlay.hpp"
+#include "Core/FFrameProfiler.hpp"
 #include "Core/FLog.hpp"
 #include "RHI/FRenderCommand.hpp"
 
@@ -192,7 +193,7 @@ namespace Leon {
 
         // 1. Draw Glassmorphism Dark HUD Panel Background (Width: 440px, Height: 185px)
         glm::vec2 boxMin(16.0f, 16.0f);
-        glm::vec2 boxMax(456.0f, 202.0f);
+        glm::vec2 boxMax(520.0f, 280.0f);
 
         // Backdrop quad (untextured solid)
         Shader->Bind();
@@ -256,6 +257,25 @@ namespace Leon {
                                InRenderStats.TriangleCount, InRenderStats.MeshesCulled,
                                InRenderStats.MeshesCulled + InRenderStats.MeshesDrawn),
                    glm::vec4(1.0f, 0.85f, 0.3f, 1.0f));
+        textY += lineHeight;
+
+        const auto& timing = FFrameProfiler::Last();
+        DrawString(textX, textY,
+                   std::format("Game {:.1f}  Render {:.1f}  GPU {:.1f}  Phys {:.1f}  AI {:.1f}  Anim {:.1f}",
+                               timing.GameMs, timing.RenderMs, timing.GPUMs, timing.PhysicsMs, timing.AIMs,
+                               timing.AnimationMs),
+                   glm::vec4(0.85f, 0.95f, 1.0f, 1.0f));
+        textY += lineHeight;
+        DrawString(textX, textY,
+                   std::format("Shadow {:.1f}  Opaque {:.1f}  Sky {:.1f}  IBL {:.1f}  PP {:.1f}  UI {:.1f}  Net {:.1f}",
+                               timing.ShadowMs, timing.OpaqueMs, timing.SkyMs, timing.IBLMs, timing.PostProcessMs,
+                               timing.UIMs, timing.NetworkMs),
+                   glm::vec4(0.75f, 0.85f, 0.95f, 1.0f));
+        textY += lineHeight;
+        DrawString(textX, textY,
+                   std::format("ShadowDraws: {}  Ping: {:.0f}ms  Pkt {}/{}  B/s {}", timing.ShadowDrawCalls,
+                               timing.PingMs, timing.PacketsSent, timing.PacketsReceived, timing.BytesPerSec),
+                   glm::vec4(0.75f, 0.85f, 0.95f, 1.0f));
         textY += lineHeight;
 
         // Hotkey state guide

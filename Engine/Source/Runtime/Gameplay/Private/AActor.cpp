@@ -77,6 +77,24 @@ namespace Leon {
         GetTransform().Rotation = InRotation;
     }
 
+    glm::vec3 AActor::GetActorForwardVector() const {
+        glm::vec3 dir = glm::vec3(GetTransform().GetTransform() * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
+        float len = glm::length(dir);
+        return len > 1e-6f ? dir / len : glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+
+    glm::vec3 AActor::GetActorRightVector() const {
+        glm::vec3 dir = glm::vec3(GetTransform().GetTransform() * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+        float len = glm::length(dir);
+        return len > 1e-6f ? dir / len : glm::vec3(1.0f, 0.0f, 0.0f);
+    }
+
+    glm::vec3 AActor::GetActorUpVector() const {
+        glm::vec3 dir = glm::vec3(GetTransform().GetTransform() * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
+        float len = glm::length(dir);
+        return len > 1e-6f ? dir / len : glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
     glm::vec3 AActor::GetActorScale() const {
         return GetTransform().Scale;
     }

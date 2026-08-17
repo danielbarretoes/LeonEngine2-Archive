@@ -7,6 +7,8 @@
 #include "RHI/FVertexArray.hpp"
 
 #include <glm/glm.hpp>
+#include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace Leon {
@@ -34,6 +36,52 @@ namespace Leon {
         static void DrawArrow(const glm::vec3& InStart, const glm::vec3& InEnd,
                               const glm::vec4& InColor = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f), float InHeadSize = 0.35f);
 
+        static void DrawDebugLine(const glm::vec3& InP0, const glm::vec3& InP1,
+                                  const glm::vec4& InColor = glm::vec4(1.0f)) {
+            DrawLine(InP0, InP1, InColor);
+        }
+        static void DrawDebugSphere(const glm::vec3& InCenter, float InRadius,
+                                    const glm::vec4& InColor = glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),
+                                    unsigned int InSegments = 24) {
+            DrawWireSphere(InCenter, InRadius, InColor, InSegments);
+        }
+        static void DrawDebugBox(const glm::vec3& InCenter, const glm::vec3& InExtent,
+                                 const glm::vec4& InColor = glm::vec4(0.2f, 1.0f, 0.3f, 1.0f));
+        static void DrawDebugCapsule(const glm::vec3& InCenter, float InRadius, float InHalfHeight,
+                                     const glm::vec4& InColor = glm::vec4(0.2f, 0.9f, 1.0f, 1.0f));
+        static void DrawDebugPoint(const glm::vec3& InPoint, float InSize = 0.06f,
+                                   const glm::vec4& InColor = glm::vec4(1.0f, 0.2f, 0.2f, 1.0f));
+        static void DrawDebugArrow(const glm::vec3& InStart, const glm::vec3& InEnd,
+                                   const glm::vec4& InColor = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f),
+                                   float InHeadSize = 0.35f) {
+            DrawArrow(InStart, InEnd, InColor, InHeadSize);
+        }
+
+        static void SetTraceCaptureEnabled(bool bEnabled) { bTraceCapture = bEnabled; }
+        static bool IsTraceCaptureEnabled() { return bTraceCapture; }
+        static void RecordLineTrace(const glm::vec3& InStart, const glm::vec3& InEnd, bool bHit,
+                                    const glm::vec3& InHitLocation, const glm::vec3& InHitNormal,
+                                    uint8_t InChannel = 0);
+        static void DrawDebugLineTrace(const glm::vec3& InStart, const glm::vec3& InEnd, bool bHit,
+                                       const glm::vec3& InHitLocation, const glm::vec3& InHitNormal,
+                                       uint8_t InChannel = 0) {
+            RecordLineTrace(InStart, InEnd, bHit, InHitLocation, InHitNormal, InChannel);
+        }
+        static void QueueLine(const glm::vec3& InP0, const glm::vec3& InP1, const glm::vec4& InColor);
+        static void DrawQueuedTraces();
+        static void ClearQueuedTraces();
+
+        struct FLastTrace {
+            glm::vec3 Start{0.0f};
+            glm::vec3 End{0.0f};
+            glm::vec3 Hit{0.0f};
+            glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+            uint8_t Channel = 0;
+            bool bHit = false;
+            bool bValid = false;
+        };
+        static const FLastTrace& GetLastTrace() { return LastTrace; }
+
         // Light Gizmo Helpers
         static void DrawPointLightGizmo(const FPointLight& InLight);
         static void DrawSpotLightGizmo(const FSpotLight& InLight);
@@ -53,6 +101,19 @@ namespace Leon {
         static std::vector<FDebugVertex> LineVertices;
         static glm::mat4 ViewProjection;
         static constexpr size_t MaxLineVertices = 65536;
+        static bool bTraceCapture;
+        struct FQueuedTrace {
+            glm::vec3 Start{0.0f};
+            glm::vec3 End{0.0f};
+            glm::vec3 Hit{0.0f};
+            glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+            uint8_t Channel = 0;
+            bool bHit = false;
+        };
+        static std::vector<FQueuedTrace> QueuedTraces;
+        static std::vector<std::pair<glm::vec3, glm::vec3>> QueuedExtraLines;
+        static std::vector<glm::vec4> QueuedExtraColors;
+        static FLastTrace LastTrace;
     };
 
 } // namespace Leon

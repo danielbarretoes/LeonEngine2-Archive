@@ -39,8 +39,7 @@ namespace Leon {
     }
 
     /** Pack TBN into tangent.xyz + sign. Right-handed when T×B·N > 0 ⇒ w = +1. */
-    inline glm::vec4 PackTangent(const glm::vec3& InTangent, const glm::vec3& InNormal,
-                                 const glm::vec3& InBitangent) {
+    inline glm::vec4 PackTangent(const glm::vec3& InTangent, const glm::vec3& InNormal, const glm::vec3& InBitangent) {
         glm::vec3 n = SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::vec3 t = SafeNormalize(InTangent, glm::vec3(1.0f, 0.0f, 0.0f));
         t = SafeNormalize(t - n * glm::dot(n, t), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -84,6 +83,28 @@ namespace Leon {
     }
 
     constexpr uint32_t kCanonicalVertexFloats = 17;
+
+/** Skinned vertex: canonical attributes + 4 bone influences (GPU linear blend skinning). */
+#pragma pack(push, 1)
+    struct FSkinnedMeshVertex {
+        glm::vec3 Position{0.0f};
+        glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+        glm::vec2 TexCoord{0.0f};
+        glm::vec4 Tangent{1.0f, 0.0f, 0.0f, 1.0f};
+        glm::vec3 Color{1.0f};
+        glm::vec2 LightmapUV{0.0f};
+        glm::ivec4 BoneIndices{0};
+        glm::vec4 BoneWeights{1.0f, 0.0f, 0.0f, 0.0f};
+    };
+#pragma pack(pop)
+    static_assert(sizeof(FSkinnedMeshVertex) == 100, "skinned vertex must be tightly packed");
+
+    inline FBufferLayout MakeSkinnedMeshLayout() {
+        return {{EShaderDataType::Float3, "aPos"},       {EShaderDataType::Float3, "aNormal"},
+                {EShaderDataType::Float2, "aTexCoord"},  {EShaderDataType::Float4, "aTangent"},
+                {EShaderDataType::Float3, "aColor"},     {EShaderDataType::Float2, "aLightmapUV"},
+                {EShaderDataType::Int4, "aBoneIndices"}, {EShaderDataType::Float4, "aBoneWeights"}};
+    }
 
     /**
      * Lengyel tangent generation from UV0. Overwrites Tangent (xyz + handedness).

@@ -25,6 +25,10 @@ namespace Leon {
             remote->Incoming = local->Outgoing;
             local->Outgoing.clear();
         }
+        if (!local->OutgoingInput.empty()) {
+            remote->IncomingInput = local->OutgoingInput;
+            local->OutgoingInput.clear();
+        }
     }
 
 } // namespace Leon

@@ -43,8 +43,18 @@ namespace Leon {
         FWindow& GetWindow() { return *AppWindow; }
         bool IsHUDEnabled() const { return bShowHUD; }
         bool IsLightGizmosEnabled() const { return bShowLightGizmos; }
+        bool IsGameplayDebugEnabled() const { return bShowGameplayDebug; }
+        bool IsDebugPhysicsEnabled() const { return bDebugPhysics; }
+        bool IsDebugCharacterEnabled() const { return bDebugCharacter; }
+        bool IsDebugAIEnabled() const { return bDebugAI; }
+        bool IsDebugNetworkEnabled() const { return bDebugNetwork; }
         void SetHUDEnabled(bool InbEnabled) { bShowHUD = InbEnabled; }
         void SetLightGizmosEnabled(bool InbEnabled) { bShowLightGizmos = InbEnabled; }
+        void SetGameplayDebugEnabled(bool InbEnabled) { bShowGameplayDebug = InbEnabled; }
+        void ToggleDebugPhysics() { bDebugPhysics = !bDebugPhysics; }
+        void ToggleDebugCharacter() { bDebugCharacter = !bDebugCharacter; }
+        void ToggleDebugAI() { bDebugAI = !bDebugAI; }
+        void ToggleDebugNetwork() { bDebugNetwork = !bDebugNetwork; }
 
         float GetTimeSinceWindowOpenMs() const;
         std::chrono::high_resolution_clock::time_point GetWindowOpenTime() const { return WindowCreationTime; }
@@ -64,6 +74,11 @@ namespace Leon {
         bool bMinimized = false;
         bool bShowHUD = false;
         bool bShowLightGizmos = false;
+        bool bShowGameplayDebug = false;
+        bool bDebugPhysics = false;
+        bool bDebugCharacter = false;
+        bool bDebugAI = false;
+        bool bDebugNetwork = false;
         FLayerStack LayerStack;
         float LastFrameTime = 0.0f;
 

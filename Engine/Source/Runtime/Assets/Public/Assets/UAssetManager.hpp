@@ -5,6 +5,10 @@
 #include "Renderer/FMaterialInstance.hpp"
 #include "RHI/FShader.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/USkeleton.hpp"
+#include "Assets/USkeletalMesh.hpp"
+#include "Assets/UAnimSequence.hpp"
+#include "Assets/UBlendSpace.hpp"
 #include "Assets/FLightmapAsset.hpp"
 #include "RHI/FTexture.hpp"
 
@@ -45,6 +49,22 @@ namespace Leon {
         static void AddStaticMesh(const std::string& InName, const TRef<UStaticMesh>& InMesh);
         static bool HasStaticMesh(const std::string& InPath);
 
+        static TRef<USkeleton> GetSkeleton(const std::string& InPath);
+        static void AddSkeleton(const std::string& InName, const TRef<USkeleton>& InSkeleton);
+        static bool HasSkeleton(const std::string& InPath);
+
+        static TRef<USkeletalMesh> GetSkeletalMesh(const std::string& InPath);
+        static void AddSkeletalMesh(const std::string& InName, const TRef<USkeletalMesh>& InMesh);
+        static bool HasSkeletalMesh(const std::string& InPath);
+
+        static TRef<UAnimSequence> GetAnimSequence(const std::string& InPath);
+        static void AddAnimSequence(const std::string& InName, const TRef<UAnimSequence>& InAnim);
+        static bool HasAnimSequence(const std::string& InPath);
+
+        static TRef<UBlendSpace> GetBlendSpace(const std::string& InPath);
+        static void AddBlendSpace(const std::string& InName, const TRef<UBlendSpace>& InBlend);
+        static bool HasBlendSpace(const std::string& InPath);
+
         // Lightmaps (.llightmap)
         static TRef<FLightmapAsset> GetLightmap(const std::string& InPath);
         static void AddLightmap(const std::string& InName, const TRef<FLightmapAsset>& InLightmap);
@@ -79,6 +99,10 @@ namespace Leon {
         static std::string ContentRoot;
         static std::unordered_map<std::string, TRef<FTexture2D>> TextureCache;
         static std::unordered_map<std::string, TRef<UStaticMesh>> StaticMeshCache;
+        static std::unordered_map<std::string, TRef<USkeleton>> SkeletonCache;
+        static std::unordered_map<std::string, TRef<USkeletalMesh>> SkeletalMeshCache;
+        static std::unordered_map<std::string, TRef<UAnimSequence>> AnimSequenceCache;
+        static std::unordered_map<std::string, TRef<UBlendSpace>> BlendSpaceCache;
         static std::unordered_map<std::string, TRef<FLightmapAsset>> LightmapCache;
         static std::unordered_map<std::string, TRef<FShader>> ShaderCache;
         static std::unordered_map<std::string, TRef<FMaterial>> MaterialCache;
@@ -95,6 +119,22 @@ namespace Leon {
 
     template <> inline TRef<UStaticMesh> UAssetManager::Load<UStaticMesh>(const std::string& InPath) {
         return GetStaticMesh(InPath);
+    }
+
+    template <> inline TRef<USkeleton> UAssetManager::Load<USkeleton>(const std::string& InPath) {
+        return GetSkeleton(InPath);
+    }
+
+    template <> inline TRef<USkeletalMesh> UAssetManager::Load<USkeletalMesh>(const std::string& InPath) {
+        return GetSkeletalMesh(InPath);
+    }
+
+    template <> inline TRef<UAnimSequence> UAssetManager::Load<UAnimSequence>(const std::string& InPath) {
+        return GetAnimSequence(InPath);
+    }
+
+    template <> inline TRef<UBlendSpace> UAssetManager::Load<UBlendSpace>(const std::string& InPath) {
+        return GetBlendSpace(InPath);
     }
 
     template <> inline TRef<FMaterial> UAssetManager::Load<FMaterial>(const std::string& InPath) {

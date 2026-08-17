@@ -48,6 +48,7 @@ add_executable(RendererTests
     Asset/TextureImportTests.cpp
     Asset/HDRAssetTests.cpp
     Asset/MeshImportTests.cpp
+    Asset/SkeletalAnimationTests.cpp
     Asset/AssetValidationTests.cpp
     Gameplay/GameplayFrameworkTests.cpp
     Gameplay/ProjectBootTests.cpp
@@ -55,6 +56,12 @@ add_executable(RendererTests
     Gameplay/InputSettingsTests.cpp
     Gameplay/CharacterComponentFrustumTests.cpp
     Gameplay/NetDriverTests.cpp
+    Gameplay/EngineGameSeparationTests.cpp
+    Gameplay/HealthComponentTests.cpp
+    Gameplay/PhysicsMovementAITests.cpp
+    Shooter/ShooterGameplayTests.cpp
+    Shooter/PlayabilityIntegrationTests.cpp
+    Shooter/BotAIIntegrationTests.cpp
     Lightmass/StaticLightingTests.cpp
     Renderer/ViewportResizeTests.cpp
     Renderer/GoldenSceneTests.cpp
@@ -63,16 +70,36 @@ add_executable(RendererTests
 target_include_directories(RendererTests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/Plugins/RHI/OpenGL/include
+    ${CMAKE_SOURCE_DIR}/Plugins/Physics/Jolt/include
+    ${CMAKE_SOURCE_DIR}/Plugins/Networking/ENet/include
     ${CMAKE_SOURCE_DIR}/ThirdParty/glad/include
     ${CMAKE_SOURCE_DIR}/ThirdParty/stb
     ${CMAKE_SOURCE_DIR}/ThirdParty/doctest
     ${CMAKE_SOURCE_DIR}/ThirdParty
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Public
+)
+
+target_sources(RendererTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterGameMode.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterGameState.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterCharacter.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterPlayerController.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterPlayerState.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterBotController.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterWeapon.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/AShooterHUD.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UShooterAnimInstance.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UShooterCombatComponent.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UShooterGameInstance.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UShooterWidgets.cpp
 )
 
 target_link_libraries(RendererTests PRIVATE
     LeonEngineCore
     LeonEnginePipeline
     LeonEngine_OpenGL
+    LeonEngine_Jolt
+    LeonEngine_ENet
     doctest
     glad
     glfw

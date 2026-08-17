@@ -1,4 +1,5 @@
 #include "Assets/FMeshImporter.hpp"
+#include "Assets/FSkeletalImporter.hpp"
 #include "Assets/FAssetPath.hpp"
 #include "Core/FLog.hpp"
 #include "Renderer/FVertexLayout.hpp"
@@ -28,8 +29,6 @@ namespace Leon {
         }
 
         std::string baseMeshName = FAssetPath::GetFileNameWithoutExtension(InSourcePath);
-        auto staticMesh = UStaticMesh::Create(baseMeshName);
-        staticMesh->SetUUID(FUUID::FromPath(baseMeshName));
 
         // 1. Extract Materials
         std::unordered_map<const ufbx_material*, uint32_t> matToSlotIndex;
@@ -163,16 +162,46 @@ namespace Leon {
             }
 
             OutResult.ExtractedMaterials.push_back(mat);
-
-            FStaticMaterialSlot slot;
-            slot.SlotName = mat.Name;
-            std::string formattedMatName = (mat.Name.rfind("M_", 0) == 0) ? mat.Name : ("M_" + mat.Name);
-            slot.DefaultMaterialPath = "Materials/" + formattedMatName + ".lmat";
-            uint32_t slotIdx = static_cast<uint32_t>(staticMesh->GetMaterialSlots().size());
-            staticMesh->GetMaterialSlots().push_back(slot);
-            matToSlotIndex[uMat] = slotIdx;
+            matToSlotIndex[uMat] = static_cast<uint32_t>(OutResult.ExtractedMaterials.size() - 1);
         }
 
+        // Mixamo animation FBX files often have bones + takes but no skin deformer.
+        const bool bSkeletal = scene->skin_deformers.count > 0 || scene->bones.count > 0;
+        if (bSkeletal) {
+            if (!FSkeletalImporter::ImportFromScene(scene, InSettings, InSourcePath, OutResult) ||
+                !OutResult.Skeleton) {
+                ufbx_free_scene(scene);
+                return false;
+            }
+            FSkeletalImporter::ImportSkeletalGeometry(scene, InSettings, OutResult.Skeleton, OutResult);
+            FSkeletalImporter::ImportAnimationsFromScene(scene, OutResult.Skeleton, InSourcePath, OutResult);
+            if (OutResult.SkeletalMesh) {
+                auto& slots = OutResult.SkeletalMesh->GetMaterialSlots();
+                for (size_t i = 0; i < slots.size() && i < OutResult.ExtractedMaterials.size(); ++i) {
+                    slots[i].SlotName = OutResult.ExtractedMaterials[i].Name;
+                    std::string formatted =
+                        (slots[i].SlotName.rfind("M_", 0) == 0) ? slots[i].SlotName : ("M_" + slots[i].SlotName);
+                    slots[i].DefaultMaterialPath = "Materials/" + formatted + ".lmat";
+                }
+            }
+            ufbx_free_scene(scene);
+            LE_CORE_INFO("FMeshImporter: Imported skeletal FBX \"{0}\" ({1} bones, {2} verts, {3} anims)", InSourcePath,
+                         OutResult.Skeleton->GetNumBones(),
+                         OutResult.SkeletalMesh ? OutResult.SkeletalMesh->GetVertices().size() : 0,
+                         OutResult.Animations.size());
+            return OutResult.SkeletalMesh != nullptr || !OutResult.Animations.empty() || OutResult.Skeleton != nullptr;
+        }
+
+        auto staticMesh = UStaticMesh::Create(baseMeshName);
+        staticMesh->SetUUID(FUUID::FromPath(baseMeshName));
+        for (const auto& extracted : OutResult.ExtractedMaterials) {
+            FStaticMaterialSlot slot;
+            slot.SlotName = extracted.Name;
+            std::string formattedMatName =
+                (extracted.Name.rfind("M_", 0) == 0) ? extracted.Name : ("M_" + extracted.Name);
+            slot.DefaultMaterialPath = "Materials/" + formattedMatName + ".lmat";
+            staticMesh->GetMaterialSlots().push_back(slot);
+        }
         if (staticMesh->GetMaterialSlots().empty()) {
             FStaticMaterialSlot defSlot;
             defSlot.SlotName = "DefaultMaterial";
@@ -273,14 +302,14 @@ namespace Leon {
                                 if (uMesh->vertex_tangent.exists) {
                                     ufbx_vec3 t = ufbx_get_vertex_vec3(&uMesh->vertex_tangent, indexInMesh);
                                     tangent = glm::normalize(normMat * glm::vec3(static_cast<float>(t.x),
-                                                                                   static_cast<float>(t.y),
-                                                                                   static_cast<float>(t.z)));
+                                                                                 static_cast<float>(t.y),
+                                                                                 static_cast<float>(t.z)));
                                 }
                                 if (uMesh->vertex_bitangent.exists) {
                                     ufbx_vec3 b = ufbx_get_vertex_vec3(&uMesh->vertex_bitangent, indexInMesh);
                                     bitangent = glm::normalize(normMat * glm::vec3(static_cast<float>(b.x),
-                                                                                     static_cast<float>(b.y),
-                                                                                     static_cast<float>(b.z)));
+                                                                                   static_cast<float>(b.y),
+                                                                                   static_cast<float>(b.z)));
                                 } else {
                                     bitangent = glm::normalize(glm::cross(v.Normal, tangent));
                                 }

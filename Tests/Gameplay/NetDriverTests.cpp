@@ -58,6 +58,13 @@ namespace Leon {
             CHECK(c1->GetActorLocation().z == doctest::Approx(6.0f));
             CHECK(clientGS->GetElapsedTime() == doctest::Approx(serverWorld->GetGameState()->GetElapsedTime()));
         }
+
+        TEST_CASE("connection identity is BoundPlayerId not controller index") {
+            UNetConnection conn;
+            CHECK(conn.BoundPlayerId == -1);
+            conn.BoundPlayerId = 7;
+            CHECK(conn.BoundPlayerId == 7);
+        }
     }
 
 } // namespace Leon

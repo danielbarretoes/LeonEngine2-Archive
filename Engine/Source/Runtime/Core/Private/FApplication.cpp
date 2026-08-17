@@ -87,7 +87,33 @@ namespace Leon {
 
     bool FApplication::OnKeyPressed(FKeyPressedEvent& InEvent) {
         bool bShift = FInput::IsKeyPressed(Key::LeftShift) || FInput::IsKeyPressed(Key::RightShift);
-        if (!bShift) {
+        if (bShift) {
+            if (InEvent.GetKeyCode() == Key::F1 && !InEvent.IsRepeat()) {
+                bShowGameplayDebug = !bShowGameplayDebug;
+                FDebugRenderer::SetTraceCaptureEnabled(bShowGameplayDebug);
+                LE_CORE_INFO("Gameplay debug (traces / collision): {0}  [Shift+F1]",
+                             bShowGameplayDebug ? "ENABLED" : "DISABLED");
+                return true;
+            }
+            if (InEvent.GetKeyCode() == Key::F5 && !InEvent.IsRepeat()) {
+                ToggleDebugAI();
+                LE_CORE_INFO("AI debug: {0}  [Shift+F5]", bDebugAI ? "ENABLED" : "DISABLED");
+                return true;
+            }
+            if (InEvent.GetKeyCode() == Key::F6 && !InEvent.IsRepeat()) {
+                ToggleDebugPhysics();
+                LE_CORE_INFO("Physics debug: {0}  [Shift+F6]", bDebugPhysics ? "ENABLED" : "DISABLED");
+                return true;
+            }
+            if (InEvent.GetKeyCode() == Key::F7 && !InEvent.IsRepeat()) {
+                ToggleDebugCharacter();
+                return true;
+            }
+            if (InEvent.GetKeyCode() == Key::F8 && !InEvent.IsRepeat()) {
+                ToggleDebugNetwork();
+                return true;
+            }
+        } else {
             if (InEvent.GetKeyCode() == Key::F1 && !InEvent.IsRepeat()) {
                 bShowHUD = !bShowHUD;
                 LE_CORE_INFO("Diagnostics HUD: {0}", bShowHUD ? "ENABLED" : "DISABLED");
@@ -121,8 +147,8 @@ namespace Leon {
 
                 // Render Top-Level Diagnostics HUD Overlay if enabled
                 if (bShowHUD) {
-                    FDebugOverlay::Render(AppWindow->GetWidth(), AppWindow->GetHeight(), timestep, FRenderer::GetStats(),
-                                          bShowLightGizmos);
+                    FDebugOverlay::Render(AppWindow->GetWidth(), AppWindow->GetHeight(), timestep,
+                                          FRenderer::GetStats(), bShowLightGizmos);
                 }
             }
 

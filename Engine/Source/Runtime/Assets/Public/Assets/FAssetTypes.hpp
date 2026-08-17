@@ -15,6 +15,10 @@ namespace Leon {
         Texture,
         HDREnvironment,
         StaticMesh,
+        Skeleton,
+        SkeletalMesh,
+        Animation,
+        BlendSpace,
         Material,
         MaterialInstance,
         Shader,
@@ -30,6 +34,14 @@ namespace Leon {
             return "HDREnvironment";
         case EAssetType::StaticMesh:
             return "StaticMesh";
+        case EAssetType::Skeleton:
+            return "Skeleton";
+        case EAssetType::SkeletalMesh:
+            return "SkeletalMesh";
+        case EAssetType::Animation:
+            return "Animation";
+        case EAssetType::BlendSpace:
+            return "BlendSpace";
         case EAssetType::Material:
             return "Material";
         case EAssetType::MaterialInstance:
@@ -52,6 +64,14 @@ namespace Leon {
             return EAssetType::HDREnvironment;
         if (InStr == "StaticMesh")
             return EAssetType::StaticMesh;
+        if (InStr == "Skeleton")
+            return EAssetType::Skeleton;
+        if (InStr == "SkeletalMesh")
+            return EAssetType::SkeletalMesh;
+        if (InStr == "Animation")
+            return EAssetType::Animation;
+        if (InStr == "BlendSpace")
+            return EAssetType::BlendSpace;
         if (InStr == "Material")
             return EAssetType::Material;
         if (InStr == "MaterialInstance")

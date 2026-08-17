@@ -1,10 +1,13 @@
 #include "Engine/UWorld.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FFrameProfiler.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Gameplay/AGameModeBase.hpp"
 #include "Gameplay/AGameStateBase.hpp"
 #include "Gameplay/AHUD.hpp"
 #include "Gameplay/APawn.hpp"
+#include "Gameplay/ACharacter.hpp"
+#include "Gameplay/AAIController.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerState.hpp"
@@ -12,6 +15,9 @@
 #include "Engine/Components.hpp"
 #include "Engine/UNetDriver.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Physics/IPhysicsScene.hpp"
+#include "AI/UNavigationSystem.hpp"
+#include "Gameplay/FGameplayDebugger.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -21,10 +27,9 @@ namespace Leon {
 
     namespace {
 
-        bool AABBsOverlap(const glm::vec3& AMin, const glm::vec3& AMax, const glm::vec3& BMin,
-                          const glm::vec3& BMax) {
-            return AMin.x <= BMax.x && AMax.x >= BMin.x && AMin.y <= BMax.y && AMax.y >= BMin.y &&
-                   AMin.z <= BMax.z && AMax.z >= BMin.z;
+        bool AABBsOverlap(const glm::vec3& AMin, const glm::vec3& AMax, const glm::vec3& BMin, const glm::vec3& BMax) {
+            return AMin.x <= BMax.x && AMax.x >= BMin.x && AMin.y <= BMax.y && AMax.y >= BMin.y && AMin.z <= BMax.z &&
+                   AMax.z >= BMin.z;
         }
 
         void TransformAABBCorners(const glm::vec3& InLocalMin, const glm::vec3& InLocalMax, const glm::mat4& InWorld,
@@ -44,7 +49,8 @@ namespace Leon {
             }
         }
 
-        bool GetActorWorldAABB(AActor& InActor, glm::vec3& OutMin, glm::vec3& OutMax) {
+        bool GetActorWorldAABB(AActor& InActor, ECollisionChannel InQuery, glm::vec3& OutMin, glm::vec3& OutMax,
+                               ECollisionChannel& OutChannel) {
             if (!InActor.HasComponent<FTransformComponent>())
                 return false;
             const glm::mat4 world = InActor.GetComponent<FTransformComponent>().GetTransform();
@@ -53,9 +59,16 @@ namespace Leon {
                 const auto& box = InActor.GetComponent<FBoxCollisionComponent>();
                 if (!box.bBlockMovement)
                     return false;
+                if (!TraceChannelAccepts(InQuery, box.Channel))
+                    return false;
                 TransformAABBCorners(box.LocalMin, box.LocalMax, world, OutMin, OutMax);
+                OutChannel = box.Channel;
                 return true;
             }
+
+            const ECollisionChannel implicit = ECollisionChannel::WorldStatic;
+            if (!TraceChannelAccepts(InQuery, implicit))
+                return false;
 
             if (InActor.HasComponent<UStaticMeshComponent>()) {
                 const auto& smc = InActor.GetComponent<UStaticMeshComponent>();
@@ -63,6 +76,7 @@ namespace Leon {
                     return false;
                 TransformAABBCorners(smc.StaticMesh->GetBoundsMin(), smc.StaticMesh->GetBoundsMax(), world, OutMin,
                                      OutMax);
+                OutChannel = implicit;
                 return true;
             }
 
@@ -90,6 +104,7 @@ namespace Leon {
                     localMax = glm::vec3(mesh.MeshWidth * 0.5f, mesh.MeshHeight * 0.5f, mesh.MeshDepth * 0.5f);
                 }
                 TransformAABBCorners(localMin, localMax, world, OutMin, OutMax);
+                OutChannel = implicit;
                 return true;
             }
 
@@ -102,7 +117,11 @@ namespace Leon {
         return CreateRef<UWorld>(InName);
     }
 
-    UWorld::UWorld(const std::string& InName) : UObject(InName) {}
+    UWorld::UWorld(const std::string& InName) : UObject(InName) {
+        PhysicsScene = FPhysicsModule::CreateScene();
+        if (PhysicsScene)
+            PhysicsScene->SetWorld(this);
+    }
 
     UWorld::~UWorld() {
         Clear();
@@ -114,14 +133,32 @@ namespace Leon {
         GameMode = nullptr;
         GameState = nullptr;
         PlayerControllers.clear();
+        AIControllers.clear();
         Actors.clear();
         Registry.clear();
         Renderer.reset();
         NetDriver = nullptr;
+        PhysicsScene.reset();
+        NavigationSystem.reset();
         bIsTicking = false;
     }
 
+    UNavigationSystem* UWorld::GetNavigationSystem() {
+        if (!NavigationSystem)
+            NavigationSystem = MakeScope<UNavigationSystem>();
+        return NavigationSystem.get();
+    }
+
+    void UWorld::RebuildNavigation() {
+        GetNavigationSystem()->Rebuild(*this);
+    }
+
     void UWorld::InitWorld() {
+        if (!PhysicsScene) {
+            PhysicsScene = FPhysicsModule::CreateScene();
+            if (PhysicsScene)
+                PhysicsScene->SetWorld(this);
+        }
         if (GameMode) {
             GameMode->InitGame();
         }
@@ -153,6 +190,9 @@ namespace Leon {
         float deltaSeconds = InTs.GetSeconds();
         bIsTicking = true;
 
+        if (NetDriver)
+            NetDriver->ConsumeIncomingInput();
+
         if (bBegunPlay) {
             auto tickOnce = [&](AActor* actor) {
                 if (!actor || actor->IsPendingKill() || !actor->HasBegunPlay() || !actor->CanEverTick())
@@ -163,30 +203,61 @@ namespace Leon {
             // Stable order: GameMode, GameState, PlayerControllers, then remaining actors once.
             tickOnce(GameMode);
             tickOnce(GameState);
-            std::vector<APlayerController*> pcs = PlayerControllers;
-            for (APlayerController* pc : pcs) {
-                tickOnce(pc);
+            {
+                FFrameProfiler::FScope controllers(&FFrameProfiler::Working().ControllersMs);
+                std::vector<APlayerController*> pcs = PlayerControllers;
+                for (APlayerController* pc : pcs) {
+                    tickOnce(pc);
+                }
+            }
+            {
+                FFrameProfiler::FScope ai(&FFrameProfiler::Working().AIMs);
+                std::vector<AAIController*> ais = AIControllers;
+                for (AAIController* aiCtrl : ais) {
+                    tickOnce(aiCtrl);
+                }
             }
 
             for (size_t i = 0; i < Actors.size(); ++i) {
                 AActor* actor = Actors[i].get();
                 if (!actor || actor == GameMode || actor == GameState)
                     continue;
-                bool bIsPC = false;
+                bool bSkip = false;
                 for (APlayerController* pc : PlayerControllers) {
                     if (pc == actor) {
-                        bIsPC = true;
+                        bSkip = true;
                         break;
                     }
                 }
-                if (bIsPC)
+                if (!bSkip) {
+                    for (AAIController* ai : AIControllers) {
+                        if (ai == actor) {
+                            bSkip = true;
+                            break;
+                        }
+                    }
+                }
+                if (bSkip)
                     continue;
-                tickOnce(actor);
+                const bool bCharacter = dynamic_cast<ACharacter*>(actor) != nullptr;
+                if (bCharacter) {
+                    FFrameProfiler::FScope characters(&FFrameProfiler::Working().CharactersMs);
+                    tickOnce(actor);
+                } else {
+                    tickOnce(actor);
+                }
             }
         }
 
-        if (NetDriver)
+        if (PhysicsScene) {
+            FFrameProfiler::FScope physics(&FFrameProfiler::Working().PhysicsMs);
+            PhysicsScene->Tick(deltaSeconds);
+        }
+
+        if (NetDriver) {
+            FFrameProfiler::FScope net(&FFrameProfiler::Working().NetworkMs);
             NetDriver->Tick(deltaSeconds);
+        }
 
         bIsTicking = false;
         FlushPendingDestroy();
@@ -271,6 +342,14 @@ namespace Leon {
             RemovePlayerController(asPC);
         }
 
+        if (auto* asAI = dynamic_cast<AAIController*>(InActor)) {
+            asAI->UnPossess();
+            asAI->SetPlayerState(nullptr);
+            auto it = std::find(AIControllers.begin(), AIControllers.end(), asAI);
+            if (it != AIControllers.end())
+                AIControllers.erase(it);
+        }
+
         if (asPawn && asPawn->GetController()) {
             asPawn->GetController()->UnPossess();
         }
@@ -330,9 +409,14 @@ namespace Leon {
     }
 
     void UWorld::AddPlayerController(APlayerController* InPC) {
-        if (InPC &&
-            std::find(PlayerControllers.begin(), PlayerControllers.end(), InPC) == PlayerControllers.end()) {
+        if (InPC && std::find(PlayerControllers.begin(), PlayerControllers.end(), InPC) == PlayerControllers.end()) {
             PlayerControllers.push_back(InPC);
+        }
+    }
+
+    void UWorld::AddAIController(AAIController* InAI) {
+        if (InAI && std::find(AIControllers.begin(), AIControllers.end(), InAI) == AIControllers.end()) {
+            AIControllers.push_back(InAI);
         }
     }
 
@@ -358,75 +442,91 @@ namespace Leon {
 
     void UWorld::OnRender(const FPerspectiveCamera& InCamera) {
         GetWorldRenderer()->RenderScene(InCamera);
+        if (FGameplayDebugger::ShowAI() && NavigationSystem && NavigationSystem->IsBuilt())
+            NavigationSystem->DrawDebug();
     }
 
     bool UWorld::OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,
                              FHitResult& OutHit) const {
-        OutHit = {};
-        for (const auto& actorRef : Actors) {
-            if (!actorRef || actorRef.get() == InIgnore || actorRef->IsPendingKill())
-                continue;
-            glm::vec3 minB, maxB;
-            if (!GetActorWorldAABB(*actorRef, minB, maxB))
-                continue;
-            if (!AABBsOverlap(InWorldMin, InWorldMax, minB, maxB))
-                continue;
-            OutHit.bBlockingHit = true;
-            OutHit.Actor = actorRef.get();
-            OutHit.Location = (glm::max(InWorldMin, minB) + glm::min(InWorldMax, maxB)) * 0.5f;
-            glm::vec3 overlap = glm::min(InWorldMax, maxB) - glm::max(InWorldMin, minB);
-            if (overlap.x <= overlap.y && overlap.x <= overlap.z)
-                OutHit.Normal = (InWorldMin.x + InWorldMax.x < minB.x + maxB.x) ? glm::vec3(-1, 0, 0)
-                                                                                : glm::vec3(1, 0, 0);
-            else if (overlap.y <= overlap.z)
-                OutHit.Normal = (InWorldMin.y + InWorldMax.y < minB.y + maxB.y) ? glm::vec3(0, -1, 0)
-                                                                                : glm::vec3(0, 1, 0);
-            else
-                OutHit.Normal = (InWorldMin.z + InWorldMax.z < minB.z + maxB.z) ? glm::vec3(0, 0, -1)
-                                                                                : glm::vec3(0, 0, 1);
-            return true;
+        glm::vec3 center = (InWorldMin + InWorldMax) * 0.5f;
+        glm::vec3 half = (InWorldMax - InWorldMin) * 0.5f;
+        std::vector<FHitResult> hits;
+        if (OverlapMultiByChannel(center, half, ECollisionChannel::Visibility, InIgnore, hits) <= 0) {
+            OutHit = {};
+            return false;
         }
-        return false;
+        OutHit = hits.front();
+        return true;
     }
 
     bool UWorld::SweepAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, const glm::vec3& InDelta,
                            AActor* InIgnore, FHitResult& OutHit) const {
+        glm::vec3 start = (InWorldMin + InWorldMax) * 0.5f;
+        glm::vec3 half = (InWorldMax - InWorldMin) * 0.5f;
+        float radius = std::max(half.x, std::max(half.y, half.z));
+        return SweepSingleByChannel(start, start + InDelta, radius, ECollisionChannel::WorldStatic, InIgnore, OutHit);
+    }
+
+    bool UWorld::LineTrace(const glm::vec3& InStart, const glm::vec3& InEnd, AActor* InIgnore,
+                           FHitResult& OutHit) const {
+        return LineTraceSingleByChannel(InStart, InEnd, ECollisionChannel::Visibility, InIgnore, OutHit);
+    }
+
+    bool UWorld::LineTraceByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
+                                    AActor* InIgnore, FHitResult& OutHit) const {
+        return LineTraceSingleByChannel(InStart, InEnd, InChannel, InIgnore, OutHit);
+    }
+
+    bool UWorld::LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
+                                          AActor* InIgnore, FHitResult& OutHit) const {
         OutHit = {};
-        glm::vec3 startMin = InWorldMin;
-        glm::vec3 startMax = InWorldMax;
-        FHitResult startHit;
-        if (OverlapAABB(startMin, startMax, InIgnore, startHit)) {
-            OutHit = startHit;
-            OutHit.Distance = 0.0f;
-            return true;
-        }
+        bool bHit = false;
+        if (PhysicsScene)
+            bHit = PhysicsScene->LineTraceSingleByChannel(InStart, InEnd, InChannel, InIgnore, OutHit);
+        return bHit;
+    }
 
-        glm::vec3 endMin = InWorldMin + InDelta;
-        glm::vec3 endMax = InWorldMax + InDelta;
-        FHitResult endHit;
-        if (!OverlapAABB(endMin, endMax, InIgnore, endHit))
+    int32_t UWorld::LineTraceMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
+                                            ECollisionChannel InChannel, AActor* InIgnore,
+                                            std::vector<FHitResult>& OutHits) const {
+        if (!PhysicsScene) {
+            OutHits.clear();
+            return 0;
+        }
+        return PhysicsScene->LineTraceMultiByChannel(InStart, InEnd, InChannel, InIgnore, OutHits);
+    }
+
+    bool UWorld::SweepSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                      ECollisionChannel InChannel, AActor* InIgnore, FHitResult& OutHit) const {
+        OutHit = {};
+        if (!PhysicsScene)
             return false;
+        return PhysicsScene->SweepSingleByChannel(InStart, InEnd, InRadius, InChannel, InIgnore, OutHit);
+    }
 
-        float lo = 0.0f;
-        float hi = 1.0f;
-        FHitResult best = endHit;
-        for (int i = 0; i < 8; ++i) {
-            float mid = (lo + hi) * 0.5f;
-            glm::vec3 mMin = InWorldMin + InDelta * mid;
-            glm::vec3 mMax = InWorldMax + InDelta * mid;
-            FHitResult midHit;
-            if (OverlapAABB(mMin, mMax, InIgnore, midHit)) {
-                hi = mid;
-                best = midHit;
-                best.Distance = glm::length(InDelta) * mid;
-            } else {
-                lo = mid;
-            }
+    int32_t UWorld::SweepMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                        ECollisionChannel InChannel, AActor* InIgnore,
+                                        std::vector<FHitResult>& OutHits) const {
+        if (!PhysicsScene) {
+            OutHits.clear();
+            return 0;
         }
-        OutHit = best;
-        OutHit.Location = (InWorldMin + InWorldMax) * 0.5f + InDelta * hi;
-        OutHit.bBlockingHit = true;
-        return true;
+        return PhysicsScene->SweepMultiByChannel(InStart, InEnd, InRadius, InChannel, InIgnore, OutHits);
+    }
+
+    bool UWorld::OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,
+                                         ECollisionChannel InChannel, AActor* InIgnore) const {
+        return PhysicsScene && PhysicsScene->OverlapAnyTestByChannel(InPos, InHalfExtent, InChannel, InIgnore);
+    }
+
+    int32_t UWorld::OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,
+                                          ECollisionChannel InChannel, AActor* InIgnore,
+                                          std::vector<FHitResult>& OutHits) const {
+        if (!PhysicsScene) {
+            OutHits.clear();
+            return 0;
+        }
+        return PhysicsScene->OverlapMultiByChannel(InPos, InHalfExtent, InChannel, InIgnore, OutHits);
     }
 
 } // namespace Leon

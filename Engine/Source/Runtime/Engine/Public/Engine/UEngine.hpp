@@ -8,6 +8,7 @@
 #include "Engine/UGameInstance.hpp"
 #include "Engine/UWorld.hpp"
 
+#include <functional>
 #include <string>
 
 namespace Leon {
@@ -46,11 +47,14 @@ namespace Leon {
          */
         static int Run(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath = "");
 
+        using FGameInstanceFactory = std::function<TRef<UGameInstance>()>;
+        static void SetGameInstanceFactory(FGameInstanceFactory InFactory);
+
         /**
          * @brief Resolve GameMode class names from Engine/Game INI + .lproject (testable without full boot).
          */
         static FGameModeConfig BuildGameModeConfig(const FConfigFile& InEngineConfig, const FConfigFile& InGameConfig,
-                                                    const FProjectDescriptor& InProjectDesc);
+                                                   const FProjectDescriptor& InProjectDesc);
 
         /** Default map: Engine.ini GameDefaultMap, else .lproject DefaultMap. */
         static std::string ResolveStartupMap(const FConfigFile& InEngineConfig,

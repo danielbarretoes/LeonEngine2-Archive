@@ -17,6 +17,7 @@ namespace Leon {
 
         void AddPlayerState(APlayerState* InPlayerState);
         void RemovePlayerState(APlayerState* InPlayerState);
+        void ClearPlayerArray() { PlayerArray.clear(); }
         const std::vector<APlayerState*>& GetPlayerArray() const { return PlayerArray; }
 
         float GetElapsedTime() const { return ElapsedTime; }

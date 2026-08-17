@@ -11,6 +11,7 @@
 #include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/APlayerState.hpp"
 #include "Gameplay/AWorldSettings.hpp"
+#include "Gameplay/ANavMeshBoundsVolume.hpp"
 
 namespace Leon {
 
@@ -66,6 +67,9 @@ namespace Leon {
 
         RegisterClass<AWorldSettings>("AWorldSettings");
         RegisterClass<AWorldSettings>("WorldSettings");
+
+        RegisterClass<ANavMeshBoundsVolume>("ANavMeshBoundsVolume");
+        RegisterClass<ANavMeshBoundsVolume>("NavMeshBoundsVolume");
     }
 
     AActor* UClassRegistry::CreateActorOfClass(const std::string& InClassName, UWorld* InWorld,
