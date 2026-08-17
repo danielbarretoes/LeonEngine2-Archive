@@ -12,5 +12,5 @@ Material:
   DoubleSided: false
   UVTiling: [1, 1]
   UVOffset: [0, 0]
-  AlbedoMap: "/Game/Textures/Spiderman_Color.ltex"
+  AlbedoMap: "Textures/Spiderman_Color.ltex"
   UsePlanarReflection: false

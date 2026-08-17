@@ -14,6 +14,10 @@ namespace Leon {
 
         static FAnchors TopLeft() { return {}; }
         static FAnchors TopRight() { return {{1.0f, 0.0f}, {1.0f, 0.0f}}; }
+        static FAnchors TopCenter() { return {{0.5f, 0.0f}, {0.5f, 0.0f}}; }
+        static FAnchors BottomLeft() { return {{0.0f, 1.0f}, {0.0f, 1.0f}}; }
+        static FAnchors BottomRight() { return {{1.0f, 1.0f}, {1.0f, 1.0f}}; }
+        static FAnchors BottomCenter() { return {{0.5f, 1.0f}, {0.5f, 1.0f}}; }
         static FAnchors Center() { return {{0.5f, 0.5f}, {0.5f, 0.5f}}; }
         static FAnchors Fill() { return {{0.0f, 0.0f}, {1.0f, 1.0f}}; }
     };

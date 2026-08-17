@@ -24,6 +24,11 @@ namespace Leon {
         SetPickupActive(true);
     }
 
+    void ALeonTournamentPickup::SetAnchorLocation(const glm::vec3& InLocation) {
+        HomeLocation = InLocation;
+        SetActorLocation(InLocation);
+    }
+
     void ALeonTournamentPickup::SetPickupActive(bool bInActive) {
         bActive = bInActive;
         if (HasComponent<FMeshComponent>())

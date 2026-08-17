@@ -1,18 +1,20 @@
 #include "ALeonTournamentHUD.hpp"
-#include "ALeonTournamentGameState.hpp"
 #include "ALeonTournamentPlayerController.hpp"
-#include "ALeonTournamentPlayerState.hpp"
-#include "ALeonTournamentCharacter.hpp"
-#include "ALeonTournamentWeapon.hpp"
+#include "ALeonTournamentGameState.hpp"
+#include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentBotController.hpp"
-#include "Core/FApplication.hpp"
-#include "Core/FInput.hpp"
-#include "Engine/UWorld.hpp"
+#include "ALeonTournamentCharacter.hpp"
+#include "ALeonTournamentPlayerState.hpp"
+#include "ALeonTournamentWeapon.hpp"
+#include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/AAIController.hpp"
 #include "Gameplay/APlayerController.hpp"
-#include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/FGameplayDebugger.hpp"
 #include "Gameplay/UCharacterMovementComponent.hpp"
+#include "Engine/UWorld.hpp"
+#include "Core/FApplication.hpp"
+#include "Core/FInput.hpp"
+#include "UMG/UUserWidget.hpp"
 #include "AI/UNavigationSystem.hpp"
 #include "AI/FNavTypes.hpp"
 #include "Renderer/FDebugRenderer.hpp"
@@ -217,24 +219,34 @@ namespace Leon {
         LobbyWidget = UUserWidget::CreateWidget<ULeonTournamentLobbyWidget>(PlayerController);
         HudWidget = UUserWidget::CreateWidget<ULeonTournamentHUDWidget>(PlayerController);
         ScoreboardWidget = UUserWidget::CreateWidget<ULeonTournamentScoreboardWidget>(PlayerController);
+        PauseWidget = UUserWidget::CreateWidget<ULeonTournamentPauseWidget>(PlayerController);
         EndWidget = UUserWidget::CreateWidget<ULeonTournamentMatchEndWidget>(PlayerController);
 
         MenuWidget->AddToViewport(10);
         LobbyWidget->AddToViewport(10);
         HudWidget->AddToViewport(1);
         ScoreboardWidget->AddToViewport(15);
+        PauseWidget->AddToViewport(40);
         EndWidget->AddToViewport(20);
 
         LobbyWidget->SetVisibility(ESlateVisibility::Collapsed);
         HudWidget->SetVisibility(ESlateVisibility::Collapsed);
         ScoreboardWidget->SetVisibility(ESlateVisibility::Collapsed);
+        PauseWidget->SetVisibility(ESlateVisibility::Collapsed);
         EndWidget->SetVisibility(ESlateVisibility::Collapsed);
         ShownState = ELeonTournamentMatchState::MainMenu;
+        PrevState = ShownState;
     }
 
     void ALeonTournamentHUD::SyncWidgets() {
         auto* gs = World ? dynamic_cast<ALeonTournamentGameState*>(World->GetGameState()) : nullptr;
         ELeonTournamentMatchState state = gs ? gs->GetMatchState() : ELeonTournamentMatchState::MainMenu;
+        if (state == ELeonTournamentMatchState::Finished && PrevState != ELeonTournamentMatchState::Finished) {
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_MatchEnd", 0.9f);
+            if (auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(PlayerController))
+                spc->PushBanner("MATCH OVER", 2.5f, {0.95f, 0.9f, 1.0f, 1.0f});
+        }
+        PrevState = state;
         ShownState = state;
 
         auto show = [](const TRef<UUserWidget>& w, bool bOn, bool bHit = true) {
@@ -256,8 +268,19 @@ namespace Leon {
         SyncWidgets();
 
         auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(PlayerController);
-        const bool bWantSb = spc && spc->IsScoreboardHeld() &&
-                             (ShownState == ELeonTournamentMatchState::Playing || ShownState == ELeonTournamentMatchState::Starting);
+        const bool bInMatch =
+            ShownState == ELeonTournamentMatchState::Playing || ShownState == ELeonTournamentMatchState::Starting;
+        const bool bAnimLab =
+            World && dynamic_cast<ALeonTournamentAnimLabGameMode*>(World->GetGameMode()) != nullptr;
+        if (spc && bInMatch && !bAnimLab && spc->ConsumeEscapePressed())
+            spc->TogglePauseMenu();
+
+        if (PauseWidget) {
+            const bool bPause = spc && spc->IsPauseMenuOpen() && bInMatch;
+            PauseWidget->SetVisibility(bPause ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        }
+
+        const bool bWantSb = spc && !spc->IsPauseMenuOpen() && spc->IsScoreboardHeld() && bInMatch;
         if (ScoreboardWidget) {
             ScoreboardWidget->SetVisibility(bWantSb ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
             bScoreboardVisible = bWantSb;

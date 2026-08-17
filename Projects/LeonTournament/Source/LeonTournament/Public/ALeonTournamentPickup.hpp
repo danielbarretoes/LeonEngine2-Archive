@@ -22,6 +22,8 @@ namespace Leon {
         float GetPickupRadius() const { return PickupRadius; }
         void SetPickupRadius(float InRadius) { PickupRadius = InRadius; }
         bool IsPickupActive() const { return bActive; }
+        /** SpawnActor runs BeginPlay before callers can place the actor — set both transform + respawn anchor. */
+        void SetAnchorLocation(const glm::vec3& InLocation);
 
     protected:
         virtual bool TryGiveTo(ALeonTournamentCharacter& InCharacter) = 0;

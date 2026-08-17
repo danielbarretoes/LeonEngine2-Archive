@@ -25,6 +25,10 @@ namespace Leon {
 
     static stbtt_bakedchar UIBakedChars[96];
     static bool bUIFontLoaded = false;
+    static constexpr int kUIAtlasDim = 1024;
+    static constexpr float kUIFontPixelHeight = 48.0f;
+    static constexpr float kUIBaseline = 38.0f;
+    static constexpr float kUILineHeight = 56.0f;
 
     void FUIRenderer::Init() {
         if (bInitialized)
@@ -33,24 +37,35 @@ namespace Leon {
         LE_CORE_INFO("Initializing UI Renderer Subsystem...");
         Shader = FShader::Create("Engine/Assets/Shaders/DebugFont.glsl");
 
-        constexpr int AtlasDim = 512;
-        std::vector<unsigned char> tempBitmap(AtlasDim * AtlasDim, 0);
+        std::vector<unsigned char> tempBitmap(static_cast<size_t>(kUIAtlasDim) * kUIAtlasDim, 0);
 
-        std::ifstream file("Engine/Assets/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
-        if (file.is_open()) {
+        // Prefer Inter Bold for crisp HUD digits; fall back to Regular.
+        const char* fontCandidates[] = {
+            "Engine/Assets/Fonts/Inter-Bold.ttf",
+            "Engine/Assets/Fonts/Inter-Regular.ttf",
+        };
+        for (const char* fontPath : fontCandidates) {
+            std::ifstream file(fontPath, std::ios::binary | std::ios::ate);
+            if (!file.is_open())
+                continue;
             std::streamsize size = file.tellg();
             file.seekg(0, std::ios::beg);
-            std::vector<unsigned char> fontBuffer(size);
-            if (file.read(reinterpret_cast<char*>(fontBuffer.data()), size)) {
-                int res = stbtt_BakeFontBitmap(fontBuffer.data(), 0, 18.0f, tempBitmap.data(), AtlasDim, AtlasDim, 32,
-                                               96, UIBakedChars);
-                if (res > 0) {
-                    bUIFontLoaded = true;
-                }
+            std::vector<unsigned char> fontBuffer(static_cast<size_t>(size));
+            if (!file.read(reinterpret_cast<char*>(fontBuffer.data()), size))
+                continue;
+            const int res = stbtt_BakeFontBitmap(fontBuffer.data(), 0, kUIFontPixelHeight, tempBitmap.data(),
+                                                 kUIAtlasDim, kUIAtlasDim, 32, 96, UIBakedChars);
+            if (res > 0) {
+                bUIFontLoaded = true;
+                LE_CORE_INFO("FUIRenderer: Baked Inter UI font from '{0}' at {1}px", fontPath,
+                             static_cast<int>(kUIFontPixelHeight));
+                break;
             }
         }
+        if (!bUIFontLoaded)
+            LE_CORE_WARN("FUIRenderer: Failed to load Inter font — HUD text may be blank");
 
-        std::vector<unsigned char> rgbaAtlas(AtlasDim * AtlasDim * 4, 0);
+        std::vector<unsigned char> rgbaAtlas(static_cast<size_t>(kUIAtlasDim) * kUIAtlasDim * 4, 0);
         for (size_t i = 0; i < tempBitmap.size(); ++i) {
             unsigned char a = tempBitmap[i];
             rgbaAtlas[i * 4 + 0] = a;
@@ -59,7 +74,7 @@ namespace Leon {
             rgbaAtlas[i * 4 + 3] = a;
         }
 
-        FontTexture = FTexture2D::Create(AtlasDim, AtlasDim);
+        FontTexture = FTexture2D::Create(kUIAtlasDim, kUIAtlasDim);
         FontTexture->SetData(rgbaAtlas.data(), static_cast<unsigned int>(rgbaAtlas.size()));
 
         VertexArray = FVertexArray::Create();
@@ -155,14 +170,14 @@ namespace Leon {
     glm::vec2 FUIRenderer::MeasureString(const std::string& InText, float InScale) {
         float width = 0.0f;
         float maxWidth = 0.0f;
-        float height = 18.0f * InScale;
+        float height = kUIFontPixelHeight * InScale;
 
         for (char c : InText) {
             if (c == '\n') {
                 if (width > maxWidth)
                     maxWidth = width;
                 width = 0.0f;
-                height += 20.0f * InScale;
+                height += kUILineHeight * InScale;
                 continue;
             }
             if (c < 32 || c >= 128)
@@ -178,50 +193,48 @@ namespace Leon {
 
     void FUIRenderer::DrawString(float InX, float InY, const std::string& InText, const glm::vec4& InColor,
                                  float InScale, ETextAlignment InAlignment) {
-        if (InText.empty())
+        if (InText.empty() || !bUIFontLoaded)
             return;
 
-        glm::vec2 measured = MeasureString(InText, InScale);
-        float startX = InX;
-        if (InAlignment == ETextAlignment::Center) {
-            startX = InX - (measured.x * 0.5f);
-        } else if (InAlignment == ETextAlignment::Right) {
-            startX = InX - measured.x;
-        }
+        const float scale = InScale > 0.0f ? InScale : 1.0f;
+        const glm::vec2 measured = MeasureString(InText, scale);
+        float originX = InX;
+        if (InAlignment == ETextAlignment::Center)
+            originX = InX - measured.x * 0.5f;
+        else if (InAlignment == ETextAlignment::Right)
+            originX = InX - measured.x;
 
-        float curX = startX;
-        float curY = InY + 14.0f * InScale; // Baseline offset
+        float penX = 0.0f;
+        float penY = 0.0f;
+        float baseline = InY + kUIBaseline * scale;
 
         for (char c : InText) {
             if (c == '\n') {
-                curX = startX;
-                curY += 20.0f * InScale;
+                penX = 0.0f;
+                penY = 0.0f;
+                baseline += kUILineHeight * scale;
                 continue;
             }
             if (c < 32 || c >= 128)
                 continue;
 
             stbtt_aligned_quad q;
-            stbtt_GetBakedQuad(UIBakedChars, 512, 512, c - 32, &curX, &curY, &q, 1);
+            stbtt_GetBakedQuad(UIBakedChars, kUIAtlasDim, kUIAtlasDim, c - 32, &penX, &penY, &q, 1);
 
-            // Scale around base position
-            glm::vec2 p0 = {q.x0, q.y0};
-            glm::vec2 p1 = {q.x1, q.y1};
-            if (std::abs(InScale - 1.0f) > 0.001f) {
-                p0 = {curX + (q.x0 - curX) * InScale, curY + (q.y0 - curY) * InScale};
-                p1 = {curX + (q.x1 - curX) * InScale, curY + (q.y1 - curY) * InScale};
-            }
+            const float gx0 = originX + q.x0 * scale;
+            const float gy0 = baseline + q.y0 * scale;
+            const float gx1 = originX + q.x1 * scale;
+            const float gy1 = baseline + q.y1 * scale;
 
             if (TextVertices.size() + 6 >= MaxUIVertices)
                 break;
 
-            TextVertices.push_back({p0, {q.s0, q.t0}, InColor});
-            TextVertices.push_back({{p1.x, p0.y}, {q.s1, q.t0}, InColor});
-            TextVertices.push_back({p1, {q.s1, q.t1}, InColor});
-
-            TextVertices.push_back({p0, {q.s0, q.t0}, InColor});
-            TextVertices.push_back({p1, {q.s1, q.t1}, InColor});
-            TextVertices.push_back({{p0.x, p1.y}, {q.s0, q.t1}, InColor});
+            TextVertices.push_back({{gx0, gy0}, {q.s0, q.t0}, InColor});
+            TextVertices.push_back({{gx1, gy0}, {q.s1, q.t0}, InColor});
+            TextVertices.push_back({{gx1, gy1}, {q.s1, q.t1}, InColor});
+            TextVertices.push_back({{gx0, gy0}, {q.s0, q.t0}, InColor});
+            TextVertices.push_back({{gx1, gy1}, {q.s1, q.t1}, InColor});
+            TextVertices.push_back({{gx0, gy1}, {q.s0, q.t1}, InColor});
         }
     }
 

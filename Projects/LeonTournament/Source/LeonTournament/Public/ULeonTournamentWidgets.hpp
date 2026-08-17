@@ -85,12 +85,19 @@ namespace Leon {
     private:
         void Build();
         TRef<UCanvasPanel> Root;
+        TRef<UImage> TopBar;
+        TRef<UImage> BottomBarL;
+        TRef<UImage> BottomBarR;
+        TRef<UTextBlock> MatchLabel;
         TRef<UTextBlock> Team1Text;
         TRef<UTextBlock> Team2Text;
         TRef<UTextBlock> TimerText;
+        TRef<UTextBlock> HealthLabel;
         TRef<UTextBlock> HealthText;
+        TRef<UTextBlock> AmmoLabel;
         TRef<UTextBlock> AmmoText;
         TRef<UTextBlock> WeaponSlotsText;
+        TRef<UTextBlock> StatusText;
         TRef<UTextBlock> CrosshairText;
         TRef<UImage> CrosshairBarT;
         TRef<UImage> CrosshairBarB;
@@ -102,8 +109,11 @@ namespace Leon {
         TRef<UImage> HitMarkBL;
         TRef<UImage> HitMarkBR;
         TRef<UTextBlock> KillText;
+        TRef<UTextBlock> BannerText;
         TRef<UTextBlock> HintText;
         TRef<UImage> DamageFlash;
+        int LastCountdownSecond = -1;
+        bool bPlayedFightBanner = false;
     };
 
     class ULeonTournamentScoreboardWidget : public UUserWidget {
@@ -115,7 +125,26 @@ namespace Leon {
     private:
         void Build();
         TRef<UCanvasPanel> Root;
+        TRef<UImage> Panel;
+        TRef<UTextBlock> TitleText;
+        TRef<UTextBlock> HeaderText;
         TRef<UTextBlock> RowsText;
+        TRef<UTextBlock> FooterText;
+    };
+
+    class ULeonTournamentPauseWidget : public UUserWidget {
+    public:
+        ULeonTournamentPauseWidget(const std::string& InName = "LeonTournamentPause");
+        void Construct() override;
+        void Tick(float InDeltaTime) override;
+
+    private:
+        void Build();
+        void OnResume();
+        void OnLeave();
+        TRef<UCanvasPanel> Root;
+        bool bPadAWasDown = false;
+        bool bPadBWasDown = false;
     };
 
     class ULeonTournamentMatchEndWidget : public UUserWidget {

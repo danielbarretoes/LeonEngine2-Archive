@@ -184,6 +184,24 @@ namespace Leon {
         return norm;
     }
 
+    bool FProjectPaths::AdoptPackagedWorkingDirectory(const char* InExecutableArgv0) {
+        namespace fs = std::filesystem;
+        if (!InExecutableArgv0 || InExecutableArgv0[0] == '\0')
+            return false;
+
+        std::error_code ec;
+        fs::path exeDir = fs::absolute(fs::path(InExecutableArgv0).parent_path(), ec);
+        if (ec || exeDir.empty())
+            return false;
+
+        const fs::path packagedAssets = exeDir / "Engine" / "Assets";
+        if (!fs::is_directory(packagedAssets, ec))
+            return false;
+
+        fs::current_path(exeDir, ec);
+        return !ec;
+    }
+
     std::string FProjectPaths::LocateProjectFile(const std::string& InPathOrDir) {
         namespace fs = std::filesystem;
 

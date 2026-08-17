@@ -49,11 +49,18 @@ namespace Leon {
             if (owner->IsPendingKill())
                 return;
             owner->SetActorLocation(hit.Location);
-            if (bShouldBounce && glm::length(hit.Normal) > 1e-4f) {
-                Velocity = glm::reflect(Velocity, glm::normalize(hit.Normal)) * Bounciness;
-            }
             if (auto* proj = dynamic_cast<AProjectile*>(owner))
                 proj->NotifyHit(hit);
+            if (owner->IsPendingKill())
+                return;
+            if (auto* proj = dynamic_cast<AProjectile*>(owner); proj && proj->HasExploded())
+                return;
+            if (bShouldBounce && glm::length(hit.Normal) > 1e-4f) {
+                Velocity = glm::reflect(Velocity, glm::normalize(hit.Normal)) * Bounciness;
+                owner->SetActorLocation(hit.Location + glm::normalize(hit.Normal) * 0.04f);
+                if (bRotationFollowsVelocity && glm::length(Velocity) > 1e-4f)
+                    owner->SetActorRotation(Leon::EulerAligningLocalY(glm::normalize(Velocity)));
+            }
             return;
         }
 

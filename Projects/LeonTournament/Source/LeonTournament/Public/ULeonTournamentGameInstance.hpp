@@ -22,7 +22,9 @@ namespace Leon {
         void SetJoinAddress(const std::string& InAddress) { JoinAddress = InAddress; }
 
         ELeonTournamentCharacterSkin GetSelectedCharacterSkin() const { return SelectedCharacterSkin; }
-        void SetSelectedCharacterSkin(ELeonTournamentCharacterSkin InSkin) { SelectedCharacterSkin = InSkin; }
+        void SetSelectedCharacterSkin(ELeonTournamentCharacterSkin InSkin) {
+            SelectedCharacterSkin = LeonTournamentClampCharacterSkin(InSkin);
+        }
         void CycleSelectedCharacterSkin(int InDelta) {
             if (InDelta >= 0)
                 SelectedCharacterSkin = LeonTournamentNextCharacterSkin(SelectedCharacterSkin);

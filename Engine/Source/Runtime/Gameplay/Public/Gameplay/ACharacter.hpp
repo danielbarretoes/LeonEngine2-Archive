@@ -116,6 +116,10 @@ namespace Leon {
         void SetMeshHiddenInGame(bool bHidden);
         bool IsMeshHiddenInGame() const { return bMeshHiddenInGame; }
 
+    protected:
+        /** When false, look still drives the camera but does not yaw the pawn (death free-cam). */
+        virtual bool ShouldApplyControlYawToActor() const { return true; }
+
     private:
         void SnapToFloor();
         void UpdateCameraFromView();

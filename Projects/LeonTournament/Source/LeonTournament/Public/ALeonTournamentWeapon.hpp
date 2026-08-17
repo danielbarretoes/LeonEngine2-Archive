@@ -57,6 +57,7 @@ namespace Leon {
                               bool bHitWorld, bool bHitCharacter);
         void SpawnLaserEffects(const glm::vec3& InMuzzle, const glm::vec3& InTraceEnd, bool bHitCharacter);
         void SpawnRocketLaunchEffects(const glm::vec3& InMuzzle);
+        void SpawnShotgunBlastEffects(const glm::vec3& InMuzzle, const glm::vec3& InAimDir);
         void SpawnFlameEffects(const glm::vec3& InMuzzle, const glm::vec3& InDir);
         void UpdateFirstPersonVisual();
         glm::vec3 ApplyAimSpread(const glm::vec3& InForward, float InHalfAngleDeg) const;
@@ -65,7 +66,7 @@ namespace Leon {
         bool FireProjectile();
         bool FireFlame();
         bool ApplyHitscanDamage(const glm::vec3& InOrigin, const glm::vec3& InDir, float InDamage, glm::vec3& OutTraceEnd,
-                                bool& OutHitWorld, bool& OutHitCharacter);
+                                bool& OutHitWorld, bool& OutHitCharacter, int32_t InMaxBounces = 0);
 
     protected:
         ELeonTournamentWeaponId WeaponId = ELeonTournamentWeaponId::Rifle;

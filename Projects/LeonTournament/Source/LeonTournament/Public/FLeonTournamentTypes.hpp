@@ -19,8 +19,7 @@ namespace Leon {
         YBot = 0,
         Patrick = 1,
         Trump = 2,
-        Spiderman = 3,
-        Count = 4
+        Count = 3
     };
 
     inline const char* LeonTournamentCharacterSkinName(ELeonTournamentCharacterSkin InSkin) {
@@ -29,8 +28,6 @@ namespace Leon {
             return "PATRICK";
         case ELeonTournamentCharacterSkin::Trump:
             return "TRUMP";
-        case ELeonTournamentCharacterSkin::Spiderman:
-            return "SPIDERMAN";
         case ELeonTournamentCharacterSkin::YBot:
         default:
             return "YBOT";
@@ -43,12 +40,18 @@ namespace Leon {
             return "/Game/SkeletalMeshes/Patrick.lskeletalmesh";
         case ELeonTournamentCharacterSkin::Trump:
             return "/Game/SkeletalMeshes/Trump.lskeletalmesh";
-        case ELeonTournamentCharacterSkin::Spiderman:
-            return "/Game/SkeletalMeshes/Spiderman.lskeletalmesh";
         case ELeonTournamentCharacterSkin::YBot:
         default:
             return "/Game/SkeletalMeshes/YBot.lskeletalmesh";
         }
+    }
+
+    inline ELeonTournamentCharacterSkin LeonTournamentClampCharacterSkin(ELeonTournamentCharacterSkin InSkin) {
+        const uint8_t count = static_cast<uint8_t>(ELeonTournamentCharacterSkin::Count);
+        uint8_t v = static_cast<uint8_t>(InSkin);
+        if (v >= count)
+            v = 0;
+        return static_cast<ELeonTournamentCharacterSkin>(v);
     }
 
     /** Standing height in meters for every selectable skin. */
@@ -185,6 +188,8 @@ namespace Leon {
         float Knockback = 8.0f;
         float ScopeFOV = 0.0f;
         float FlameConeDeg = 8.0f;
+        /** Extra world-surface reflections after the first hitscan impact (characters stop the ray). */
+        int32_t RicochetBounces = 0;
         ELeonTournamentCrosshairStyle CrosshairStyle = ELeonTournamentCrosshairStyle::Cross;
         glm::vec3 VisualColor{0.12f, 0.12f, 0.14f};
         float VisualRadius = 0.035f;
@@ -208,9 +213,16 @@ namespace Leon {
             c.RecoilPitchDeg = 1.8f;
             c.PelletCount = 8;
             c.PelletSpreadDeg = 5.5f;
+            c.FireMode = ELeonTournamentFireMode::Projectile;
+            c.ProjectileSpeed = 95.0f;
+            c.ProjectileRadius = 0.05f;
+            c.ProjectileGravityScale = 0.06f;
+            c.SplashRadius = 0.0f;
+            c.SplashDamage = 0.0f;
+            c.RicochetBounces = 1;
             c.Knockback = 4.0f;
             c.CrosshairStyle = ELeonTournamentCrosshairStyle::Circle;
-            c.VisualColor = {0.55f, 0.42f, 0.18f};
+            c.VisualColor = {1.0f, 0.82f, 0.35f};
             c.VisualRadius = 0.045f;
             c.VisualLength = 0.36f;
             break;
@@ -228,11 +240,11 @@ namespace Leon {
             c.PelletCount = 1;
             c.FireMode = ELeonTournamentFireMode::Projectile;
             c.ProjectileSpeed = 28.0f;
-            c.ProjectileRadius = 0.2f;
+            c.ProjectileRadius = 0.22f;
             c.ProjectileGravityScale = 0.0f;
-            c.SplashRadius = 3.8f;
-            c.SplashDamage = 48.0f;
-            c.Knockback = 22.0f;
+            c.SplashRadius = 5.8f;
+            c.SplashDamage = 62.0f;
+            c.Knockback = 26.0f;
             c.CrosshairStyle = ELeonTournamentCrosshairStyle::Cross;
             c.VisualColor = {0.55f, 0.12f, 0.12f};
             c.VisualRadius = 0.05f;
@@ -286,16 +298,16 @@ namespace Leon {
             c.Damage = 7.0f;
             c.MagazineSize = 80;
             c.ReloadTime = 2.4f;
-            c.Range = 8.5f;
-            c.BaseSpreadDeg = 3.0f;
-            c.MaxSpreadDeg = 6.0f;
+            c.Range = 2.0f;
+            c.BaseSpreadDeg = 4.0f;
+            c.MaxSpreadDeg = 8.0f;
             c.SpreadPerShotDeg = 0.4f;
             c.SpreadRecoveryPerSec = 10.0f;
             c.RecoilPitchDeg = 0.05f;
-            c.PelletCount = 4;
-            c.PelletSpreadDeg = 7.0f;
+            c.PelletCount = 6;
+            c.PelletSpreadDeg = 10.0f;
             c.FireMode = ELeonTournamentFireMode::Flame;
-            c.FlameConeDeg = 9.0f;
+            c.FlameConeDeg = 14.0f;
             c.Knockback = 1.5f;
             c.CrosshairStyle = ELeonTournamentCrosshairStyle::Circle;
             c.VisualColor = {1.0f, 0.35f, 0.05f};

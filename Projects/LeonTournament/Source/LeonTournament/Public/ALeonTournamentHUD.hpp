@@ -23,8 +23,10 @@ namespace Leon {
         TRef<ULeonTournamentLobbyWidget> LobbyWidget;
         TRef<ULeonTournamentHUDWidget> HudWidget;
         TRef<ULeonTournamentScoreboardWidget> ScoreboardWidget;
+        TRef<ULeonTournamentPauseWidget> PauseWidget;
         TRef<ULeonTournamentMatchEndWidget> EndWidget;
         ELeonTournamentMatchState ShownState = ELeonTournamentMatchState::MainMenu;
+        ELeonTournamentMatchState PrevState = ELeonTournamentMatchState::MainMenu;
         bool bScoreboardVisible = false;
     };
 

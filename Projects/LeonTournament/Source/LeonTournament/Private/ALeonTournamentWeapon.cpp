@@ -248,16 +248,31 @@ namespace Leon {
             return;
         FParticleEmitterSettings muzzle;
         muzzle.Kind = EParticleKind::SpriteBurst;
-        muzzle.BurstCount = 14;
-        muzzle.Lifetime = 0.1f;
-        muzzle.Size = 0.06f;
-        muzzle.SizeEnd = 0.18f;
+        muzzle.BurstCount = 28;
+        muzzle.Lifetime = 0.16f;
+        muzzle.Size = 0.1f;
+        muzzle.SizeEnd = 0.32f;
         muzzle.Color = {1.0f, 0.55f, 0.15f, 1.0f};
         muzzle.ColorEnd = {0.8f, 0.15f, 0.05f, 0.0f};
-        muzzle.VelocityMin = {-0.2f, -0.05f, -0.2f};
-        muzzle.VelocityMax = {0.2f, 0.35f, 0.2f};
+        muzzle.VelocityMin = {-0.45f, -0.1f, -0.45f};
+        muzzle.VelocityMax = {0.45f, 0.55f, 0.45f};
         if (UGameplayStatics::SpawnEmitterAtLocation(World, muzzle, InMuzzle))
             ++LastVfxSpawnCount;
+
+        FParticleEmitterSettings smoke;
+        smoke.Kind = EParticleKind::SpriteBurst;
+        smoke.BurstCount = 16;
+        smoke.Lifetime = 0.35f;
+        smoke.Size = 0.12f;
+        smoke.SizeEnd = 0.4f;
+        smoke.Color = {0.35f, 0.28f, 0.22f, 0.7f};
+        smoke.ColorEnd = {0.08f, 0.06f, 0.05f, 0.0f};
+        smoke.VelocityMin = {-0.3f, 0.1f, -0.3f};
+        smoke.VelocityMax = {0.3f, 1.2f, 0.3f};
+        smoke.Gravity = {0.0f, 1.5f, 0.0f};
+        if (UGameplayStatics::SpawnEmitterAtLocation(World, smoke, InMuzzle))
+            ++LastVfxSpawnCount;
+
         if (OwnerCharacter && OwnerCharacter->IsLocallyControlled())
             UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 1.0f);
         else
@@ -315,60 +330,147 @@ namespace Leon {
             UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_HitConfirm", InTraceEnd, 0.9f, 3000.0f);
     }
 
+    void ALeonTournamentWeapon::SpawnShotgunBlastEffects(const glm::vec3& InMuzzle, const glm::vec3& InAimDir) {
+        LastVfxSpawnCount = 0;
+        if (!World)
+            return;
+        const glm::vec3 n = glm::length(InAimDir) > 1e-5f ? glm::normalize(InAimDir) : glm::vec3(0.0f, 0.0f, 1.0f);
+
+        FParticleEmitterSettings flash;
+        flash.Kind = EParticleKind::SpriteBurst;
+        flash.BurstCount = 28;
+        flash.Lifetime = 0.1f;
+        flash.Size = 0.08f;
+        flash.SizeEnd = 0.22f;
+        flash.Color = {1.0f, 0.85f, 0.35f, 1.0f};
+        flash.ColorEnd = {1.0f, 0.35f, 0.05f, 0.0f};
+        flash.VelocityMin = n * 2.0f + glm::vec3(-1.5f, -0.4f, -1.5f);
+        flash.VelocityMax = n * 8.0f + glm::vec3(1.5f, 1.5f, 1.5f);
+        flash.Gravity = {0.0f, -2.0f, 0.0f};
+        if (UGameplayStatics::SpawnEmitterAtLocation(World, flash, InMuzzle))
+            ++LastVfxSpawnCount;
+
+        FParticleEmitterSettings smoke;
+        smoke.Kind = EParticleKind::SpriteBurst;
+        smoke.BurstCount = 14;
+        smoke.Lifetime = 0.35f;
+        smoke.Size = 0.1f;
+        smoke.SizeEnd = 0.35f;
+        smoke.Color = {0.35f, 0.3f, 0.25f, 0.65f};
+        smoke.ColorEnd = {0.08f, 0.07f, 0.06f, 0.0f};
+        smoke.VelocityMin = n * 0.5f + glm::vec3(-0.5f, 0.2f, -0.5f);
+        smoke.VelocityMax = n * 2.5f + glm::vec3(0.5f, 1.2f, 0.5f);
+        smoke.Gravity = {0.0f, 1.5f, 0.0f};
+        if (UGameplayStatics::SpawnEmitterAtLocation(World, smoke, InMuzzle + n * 0.15f))
+            ++LastVfxSpawnCount;
+
+        for (int i = 0; i < 6; ++i) {
+            const glm::vec3 dir = ApplyAimSpread(n, CurrentSpreadDeg + Config.PelletSpreadDeg);
+            FParticleEmitterSettings tracer;
+            tracer.Kind = EParticleKind::Beam;
+            tracer.Lifetime = 0.07f;
+            tracer.Color = {1.0f, 0.9f, 0.45f, 0.7f};
+            tracer.ColorEnd = {1.0f, 0.45f, 0.1f, 0.0f};
+            tracer.BeamEnd = InMuzzle + dir * 4.5f;
+            tracer.BeamThickness = 0.014f;
+            UGameplayStatics::SpawnEmitterAtLocation(World, tracer, InMuzzle + dir * 0.1f);
+        }
+
+        if (OwnerCharacter && OwnerCharacter->IsLocallyControlled())
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 1.05f);
+        else
+            UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_RifleFire", InMuzzle, 1.0f, 4800.0f);
+    }
+
     void ALeonTournamentWeapon::SpawnFlameEffects(const glm::vec3& InMuzzle, const glm::vec3& InDir) {
         LastVfxSpawnCount = 0;
         if (!World)
             return;
         const glm::vec3 n = glm::length(InDir) > 1e-5f ? glm::normalize(InDir) : glm::vec3(0.0f, 0.0f, 1.0f);
+        // Lifetime * forward speed ≈ Config.Range (2 m) so the spray visually matches damage reach.
+        const float reach = std::max(0.5f, Config.Range);
+        const float life = 0.42f;
+        const float speedMin = reach / life * 0.85f;
+        const float speedMax = reach / life * 1.15f;
+
         FParticleEmitterSettings flame;
         flame.Kind = EParticleKind::SpriteBurst;
-        flame.BurstCount = 22;
-        flame.Lifetime = 0.28f;
-        flame.Size = 0.08f;
-        flame.SizeEnd = 0.22f;
+        flame.BurstCount = 48;
+        flame.Lifetime = life;
+        flame.Size = 0.18f;
+        flame.SizeEnd = 0.55f;
         flame.Color = {1.0f, 0.55f, 0.08f, 1.0f};
         flame.ColorEnd = {0.35f, 0.05f, 0.0f, 0.0f};
-        flame.VelocityMin = n * 3.0f + glm::vec3(-1.2f, -0.2f, -1.2f);
-        flame.VelocityMax = n * 7.5f + glm::vec3(1.2f, 1.4f, 1.2f);
-        flame.Gravity = {0.0f, 1.5f, 0.0f};
-        if (UGameplayStatics::SpawnEmitterAtLocation(World, flame, InMuzzle + n * 0.25f))
+        flame.VelocityMin = n * speedMin + glm::vec3(-1.8f, -0.35f, -1.8f);
+        flame.VelocityMax = n * speedMax + glm::vec3(1.8f, 2.0f, 1.8f);
+        flame.Gravity = {0.0f, 1.8f, 0.0f};
+        if (UGameplayStatics::SpawnEmitterAtLocation(World, flame, InMuzzle + n * 0.2f))
+            ++LastVfxSpawnCount;
+
+        FParticleEmitterSettings core;
+        core.Kind = EParticleKind::SpriteBurst;
+        core.BurstCount = 22;
+        core.Lifetime = life * 0.85f;
+        core.Size = 0.12f;
+        core.SizeEnd = 0.38f;
+        core.Color = {1.0f, 0.85f, 0.25f, 1.0f};
+        core.ColorEnd = {1.0f, 0.25f, 0.02f, 0.0f};
+        core.VelocityMin = n * (speedMin * 0.9f) + glm::vec3(-0.9f, -0.15f, -0.9f);
+        core.VelocityMax = n * (speedMax * 1.05f) + glm::vec3(0.9f, 1.1f, 0.9f);
+        core.Gravity = {0.0f, 1.2f, 0.0f};
+        if (UGameplayStatics::SpawnEmitterAtLocation(World, core, InMuzzle + n * 0.15f))
             ++LastVfxSpawnCount;
 
         FParticleEmitterSettings smoke;
         smoke.Kind = EParticleKind::SpriteBurst;
-        smoke.BurstCount = 8;
-        smoke.Lifetime = 0.4f;
-        smoke.Size = 0.1f;
-        smoke.SizeEnd = 0.28f;
-        smoke.Color = {0.25f, 0.18f, 0.12f, 0.55f};
+        smoke.BurstCount = 18;
+        smoke.Lifetime = 0.55f;
+        smoke.Size = 0.22f;
+        smoke.SizeEnd = 0.65f;
+        smoke.Color = {0.28f, 0.18f, 0.1f, 0.6f};
         smoke.ColorEnd = {0.05f, 0.05f, 0.05f, 0.0f};
-        smoke.VelocityMin = n * 1.5f + glm::vec3(-0.6f, 0.4f, -0.6f);
-        smoke.VelocityMax = n * 4.0f + glm::vec3(0.6f, 1.8f, 0.6f);
-        smoke.Gravity = {0.0f, 2.0f, 0.0f};
-        UGameplayStatics::SpawnEmitterAtLocation(World, smoke, InMuzzle + n * 0.4f);
+        smoke.VelocityMin = n * (speedMin * 0.55f) + glm::vec3(-1.0f, 0.5f, -1.0f);
+        smoke.VelocityMax = n * (speedMax * 0.75f) + glm::vec3(1.0f, 2.2f, 1.0f);
+        smoke.Gravity = {0.0f, 2.4f, 0.0f};
+        UGameplayStatics::SpawnEmitterAtLocation(World, smoke, InMuzzle + n * 0.35f);
 
         if (OwnerCharacter && OwnerCharacter->IsLocallyControlled())
             UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 0.35f);
     }
 
     bool ALeonTournamentWeapon::ApplyHitscanDamage(const glm::vec3& InOrigin, const glm::vec3& InDir, float InDamage,
-                                                   glm::vec3& OutTraceEnd, bool& OutHitWorld, bool& OutHitCharacter) {
+                                                   glm::vec3& OutTraceEnd, bool& OutHitWorld, bool& OutHitCharacter,
+                                                   int32_t InMaxBounces) {
         OutHitWorld = false;
         OutHitCharacter = false;
         OutTraceEnd = InOrigin + InDir * Config.Range;
         if (!World)
             return false;
 
-        UWorld::FHitResult hit;
-        const glm::vec3 end = OutTraceEnd;
-        const bool bHit = World->LineTraceByChannel(InOrigin, end, ECollisionChannel::Visibility, OwnerCharacter, hit);
-        if (FDebugRenderer::IsTraceCaptureEnabled()) {
-            FDebugRenderer::RecordLineTrace(InOrigin, end, bHit && hit.bBlockingHit, hit.Location, hit.Normal,
-                                            static_cast<uint8_t>(ECollisionChannel::Visibility));
-        }
+        glm::vec3 origin = InOrigin;
+        glm::vec3 dir = glm::length(InDir) > 1e-5f ? glm::normalize(InDir) : glm::vec3(0.0f, 0.0f, 1.0f);
+        float remaining = Config.Range;
         bool bDamaged = false;
-        if (bHit && hit.bBlockingHit) {
+
+        for (int bounce = 0; bounce <= InMaxBounces && remaining > 0.02f; ++bounce) {
+            UWorld::FHitResult hit;
+            const glm::vec3 end = origin + dir * remaining;
+            const bool bHit =
+                World->LineTraceByChannel(origin, end, ECollisionChannel::Visibility, OwnerCharacter, hit);
+            if (FDebugRenderer::IsTraceCaptureEnabled()) {
+                FDebugRenderer::RecordLineTrace(origin, end, bHit && hit.bBlockingHit, hit.Location, hit.Normal,
+                                                static_cast<uint8_t>(ECollisionChannel::Visibility));
+            }
+
+            if (!(bHit && hit.bBlockingHit)) {
+                OutTraceEnd = end;
+                break;
+            }
+
             OutTraceEnd = hit.Location;
+            const float traveled = glm::length(hit.Location - origin);
+            remaining = std::max(0.0f, remaining - traveled);
+
             auto* target = dynamic_cast<ALeonTournamentCharacter*>(hit.Actor);
             if (target && target != OwnerCharacter) {
                 OutHitCharacter = true;
@@ -380,7 +482,7 @@ namespace Leon {
                 info.HitActor = target;
                 info.HitLocation = hit.Location;
                 info.HitNormal = hit.Normal;
-                info.Impulse = InDir * Config.Knockback;
+                info.Impulse = dir * Config.Knockback;
                 if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World->GetGameMode())) {
                     if (gm->ApplyAuthoritativeDamage(*OwnerCharacter, *target, info)) {
                         bDamaged = true;
@@ -388,11 +490,42 @@ namespace Leon {
                         OwnerCharacter->PulseHitConfirm(bKill);
                     }
                 }
-                target->ApplyLaunchVelocity(InDir * Config.Knockback + glm::vec3(0.0f, 0.4f, 0.0f));
-            } else {
-                OutHitWorld = true;
+                target->ApplyLaunchVelocity(dir * Config.Knockback + glm::vec3(0.0f, 0.4f, 0.0f));
+                break;
             }
+
+            OutHitWorld = true;
+            if (bounce >= InMaxBounces)
+                break;
+
+            const glm::vec3 n =
+                glm::length(hit.Normal) > 1e-5f ? glm::normalize(hit.Normal) : glm::vec3(0.0f, 1.0f, 0.0f);
+            dir = glm::normalize(glm::reflect(dir, n));
+            origin = hit.Location + n * 0.03f;
+
+            FParticleEmitterSettings spark;
+            spark.Kind = EParticleKind::SpriteBurst;
+            spark.BurstCount = 6;
+            spark.Lifetime = 0.1f;
+            spark.Size = 0.03f;
+            spark.SizeEnd = 0.01f;
+            spark.Color = {1.0f, 0.9f, 0.45f, 1.0f};
+            spark.ColorEnd = {1.0f, 0.4f, 0.05f, 0.0f};
+            spark.VelocityMin = dir * 1.5f + glm::vec3(-0.5f, 0.1f, -0.5f);
+            spark.VelocityMax = dir * 4.0f + glm::vec3(0.5f, 1.2f, 0.5f);
+            spark.Gravity = {0.0f, -6.0f, 0.0f};
+            UGameplayStatics::SpawnEmitterAtLocation(World, spark, hit.Location);
+
+            FParticleEmitterSettings bounceBeam;
+            bounceBeam.Kind = EParticleKind::Beam;
+            bounceBeam.Lifetime = 0.05f;
+            bounceBeam.Color = {1.0f, 0.88f, 0.4f, 0.55f};
+            bounceBeam.ColorEnd = {1.0f, 0.55f, 0.15f, 0.0f};
+            bounceBeam.BeamEnd = origin + dir * std::min(remaining, 8.0f);
+            bounceBeam.BeamThickness = 0.01f;
+            UGameplayStatics::SpawnEmitterAtLocation(World, bounceBeam, origin);
         }
+
         return bDamaged;
     }
 
@@ -417,7 +550,7 @@ namespace Leon {
             glm::vec3 traceEnd;
             bool hitWorld = false;
             bool hitChar = false;
-            ApplyHitscanDamage(origin, dir, Config.Damage, traceEnd, hitWorld, hitChar);
+            ApplyHitscanDamage(origin, dir, Config.Damage, traceEnd, hitWorld, hitChar, Config.RicochetBounces);
             if (i == 0)
                 primaryEnd = traceEnd;
             anyHitChar = anyHitChar || hitChar;
@@ -444,9 +577,8 @@ namespace Leon {
     }
 
     bool ALeonTournamentWeapon::FireProjectile() {
-        glm::vec3 origin, dir;
-        OwnerCharacter->GetAimRay(origin, dir);
-        dir = ApplyAimSpread(dir, CurrentSpreadDeg);
+        glm::vec3 origin, aimDir;
+        OwnerCharacter->GetAimRay(origin, aimDir);
         AddShotBloom();
         if (Config.RecoilPitchDeg > 0.0f) {
             std::uniform_real_distribution<float> kick(0.7f, 1.0f);
@@ -454,12 +586,25 @@ namespace Leon {
         }
 
         const glm::vec3 muzzle = OwnerCharacter->GetMuzzleSocketLocation();
-        auto* proj = World->SpawnActor<ALeonTournamentProjectile>("Projectile");
-        if (!proj)
+        const int shots = std::max(1, Config.PelletCount);
+        const float cone = CurrentSpreadDeg + Config.PelletSpreadDeg;
+        bool anySpawned = false;
+        for (int i = 0; i < shots; ++i) {
+            glm::vec3 dir = (shots > 1) ? ApplyAimSpread(aimDir, cone) : ApplyAimSpread(aimDir, CurrentSpreadDeg);
+            auto* proj = World->SpawnActor<ALeonTournamentProjectile>(shots > 1 ? "Pellet" : "Projectile");
+            if (!proj)
+                continue;
+            proj->SetActorLocation(origin + dir * 0.45f);
+            proj->Launch(OwnerCharacter, this, dir, Config);
+            anySpawned = true;
+        }
+        if (!anySpawned)
             return false;
-        proj->SetActorLocation(origin + dir * 0.55f);
-        proj->Launch(OwnerCharacter, this, dir, Config);
-        SpawnRocketLaunchEffects(muzzle);
+
+        if (WeaponId == ELeonTournamentWeaponId::Shotgun)
+            SpawnShotgunBlastEffects(muzzle, aimDir);
+        else
+            SpawnRocketLaunchEffects(muzzle);
         return true;
     }
 

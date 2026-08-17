@@ -41,7 +41,7 @@ namespace Leon {
     void ALeonTournamentPlayerState::SetCharacterSkin(ELeonTournamentCharacterSkin InSkin) {
         if (!IsNetworkAuthority())
             return;
-        CharacterSkin = InSkin;
+        CharacterSkin = LeonTournamentClampCharacterSkin(InSkin);
     }
 
     void ALeonTournamentPlayerState::ResetStats() {
@@ -73,7 +73,7 @@ namespace Leon {
         Team = static_cast<ELeonTournamentTeam>(team);
         bBot = bot != 0;
         if (FNetBlob::ReadU8(bytes, offset, skin))
-            CharacterSkin = static_cast<ELeonTournamentCharacterSkin>(skin);
+            CharacterSkin = LeonTournamentClampCharacterSkin(static_cast<ELeonTournamentCharacterSkin>(skin));
         SetScore(static_cast<float>(Kills));
     }
 

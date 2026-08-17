@@ -59,7 +59,47 @@ namespace Leon {
             return world && world->GetNetMode() == ENetMode::Client;
         }
 
-        TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = 1.0f) {
+        // Inter Bold is baked at 48px; scales below keep UI readable without oversized boxes.
+        constexpr float kFsCaption = 0.32f;
+        constexpr float kFsBody = 0.38f;
+        constexpr float kFsLabel = 0.42f;
+        constexpr float kFsButton = 0.42f;
+        constexpr float kFsSub = 0.48f;
+        constexpr float kFsTitle = 0.65f;
+        constexpr float kFsHero = 0.78f;
+        constexpr float kFsScore = 0.72f;
+        constexpr float kFsTimer = 0.78f;
+        constexpr float kFsVital = 0.85f;
+        constexpr float kFsBanner = 1.05f;
+
+        FMargin BoxTL(float InX, float InY, float InW, float InH) {
+            return FMargin(InX, InY, -(InX + InW), -(InY + InH));
+        }
+        FMargin BoxBL(float InX, float InBottom, float InW, float InH) {
+            return FMargin(InX, -(InBottom + InH), -(InX + InW), InBottom);
+        }
+        FMargin BoxBR(float InRight, float InBottom, float InW, float InH) {
+            return FMargin(-(InRight + InW), -(InBottom + InH), InRight, InBottom);
+        }
+        FMargin BoxTC(float InTop, float InW, float InH, float InOx = 0.0f) {
+            return FMargin(InOx - InW * 0.5f, InTop, -(InOx + InW * 0.5f), -(InTop + InH));
+        }
+        FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f) {
+            return FMargin(InOx - InW * 0.5f, -(InBottom + InH), -(InOx + InW * 0.5f), InBottom);
+        }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) {
+            return FMargin(InOx - InW * 0.5f, InOy - InH * 0.5f, -(InOx + InW * 0.5f), -(InOy + InH * 0.5f));
+        }
+
+        glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f,
+                                float InPadY = 6.0f) {
+            const glm::vec2 m = FUIRenderer::MeasureString(InText, InScale);
+            return {m.x + InPadX * 2.0f, m.y + InPadY * 2.0f};
+        }
+
+        TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = kFsButton,
+                                 float InMinW = 200.0f, float InMinH = 0.0f) {
+            FUIRenderer::Init();
             auto btn = std::make_shared<UButton>(InName);
             btn->SetNormalColor({0.12f, 0.18f, 0.30f, 0.95f});
             btn->SetHoveredColor({0.18f, 0.30f, 0.50f, 1.0f});
@@ -69,8 +109,68 @@ namespace Leon {
             label->SetFontScale(InFont);
             label->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
             label->SetJustification(ETextAlignment::Center);
+            const glm::vec2 m = FUIRenderer::MeasureString(InLabel, InFont);
+            label->SetSize(m);
             btn->SetContent(label);
+            constexpr float padX = 36.0f;
+            constexpr float padY = 14.0f;
+            const float w = std::max(InMinW, m.x + padX * 2.0f);
+            const float h = std::max(InMinH > 0.0f ? InMinH : (m.y + padY * 2.0f), m.y + padY * 2.0f);
+            btn->SetSize({w, h});
             return btn;
+        }
+
+        void PlaceButtonTL(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InX, float InY) {
+            const glm::vec2 s = InBtn->GetSize();
+            InRoot.AddChild(InBtn, FAnchors::TopLeft(), BoxTL(InX, InY, s.x, s.y));
+        }
+        void PlaceButtonC(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InOx, float InOy) {
+            const glm::vec2 s = InBtn->GetSize();
+            InRoot.AddChild(InBtn, FAnchors::Center(), BoxC(InOx, InOy, s.x, s.y));
+        }
+        void PlaceTextTL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InY,
+                         float InMinW = 0.0f, float InMinH = 0.0f) {
+            const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(),
+                                              InText->GetFontScale());
+            const float w = std::max(InMinW, e.x);
+            const float h = std::max(InMinH, e.y);
+            InRoot.AddChild(InText, FAnchors::TopLeft(), BoxTL(InX, InY, w, h));
+        }
+        void PlaceTextTC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InTop, float InMinW = 0.0f,
+                         float InOx = 0.0f) {
+            const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(),
+                                              InText->GetFontScale());
+            const float w = std::max(InMinW, e.x);
+            InRoot.AddChild(InText, FAnchors::TopCenter(), BoxTC(InTop, w, e.y, InOx));
+        }
+        void PlaceTextBL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InBottom,
+                         float InMinW = 0.0f) {
+            const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(),
+                                              InText->GetFontScale());
+            const float w = std::max(InMinW, e.x);
+            InRoot.AddChild(InText, FAnchors::BottomLeft(), BoxBL(InX, InBottom, w, e.y));
+        }
+        void PlaceTextBR(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InRight, float InBottom,
+                         float InMinW = 0.0f) {
+            const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(),
+                                              InText->GetFontScale());
+            const float w = std::max(InMinW, e.x);
+            InRoot.AddChild(InText, FAnchors::BottomRight(), BoxBR(InRight, InBottom, w, e.y));
+        }
+        void PlaceTextBC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InBottom,
+                         float InMinW = 0.0f) {
+            const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(),
+                                              InText->GetFontScale());
+            const float w = std::max(InMinW, e.x);
+            InRoot.AddChild(InText, FAnchors::BottomCenter(), BoxBC(InBottom, w, e.y));
+        }
+        void PlaceTextC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InOx, float InOy,
+                        float InMinW = 0.0f, float InMinH = 0.0f) {
+            const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(),
+                                              InText->GetFontScale());
+            const float w = std::max(InMinW, e.x);
+            const float h = std::max(InMinH, e.y);
+            InRoot.AddChild(InText, FAnchors::Center(), BoxC(InOx, InOy, w, h));
         }
     } // namespace
 
@@ -85,39 +185,49 @@ namespace Leon {
         Root->SetSize({1280, 720});
         Root->SetBackgroundColor({0.02f, 0.03f, 0.06f, 0.92f});
 
+        constexpr float leftX = 72.0f;
+        float y = 64.0f;
+
         auto title = std::make_shared<UTextBlock>("Title");
         title->SetText("LEON TOURNAMENT");
-        title->SetFontScale(1.6f);
+        title->SetFontScale(kFsHero);
         title->SetColor({0.90f, 0.93f, 1.0f, 1.0f});
-        Root->AddChild(title, FAnchors::TopLeft(), FMargin(80, 80, -900, -130));
+        PlaceTextTL(*Root, title, leftX, y);
+        y += MeasurePadded(title->GetText(), title->GetFontScale()).y + 4.0f;
 
         auto sub = std::make_shared<UTextBlock>("Sub");
         sub->SetText("2v2 Team Deathmatch");
-        sub->SetFontScale(0.9f);
+        sub->SetFontScale(kFsBody);
         sub->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        Root->AddChild(sub, FAnchors::TopLeft(), FMargin(80, 130, -700, -160));
+        PlaceTextTL(*Root, sub, leftX, y);
+        y += MeasurePadded(sub->GetText(), sub->GetFontScale()).y + 28.0f;
 
-        auto offline = MakeButton("Offline", "PLAY OFFLINE");
+        auto offline = MakeButton("Offline", "PLAY OFFLINE", kFsButton, 280.0f);
         offline->OnClicked.AddLambda([this]() { OnOffline(); });
-        Root->AddChild(offline, FAnchors::TopLeft(), FMargin(80, 220, -360, -268));
+        PlaceButtonTL(*Root, offline, leftX, y);
+        y += offline->GetSize().y + 12.0f;
 
-        auto animLab = MakeButton("AnimLab", "ANIM LAB");
+        auto animLab = MakeButton("AnimLab", "ANIM LAB", kFsButton, 280.0f);
         animLab->OnClicked.AddLambda([this]() { OnAnimLab(); });
-        Root->AddChild(animLab, FAnchors::TopLeft(), FMargin(80, 280, -360, -328));
+        PlaceButtonTL(*Root, animLab, leftX, y);
+        y += animLab->GetSize().y + 12.0f;
 
-        auto host = MakeButton("Host", "HOST LAN");
+        auto host = MakeButton("Host", "HOST LAN", kFsButton, 280.0f);
         host->OnClicked.AddLambda([this]() { OnHostLan(); });
-        Root->AddChild(host, FAnchors::TopLeft(), FMargin(80, 340, -360, -388));
+        PlaceButtonTL(*Root, host, leftX, y);
+        y += host->GetSize().y + 12.0f;
 
-        auto join = MakeButton("Join", "JOIN LAN");
+        auto join = MakeButton("Join", "JOIN LAN", kFsButton, 280.0f);
         join->OnClicked.AddLambda([this]() { OnJoinLan(); });
-        Root->AddChild(join, FAnchors::TopLeft(), FMargin(80, 400, -360, -448));
+        PlaceButtonTL(*Root, join, leftX, y);
+        y += join->GetSize().y + 18.0f;
 
         auto ipLabel = std::make_shared<UTextBlock>("IpLabel");
         ipLabel->SetText("IP Address");
-        ipLabel->SetFontScale(0.75f);
+        ipLabel->SetFontScale(kFsCaption);
         ipLabel->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        Root->AddChild(ipLabel, FAnchors::TopLeft(), FMargin(80, 460, -360, -484));
+        PlaceTextTL(*Root, ipLabel, leftX, y);
+        y += MeasurePadded(ipLabel->GetText(), ipLabel->GetFontScale()).y + 4.0f;
 
         AddressField = std::make_shared<UEditableText>("JoinAddress");
         auto* session = GI();
@@ -128,38 +238,52 @@ namespace Leon {
             if (auto* inst = GI())
                 inst->SetJoinAddress(InText.empty() ? "127.0.0.1" : InText);
         };
-        Root->AddChild(AddressField, FAnchors::TopLeft(), FMargin(80, 488, -360, -528));
+        const float fieldH = 44.0f;
+        const float fieldW = 280.0f;
+        AddressField->SetSize({fieldW, fieldH});
+        Root->AddChild(AddressField, FAnchors::TopLeft(), BoxTL(leftX, y, fieldW, fieldH));
+        y += fieldH + 20.0f;
+
+        auto quit = MakeButton("Quit", "QUIT", kFsButton, 280.0f);
+        quit->OnClicked.AddLambda([this]() { OnQuit(); });
+        PlaceButtonTL(*Root, quit, leftX, y);
+
+        constexpr float charX = 430.0f;
+        float charY = 220.0f;
 
         auto charTitle = std::make_shared<UTextBlock>("CharTitle");
         charTitle->SetText("CHARACTER");
-        charTitle->SetFontScale(0.75f);
+        charTitle->SetFontScale(kFsCaption);
         charTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        Root->AddChild(charTitle, FAnchors::TopLeft(), FMargin(420, 220, -900, -248));
+        PlaceTextTL(*Root, charTitle, charX, charY);
+        charY += MeasurePadded(charTitle->GetText(), charTitle->GetFontScale()).y + 10.0f;
 
-        auto prevChar = MakeButton("PrevChar", "<", 1.2f);
+        auto prevChar = MakeButton("PrevChar", "<", kFsSub, 56.0f, 52.0f);
         prevChar->OnClicked.AddLambda([this]() { OnPrevCharacter(); });
-        Root->AddChild(prevChar, FAnchors::TopLeft(), FMargin(420, 260, -480, -308));
+        PlaceButtonTL(*Root, prevChar, charX, charY);
 
         CharacterLabel = std::make_shared<UTextBlock>("CharName");
-        CharacterLabel->SetFontScale(1.05f);
+        CharacterLabel->SetFontScale(kFsSub);
         CharacterLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
         CharacterLabel->SetJustification(ETextAlignment::Center);
-        Root->AddChild(CharacterLabel, FAnchors::TopLeft(), FMargin(490, 268, -760, -300));
+        CharacterLabel->SetText("PATRICK");
+        const float nameW = 220.0f;
+        const float nameH = MeasurePadded("PATRICK", kFsSub).y;
+        Root->AddChild(CharacterLabel, FAnchors::TopLeft(),
+                       BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f,
+                             nameW, nameH));
         RefreshCharacterLabel();
 
-        auto nextChar = MakeButton("NextChar", ">", 1.2f);
+        auto nextChar = MakeButton("NextChar", ">", kFsSub, 56.0f, 52.0f);
         nextChar->OnClicked.AddLambda([this]() { OnNextCharacter(); });
-        Root->AddChild(nextChar, FAnchors::TopLeft(), FMargin(770, 260, -830, -308));
+        PlaceButtonTL(*Root, nextChar, charX + prevChar->GetSize().x + 12.0f + nameW + 12.0f, charY);
+        charY += prevChar->GetSize().y + 12.0f;
 
         auto charHint = std::make_shared<UTextBlock>("CharHint");
         charHint->SetText("Same Mixamo skeleton — shared anims");
-        charHint->SetFontScale(0.65f);
+        charHint->SetFontScale(kFsCaption);
         charHint->SetColor({0.55f, 0.62f, 0.75f, 1.0f});
-        Root->AddChild(charHint, FAnchors::TopLeft(), FMargin(420, 320, -900, -348));
-
-        auto quit = MakeButton("Quit", "QUIT");
-        quit->OnClicked.AddLambda([this]() { OnQuit(); });
-        Root->AddChild(quit, FAnchors::TopLeft(), FMargin(80, 548, -360, -596));
+        PlaceTextTL(*Root, charHint, charX, charY);
 
         SetWidgetTree(Root);
         SetSize({1280, 720});
@@ -251,76 +375,110 @@ namespace Leon {
         Root->SetSize({1280, 720});
         Root->SetBackgroundColor({0.03f, 0.04f, 0.08f, 0.90f});
 
+        constexpr float leftX = 56.0f;
+        float y = 28.0f;
+
         TitleText = std::make_shared<UTextBlock>("LobbyTitle");
         TitleText->SetText("LOBBY  —  UP TO 12");
-        TitleText->SetFontScale(1.3f);
-        Root->AddChild(TitleText, FAnchors::TopLeft(), FMargin(60, 28, -520, -68));
+        TitleText->SetFontScale(kFsTitle);
+        PlaceTextTL(*Root, TitleText, leftX, y);
+        y += MeasurePadded(TitleText->GetText(), TitleText->GetFontScale()).y + 12.0f;
 
         RosterText = std::make_shared<UTextBlock>("Roster");
-        RosterText->SetFontScale(0.72f);
-        Root->AddChild(RosterText, FAnchors::TopLeft(), FMargin(60, 78, -60, -420));
+        RosterText->SetFontScale(kFsBody);
+        RosterText->SetText("TEAM 1 (0)\n\nTEAM 2 (0)");
+        // Room for ~14 roster lines at body scale.
+        const float rosterH = MeasurePadded(std::string(14, '\n') + "x", kFsBody).y;
+        Root->AddChild(RosterText, FAnchors::TopLeft(), BoxTL(leftX, y, 1160.0f, rosterH));
+        y += rosterH + 16.0f;
 
         auto botsTitle = std::make_shared<UTextBlock>("BotsTitle");
         botsTitle->SetText("BOTS PER TEAM");
-        botsTitle->SetFontScale(0.8f);
+        botsTitle->SetFontScale(kFsCaption);
         botsTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        Root->AddChild(botsTitle, FAnchors::TopLeft(), FMargin(60, 430, -400, -458));
+        PlaceTextTL(*Root, botsTitle, leftX, y);
+        y += MeasurePadded(botsTitle->GetText(), botsTitle->GetFontScale()).y + 8.0f;
 
-        auto t1Minus = MakeButton("T1BotsMinus", "-", 1.0f);
+        auto t1Minus = MakeButton("T1BotsMinus", "-", kFsLabel, 52.0f, 48.0f);
         t1Minus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam1(-1); });
-        Root->AddChild(t1Minus, FAnchors::TopLeft(), FMargin(60, 466, -110, -504));
-        BotsTeam1Label = std::make_shared<UTextBlock>("T1BotsLabel");
-        BotsTeam1Label->SetFontScale(0.95f);
-        BotsTeam1Label->SetJustification(ETextAlignment::Center);
-        Root->AddChild(BotsTeam1Label, FAnchors::TopLeft(), FMargin(120, 474, -360, -506));
-        auto t1Plus = MakeButton("T1BotsPlus", "+", 1.0f);
-        t1Plus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam1(1); });
-        Root->AddChild(t1Plus, FAnchors::TopLeft(), FMargin(370, 466, -420, -504));
+        PlaceButtonTL(*Root, t1Minus, leftX, y);
 
-        auto t2Minus = MakeButton("T2BotsMinus", "-", 1.0f);
+        BotsTeam1Label = std::make_shared<UTextBlock>("T1BotsLabel");
+        BotsTeam1Label->SetFontScale(kFsLabel);
+        BotsTeam1Label->SetJustification(ETextAlignment::Center);
+        BotsTeam1Label->SetText("TEAM 1 BOTS: 0");
+        const float botsLabelW = 260.0f;
+        const float botsLabelH = MeasurePadded("TEAM 1 BOTS: 99", kFsLabel).y;
+        Root->AddChild(BotsTeam1Label, FAnchors::TopLeft(),
+                       BoxTL(leftX + t1Minus->GetSize().x + 10.0f, y + (t1Minus->GetSize().y - botsLabelH) * 0.5f,
+                             botsLabelW, botsLabelH));
+
+        auto t1Plus = MakeButton("T1BotsPlus", "+", kFsLabel, 52.0f, 48.0f);
+        t1Plus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam1(1); });
+        PlaceButtonTL(*Root, t1Plus, leftX + t1Minus->GetSize().x + 10.0f + botsLabelW + 10.0f, y);
+        y += t1Minus->GetSize().y + 10.0f;
+
+        auto t2Minus = MakeButton("T2BotsMinus", "-", kFsLabel, 52.0f, 48.0f);
         t2Minus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam2(-1); });
-        Root->AddChild(t2Minus, FAnchors::TopLeft(), FMargin(60, 514, -110, -552));
+        PlaceButtonTL(*Root, t2Minus, leftX, y);
+
         BotsTeam2Label = std::make_shared<UTextBlock>("T2BotsLabel");
-        BotsTeam2Label->SetFontScale(0.95f);
+        BotsTeam2Label->SetFontScale(kFsLabel);
         BotsTeam2Label->SetJustification(ETextAlignment::Center);
-        Root->AddChild(BotsTeam2Label, FAnchors::TopLeft(), FMargin(120, 522, -360, -554));
-        auto t2Plus = MakeButton("T2BotsPlus", "+", 1.0f);
+        BotsTeam2Label->SetText("TEAM 2 BOTS: 0");
+        Root->AddChild(BotsTeam2Label, FAnchors::TopLeft(),
+                       BoxTL(leftX + t2Minus->GetSize().x + 10.0f, y + (t2Minus->GetSize().y - botsLabelH) * 0.5f,
+                             botsLabelW, botsLabelH));
+
+        auto t2Plus = MakeButton("T2BotsPlus", "+", kFsLabel, 52.0f, 48.0f);
         t2Plus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam2(1); });
-        Root->AddChild(t2Plus, FAnchors::TopLeft(), FMargin(370, 514, -420, -552));
+        PlaceButtonTL(*Root, t2Plus, leftX + t2Minus->GetSize().x + 10.0f + botsLabelW + 10.0f, y);
+        y += t2Minus->GetSize().y + 10.0f;
 
         CapacityHint = std::make_shared<UTextBlock>("CapacityHint");
-        CapacityHint->SetFontScale(0.7f);
+        CapacityHint->SetFontScale(kFsCaption);
         CapacityHint->SetColor({0.7f, 0.78f, 0.9f, 1.0f});
-        Root->AddChild(CapacityHint, FAnchors::TopLeft(), FMargin(60, 560, -520, -588));
+        CapacityHint->SetText("Capacity ~1 / 12  (you + bots)   D-Pad adjust");
+        PlaceTextTL(*Root, CapacityHint, leftX, y, 700.0f);
+        y += MeasurePadded(CapacityHint->GetText(), CapacityHint->GetFontScale()).y + 16.0f;
+
+        constexpr float charX = 620.0f;
+        float charY = 430.0f;
 
         auto charTitle = std::make_shared<UTextBlock>("LobbyCharTitle");
         charTitle->SetText("YOUR CHARACTER");
-        charTitle->SetFontScale(0.75f);
+        charTitle->SetFontScale(kFsCaption);
         charTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        Root->AddChild(charTitle, FAnchors::TopLeft(), FMargin(620, 430, -1100, -458));
+        PlaceTextTL(*Root, charTitle, charX, charY);
+        charY += MeasurePadded(charTitle->GetText(), charTitle->GetFontScale()).y + 8.0f;
 
-        auto prevChar = MakeButton("LobbyPrevChar", "<", 1.1f);
+        auto prevChar = MakeButton("LobbyPrevChar", "<", kFsSub, 56.0f, 52.0f);
         prevChar->OnClicked.AddLambda([this]() { OnPrevCharacter(); });
-        Root->AddChild(prevChar, FAnchors::TopLeft(), FMargin(620, 466, -680, -510));
+        PlaceButtonTL(*Root, prevChar, charX, charY);
 
         CharacterLabel = std::make_shared<UTextBlock>("LobbyCharName");
-        CharacterLabel->SetFontScale(1.0f);
+        CharacterLabel->SetFontScale(kFsSub);
         CharacterLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
         CharacterLabel->SetJustification(ETextAlignment::Center);
-        Root->AddChild(CharacterLabel, FAnchors::TopLeft(), FMargin(690, 474, -980, -506));
+        CharacterLabel->SetText("PATRICK");
+        const float nameW = 220.0f;
+        const float nameH = MeasurePadded("PATRICK", kFsSub).y;
+        Root->AddChild(CharacterLabel, FAnchors::TopLeft(),
+                       BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f,
+                             nameW, nameH));
         RefreshCharacterLabel();
 
-        auto nextChar = MakeButton("LobbyNextChar", ">", 1.1f);
+        auto nextChar = MakeButton("LobbyNextChar", ">", kFsSub, 56.0f, 52.0f);
         nextChar->OnClicked.AddLambda([this]() { OnNextCharacter(); });
-        Root->AddChild(nextChar, FAnchors::TopLeft(), FMargin(990, 466, -1050, -510));
+        PlaceButtonTL(*Root, nextChar, charX + prevChar->GetSize().x + 12.0f + nameW + 12.0f, charY);
 
-        auto start = MakeButton("Start", "START MATCH");
+        auto start = MakeButton("Start", "START MATCH", kFsButton, 240.0f);
         start->OnClicked.AddLambda([this]() { OnStart(); });
-        Root->AddChild(start, FAnchors::TopLeft(), FMargin(60, 600, -340, -648));
+        PlaceButtonTL(*Root, start, leftX, std::max(y, 600.0f));
 
-        auto back = MakeButton("Back", "BACK");
+        auto back = MakeButton("Back", "BACK", kFsButton, 160.0f);
         back->OnClicked.AddLambda([this]() { OnBack(); });
-        Root->AddChild(back, FAnchors::TopLeft(), FMargin(360, 600, -640, -648));
+        PlaceButtonTL(*Root, back, leftX + start->GetSize().x + 16.0f, std::max(y, 600.0f));
 
         RefreshBotLabels();
         SetWidgetTree(Root);
@@ -455,36 +613,70 @@ namespace Leon {
         Root = std::make_shared<UCanvasPanel>("HudRoot");
         Root->SetSize({1280, 720});
 
-        Team1Text = std::make_shared<UTextBlock>("T1");
-        Team1Text->SetFontScale(1.1f);
-        Team1Text->SetColor({0.95f, 0.45f, 0.35f, 1.0f});
-        Root->AddChild(Team1Text, FAnchors::TopLeft(), FMargin(40, 20, -400, -50));
+        const float topBarH = MeasurePadded("00:00", kFsTimer).y + MeasurePadded("TEAM DEATHMATCH", kFsBody).y + 18.0f;
+        TopBar = std::make_shared<UImage>("TopBar");
+        TopBar->SetTintColor({0.02f, 0.03f, 0.06f, 0.55f});
+        Root->AddChild(TopBar, FAnchors::TopLeft(), BoxTL(0.0f, 0.0f, 1280.0f, topBarH));
 
-        Team2Text = std::make_shared<UTextBlock>("T2");
-        Team2Text->SetFontScale(1.1f);
-        Team2Text->SetColor({0.35f, 0.55f, 0.95f, 1.0f});
-        Root->AddChild(Team2Text, FAnchors::TopLeft(), FMargin(40, 50, -400, -80));
+        const float vitalH = MeasurePadded("999", kFsVital).y;
+        const float labelH = MeasurePadded("HEALTH", kFsCaption).y;
+        const float bottomPad = 18.0f;
+        const float bottomBarH = labelH + vitalH + 28.0f;
+        const float bottomBarW = 320.0f;
+
+        BottomBarL = std::make_shared<UImage>("BottomBarL");
+        BottomBarL->SetTintColor({0.02f, 0.04f, 0.05f, 0.62f});
+        Root->AddChild(BottomBarL, FAnchors::BottomLeft(), BoxBL(24.0f, bottomPad, bottomBarW, bottomBarH));
+
+        BottomBarR = std::make_shared<UImage>("BottomBarR");
+        BottomBarR->SetTintColor({0.02f, 0.04f, 0.05f, 0.62f});
+        Root->AddChild(BottomBarR, FAnchors::BottomRight(), BoxBR(24.0f, bottomPad, bottomBarW, bottomBarH));
+
+        MatchLabel = std::make_shared<UTextBlock>("MatchLabel");
+        MatchLabel->SetText("TEAM DEATHMATCH");
+        MatchLabel->SetFontScale(kFsBody);
+        MatchLabel->SetColor({0.72f, 0.80f, 0.92f, 0.85f});
+        MatchLabel->SetJustification(ETextAlignment::Center);
+        PlaceTextTC(*Root, MatchLabel, 10.0f, 280.0f);
+
+        const float scoreTop = 10.0f + MeasurePadded("TEAM DEATHMATCH", kFsBody).y + 4.0f;
+
+        Team1Text = std::make_shared<UTextBlock>("T1");
+        Team1Text->SetText("0");
+        Team1Text->SetFontScale(kFsScore);
+        Team1Text->SetColor({1.0f, 0.42f, 0.32f, 1.0f});
+        Team1Text->SetJustification(ETextAlignment::Right);
+        PlaceTextTC(*Root, Team1Text, scoreTop, 80.0f, -140.0f);
 
         TimerText = std::make_shared<UTextBlock>("Timer");
-        TimerText->SetFontScale(1.0f);
-        Root->AddChild(TimerText, FAnchors::TopRight(), FMargin(-180, 20, 30, -50));
+        TimerText->SetText("00:00");
+        TimerText->SetFontScale(kFsTimer);
+        TimerText->SetColor({0.98f, 0.98f, 1.0f, 1.0f});
+        TimerText->SetJustification(ETextAlignment::Center);
+        PlaceTextTC(*Root, TimerText, scoreTop, 140.0f);
+
+        Team2Text = std::make_shared<UTextBlock>("T2");
+        Team2Text->SetText("0");
+        Team2Text->SetFontScale(kFsScore);
+        Team2Text->SetColor({0.38f, 0.62f, 1.0f, 1.0f});
+        Team2Text->SetJustification(ETextAlignment::Left);
+        PlaceTextTC(*Root, Team2Text, scoreTop, 80.0f, 140.0f);
 
         CrosshairText = std::make_shared<UTextBlock>("Crosshair");
         CrosshairText->SetText("");
-        CrosshairText->SetFontScale(1.0f);
+        CrosshairText->SetFontScale(kFsLabel);
         CrosshairText->SetColor({0.95f, 0.97f, 1.0f, 0.0f});
         CrosshairText->SetJustification(ETextAlignment::Center);
-        // Keep slot for tests/glyph API; optical center is the image dot below.
-        Root->AddChild(CrosshairText, FAnchors::Center(), FMargin(-2.0f, -2.0f, -2.0f, -2.0f));
+        Root->AddChild(CrosshairText, FAnchors::Center(), BoxC(0.0f, 0.0f, 4.0f, 4.0f));
 
         auto centerDot = std::make_shared<UImage>("CrosshairDot");
         centerDot->SetTintColor({0.95f, 0.97f, 1.0f, 0.95f});
-        Root->AddChild(centerDot, FAnchors::Center(), FMargin(-1.5f, -1.5f, -1.5f, -1.5f));
+        Root->AddChild(centerDot, FAnchors::Center(), BoxC(0.0f, 0.0f, 3.0f, 3.0f));
 
         auto makeBar = [&](const char* name) {
             auto bar = std::make_shared<UImage>(name);
             bar->SetTintColor({0.95f, 0.97f, 1.0f, 0.9f});
-            Root->AddChild(bar, FAnchors::Center(), FMargin(0, 0, 0, 0));
+            Root->AddChild(bar, FAnchors::Center(), BoxC(0.0f, 0.0f, 1.0f, 1.0f));
             return bar;
         };
         CrosshairBarT = makeBar("CH_T");
@@ -496,7 +688,7 @@ namespace Leon {
             auto seg = std::make_shared<UImage>(std::string("CH_Ring_") + std::to_string(i));
             seg->SetTintColor({0.95f, 0.97f, 1.0f, 0.9f});
             seg->SetVisibility(ESlateVisibility::Collapsed);
-            Root->AddChild(seg, FAnchors::Center(), FMargin(0, 0, 0, 0));
+            Root->AddChild(seg, FAnchors::Center(), BoxC(0.0f, 0.0f, 1.0f, 1.0f));
             CrosshairRing[static_cast<size_t>(i)] = seg;
         }
 
@@ -504,7 +696,7 @@ namespace Leon {
             auto mark = std::make_shared<UImage>(name);
             mark->SetTintColor({1.0f, 0.85f, 0.15f, 1.0f});
             mark->SetVisibility(ESlateVisibility::Collapsed);
-            Root->AddChild(mark, FAnchors::Center(), FMargin(0, 0, 0, 0));
+            Root->AddChild(mark, FAnchors::Center(), BoxC(0.0f, 0.0f, 1.0f, 1.0f));
             return mark;
         };
         HitMarkTL = makeHit("HM_TL");
@@ -512,27 +704,62 @@ namespace Leon {
         HitMarkBL = makeHit("HM_BL");
         HitMarkBR = makeHit("HM_BR");
 
+        HealthLabel = std::make_shared<UTextBlock>("HPLabel");
+        HealthLabel->SetText("HEALTH");
+        HealthLabel->SetFontScale(kFsCaption);
+        HealthLabel->SetColor({0.55f, 0.95f, 0.65f, 0.85f});
+        PlaceTextBL(*Root, HealthLabel, 44.0f, bottomPad + vitalH + 8.0f, 120.0f);
+
         HealthText = std::make_shared<UTextBlock>("HP");
-        HealthText->SetFontScale(1.0f);
-        HealthText->SetColor({0.4f, 0.95f, 0.5f, 1.0f});
-        Root->AddChild(HealthText, FAnchors::TopLeft(), FMargin(40, 660, -300, -700));
+        HealthText->SetText("100");
+        HealthText->SetFontScale(kFsVital);
+        HealthText->SetColor({0.45f, 1.0f, 0.55f, 1.0f});
+        PlaceTextBL(*Root, HealthText, 44.0f, bottomPad + 10.0f, 160.0f);
+
+        AmmoLabel = std::make_shared<UTextBlock>("AmmoLabel");
+        AmmoLabel->SetText("AMMO");
+        AmmoLabel->SetFontScale(kFsCaption);
+        AmmoLabel->SetColor({0.85f, 0.88f, 0.95f, 0.85f});
+        AmmoLabel->SetJustification(ETextAlignment::Right);
+        PlaceTextBR(*Root, AmmoLabel, 44.0f, bottomPad + vitalH + 8.0f, 160.0f);
 
         AmmoText = std::make_shared<UTextBlock>("Ammo");
-        AmmoText->SetFontScale(1.0f);
-        Root->AddChild(AmmoText, FAnchors::TopRight(), FMargin(-260, 660, 40, -700));
+        AmmoText->SetText("30 / 30");
+        AmmoText->SetFontScale(kFsScore);
+        AmmoText->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        AmmoText->SetJustification(ETextAlignment::Right);
+        PlaceTextBR(*Root, AmmoText, 44.0f, bottomPad + 10.0f, 200.0f);
 
         WeaponSlotsText = std::make_shared<UTextBlock>("WeaponSlots");
-        WeaponSlotsText->SetFontScale(0.85f);
-        WeaponSlotsText->SetColor({0.8f, 0.88f, 1.0f, 0.95f});
-        Root->AddChild(WeaponSlotsText, FAnchors::TopRight(), FMargin(-380, 620, 40, -655));
+        WeaponSlotsText->SetText("[1]  2  3  4  5  6");
+        WeaponSlotsText->SetFontScale(kFsBody);
+        WeaponSlotsText->SetColor({0.78f, 0.86f, 1.0f, 0.95f});
+        WeaponSlotsText->SetJustification(ETextAlignment::Right);
+        PlaceTextBR(*Root, WeaponSlotsText, 44.0f, bottomPad + bottomBarH + 8.0f, 280.0f);
+
+        StatusText = std::make_shared<UTextBlock>("Status");
+        StatusText->SetText("RESPAWNING  -  FREE LOOK");
+        StatusText->SetFontScale(kFsLabel);
+        StatusText->SetColor({1.0f, 0.55f, 0.45f, 1.0f});
+        StatusText->SetJustification(ETextAlignment::Center);
+        StatusText->SetVisibility(ESlateVisibility::Collapsed);
+        PlaceTextBC(*Root, StatusText, bottomPad + bottomBarH + 8.0f, 420.0f);
 
         KillText = std::make_shared<UTextBlock>("KillConfirm");
-        KillText->SetText("ELIMINATED");
-        KillText->SetFontScale(1.2f);
-        KillText->SetColor({1.0f, 0.75f, 0.2f, 1.0f});
+        KillText->SetText("KILL");
+        KillText->SetFontScale(kFsHero);
+        KillText->SetColor({1.0f, 0.82f, 0.25f, 1.0f});
         KillText->SetJustification(ETextAlignment::Center);
-        Root->AddChild(KillText, FAnchors::Center(), FMargin(-120.0f, -80.0f, -120.0f, -40.0f));
+        PlaceTextC(*Root, KillText, 0.0f, -120.0f, 280.0f);
         KillText->SetVisibility(ESlateVisibility::Collapsed);
+
+        BannerText = std::make_shared<UTextBlock>("Banner");
+        BannerText->SetText("FIGHT!");
+        BannerText->SetFontScale(kFsBanner);
+        BannerText->SetColor({1.0f, 0.95f, 0.75f, 1.0f});
+        BannerText->SetJustification(ETextAlignment::Center);
+        BannerText->SetVisibility(ESlateVisibility::Collapsed);
+        PlaceTextC(*Root, BannerText, 0.0f, 0.0f, 420.0f);
 
         DamageFlash = std::make_shared<UImage>("DamageFlash");
         DamageFlash->SetTintColor({0.85f, 0.08f, 0.08f, 0.22f});
@@ -540,10 +767,12 @@ namespace Leon {
         DamageFlash->SetVisibility(ESlateVisibility::Collapsed);
 
         HintText = std::make_shared<UTextBlock>("Hints");
-        HintText->SetFontScale(0.75f);
-        HintText->SetColor({0.75f, 0.82f, 0.92f, 0.9f});
+        HintText->SetFontScale(kFsCaption);
+        HintText->SetColor({0.78f, 0.86f, 0.96f, 0.92f});
         HintText->SetVisibility(ESlateVisibility::Collapsed);
-        Root->AddChild(HintText, FAnchors::TopLeft(), FMargin(40, 90, -520, -160));
+        HintText->SetText(
+            "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   1-6 Weapons");
+        PlaceTextTL(*Root, HintText, 36.0f, topBarH + 12.0f, 900.0f);
 
         SetWidgetTree(Root);
         SetSize({1280, 720});
@@ -559,12 +788,22 @@ namespace Leon {
 
         if (Team1Text && Team2Text && TimerText) {
             if (bLab) {
-                Team1Text->SetText("ANIM LAB");
-                Team2Text->SetText(animLab->PrefersThirdPerson() ? "CAMERA  3RD" : "CAMERA  1ST");
-                TimerText->SetText("ESC MENU");
+                if (MatchLabel)
+                    MatchLabel->SetText("ANIMATION LAB");
+                Team1Text->SetText("LAB");
+                Team2Text->SetText(animLab->PrefersThirdPerson() ? "3RD" : "1ST");
+                TimerText->SetText("--:--");
             } else if (gs) {
-                Team1Text->SetText(std::string("TEAM 1    ") + std::to_string(gs->GetTeam1Kills()));
-                Team2Text->SetText(std::string("TEAM 2    ") + std::to_string(gs->GetTeam2Kills()));
+                if (MatchLabel) {
+                    if (gs->GetMatchState() == ELeonTournamentMatchState::Starting)
+                        MatchLabel->SetText("GET READY");
+                    else if (gs->GetMatchState() == ELeonTournamentMatchState::Finished)
+                        MatchLabel->SetText("MATCH OVER");
+                    else
+                        MatchLabel->SetText("TEAM DEATHMATCH");
+                }
+                Team1Text->SetText(std::to_string(gs->GetTeam1Kills()));
+                Team2Text->SetText(std::to_string(gs->GetTeam2Kills()));
                 const float seconds = gs->GetMatchState() == ELeonTournamentMatchState::Starting
                                           ? gs->GetCountdownRemaining()
                                           : gs->GetRemainingTime();
@@ -577,29 +816,47 @@ namespace Leon {
 
         ALeonTournamentCharacter* ch = OwningPlayer ? OwningPlayer->GetPawn<ALeonTournamentCharacter>() : nullptr;
         auto* health = ch ? ch->GetHealthComponent().get() : nullptr;
+        auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer);
+        const bool bDead = ch && ch->IsDeadFrozen();
         if (HealthText) {
             if (!ch || !health)
-                HealthText->SetText("0 HP");
-            else if (health->IsDead())
-                HealthText->SetText("DEAD");
+                HealthText->SetText("0");
+            else if (health->IsDead() || bDead)
+                HealthText->SetText("--");
             else
-                HealthText->SetText(std::to_string(static_cast<int>(health->GetHealth())) + " HP");
+                HealthText->SetText(std::to_string(static_cast<int>(health->GetHealth())));
+            if (health && !health->IsDead() && !bDead) {
+                const float pct = health->GetMaxHealth() > 0.0f ? health->GetHealth() / health->GetMaxHealth() : 0.0f;
+                if (pct < 0.3f)
+                    HealthText->SetColor({1.0f, 0.35f, 0.3f, 1.0f});
+                else if (pct < 0.6f)
+                    HealthText->SetColor({1.0f, 0.85f, 0.35f, 1.0f});
+                else
+                    HealthText->SetColor({0.45f, 1.0f, 0.55f, 1.0f});
+            } else {
+                HealthText->SetColor({0.85f, 0.45f, 0.4f, 1.0f});
+            }
         }
         if (AmmoText) {
             if (bLab && ch && !ch->GetWeapon()) {
-                AmmoText->SetText("MELEE LAB");
-            } else if (!ch || !ch->GetWeapon()) {
-                AmmoText->SetText("0 / 0");
+                AmmoText->SetText("MELEE");
+            } else if (!ch || !ch->GetWeapon() || bDead) {
+                AmmoText->SetText("-- / --");
             } else if (ch->GetWeapon()->IsReloading()) {
-                AmmoText->SetText(std::string(LeonTournamentWeaponName(ch->GetActiveWeaponId())) + "  RELOADING");
+                AmmoText->SetText("RELOAD");
             } else {
-                AmmoText->SetText(std::string(LeonTournamentWeaponName(ch->GetActiveWeaponId())) + "  " +
-                                  std::to_string(ch->GetWeapon()->GetCurrentAmmo()) + " / " +
+                AmmoText->SetText(std::to_string(ch->GetWeapon()->GetCurrentAmmo()) + " / " +
                                   std::to_string(ch->GetWeapon()->GetMagazineSize()));
             }
         }
+        if (AmmoLabel) {
+            if (ch && ch->GetWeapon() && !bDead)
+                AmmoLabel->SetText(LeonTournamentWeaponName(ch->GetActiveWeaponId()));
+            else
+                AmmoLabel->SetText("AMMO");
+        }
         if (WeaponSlotsText) {
-            if (!ch || bLab) {
+            if (!ch || bLab || bDead) {
                 WeaponSlotsText->SetVisibility(ESlateVisibility::Collapsed);
             } else {
                 WeaponSlotsText->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -618,19 +875,55 @@ namespace Leon {
                     else
                         slots += std::to_string(i + 1);
                 }
-                WeaponSlotsText->SetText(slots + "   1-6 Q/E  V cam");
+                WeaponSlotsText->SetText(slots);
             }
         }
+        if (StatusText) {
+            if (bDead) {
+                StatusText->SetVisibility(ESlateVisibility::HitTestInvisible);
+                StatusText->SetText("RESPAWNING  -  FREE LOOK");
+            } else if (gs && gs->GetMatchState() == ELeonTournamentMatchState::Starting) {
+                StatusText->SetVisibility(ESlateVisibility::HitTestInvisible);
+                StatusText->SetText("ROUND STARTING");
+            } else {
+                StatusText->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
+
+        // Match countdown / FIGHT! banners + SFX
+        if (spc && gs) {
+            if (gs->GetMatchState() == ELeonTournamentMatchState::Starting) {
+                bPlayedFightBanner = false;
+                const int sec = static_cast<int>(std::ceil(std::max(0.0f, gs->GetCountdownRemaining())));
+                if (sec > 0 && sec != LastCountdownSecond) {
+                    LastCountdownSecond = sec;
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "%d", sec);
+                    spc->PushBanner(buf, 0.85f, {1.0f, 0.95f, 0.85f, 1.0f});
+                    UGameplayStatics::PlaySound2D("/Game/Audio/SFX_Countdown", 0.7f);
+                }
+            } else if (gs->GetMatchState() == ELeonTournamentMatchState::Playing) {
+                if (!bPlayedFightBanner) {
+                    bPlayedFightBanner = true;
+                    LastCountdownSecond = -1;
+                    spc->PushBanner("FIGHT!", 1.4f, {1.0f, 0.9f, 0.35f, 1.0f});
+                    UGameplayStatics::PlaySound2D("/Game/Audio/SFX_MatchStart", 0.85f);
+                }
+            } else {
+                LastCountdownSecond = -1;
+                bPlayedFightBanner = false;
+            }
+        }
+
         if (HintText) {
             if (bLab) {
                 HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
                 HintText->SetText(
-                    "V = Camera   LMB = Fire   RMB = Scope   R = Reload   Alt/C = Dodge   Space x2 = Double Jump   1-6 = Weapons");
+                    "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   1-6 Weapons");
             } else {
                 HintText->SetVisibility(ESlateVisibility::Collapsed);
             }
         }
-        auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer);
         // Crosshair half-gap in HUD pixels = angular spread projected through vertical FOV.
         float fovY = 95.0f;
         if (OwningPlayer) {
@@ -727,9 +1020,23 @@ namespace Leon {
                     Root->SetChildLayout(CrosshairText, center, FMargin(-2.0f, -2.0f, -2.0f, -2.0f));
             }
         }
-        if (KillText)
-            KillText->SetVisibility(spc && spc->IsKillConfirmActive() ? ESlateVisibility::HitTestInvisible
-                                                                      : ESlateVisibility::Collapsed);
+        if (KillText) {
+            if (spc && spc->IsKillConfirmActive() && !spc->GetKillFeedText().empty()) {
+                KillText->SetVisibility(ESlateVisibility::HitTestInvisible);
+                KillText->SetText(spc->GetKillFeedText());
+            } else {
+                KillText->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
+        if (BannerText) {
+            if (spc && spc->IsBannerActive() && !spc->GetBannerText().empty()) {
+                BannerText->SetVisibility(ESlateVisibility::HitTestInvisible);
+                BannerText->SetText(spc->GetBannerText());
+                BannerText->SetColor(spc->GetBannerColor());
+            } else {
+                BannerText->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
         if (DamageFlash)
             DamageFlash->SetVisibility(spc && spc->IsDamageFlashActive() ? ESlateVisibility::HitTestInvisible
                                                                          : ESlateVisibility::Collapsed);
@@ -744,14 +1051,50 @@ namespace Leon {
         FUIRenderer::Init();
         Root = std::make_shared<UCanvasPanel>("SBRoot");
         Root->SetSize({1280, 720});
-        Root->SetBackgroundColor({0.02f, 0.02f, 0.04f, 0.82f});
-        auto title = std::make_shared<UTextBlock>("SBTitle");
-        title->SetText("PLAYER                 TEAM      K    D    A");
-        title->SetFontScale(0.85f);
-        Root->AddChild(title, FAnchors::TopLeft(), FMargin(120, 80, -120, -110));
+        Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.45f});
+
+        const float titleH = MeasurePadded("SCOREBOARD", kFsTitle).y;
+        const float headerH = MeasurePadded("PLAYER                      TEAM         K     D     A", kFsCaption).y;
+        const float rowsH = MeasurePadded(std::string(12, '\n') + "x", kFsBody).y;
+        const float footerH = MeasurePadded("T1  99     T2  99", kFsCaption).y;
+        const float panelPad = 28.0f;
+        const float panelW = 880.0f;
+        const float panelH = panelPad * 2.0f + titleH + 12.0f + headerH + 8.0f + rowsH + 12.0f + footerH;
+
+        Panel = std::make_shared<UImage>("SBPanel");
+        Panel->SetTintColor({0.04f, 0.05f, 0.09f, 0.92f});
+        Root->AddChild(Panel, FAnchors::Center(), BoxC(0.0f, 0.0f, panelW, panelH));
+
+        float y = -panelH * 0.5f + panelPad;
+        TitleText = std::make_shared<UTextBlock>("SBTitle");
+        TitleText->SetText("SCOREBOARD");
+        TitleText->SetFontScale(kFsTitle);
+        TitleText->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        TitleText->SetJustification(ETextAlignment::Center);
+        PlaceTextC(*Root, TitleText, 0.0f, y + titleH * 0.5f, 360.0f);
+        y += titleH + 12.0f;
+
+        HeaderText = std::make_shared<UTextBlock>("SBHeader");
+        HeaderText->SetText("PLAYER                      TEAM         K     D     A");
+        HeaderText->SetFontScale(kFsCaption);
+        HeaderText->SetColor({0.65f, 0.74f, 0.90f, 0.95f});
+        PlaceTextC(*Root, HeaderText, 0.0f, y + headerH * 0.5f, panelW - panelPad * 2.0f);
+        y += headerH + 8.0f;
+
         RowsText = std::make_shared<UTextBlock>("SBRows");
-        RowsText->SetFontScale(0.75f);
-        Root->AddChild(RowsText, FAnchors::TopLeft(), FMargin(120, 120, -120, -80));
+        RowsText->SetFontScale(kFsBody);
+        RowsText->SetColor({0.94f, 0.95f, 0.98f, 1.0f});
+        RowsText->SetText(" ");
+        Root->AddChild(RowsText, FAnchors::Center(), BoxC(0.0f, y + rowsH * 0.5f, panelW - panelPad * 2.0f, rowsH));
+        y += rowsH + 12.0f;
+
+        FooterText = std::make_shared<UTextBlock>("SBFooter");
+        FooterText->SetText("HOLD  TAB");
+        FooterText->SetFontScale(kFsCaption);
+        FooterText->SetColor({0.55f, 0.62f, 0.75f, 0.85f});
+        FooterText->SetJustification(ETextAlignment::Center);
+        PlaceTextC(*Root, FooterText, 0.0f, y + footerH * 0.5f, 280.0f);
+
         SetWidgetTree(Root);
         SetSize({1280, 720});
         SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -762,14 +1105,32 @@ namespace Leon {
         auto* gs = GS(OwningPlayer);
         if (!gs || !RowsText)
             return;
+
+        ALeonTournamentPlayerState* localPs = nullptr;
+        if (OwningPlayer) {
+            if (auto* pawn = OwningPlayer->GetPawn<ALeonTournamentCharacter>())
+                localPs = pawn->GetPlayerState();
+            if (!localPs)
+                localPs = dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState());
+        }
+
         std::ostringstream ss;
         for (auto* ps : gs->GetSortedScoreboard()) {
-            char line[128];
-            std::snprintf(line, sizeof(line), "%-20s  %-8s  %3d  %3d  %3d\n", ps->GetPlayerName().c_str(),
+            if (!ps)
+                continue;
+            const bool bYou = localPs && ps == localPs;
+            const char* mark = bYou ? ">" : " ";
+            char line[160];
+            std::snprintf(line, sizeof(line), "%s %-22s  %-10s  %3d   %3d   %3d\n", mark, ps->GetPlayerName().c_str(),
                           LeonTournamentTeamName(ps->GetTeam()), ps->GetKills(), ps->GetDeaths(), ps->GetAssists());
             ss << line;
         }
         RowsText->SetText(ss.str());
+        if (FooterText) {
+            char foot[64];
+            std::snprintf(foot, sizeof(foot), "T1  %d     T2  %d", gs->GetTeam1Kills(), gs->GetTeam2Kills());
+            FooterText->SetText(foot);
+        }
     }
 
     ULeonTournamentMatchEndWidget::ULeonTournamentMatchEndWidget(const std::string& InName) : UUserWidget(InName) {}
@@ -782,15 +1143,27 @@ namespace Leon {
         Root = std::make_shared<UCanvasPanel>("EndRoot");
         Root->SetSize({1280, 720});
         Root->SetBackgroundColor({0.02f, 0.02f, 0.05f, 0.92f});
+
+        constexpr float leftX = 72.0f;
+        float y = 72.0f;
+
         ResultText = std::make_shared<UTextBlock>("Result");
-        ResultText->SetFontScale(2.0f);
-        Root->AddChild(ResultText, FAnchors::TopLeft(), FMargin(80, 80, -80, -160));
+        ResultText->SetText("WIN");
+        ResultText->SetFontScale(kFsHero);
+        PlaceTextTL(*Root, ResultText, leftX, y, 400.0f);
+        y += MeasurePadded("WIN", kFsHero).y + 24.0f;
+
         StatsText = std::make_shared<UTextBlock>("Stats");
-        StatsText->SetFontScale(1.0f);
-        Root->AddChild(StatsText, FAnchors::TopLeft(), FMargin(80, 200, -80, -400));
-        auto back = MakeButton("Return", "RETURN TO MENU");
+        StatsText->SetFontScale(kFsSub);
+        StatsText->SetText("TEAM 1  0     TEAM 2  0\n\nYOU  K 0  D 0  A 0");
+        const float statsH = MeasurePadded(StatsText->GetText(), kFsSub).y + 40.0f;
+        Root->AddChild(StatsText, FAnchors::TopLeft(), BoxTL(leftX, y, 900.0f, statsH));
+        y += statsH + 32.0f;
+
+        auto back = MakeButton("Return", "RETURN TO MENU", kFsButton, 280.0f);
         back->OnClicked.AddLambda([this]() { OnReturn(); });
-        Root->AddChild(back, FAnchors::TopLeft(), FMargin(80, 520, -400, -568));
+        PlaceButtonTL(*Root, back, leftX, y);
+
         SetWidgetTree(Root);
         SetSize({1280, 720});
     }
@@ -830,6 +1203,82 @@ namespace Leon {
     void ULeonTournamentMatchEndWidget::OnReturn() {
         if (IsClientWorld(OwningPlayer))
             return;
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        if (auto* gm = GM(OwningPlayer))
+            gm->ReturnToMenu();
+    }
+
+    ULeonTournamentPauseWidget::ULeonTournamentPauseWidget(const std::string& InName) : UUserWidget(InName) {}
+    void ULeonTournamentPauseWidget::Construct() {
+        Build();
+    }
+
+    void ULeonTournamentPauseWidget::Build() {
+        FUIRenderer::Init();
+        Root = std::make_shared<UCanvasPanel>("PauseRoot");
+        Root->SetSize({1280, 720});
+        Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.62f});
+
+        auto resume = MakeButton("Resume", "RESUME", kFsButton, 280.0f);
+        auto leave = MakeButton("Leave", "LEAVE TO MENU", kFsButton, 280.0f);
+        const float titleH = MeasurePadded("PAUSED", kFsTitle).y;
+        const float hintH = MeasurePadded("ESC to resume", kFsCaption).y;
+        const float gap = 14.0f;
+        const float panelPad = 36.0f;
+        const float panelW = std::max(320.0f, leave->GetSize().x + panelPad * 2.0f);
+        const float panelH = panelPad * 2.0f + titleH + 8.0f + hintH + 20.0f + resume->GetSize().y + gap +
+                             leave->GetSize().y;
+
+        auto panel = std::make_shared<UImage>("PausePanel");
+        panel->SetTintColor({0.05f, 0.06f, 0.10f, 0.96f});
+        Root->AddChild(panel, FAnchors::Center(), BoxC(0.0f, 0.0f, panelW, panelH));
+
+        float y = -panelH * 0.5f + panelPad;
+        auto title = std::make_shared<UTextBlock>("PauseTitle");
+        title->SetText("PAUSED");
+        title->SetFontScale(kFsTitle);
+        title->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        title->SetJustification(ETextAlignment::Center);
+        PlaceTextC(*Root, title, 0.0f, y + titleH * 0.5f, panelW - panelPad * 2.0f);
+        y += titleH + 8.0f;
+
+        auto hint = std::make_shared<UTextBlock>("PauseHint");
+        hint->SetText("ESC to resume");
+        hint->SetFontScale(kFsCaption);
+        hint->SetColor({0.65f, 0.72f, 0.85f, 0.9f});
+        hint->SetJustification(ETextAlignment::Center);
+        PlaceTextC(*Root, hint, 0.0f, y + hintH * 0.5f, panelW - panelPad * 2.0f);
+        y += hintH + 20.0f;
+
+        resume->OnClicked.AddLambda([this]() { OnResume(); });
+        PlaceButtonC(*Root, resume, 0.0f, y + resume->GetSize().y * 0.5f);
+        y += resume->GetSize().y + gap;
+
+        leave->OnClicked.AddLambda([this]() { OnLeave(); });
+        PlaceButtonC(*Root, leave, 0.0f, y + leave->GetSize().y * 0.5f);
+
+        SetWidgetTree(Root);
+        SetSize({1280, 720});
+        SetVisibility(ESlateVisibility::Collapsed);
+    }
+
+    void ULeonTournamentPauseWidget::Tick(float InDeltaTime) {
+        UUserWidget::Tick(InDeltaTime);
+        if (GamepadEdge(GamepadButton::A, bPadAWasDown))
+            OnResume();
+        if (GamepadEdge(GamepadButton::B, bPadBWasDown))
+            OnLeave();
+    }
+
+    void ULeonTournamentPauseWidget::OnResume() {
+        if (auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer))
+            spc->SetPauseMenuOpen(false);
+    }
+
+    void ULeonTournamentPauseWidget::OnLeave() {
+        if (auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer))
+            spc->SetPauseMenuOpen(false);
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (auto* gm = GM(OwningPlayer))
             gm->ReturnToMenu();
     }

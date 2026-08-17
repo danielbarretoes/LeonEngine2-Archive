@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/gtc/matrix_transform.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -430,6 +431,43 @@ namespace Leon {
                 return;
 
             mesh->CalculateBounds();
+
+            // Some Sketchfab/Mixamo packs land as centimetre (or tinier) geometry despite
+            // ufbx target_unit_meters. Uniformly lift verts + binds into metre human scale so
+            // shared Mixamo locomotion clips do not explode / cull the mesh.
+            {
+                constexpr float kMinHumanHeight = 0.35f;
+                constexpr float kTargetHeight = 1.80f;
+                const float meshH = mesh->GetBoundsMax().y - mesh->GetBoundsMin().y;
+                if (meshH > 1e-6f && meshH < kMinHumanHeight) {
+                    const float s = kTargetHeight / meshH;
+                    const glm::mat4 scaleInv = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / s));
+                    for (auto& v : verts)
+                        v.Position *= s;
+                    for (auto& ibp : meshIbps)
+                        ibp = ibp * scaleInv;
+                    if (InSkeleton) {
+                        auto& bones = InSkeleton->GetBones();
+                        for (size_t i = 0; i < bones.size() && i < meshIbps.size(); ++i)
+                            bones[i].InverseBindPose = meshIbps[i];
+                        std::vector<glm::mat4> restComponent(bones.size(), glm::mat4(1.0f));
+                        for (size_t i = 0; i < bones.size(); ++i)
+                            restComponent[i] = glm::inverse(bones[i].InverseBindPose);
+                        for (size_t i = 0; i < bones.size(); ++i) {
+                            if (bones[i].ParentIndex >= 0)
+                                bones[i].RestLocal = FBoneTransform::FromMatrix(
+                                    glm::inverse(restComponent[static_cast<size_t>(bones[i].ParentIndex)]) *
+                                    restComponent[i]);
+                            else
+                                bones[i].RestLocal = FBoneTransform::FromMatrix(restComponent[i]);
+                        }
+                    }
+                    mesh->CalculateBounds();
+                    LE_CORE_INFO("FSkeletalImporter: Normalized tiny skeletal mesh '{0}' x{1:.2f} (was {2:.3f}m tall)",
+                                 mesh->GetName(), s, meshH);
+                }
+            }
+
             OutResult.SkeletalMesh = mesh;
         }
 

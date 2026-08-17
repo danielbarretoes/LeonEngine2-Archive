@@ -228,7 +228,8 @@ namespace Leon {
             return;
         if (IsLocallyControlled())
             SetupPlayerInputComponent(DeltaSeconds);
-        ApplyYawOnlyActorRotation();
+        if (ShouldApplyControlYawToActor())
+            ApplyYawOnlyActorRotation();
         if (CharacterMovement)
             CharacterMovement->PerformMovement(DeltaSeconds);
         UpdatePhysicsVolume();

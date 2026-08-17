@@ -511,16 +511,16 @@ namespace Leon {
             auto* p = World->SpawnActor<ALeonTournamentWeaponPickup>(name);
             if (!p)
                 return;
-            p->SetActorLocation(loc);
             p->SetWeaponId(id);
             p->SetRespawnDelay(15.0f);
+            p->SetAnchorLocation(loc);
         };
         auto spawnHealth = [&](const char* name, const glm::vec3& loc) {
             auto* p = World->SpawnActor<ALeonTournamentHealthPickup>(name);
             if (!p)
                 return;
-            p->SetActorLocation(loc);
             p->SetRespawnDelay(15.0f);
+            p->SetAnchorLocation(loc);
         };
 
         spawnWeaponPickup("PU_Shotgun_A", ELeonTournamentWeaponId::Shotgun, {-18.0f, 1.1f, 0.0f});

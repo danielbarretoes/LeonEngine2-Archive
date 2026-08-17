@@ -47,7 +47,7 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::ApplyCharacterSkin(ELeonTournamentCharacterSkin InSkin) {
-        CharacterSkin = InSkin;
+        CharacterSkin = LeonTournamentClampCharacterSkin(InSkin);
         if (!GetMesh())
             return;
         GetMesh()->SetMeshAssetPath(LeonTournamentCharacterMeshPath(InSkin));
@@ -401,8 +401,8 @@ namespace Leon {
         const bool bAlly = localTeam != ELeonTournamentTeam::None && myTeam != ELeonTournamentTeam::None &&
                            myTeam == localTeam;
         skel.bDrawOutline = true;
-        skel.OutlineColor = bAlly ? glm::vec3(0.12f, 0.95f, 0.32f) : glm::vec3(1.0f, 0.14f, 0.1f);
-        skel.OutlineWidth = 0.016f;
+        skel.OutlineColor = bAlly ? glm::vec3(0.10f, 0.95f, 0.28f) : glm::vec3(1.0f, 0.02f, 0.02f);
+        skel.OutlineWidth = 0.038f;
     }
 
     void ALeonTournamentCharacter::UpdateFootstepAudio(float DeltaSeconds) {
@@ -454,13 +454,18 @@ namespace Leon {
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
         bDeadFrozen = true;
         // Flow: death presentation
-        // 1. Force third-person so local players see the corpse / ragdoll
-        // 2. Stop movement, play death anim, enable capsule ragdoll
-        // 3. Authority notifies GameMode (respawn timer, score)
-        bDeathForcedThirdPerson = false;
-        if (IsLocallyControlled() && !IsThirdPerson()) {
-            bDeathForcedThirdPerson = true;
-            SetThirdPerson(true);
+        // 1. Always third-person + free look orbit (control yaw does not spin the corpse)
+        // 2. Pull spring arm out for a readable spectator view of the ragdoll
+        // 3. Stop movement, play death anim, enable capsule ragdoll; authority notifies GameMode
+        bDeathForcedThirdPerson = !IsThirdPerson();
+        SetThirdPerson(true);
+        if (auto arm = GetSpringArm()) {
+            if (!bDeathCamArmOverride) {
+                DeathCamArmLengthRestore = arm->TargetArmLength;
+                bDeathCamArmOverride = true;
+            }
+            arm->TargetArmLength = 5.6f;
+            arm->SocketOffset = {0.15f, 0.55f, 0.0f};
         }
         if (auto move = GetCharacterMovement()) {
             move->StopMovementImmediately();
@@ -474,6 +479,10 @@ namespace Leon {
             AnimInst->PlayDeathMontage();
         BeginDeathRagdoll();
         UpdatePresentationVisibility();
+        if (IsLocallyControlled()) {
+            if (auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(GetController()))
+                pc->NotifyLocalDeath();
+        }
         if (!IsNetworkAuthority())
             return;
         if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr))
@@ -486,6 +495,13 @@ namespace Leon {
         PendingDeathImpulse = {0.0f, 4.0f, 0.0f};
         bAimingDownSights = false;
         StopDeathRagdoll();
+        if (bDeathCamArmOverride) {
+            if (auto arm = GetSpringArm()) {
+                arm->TargetArmLength = DeathCamArmLengthRestore;
+                arm->SocketOffset = {0.45f, 0.25f, 0.0f};
+            }
+            bDeathCamArmOverride = false;
+        }
         if (bDeathForcedThirdPerson)
             bDeathForcedThirdPerson = false;
         if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr))
@@ -509,14 +525,18 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::SetupPlayerInputComponent(float DeltaSeconds) {
-        if (bDeadFrozen)
-            return;
-        if (IsBotControlled())
-            return;
         if (APlayerController* pc = dynamic_cast<APlayerController*>(GetController())) {
             if (!pc->IsGameInputAllowed())
                 return;
         }
+        // Free death camera: orbit look only (actor yaw frozen via ShouldApplyControlYawToActor).
+        if (bDeadFrozen) {
+            if (!IsBotControlled())
+                ApplyLookInput(DeltaSeconds, false);
+            return;
+        }
+        if (IsBotControlled())
+            return;
 
         ApplyLookInput(DeltaSeconds, false);
         ApplyMoveInput(DeltaSeconds, 1.0f);

@@ -72,6 +72,9 @@ namespace Leon {
         void SerializeControlInput(std::vector<uint8_t>& OutBytes) const override;
         void ApplyControlInput(const uint8_t* InData, size_t InSize) override;
 
+    protected:
+        bool ShouldApplyControlYawToActor() const override { return !bDeadFrozen; }
+
     private:
         void EnsureWeapon();
         void ClearInventoryKeepRifle();
@@ -98,6 +101,8 @@ namespace Leon {
         bool bBot = false;
         bool bDeadFrozen = false;
         bool bDeathForcedThirdPerson = false;
+        bool bDeathCamArmOverride = false;
+        float DeathCamArmLengthRestore = 3.4f;
         bool bReloadWasDown = false;
         bool bDeathBound = false;
         bool bKey1WasDown = false;
