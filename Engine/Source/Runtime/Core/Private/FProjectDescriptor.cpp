@@ -1,21 +1,14 @@
 #include "Core/FProjectDescriptor.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FStringUtils.hpp"
 
 #include <fstream>
 #include <sstream>
 
 namespace Leon {
 
-    static std::string Trim(const std::string& str) {
-        size_t first = str.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos)
-            return "";
-        size_t last = str.find_last_not_of(" \t\r\n");
-        return str.substr(first, (last - first + 1));
-    }
-
     static std::string StripQuotes(const std::string& str) {
-        std::string s = Trim(str);
+        std::string s = FStringUtils::Trim(str);
         if (s.size() >= 2 && ((s.front() == '"' && s.back() == '"') || (s.front() == '\'' && s.back() == '\''))) {
             return s.substr(1, s.size() - 2);
         }
@@ -53,7 +46,7 @@ namespace Leon {
         std::string line;
 
         while (std::getline(ss, line)) {
-            std::string trimmed = Trim(line);
+            std::string trimmed = FStringUtils::Trim(line);
             if (trimmed.empty() || trimmed[0] == '{' || trimmed[0] == '}' || trimmed[0] == '#') {
                 continue;
             }
@@ -61,7 +54,7 @@ namespace Leon {
             size_t colon = trimmed.find(':');
             if (colon != std::string::npos) {
                 std::string key = StripQuotes(trimmed.substr(0, colon));
-                std::string val = Trim(trimmed.substr(colon + 1));
+                std::string val = FStringUtils::Trim(trimmed.substr(colon + 1));
                 if (!val.empty() && val.back() == ',') {
                     val.pop_back();
                 }

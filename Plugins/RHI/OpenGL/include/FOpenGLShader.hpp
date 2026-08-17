@@ -29,6 +29,9 @@ namespace Leon {
 
     private:
         std::string ReadFile(const std::string& InFilePath);
+        /** Resolve `#include "file.glsl"` relative to InBaseDirectory (recursive, cycle-safe). */
+        std::string ResolveIncludes(const std::string& InSource, const std::string& InBaseDirectory,
+                                    int InDepth = 0);
         std::unordered_map<GLenum, std::string> PreProcess(const std::string& InSource);
         void Compile(const std::unordered_map<GLenum, std::string>& InShaderSources);
         unsigned int CompileShader(unsigned int InType, const std::string& InSource);

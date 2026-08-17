@@ -80,22 +80,31 @@ set(LEON_TOURNAMENT_TEST_SOURCES
 )
 
 set(LEON_TOURNAMENT_RUNTIME_SOURCES
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentGameMode.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentGameState.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentCharacter.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentPlayerController.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentPlayerState.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentBotController.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentWeapon.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentProjectile.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentPickup.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentHUD.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentDummy.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ALeonTournamentAnimLabGameMode.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentAnimInstance.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentCombatComponent.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentGameInstance.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/ULeonTournamentWidgets.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentGameMode.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentArenaBuilder.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentDamageRules.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentGameState.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentCharacter.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentPlayerController.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentPlayerState.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentBotController.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentWeapon.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/FLeonTournamentWeaponVfx.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentProjectile.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentPickup.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ALeonTournamentHUD.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentHUDWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentScoreboardWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentPauseWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMatchEndWidget.cpp
 )
 
 function(leon_configure_test_exe TargetName)
@@ -130,8 +139,14 @@ leon_configure_test_exe(RendererTests)
 
 add_executable(LeonTournamentTests ${LEON_TOURNAMENT_TEST_SOURCES} ${LEON_TOURNAMENT_RUNTIME_SOURCES})
 leon_configure_test_exe(LeonTournamentTests)
+set(LEON_TOURNAMENT_PUBLIC_ROOT "${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Public")
 target_include_directories(LeonTournamentTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Public
+    "${LEON_TOURNAMENT_PUBLIC_ROOT}"
+    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Types"
+    "${LEON_TOURNAMENT_PUBLIC_ROOT}/UI"
+    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Game"
+    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Characters"
+    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Combat"
 )
 
 enable_testing()

@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 #include "Core/FTimestep.hpp"
-#include "Engine/FLoopbackNetDriver.hpp"
+#include "Engine/ULoopbackNetDriver.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "ALeonTournamentGameMode.hpp"
@@ -13,6 +13,9 @@
 #include "ALeonTournamentProjectile.hpp"
 #include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentHUD.hpp"
+#include "FLeonTournamentWeaponPresets.hpp"
+#include "FLeonTournamentArenaBuilder.hpp"
+#include "FLeonTournamentDamageRules.hpp"
 #include "Physics/FHitResult.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ULeonTournamentGameInstance.hpp"
@@ -58,6 +61,37 @@ namespace Leon {
     } // namespace
 
     TEST_SUITE("LeonTournament teams / match / score") {
+
+        TEST_CASE("arena builder spawns box at location") {
+            FMatchWorld f;
+            AActor* box = FLeonTournamentArenaBuilder::SpawnBox(
+                f.World.get(), "TestBox", {1.0f, 2.0f, 3.0f}, {2.0f, 2.0f, 2.0f},
+                ELeonTournamentArenaSurface::Prop);
+            REQUIRE(box);
+            CHECK(glm::length(box->GetActorLocation() - glm::vec3(1.0f, 2.0f, 3.0f)) < 0.01f);
+            CHECK_FALSE(box->GetActorComponents().empty());
+        }
+
+        TEST_CASE("damage rules block friendly fire when disabled") {
+            FMatchWorld f;
+            auto* a = f.World->SpawnActor<ALeonTournamentCharacter>("A");
+            auto* b = f.World->SpawnActor<ALeonTournamentCharacter>("B");
+            auto* psa = f.World->SpawnActor<ALeonTournamentPlayerState>("PSA");
+            auto* psb = f.World->SpawnActor<ALeonTournamentPlayerState>("PSB");
+            psa->SetTeam(ELeonTournamentTeam::Team1);
+            psb->SetTeam(ELeonTournamentTeam::Team1);
+            auto* pca = f.World->SpawnActor<ALeonTournamentPlayerController>("PCA");
+            auto* pcb = f.World->SpawnActor<ALeonTournamentPlayerController>("PCB");
+            pca->SetPlayerState(psa);
+            pcb->SetPlayerState(psb);
+            pca->Possess(a);
+            pcb->Possess(b);
+            FLeonTournamentMatchConfig cfg;
+            cfg.bFriendlyFire = false;
+            CHECK_FALSE(FLeonTournamentDamageRules::CanDamage(cfg, *a, *b));
+            cfg.bFriendlyFire = true;
+            CHECK(FLeonTournamentDamageRules::CanDamage(cfg, *a, *b));
+        }
 
         TEST_CASE("two teams max 2 and friendly fire rejected") {
             FMatchWorld f;
@@ -379,10 +413,10 @@ namespace Leon {
             auto client = UWorld::Create("C");
             server->SetNetMode(ENetMode::ListenServer);
             client->SetNetMode(ENetMode::Client);
-            FLoopbackNetDriver sd, cd;
+            ULoopbackNetDriver sd, cd;
             sd.SetWorld(server.get());
             cd.SetWorld(client.get());
-            FLoopbackNetDriver::Pair(sd, cd);
+            ULoopbackNetDriver::Pair(sd, cd);
             server->SetNetDriver(&sd);
             client->SetNetDriver(&cd);
 

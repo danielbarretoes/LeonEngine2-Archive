@@ -155,9 +155,9 @@ namespace Leon {
                     } else if (auto boxComp = floorHit.Actor->FindActorComponent<UBoxComponent>()) {
                         const glm::vec3 scale = floorHit.Actor->GetActorScale();
                         topY = boxComp->GetComponentLocation().y + boxComp->GetBoxExtent().y * scale.y;
-                    } else if (floorHit.Actor->HasComponent<UStaticMeshComponent>() &&
-                               floorHit.Actor->GetComponent<UStaticMeshComponent>().StaticMesh) {
-                        const auto& sm = *floorHit.Actor->GetComponent<UStaticMeshComponent>().StaticMesh;
+                    } else if (floorHit.Actor->HasComponent<FStaticMeshComponent>() &&
+                               floorHit.Actor->GetComponent<FStaticMeshComponent>().StaticMesh) {
+                        const auto& sm = *floorHit.Actor->GetComponent<FStaticMeshComponent>().StaticMesh;
                         const glm::vec3 s = floorHit.Actor->GetActorScale();
                         topY = floorHit.Actor->GetActorLocation().y + sm.GetBoundsMax().y * s.y;
                     } else if (floorHit.Actor->HasComponent<FMeshComponent>()) {
@@ -204,9 +204,9 @@ namespace Leon {
         if (CharacterMovement)
             CharacterMovement->SetFloorZ(FloorZ);
 
-        if (!HasComponent<UCameraComponent>()) {
+        if (!HasComponent<FCameraComponent>()) {
             FPerspectiveCamera camera(95.0f, 1280.0f / 720.0f, 0.1f, 1000.0f);
-            AddComponent<UCameraComponent>(camera);
+            AddComponent<FCameraComponent>(camera);
         }
         if (!SpringArm)
             SpringArm = AddActorComponent<USpringArmComponent>("SpringArm");
@@ -443,8 +443,8 @@ namespace Leon {
         glm::vec3 camPos, look;
         GetViewPoint(camPos, look);
         (void)look;
-        if (HasComponent<UCameraComponent>()) {
-            auto& camComp = GetComponent<UCameraComponent>();
+        if (HasComponent<FCameraComponent>()) {
+            auto& camComp = GetComponent<FCameraComponent>();
             camComp.Camera.SetPosition(camPos);
             camComp.Camera.SetRotation(GetControlPitch(), GetControlYaw());
         }

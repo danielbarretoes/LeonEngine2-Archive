@@ -15,8 +15,8 @@ namespace Leon {
 
         void PostInitializeComponents() override;
 
-        UCameraComponent& GetCameraComponent() { return GetComponent<UCameraComponent>(); }
-        const UCameraComponent& GetCameraComponent() const { return GetComponent<UCameraComponent>(); }
+        FCameraComponent& GetCameraComponent() { return GetComponent<FCameraComponent>(); }
+        const FCameraComponent& GetCameraComponent() const { return GetComponent<FCameraComponent>(); }
     };
 
 } // namespace Leon

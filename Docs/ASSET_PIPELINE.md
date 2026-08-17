@@ -108,5 +108,5 @@ The pipeline uses 64-bit FNV-1a hashing on source files stored in the project's 
 - `FProjectPaths`: Resolves package virtual paths (`/Game/Maps/...`, `/Game/Meshes/...`, `/Game/Materials/...`, `/Game/Textures/...`, `/Game/HDR/...`) dynamically to the active project's physical `Content/` directory.
 - `UWorld`: In-memory runtime world and ECS registry owning `AActor` instances and components.
 - `MapSerializer`: Serializes and deserializes persistent map asset files (`.lmap`).
-- `UStaticMeshComponent`: Component holding a reference to `FStaticMesh`, per-submesh material overrides, shadow flags, and reflection flags.
+- `FStaticMeshComponent`: Component holding a reference to `FStaticMesh`, per-submesh material overrides, shadow flags, and reflection flags.
 - `FAssetManager`: Deduplicates all loaded textures, static meshes, materials, and material instances using virtual path resolution.

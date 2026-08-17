@@ -162,8 +162,8 @@ namespace {
                 return SampleMaterialInstance(mat.MaterialInstance);
         }
 
-        if (Actor.HasComponent<UStaticMeshComponent>()) {
-            auto& smc = Actor.GetComponent<UStaticMeshComponent>();
+        if (Actor.HasComponent<FStaticMeshComponent>()) {
+            auto& smc = Actor.GetComponent<FStaticMeshComponent>();
             if (!smc.MaterialOverrides.empty()) {
                 for (const auto& overrideMat : smc.MaterialOverrides) {
                     if (overrideMat)
@@ -446,9 +446,9 @@ namespace {
 
     void PersistWorldLightmapUVs(UWorld& InWorld) {
         for (auto& actorRef : InWorld.GetAllActors()) {
-            if (!actorRef || !actorRef->HasComponent<UStaticMeshComponent>())
+            if (!actorRef || !actorRef->HasComponent<FStaticMeshComponent>())
                 continue;
-            auto& smc = actorRef->GetComponent<UStaticMeshComponent>();
+            auto& smc = actorRef->GetComponent<FStaticMeshComponent>();
             if (smc.Mobility != EComponentMobility::Static || !smc.StaticMesh)
                 continue;
             PersistMissingLightmapUVs(*smc.StaticMesh);
@@ -589,8 +589,8 @@ namespace {
                 hash = HashVec3(hash, t.Scale);
             }
 
-            if (actor.HasComponent<UStaticMeshComponent>()) {
-                const auto& smc = actor.GetComponent<UStaticMeshComponent>();
+            if (actor.HasComponent<FStaticMeshComponent>()) {
+                const auto& smc = actor.GetComponent<FStaticMeshComponent>();
                 uint8_t mob = static_cast<uint8_t>(smc.Mobility);
                 hash = HashBytes(hash, &mob, sizeof(mob));
                 hash = HashBytes(hash, &smc.LightmapResolution, sizeof(smc.LightmapResolution));
@@ -639,16 +639,16 @@ namespace {
                 hash = HashBytes(hash, &LightPayload, sizeof(LightPayload));
             };
 
-            if (actor.HasComponent<UDirectionalLightComponent>()) {
-                const auto& c = actor.GetComponent<UDirectionalLightComponent>();
+            if (actor.HasComponent<FDirectionalLightComponent>()) {
+                const auto& c = actor.GetComponent<FDirectionalLightComponent>();
                 hashLight(c.Mobility, c.bEnabled, c.Light);
             }
-            if (actor.HasComponent<UPointLightComponent>()) {
-                const auto& c = actor.GetComponent<UPointLightComponent>();
+            if (actor.HasComponent<FPointLightComponent>()) {
+                const auto& c = actor.GetComponent<FPointLightComponent>();
                 hashLight(c.Mobility, c.bEnabled, c.Light);
             }
-            if (actor.HasComponent<USpotLightComponent>()) {
-                const auto& c = actor.GetComponent<USpotLightComponent>();
+            if (actor.HasComponent<FSpotLightComponent>()) {
+                const auto& c = actor.GetComponent<FSpotLightComponent>();
                 hashLight(c.Mobility, c.bEnabled, c.Light);
             }
 
@@ -706,8 +706,8 @@ namespace {
         for (auto& actorRef : world->GetAllActors()) {
             if (!actorRef)
                 continue;
-            if (actorRef->HasComponent<UStaticMeshComponent>()) {
-                auto& smc = actorRef->GetComponent<UStaticMeshComponent>();
+            if (actorRef->HasComponent<FStaticMeshComponent>()) {
+                auto& smc = actorRef->GetComponent<FStaticMeshComponent>();
                 if (smc.Mobility == EComponentMobility::Static) {
                     ++staticMeshes;
                     if (smc.LightmapIndex < 0 || !std::isfinite(smc.LightmapScale.x) ||
@@ -724,18 +724,18 @@ namespace {
                         ++badCharts;
                 }
             }
-            if (actorRef->HasComponent<UDirectionalLightComponent>()) {
-                auto& c = actorRef->GetComponent<UDirectionalLightComponent>();
+            if (actorRef->HasComponent<FDirectionalLightComponent>()) {
+                auto& c = actorRef->GetComponent<FDirectionalLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility))
                     ++bakeLights;
             }
-            if (actorRef->HasComponent<UPointLightComponent>()) {
-                auto& c = actorRef->GetComponent<UPointLightComponent>();
+            if (actorRef->HasComponent<FPointLightComponent>()) {
+                auto& c = actorRef->GetComponent<FPointLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility))
                     ++bakeLights;
             }
-            if (actorRef->HasComponent<USpotLightComponent>()) {
-                auto& c = actorRef->GetComponent<USpotLightComponent>();
+            if (actorRef->HasComponent<FSpotLightComponent>()) {
+                auto& c = actorRef->GetComponent<FSpotLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility))
                     ++bakeLights;
             }
@@ -855,8 +855,8 @@ namespace {
             if (!actorRef)
                 continue;
 
-            if (actorRef->HasComponent<UStaticMeshComponent>()) {
-                auto& smc = actorRef->GetComponent<UStaticMeshComponent>();
+            if (actorRef->HasComponent<FStaticMeshComponent>()) {
+                auto& smc = actorRef->GetComponent<FStaticMeshComponent>();
                 if (smc.Mobility != EComponentMobility::Static || !smc.StaticMesh)
                     continue;
                 FLightmapChart chart;
@@ -875,21 +875,21 @@ namespace {
                 instances.push_back({actorRef.get(), false});
             }
 
-            if (actorRef->HasComponent<UDirectionalLightComponent>()) {
-                auto& c = actorRef->GetComponent<UDirectionalLightComponent>();
+            if (actorRef->HasComponent<FDirectionalLightComponent>()) {
+                auto& c = actorRef->GetComponent<FDirectionalLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility))
                     scene.DirectionalLights.push_back({c.Light, DoesLightmassBakeDirect(c.Mobility)});
             }
-            if (actorRef->HasComponent<UPointLightComponent>()) {
-                auto& c = actorRef->GetComponent<UPointLightComponent>();
+            if (actorRef->HasComponent<FPointLightComponent>()) {
+                auto& c = actorRef->GetComponent<FPointLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility)) {
                     FPointLight l = c.Light;
                     l.Position = actorRef->GetComponent<FTransformComponent>().Translation;
                     scene.PointLights.push_back({l, DoesLightmassBakeDirect(c.Mobility)});
                 }
             }
-            if (actorRef->HasComponent<USpotLightComponent>()) {
-                auto& c = actorRef->GetComponent<USpotLightComponent>();
+            if (actorRef->HasComponent<FSpotLightComponent>()) {
+                auto& c = actorRef->GetComponent<FSpotLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility)) {
                     FSpotLight l = c.Light;
                     l.Position = actorRef->GetComponent<FTransformComponent>().Translation;
@@ -925,7 +925,7 @@ namespace {
             uint32_t chartIndex = static_cast<uint32_t>(i);
 
             if (instances[i].bIsStaticMeshAsset) {
-                auto& smc = actor->GetComponent<UStaticMeshComponent>();
+                auto& smc = actor->GetComponent<FStaticMeshComponent>();
                 AppendStaticMesh(scene, chartIndex, *smc.StaticMesh, M, mat, smc.bCastShadows);
                 smc.LightmapIndex = static_cast<int32_t>(i);
                 smc.LightmapScale = charts[i].Scale;

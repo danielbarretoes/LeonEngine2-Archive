@@ -2,13 +2,15 @@
 """
 Verify LeonEngine2 has no forbidden legacy naming patterns.
 
-Checks (Engine / Plugins / Projects / Tests / Tools — skips ThirdParty/build):
+Enforces Docs/NAMING.md sections 1-2 (type prefixes and ECS vs UObject component rules):
   - Unprefixed using-aliases (using Application = FApplication, etc.)
   - FSceneRenderer / GetSceneRenderer / SceneRenderer.hpp leftovers
   - Member prefixes m_ and s_ on typical C++ identifiers
   - OpenGL plugin files still named OpenGL*.hpp/.cpp (must be FOpenGL*)
   - Sandbox gameplay files still named SandboxGameMode* (must be A/U prefixed)
   - Engine/ must not hardcode a product project (Projects/Sandbox, Projects/LeonTournament, or bare product names)
+  - EnTT POD components must not use U*Component (`struct UFooComponent` → F*Component)
+  - F* types must not inherit U* (`class FFoo : public UBar`)
 """
 
 from __future__ import annotations
@@ -41,6 +43,10 @@ RE_MEMBER_M = re.compile(r"\bm_[A-Za-z]\w*")
 RE_MEMBER_S = re.compile(r"\bs_[A-Za-z]\w*")
 RE_ENGINE_PROJECT_PATH = re.compile(r"Projects[/\\](Sandbox|LeonTournament)")
 RE_ENGINE_PRODUCT = re.compile(r"\b(Sandbox|LeonTournament)\b")
+# Docs/NAMING.md sections 1-2: EnTT PODs are F*Component; U*Component only for UActorComponent subclasses
+RE_U_COMPONENT_STRUCT = re.compile(r"struct\s+U[A-Za-z0-9_]*Component\b")
+# Docs/NAMING.md section 1: F* is value/struct prefix — must not inherit UObject-style U*
+RE_F_INHERITS_U = re.compile(r"class\s+F\w+\s*:\s*public\s+U")
 RE_EXT = {".hpp", ".h", ".cpp", ".c", ".inl"}
 
 FORBIDDEN_FILENAMES = {
@@ -109,6 +115,10 @@ def main() -> int:
             violations.append(f"{rel}: unprefixed using-alias `{m.group(0).strip()}`")
         for m in RE_SCENE.finditer(text):
             violations.append(f"{rel}: legacy Scene API `{m.group(1)}`")
+        for m in RE_F_INHERITS_U.finditer(text):
+            violations.append(
+                f"{rel}: F* inherits U* `{m.group(0)}` (see Docs/NAMING.md sections 1-2)"
+            )
         # Engine must stay product-agnostic (no Sandbox / Projects/Sandbox defaults)
         if rel.startswith("Engine/"):
             for m in RE_ENGINE_PROJECT_PATH.finditer(text):
@@ -116,6 +126,11 @@ def main() -> int:
             for line_no, line in enumerate(text.splitlines(), 1):
                 if RE_ENGINE_PRODUCT.search(line):
                     violations.append(f"{rel}:{line_no}: engine references product name")
+            for m in RE_U_COMPONENT_STRUCT.finditer(text):
+                violations.append(
+                    f"{rel}: EnTT POD uses U*Component `{m.group(0)}` "
+                    f"(use F*Component; see Docs/NAMING.md sections 1-2)"
+                )
         for m in RE_MEMBER_M.finditer(text):
             violations.append(f"{rel}: member prefix `{m.group(0)}`")
         for m in RE_MEMBER_S.finditer(text):

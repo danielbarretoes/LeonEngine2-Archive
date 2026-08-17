@@ -1,5 +1,6 @@
 #include "Engine/FMaterialSerializer.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FStringUtils.hpp"
 #include "Assets/UAssetManager.hpp"
 
 #include <algorithm>
@@ -11,16 +12,8 @@ namespace Leon {
 
     namespace MaterialUtils {
 
-        static std::string Trim(const std::string& InStr) {
-            size_t first = InStr.find_first_not_of(" \t\r\n");
-            if (first == std::string::npos)
-                return "";
-            size_t last = InStr.find_last_not_of(" \t\r\n");
-            return InStr.substr(first, (last - first + 1));
-        }
-
         static std::string CleanValue(const std::string& InStr) {
-            std::string s = Trim(InStr);
+            std::string s = FStringUtils::Trim(InStr);
             if (s.length() >= 2 && ((s.front() == '"' && s.back() == '"') || (s.front() == '\'' && s.back() == '\''))) {
                 s = s.substr(1, s.length() - 2);
             }
@@ -172,7 +165,7 @@ namespace Leon {
                 line = line.substr(0, commentPos);
             }
 
-            std::string trimmed = MaterialUtils::Trim(line);
+            std::string trimmed = FStringUtils::Trim(line);
             if (trimmed.empty())
                 continue;
 
@@ -180,8 +173,8 @@ namespace Leon {
             if (colonPos == std::string::npos)
                 continue;
 
-            std::string key = MaterialUtils::Trim(trimmed.substr(0, colonPos));
-            std::string value = MaterialUtils::Trim(trimmed.substr(colonPos + 1));
+            std::string key = FStringUtils::Trim(trimmed.substr(0, colonPos));
+            std::string value = FStringUtils::Trim(trimmed.substr(colonPos + 1));
 
             if (value.empty())
                 continue;

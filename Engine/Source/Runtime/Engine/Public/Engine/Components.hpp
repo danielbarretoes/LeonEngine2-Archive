@@ -127,7 +127,7 @@ namespace Leon {
      * @brief Unreal Engine aligned StaticMesh component.
      * Holds an UStaticMesh asset reference with material slot overrides.
      */
-    struct UStaticMeshComponent {
+    struct FStaticMeshComponent {
         TRef<UStaticMesh> StaticMesh = nullptr;
         std::vector<TRef<FMaterialInstance>> MaterialOverrides;
         std::vector<std::string> MaterialOverridePaths;
@@ -144,9 +144,9 @@ namespace Leon {
         glm::vec2 LightmapBias{0.0f, 0.0f};
         std::string LightmapAssetPath; ///< Virtual path to .llightmap (atlas for this world/instance)
 
-        UStaticMeshComponent() = default;
-        UStaticMeshComponent(const UStaticMeshComponent&) = default;
-        explicit UStaticMeshComponent(const TRef<UStaticMesh>& InMesh, const std::string& InAssetPath = "")
+        FStaticMeshComponent() = default;
+        FStaticMeshComponent(const FStaticMeshComponent&) = default;
+        explicit FStaticMeshComponent(const TRef<UStaticMesh>& InMesh, const std::string& InAssetPath = "")
             : StaticMesh(InMesh), AssetPath(InAssetPath) {}
     };
 
@@ -189,46 +189,46 @@ namespace Leon {
     /**
      * @brief Unreal Engine aligned Light components.
      */
-    struct UDirectionalLightComponent {
+    struct FDirectionalLightComponent {
         FDirectionalLight Light;
         bool bEnabled = true;
         ELightMobility Mobility = ELightMobility::Movable;
 
-        UDirectionalLightComponent() = default;
-        UDirectionalLightComponent(const UDirectionalLightComponent&) = default;
-        UDirectionalLightComponent(const FDirectionalLight& InLight) : Light(InLight) {}
+        FDirectionalLightComponent() = default;
+        FDirectionalLightComponent(const FDirectionalLightComponent&) = default;
+        FDirectionalLightComponent(const FDirectionalLight& InLight) : Light(InLight) {}
     };
 
-    struct UPointLightComponent {
+    struct FPointLightComponent {
         FPointLight Light;
         bool bEnabled = true;
         ELightMobility Mobility = ELightMobility::Movable;
 
-        UPointLightComponent() = default;
-        UPointLightComponent(const UPointLightComponent&) = default;
-        UPointLightComponent(const FPointLight& InLight) : Light(InLight) {}
+        FPointLightComponent() = default;
+        FPointLightComponent(const FPointLightComponent&) = default;
+        FPointLightComponent(const FPointLight& InLight) : Light(InLight) {}
     };
 
-    struct USpotLightComponent {
+    struct FSpotLightComponent {
         FSpotLight Light;
         bool bEnabled = true;
         ELightMobility Mobility = ELightMobility::Movable;
 
-        USpotLightComponent() = default;
-        USpotLightComponent(const USpotLightComponent&) = default;
-        USpotLightComponent(const FSpotLight& InLight) : Light(InLight) {}
+        FSpotLightComponent() = default;
+        FSpotLightComponent(const FSpotLightComponent&) = default;
+        FSpotLightComponent(const FSpotLight& InLight) : Light(InLight) {}
     };
 
     /**
      * @brief Unreal Engine aligned Camera component.
      */
-    struct UCameraComponent {
+    struct FCameraComponent {
         FPerspectiveCamera Camera{45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f};
         bool bPrimary = true;
 
-        UCameraComponent() = default;
-        UCameraComponent(const UCameraComponent&) = default;
-        UCameraComponent(const FPerspectiveCamera& InCamera) : Camera(InCamera) {}
+        FCameraComponent() = default;
+        FCameraComponent(const FCameraComponent&) = default;
+        FCameraComponent(const FPerspectiveCamera& InCamera) : Camera(InCamera) {}
     };
 
     struct FSkyboxComponent {

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 namespace Leon {
@@ -19,12 +20,13 @@ namespace Leon {
     }
 
     FOpenGLShader::FOpenGLShader(const std::string& InFilePath) {
+        std::filesystem::path path = InFilePath;
         std::string source = ReadFile(InFilePath);
+        source = ResolveIncludes(source, path.parent_path().string());
         auto shaderSources = PreProcess(source);
         Compile(shaderSources);
 
         // Extract name from filepath (e.g. "Assets/Shaders/DefaultLit.glsl" -> "DefaultLit")
-        std::filesystem::path path = InFilePath;
         Name = path.stem().string();
     }
 
@@ -60,6 +62,58 @@ namespace Leon {
             LE_CORE_ERROR("Could not open file '{0}'", InFilePath);
         }
         return result;
+    }
+
+    std::string FOpenGLShader::ResolveIncludes(const std::string& InSource, const std::string& InBaseDirectory,
+                                               int InDepth) {
+        constexpr int MaxIncludeDepth = 32;
+        if (InDepth > MaxIncludeDepth) {
+            LE_CORE_ERROR("Shader include depth exceeded ({0})", MaxIncludeDepth);
+            return InSource;
+        }
+
+        std::ostringstream out;
+        std::istringstream in(InSource);
+        std::string line;
+        while (std::getline(in, line)) {
+            // Strip trailing CR from CRLF files
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+
+            const std::string trimmed = [&]() {
+                size_t first = line.find_first_not_of(" \t");
+                return first == std::string::npos ? std::string() : line.substr(first);
+            }();
+
+            if (trimmed.rfind("#include", 0) == 0) {
+                size_t quoteOpen = trimmed.find('"');
+                size_t quoteClose = (quoteOpen == std::string::npos) ? std::string::npos
+                                                                    : trimmed.find('"', quoteOpen + 1);
+                if (quoteOpen == std::string::npos || quoteClose == std::string::npos) {
+                    LE_CORE_ERROR("Malformed #include in shader (expected #include \"file\"): {0}", line);
+                    out << line << '\n';
+                    continue;
+                }
+
+                const std::string includeName = trimmed.substr(quoteOpen + 1, quoteClose - quoteOpen - 1);
+                const std::filesystem::path includePath =
+                    std::filesystem::path(InBaseDirectory) / includeName;
+                const std::string includeAbs = includePath.lexically_normal().string();
+                const std::string included = ReadFile(includeAbs);
+                if (included.empty()) {
+                    LE_CORE_ERROR("Failed to resolve shader include '{0}'", includeAbs);
+                    continue;
+                }
+
+                const std::string nestedDir = includePath.parent_path().string();
+                out << ResolveIncludes(included, nestedDir, InDepth + 1);
+                if (!included.empty() && included.back() != '\n')
+                    out << '\n';
+            } else {
+                out << line << '\n';
+            }
+        }
+        return out.str();
     }
 
     std::unordered_map<GLenum, std::string> FOpenGLShader::PreProcess(const std::string& InSource) {

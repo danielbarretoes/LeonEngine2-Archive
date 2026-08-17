@@ -37,7 +37,7 @@ UObject
 │   ├── UCombatComponent          (generic attack-gate / cooldown)
 │   ├── UParticleComponent
 │   ├── USkeletalMeshComponent
-│   └── USpringArmComponent / UCameraComponent
+│   └── USpringArmComponent
 └── AActor
     ├── APawn → ADefaultPawn
     │        → ACharacter
@@ -51,7 +51,26 @@ UObject
     └── volumes (ABlockingVolume, APhysicsVolume, ANavMeshBoundsVolume)
 ```
 
-EnTT render mirrors (`FTransformComponent`, `FStaticMeshComponent`, …) live in `Engine/Components.hpp`. They are not `UActorComponent` subclasses. That aggregation file is the ECS registry, not a UObject module dump.
+## Dual component model
+
+LeonEngine2 keeps **two** component layers on purpose (see [NAMING.md](NAMING.md) §2):
+
+| Layer | Prefix | Lives in | Used by |
+| :--- | :--- | :--- | :--- |
+| EnTT POD (map / render ECS) | `F*Component` | `Engine/Components.hpp` | `FMapSerializer`, `FWorldRenderer`, Lightmass |
+| Gameplay (`UActorComponent`) | `U*Component` | `Gameplay/` | `AActor` spawn hierarchy, combat, movement |
+
+```text
+.lmap load  →  FMapSerializer  →  EnTT FStaticMeshComponent / F*LightComponent / FCameraComponent
+GameMode spawn  →  AActor + UBoxComponent / USkeletalMeshComponent / UHealthComponent
+FWorldRenderer reads both (EnTT for map meshes/lights; gameplay for skinned pawns)
+```
+
+**Rules:** never name an EnTT POD `U*Component`. Never name a non-`UObject` helper `U*`. Net drivers that subclass `UNetDriver` use `U*` (e.g. `ULoopbackNetDriver`).
+
+**Roadmap (not in this pass):** migrate map actors to spawned `AActor` instances so EnTT PODs become an implementation detail behind gameplay components.
+
+EnTT render mirrors (`FTransformComponent`, `FStaticMeshComponent`, `FDirectionalLightComponent`, …) live in `Engine/Components.hpp`. They are not `UActorComponent` subclasses.
 
 ## Startup lifecycle
 

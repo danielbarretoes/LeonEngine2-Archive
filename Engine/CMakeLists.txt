@@ -43,6 +43,9 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Assets/Private/FLightmapAsset.cpp
     # Renderer
     Source/Runtime/Renderer/Private/FWorldRenderer.cpp
+    Source/Runtime/Renderer/Private/FWorldRendererLighting.cpp
+    Source/Runtime/Renderer/Private/FWorldRendererGeometry.cpp
+    Source/Runtime/Renderer/Private/FWorldRendererPostProcess.cpp
     Source/Runtime/Renderer/Private/FMaterial.cpp
     Source/Runtime/Renderer/Private/FMaterialInstance.cpp
     Source/Runtime/Renderer/Private/FMeshPrimitives.cpp
@@ -70,12 +73,14 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Audio/Private/UAudioComponent.cpp
     # Engine + Gameplay
     Source/Runtime/Engine/Private/UEngine.cpp
+    Source/Runtime/Engine/Private/UEngineTravel.cpp
     Source/Runtime/Engine/Private/UWorld.cpp
     Source/Runtime/Engine/Private/UGameInstance.cpp
     Source/Runtime/Engine/Private/FMapSerializer.cpp
+    Source/Runtime/Engine/Private/FMapSerializerDeserialize.cpp
     Source/Runtime/Engine/Private/FMaterialSerializer.cpp
     Source/Runtime/Engine/Private/UNetDriver.cpp
-    Source/Runtime/Engine/Private/FLoopbackNetDriver.cpp
+    Source/Runtime/Engine/Private/ULoopbackNetDriver.cpp
     Source/Runtime/Engine/Private/UIpNetDriver.cpp
     Source/Runtime/Gameplay/Private/AActor.cpp
     Source/Runtime/Gameplay/Private/ACameraActor.cpp

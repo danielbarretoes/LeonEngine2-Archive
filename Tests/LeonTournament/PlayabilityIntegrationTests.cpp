@@ -3,7 +3,7 @@
 #include "Core/FTimestep.hpp"
 #include "Core/FWorldUnits.hpp"
 #include "Engine/UWorld.hpp"
-#include "Engine/FLoopbackNetDriver.hpp"
+#include "Engine/ULoopbackNetDriver.hpp"
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/AAIController.hpp"
@@ -171,8 +171,8 @@ namespace Leon {
                 CHECK(std::abs(ch->GetActorRotation().z) < 0.01f);
                 CHECK(ch->GetControlPitch() == doctest::Approx(pitch));
                 CHECK(glm::length(ch->GetActorUpVector() - glm::vec3(0.0f, 1.0f, 0.0f)) < 0.02f);
-                if (ch->HasComponent<UCameraComponent>())
-                    CHECK(ch->GetComponent<UCameraComponent>().Camera.GetPitch() == doctest::Approx(pitch));
+                if (ch->HasComponent<FCameraComponent>())
+                    CHECK(ch->GetComponent<FCameraComponent>().Camera.GetPitch() == doctest::Approx(pitch));
             }
         }
     }
@@ -351,8 +351,8 @@ namespace Leon {
             auto client = UWorld::Create("GSClient");
             server->SetNetMode(ENetMode::ListenServer);
             client->SetNetMode(ENetMode::Client);
-            FLoopbackNetDriver sdrv, cdrv;
-            FLoopbackNetDriver::Pair(sdrv, cdrv);
+            ULoopbackNetDriver sdrv, cdrv;
+            ULoopbackNetDriver::Pair(sdrv, cdrv);
             sdrv.SetWorld(server.get());
             cdrv.SetWorld(client.get());
             server->SetNetDriver(&sdrv);

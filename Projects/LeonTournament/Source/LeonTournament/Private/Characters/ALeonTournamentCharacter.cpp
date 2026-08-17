@@ -608,8 +608,8 @@ namespace Leon {
         const float hipFov = 95.0f;
         const float scopedFov = (Weapon && Weapon->CanAimDownSights()) ? Weapon->GetConfig().ScopeFOV : hipFov;
         const float target = ads ? scopedFov : hipFov;
-        if (HasComponent<UCameraComponent>()) {
-            auto& camComp = GetComponent<UCameraComponent>();
+        if (HasComponent<FCameraComponent>()) {
+            auto& camComp = GetComponent<FCameraComponent>();
             const float cur = camComp.Camera.GetFOV();
             const float alpha = 1.0f - std::exp(-14.0f * std::max(DeltaSeconds, 0.0f));
             camComp.Camera.SetFOV(cur + (target - cur) * alpha);

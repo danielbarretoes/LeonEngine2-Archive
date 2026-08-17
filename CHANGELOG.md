@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 0.15.0
 
+### Consolidation (Engine + LeonTournament)
+
+#### Changed
+- LeonTournament sources reorganized under `Public/Private` domains (`Types`, `UI`, `Game`, `Characters`, `Combat`); widgets split per class; arena spawn, damage rules, weapon VFX/presets extracted as `F*` helpers.
+- EnTT POD components renamed to `F*Component` (`FStaticMeshComponent`, `F*LightComponent`, `FCameraComponent`) per `Docs/NAMING.md`.
+- `FLoopbackNetDriver` renamed to `ULoopbackNetDriver` (subclasses `UNetDriver`); file names match the primary type.
+- Shared `FStringUtils::Trim`; PBR fragment BRDF/shadow helpers in `PBR_Common.glsl` with OpenGL shader `#include` resolve.
+- Split large translation units: `FWorldRenderer` (Lighting/Geometry/PostProcess), `FMapSerializer` deserialize unit, `UEngineTravel`.
+- `Scripts/verify_ue_naming.py` enforces EnTT `F*Component` and forbids `class F* : public U*`.
+
+#### Removed
+- Legacy `Projects/MultiverseTournament` product tree (already absent from the active tree; product is LeonTournament only).
+
+#### Fixed
+- Anim Lab: opposing teams + friendly fire so dummy damage works; lab weapon pickups with 5s respawn; capsule foot plant; TAB scoreboard grouped by team.
+
 ### Renderer math contract (CPU / GPU / baker)
 
 #### Fixed
@@ -100,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AABB overlap/sweep on `UWorld` (`FBoxCollisionComponent` and static mesh bounds). `ACharacter` XZ movement is blocked by static geometry.
 - `AWorldSettings` / `FWorldSettingsComponent` for Lightmass knobs (migrated off the skybox). Legacy Skybox bake keys copy into WorldSettings on load.
 - Lighting quality presets (`Preview` / `Draft` / `Production`) with LeonAssetTool `--quality=` and `bake_lightmaps.py --quality`.
-- Lean listen-server: `ENetMode` / `ENetRole`, `UNetDriver` snapshots, in-process `FLoopbackNetDriver`. Replicates GameState elapsed time, PlayerState, and possessed pawn transforms. Clients have no GameMode.
+- Lean listen-server: `ENetMode` / `ENetRole`, `UNetDriver` snapshots, in-process `ULoopbackNetDriver`. Replicates GameState elapsed time, PlayerState, and possessed pawn transforms. Clients have no GameMode.
 - `LeonEnginePipeline` static library (FBX/material import, Lightmass, lightmap UV). `LeonEngineCore` no longer links `ufbx`. Native `.ltex` / `.lhdr` loaders stay in Core so games (Sandbox) can load cooked textures without Pipeline.
 
 #### Fixed

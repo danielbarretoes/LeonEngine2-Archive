@@ -1,5 +1,6 @@
 #include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentCharacter.hpp"
+#include "FLeonTournamentWeaponPresets.hpp"
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Assets/UAssetManager.hpp"

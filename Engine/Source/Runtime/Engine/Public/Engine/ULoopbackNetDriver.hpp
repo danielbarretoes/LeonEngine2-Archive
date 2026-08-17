@@ -7,13 +7,13 @@ namespace Leon {
     /**
      * @brief In-process paired drivers for tests (no sockets).
      */
-    class FLoopbackNetDriver : public UNetDriver {
+    class ULoopbackNetDriver : public UNetDriver {
     public:
-        static void Pair(FLoopbackNetDriver& InServer, FLoopbackNetDriver& InClient);
+        static void Pair(ULoopbackNetDriver& InServer, ULoopbackNetDriver& InClient);
         void Tick(float InDeltaSeconds) override;
 
     private:
-        FLoopbackNetDriver* Peer = nullptr;
+        ULoopbackNetDriver* Peer = nullptr;
     };
 
 } // namespace Leon

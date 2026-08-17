@@ -253,8 +253,8 @@ namespace Leon {
             return true;
         }
 
-        if (InActor.HasComponent<UStaticMeshComponent>()) {
-            const auto& smc = InActor.GetComponent<UStaticMeshComponent>();
+        if (InActor.HasComponent<FStaticMeshComponent>()) {
+            const auto& smc = InActor.GetComponent<FStaticMeshComponent>();
             if (smc.Mobility != EComponentMobility::Static || !smc.StaticMesh)
                 return false;
             glm::vec3 minB, maxB;

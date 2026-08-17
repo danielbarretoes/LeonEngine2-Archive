@@ -467,7 +467,7 @@ TEST_CASE("Bake input hash includes AORadius") {
 TEST_CASE("Bake input hash includes material overrides") {
     auto world = UWorld::Create();
     auto* a = world->SpawnActor<AActor>("MeshA");
-    auto& smc = a->AddComponent<UStaticMeshComponent>();
+    auto& smc = a->AddComponent<FStaticMeshComponent>();
     smc.Mobility = EComponentMobility::Static;
     uint64_t h1 = FLightmass::ComputeBakeInputHash(*world, FLightmassSettings{});
     smc.MaterialOverridePaths = {"/Game/Materials/M_Override.lmat"};

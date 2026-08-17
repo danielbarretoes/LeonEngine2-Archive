@@ -262,11 +262,11 @@ namespace Leon {
 
             auto actor1 = srcWorld->SpawnActor<AActor>("Sun");
             actor1->SetActorLocation({0.0f, 10.0f, 0.0f});
-            actor1->AddComponent<UDirectionalLightComponent>();
+            actor1->AddComponent<FDirectionalLightComponent>();
 
             auto actor2 = srcWorld->SpawnActor<AActor>("Lamp");
             actor2->SetActorLocation({5.0f, 3.0f, 5.0f});
-            actor2->AddComponent<UPointLightComponent>();
+            actor2->AddComponent<FPointLightComponent>();
 
             FMapSerializer serializer(srcWorld);
             std::string serialized;
@@ -280,12 +280,12 @@ namespace Leon {
             auto restoredSun = dstWorld->FindActorByName("Sun");
             REQUIRE(restoredSun != nullptr);
             CHECK(restoredSun->GetActorLocation().y == doctest::Approx(10.0f));
-            CHECK(restoredSun->HasComponent<UDirectionalLightComponent>());
+            CHECK(restoredSun->HasComponent<FDirectionalLightComponent>());
 
             auto restoredLamp = dstWorld->FindActorByName("Lamp");
             REQUIRE(restoredLamp != nullptr);
             CHECK(restoredLamp->GetActorLocation().x == doctest::Approx(5.0f));
-            CHECK(restoredLamp->HasComponent<UPointLightComponent>());
+            CHECK(restoredLamp->HasComponent<FPointLightComponent>());
         }
 
         TEST_CASE("17. DefaultEngine.ini parsing & 18. GameMode configuration resolution") {
@@ -352,7 +352,7 @@ namespace Leon {
             APawn* pawn = pc->GetPawn();
             REQUIRE(pawn != nullptr);
             CHECK(pawn->GetController() == pc);
-            CHECK(pawn->HasComponent<UCameraComponent>());
+            CHECK(pawn->HasComponent<FCameraComponent>());
 
             // 5. PlayerCameraManager created
             APlayerCameraManager* camManager = pc->GetPlayerCameraManager();
@@ -509,7 +509,7 @@ namespace Leon {
             auto src = UWorld::Create("GuidMap");
             auto* sun = src->SpawnActor<AActor>("Sun");
             sun->SetClass("AActor");
-            sun->AddComponent<UDirectionalLightComponent>();
+            sun->AddComponent<FDirectionalLightComponent>();
             auto* cam = src->SpawnActor<ACameraActor>("CineCam");
             cam->SetActorLocation({1.0f, 2.0f, 3.0f});
 

@@ -4,6 +4,7 @@
 #include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentPlayerState.hpp"
+#include "FLeonTournamentArenaBuilder.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Core/FApplication.hpp"
 #include "Engine/Components.hpp"
@@ -18,35 +19,6 @@
 namespace Leon {
 
     namespace {
-        AActor* SpawnLabBox(UWorld* InWorld, const std::string& InName, const glm::vec3& InLocation,
-                            const glm::vec3& InScale, const glm::vec3& InColor) {
-            if (!InWorld)
-                return nullptr;
-            AActor* actor = InWorld->SpawnActor<AActor>(InName);
-            actor->SetActorLocation(InLocation);
-            actor->SetActorScale(InScale);
-            auto box = actor->AddActorComponent<UBoxComponent>("Box");
-            box->SetBoxExtent(glm::vec3(0.5f));
-            box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
-            box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-            if (FApplication::HasInstance()) {
-                auto va = FMeshPrimitives::CreateCube(1.0f);
-                auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
-                if (va && shader) {
-                    auto& mesh = actor->AddComponent<FMeshComponent>(va, shader);
-                    mesh.MeshType = "Cube";
-                    mesh.MeshSize = 1.0f;
-                    mesh.Mobility = EComponentMobility::Static;
-                    if (auto parent = UAssetManager::GetDefaultMaterial()) {
-                        auto inst = parent->CreateInstance(InName + "Mat");
-                        inst->SetAlbedoColor(InColor);
-                        actor->AddComponent<FMaterialComponent>(inst);
-                    }
-                }
-            }
-            return actor;
-        }
-
         void PlaceGrounded(ALeonTournamentCharacter* InCharacter, const glm::vec3& InLocation, float InFloorZ) {
             if (!InCharacter)
                 return;
@@ -192,14 +164,14 @@ namespace Leon {
         // Map actors (LabFloor + walls) provide textured/bakeable geometry — skip duplicates.
         if (World->FindActorByName("LabFloor"))
             return;
-        SpawnLabBox(World, "LabFloor", {0.0f, -0.25f, 0.0f}, {32.0f, 0.5f, 32.0f}, {0.22f, 0.24f, 0.26f});
-        SpawnLabBox(World, "LabWallN", {0.0f, 1.5f, -16.0f}, {32.0f, 3.0f, 0.5f}, {0.18f, 0.2f, 0.22f});
-        SpawnLabBox(World, "LabWallS", {0.0f, 1.5f, 16.0f}, {32.0f, 3.0f, 0.5f}, {0.18f, 0.2f, 0.22f});
-        SpawnLabBox(World, "LabWallW", {-16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f}, {0.18f, 0.2f, 0.22f});
-        SpawnLabBox(World, "LabWallE", {16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f}, {0.18f, 0.2f, 0.22f});
-        SpawnLabBox(World, "JumpPadLow", {6.0f, 0.6f, 6.0f}, {4.0f, 1.2f, 4.0f}, {0.32f, 0.38f, 0.48f});
-        SpawnLabBox(World, "JumpPadHigh", {6.0f, 1.8f, 12.0f}, {3.0f, 0.4f, 3.0f}, {0.42f, 0.32f, 0.22f});
-        SpawnLabBox(World, "FallLedge", {-8.0f, 1.2f, 8.0f}, {3.5f, 2.4f, 2.0f}, {0.28f, 0.30f, 0.34f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabFloor", {0.0f, -0.25f, 0.0f}, {32.0f, 0.5f, 32.0f}, {0.22f, 0.24f, 0.26f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallN", {0.0f, 1.5f, -16.0f}, {32.0f, 3.0f, 0.5f}, {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallS", {0.0f, 1.5f, 16.0f}, {32.0f, 3.0f, 0.5f}, {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallW", {-16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f}, {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallE", {16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f}, {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "JumpPadLow", {6.0f, 0.6f, 6.0f}, {4.0f, 1.2f, 4.0f}, {0.32f, 0.38f, 0.48f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "JumpPadHigh", {6.0f, 1.8f, 12.0f}, {3.0f, 0.4f, 3.0f}, {0.42f, 0.32f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "FallLedge", {-8.0f, 1.2f, 8.0f}, {3.5f, 2.4f, 2.0f}, {0.28f, 0.30f, 0.34f});
     }
 
     void ALeonTournamentAnimLabGameMode::SpawnLabWeaponPickups() {

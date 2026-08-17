@@ -8,9 +8,9 @@ namespace Leon {
     }
 
     void ACameraActor::PostInitializeComponents() {
-        if (!HasComponent<UCameraComponent>()) {
+        if (!HasComponent<FCameraComponent>()) {
             FPerspectiveCamera camera(45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f);
-            AddComponent<UCameraComponent>(camera);
+            AddComponent<FCameraComponent>(camera);
         }
     }
 

@@ -26,8 +26,8 @@ namespace Leon {
 
     void APlayerCameraManager::UpdateCamera(float DeltaSeconds) {
         // Priority 1: Explicit ViewTarget set on CameraManager
-        if (ViewTarget && ViewTarget->HasComponent<UCameraComponent>()) {
-            const auto& camComp = ViewTarget->GetComponent<UCameraComponent>();
+        if (ViewTarget && ViewTarget->HasComponent<FCameraComponent>()) {
+            const auto& camComp = ViewTarget->GetComponent<FCameraComponent>();
             Camera = camComp.Camera;
             return;
         }
@@ -35,18 +35,18 @@ namespace Leon {
         // Priority 2: Possessed Pawn of the PlayerController
         if (PlayerController) {
             APawn* pawn = PlayerController->GetPawn();
-            if (pawn && pawn->HasComponent<UCameraComponent>()) {
-                const auto& camComp = pawn->GetComponent<UCameraComponent>();
+            if (pawn && pawn->HasComponent<FCameraComponent>()) {
+                const auto& camComp = pawn->GetComponent<FCameraComponent>();
                 Camera = camComp.Camera;
                 return;
             }
         }
 
-        // Priority 3: Search World for an Actor with a primary UCameraComponent
+        // Priority 3: Search World for an Actor with a primary FCameraComponent
         if (World) {
-            auto view = World->GetRegistry().view<UCameraComponent, FTransformComponent>();
+            auto view = World->GetRegistry().view<FCameraComponent, FTransformComponent>();
             for (auto entity : view) {
-                const auto& camComp = view.get<UCameraComponent>(entity);
+                const auto& camComp = view.get<FCameraComponent>(entity);
                 if (camComp.bPrimary) {
                     Camera = camComp.Camera;
                     return;

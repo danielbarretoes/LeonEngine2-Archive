@@ -79,9 +79,23 @@ Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`
 | `UAnimInstance` | `ULeonTournamentAnimInstance` | Reads locomotion; no TDM rules |
 | `AAIController` | `ALeonTournamentBotController` | TDM enemy selection + BT asset |
 | `AHUD` | `ALeonTournamentHUD` | Crosshair, scores, hit marker |
-| — | `ALeonTournamentWeapon` | Rifle, ammo, traces → damage |
+| — | `ALeonTournamentWeapon` | Arsenal, ammo, traces → damage |
+| — | `FLeonTournamentArenaBuilder` | Shared procedural arena/lab box spawn |
+| — | `FLeonTournamentDamageRules` | Friendly-fire / self-damage checks |
+| — | `FLeonTournamentWeaponVfx` | Muzzle/tracer/flame particle helpers |
+| — | `FLeonTournamentUILayout` | Measured UMG layout helpers (Inter 48px) |
 
-`UCombatComponent` in Engine is a cooldown/attack gate. Rifle fire, magazine, and tracers live on `ALeonTournamentWeapon` / `ULeonTournamentCombatComponent`.
+`UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and traces live on `ALeonTournamentWeapon`.
+
+### LeonTournament source layout
+
+```text
+Projects/LeonTournament/Source/LeonTournament/
+├── Public/{Types,UI,Game,Characters,Combat}/
+└── Private/{UI,Game,Characters,Combat}/
+```
+
+Include roots are those Public subfolders (flat `#include "ALeonTournamentGameMode.hpp"`).
 
 ## File naming
 

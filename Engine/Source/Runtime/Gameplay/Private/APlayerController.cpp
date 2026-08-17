@@ -53,8 +53,8 @@ namespace Leon {
             OutCamera.SetRotation(character->GetControlPitch(), character->GetControlYaw());
             return;
         }
-        if (Pawn && Pawn->HasComponent<UCameraComponent>())
-            OutCamera = Pawn->GetComponent<UCameraComponent>().Camera;
+        if (Pawn && Pawn->HasComponent<FCameraComponent>())
+            OutCamera = Pawn->GetComponent<FCameraComponent>().Camera;
     }
 
     void APlayerController::SetInputModeGameOnly() {

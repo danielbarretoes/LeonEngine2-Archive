@@ -91,9 +91,11 @@ ECS POD components (EnTT): `F*Component` / `FTag`.
 
 | Kind | Convention | Example |
 | :--- | :--- | :--- |
-| Shaders | PascalCase | `PBR_Lit.glsl` |
+| Shaders | PascalCase | `PBR_Lit.glsl`, `PBR_Common.glsl` |
 | Textures | `T_<Name>_<Suffix>` | `T_StudioFloor_Color.ltex` |
 | Fonts | `Family-Weight` | `Inter-Regular.ttf` |
+
+**Materials:** on-disk `.lmat` assets are loaded into runtime `FMaterial` / `FMaterialInstance` (value types under Renderer — **not** `UObject`). Prefer `F*` for GPU/material data; do not rename to `UMaterial` unless a true UObject asset system is introduced.
 
 ---
 

@@ -1,8 +1,8 @@
-#include "Engine/FLoopbackNetDriver.hpp"
+#include "Engine/ULoopbackNetDriver.hpp"
 
 namespace Leon {
 
-    void FLoopbackNetDriver::Pair(FLoopbackNetDriver& InServer, FLoopbackNetDriver& InClient) {
+    void ULoopbackNetDriver::Pair(ULoopbackNetDriver& InServer, ULoopbackNetDriver& InClient) {
         InServer.Peer = &InClient;
         InClient.Peer = &InServer;
         if (InServer.GetConnections().empty())
@@ -11,7 +11,7 @@ namespace Leon {
             InClient.AddConnection();
     }
 
-    void FLoopbackNetDriver::Tick(float InDeltaSeconds) {
+    void ULoopbackNetDriver::Tick(float InDeltaSeconds) {
         UNetDriver::Tick(InDeltaSeconds);
         if (!Peer || Connections.empty() || Peer->Connections.empty())
             return;

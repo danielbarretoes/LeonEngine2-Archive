@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 #include "Core/FTimestep.hpp"
-#include "Engine/FLoopbackNetDriver.hpp"
+#include "Engine/ULoopbackNetDriver.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AGameModeBase.hpp"
 #include "Gameplay/AGameStateBase.hpp"
@@ -19,11 +19,11 @@ namespace Leon {
             serverWorld->SetNetMode(ENetMode::ListenServer);
             clientWorld->SetNetMode(ENetMode::Client);
 
-            FLoopbackNetDriver serverDriver;
-            FLoopbackNetDriver clientDriver;
+            ULoopbackNetDriver serverDriver;
+            ULoopbackNetDriver clientDriver;
             serverDriver.SetWorld(serverWorld.get());
             clientDriver.SetWorld(clientWorld.get());
-            FLoopbackNetDriver::Pair(serverDriver, clientDriver);
+            ULoopbackNetDriver::Pair(serverDriver, clientDriver);
             serverWorld->SetNetDriver(&serverDriver);
             clientWorld->SetNetDriver(&clientDriver);
 

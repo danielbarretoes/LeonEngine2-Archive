@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 #include "Core/FTimestep.hpp"
-#include "Engine/FLoopbackNetDriver.hpp"
+#include "Engine/ULoopbackNetDriver.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "ALeonTournamentGameMode.hpp"
@@ -147,10 +147,10 @@ namespace Leon {
             auto client = UWorld::Create("AuthC");
             server->SetNetMode(ENetMode::ListenServer);
             client->SetNetMode(ENetMode::Client);
-            FLoopbackNetDriver sd, cd;
+            ULoopbackNetDriver sd, cd;
             sd.SetWorld(server.get());
             cd.SetWorld(client.get());
-            FLoopbackNetDriver::Pair(sd, cd);
+            ULoopbackNetDriver::Pair(sd, cd);
             server->SetNetDriver(&sd);
             client->SetNetDriver(&cd);
 

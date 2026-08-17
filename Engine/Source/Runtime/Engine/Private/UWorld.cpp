@@ -70,8 +70,8 @@ namespace Leon {
             if (!TraceChannelAccepts(InQuery, implicit))
                 return false;
 
-            if (InActor.HasComponent<UStaticMeshComponent>()) {
-                const auto& smc = InActor.GetComponent<UStaticMeshComponent>();
+            if (InActor.HasComponent<FStaticMeshComponent>()) {
+                const auto& smc = InActor.GetComponent<FStaticMeshComponent>();
                 if (smc.Mobility != EComponentMobility::Static || !smc.StaticMesh)
                     return false;
                 TransformAABBCorners(smc.StaticMesh->GetBoundsMin(), smc.StaticMesh->GetBoundsMax(), world, OutMin,

@@ -17,8 +17,8 @@
 namespace Leon {
 
     class UWorld;
-    struct UDirectionalLightComponent;
-    struct USpotLightComponent;
+    struct FDirectionalLightComponent;
+    struct FSpotLightComponent;
     struct FSkyboxComponent;
     struct FDirectionalLight;
 
@@ -127,9 +127,9 @@ namespace Leon {
     private:
         // ----- Render Passes -------------------------------------------------
         void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
-                                      const UDirectionalLightComponent* InDirLightComp, FCameraBufferData& OutCamData);
+                                      const FDirectionalLightComponent* InDirLightComp, FCameraBufferData& OutCamData);
 
-        void RenderSpotShadowPass(const USpotLightComponent* InSpotLightComp, const glm::vec3& InSpotLightPos,
+        void RenderSpotShadowPass(const FSpotLightComponent* InSpotLightComp, const glm::vec3& InSpotLightPos,
                                   FCameraBufferData& OutCamData);
 
         void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,

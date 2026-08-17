@@ -88,8 +88,8 @@ namespace Leon {
             CHECK(std::abs(ch->GetActorRotation().x) < 0.01f);
             CHECK(std::abs(ch->GetActorRotation().z) < 0.01f);
             CHECK(glm::length(ch->GetActorUpVector() - glm::vec3(0.0f, 1.0f, 0.0f)) < 0.02f);
-            if (ch->HasComponent<UCameraComponent>())
-                CHECK(ch->GetComponent<UCameraComponent>().Camera.GetPitch() == doctest::Approx(55.0f));
+            if (ch->HasComponent<FCameraComponent>())
+                CHECK(ch->GetComponent<FCameraComponent>().Camera.GetPitch() == doctest::Approx(55.0f));
         }
 
         TEST_CASE("yaw drives character and camera") {

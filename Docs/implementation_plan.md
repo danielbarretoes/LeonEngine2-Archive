@@ -1,5 +1,7 @@
 # Implementation Plan — Static Lighting & Lightmap Baking (v0.15)
 
+> **Status (2026-08):** Core phases below shipped in earlier releases (mobility, UV1, `.llightmap`, `FLightmass`, runtime PBR lightmaps, docs). Treat this file as historical design notes; prefer [CHANGELOG.md](../CHANGELOG.md) and [STATIC_LIGHTING.md](STATIC_LIGHTING.md) for current behavior. Structural consolidation of Engine/LeonTournament is tracked under Unreleased 0.15.0 consolidation notes.
+
 ## Audit summary
 
 | Area | Current state | Extension |

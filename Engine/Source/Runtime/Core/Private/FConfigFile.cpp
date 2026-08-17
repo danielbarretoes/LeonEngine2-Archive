@@ -1,5 +1,6 @@
 #include "Core/FConfigFile.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FStringUtils.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -13,11 +14,7 @@ namespace Leon {
     }
 
     std::string FConfigFile::Trim(const std::string& InStr) {
-        size_t first = InStr.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos)
-            return "";
-        size_t last = InStr.find_last_not_of(" \t\r\n");
-        return InStr.substr(first, (last - first + 1));
+        return FStringUtils::Trim(InStr);
     }
 
     bool FConfigFile::Load(const std::string& InFilePath) {
