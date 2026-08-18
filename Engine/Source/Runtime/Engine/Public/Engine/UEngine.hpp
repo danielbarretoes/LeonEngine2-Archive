@@ -115,6 +115,8 @@ namespace Leon {
         bool bProjectEnablePlanarReflection = true;
         uint32_t ProjectCascadeCount = 4;
         float ProjectShadowDistance = 100.0f;
+        EPlanarReflectionQuality ProjectPlanarReflectionQuality = EPlanarReflectionQuality::Epic;
+        float ProjectPlanarReflectionResolutionScale = 1.0f;
 
         // Non-owning pointer to the active viewport layer so travel can rebind the world.
         FGameViewportLayer* ViewportLayer = nullptr;

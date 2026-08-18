@@ -43,6 +43,7 @@ namespace Leon {
             InShader.SetInt("u_UsePlanarReflection", 1);
             InShader.SetMat4("u_PlanarViewProjection", glm::value_ptr(PlanarViewProjection));
             InShader.SetFloat3("u_PlanarPlaneNormal", PlanarPlaneNormal.x, PlanarPlaneNormal.y, PlanarPlaneNormal.z);
+            InShader.SetFloat("u_PlanarPlaneDistance", PlanarPlaneDistance);
         } else {
             InShader.SetInt("u_UsePlanarReflection", 0);
         }
@@ -52,6 +53,7 @@ namespace Leon {
             InShader.SetMat4("u_PlanarViewProjection1", glm::value_ptr(WallPlanarViewProjection));
             InShader.SetFloat3("u_PlanarPlaneNormal1", WallPlanarPlaneNormal.x, WallPlanarPlaneNormal.y,
                                WallPlanarPlaneNormal.z);
+            InShader.SetFloat("u_PlanarPlaneDistance1", WallPlanarPlaneDistance);
         } else {
             if (DefaultBlackTexture)
                 DefaultBlackTexture->Bind(13);

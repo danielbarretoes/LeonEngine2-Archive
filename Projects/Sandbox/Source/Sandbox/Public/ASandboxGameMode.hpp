@@ -5,8 +5,7 @@
 namespace Leon {
 
     /**
-     * Sandbox GameMode — fly spectator, HUD chip, and runtime demos of engine features
-     * that the baked Showcase/Night maps do not spawn themselves (planar planes, APickup).
+     * Sandbox GameMode — fly spectator, HUD chip, floor planar capture, and an APickup demo.
      */
     class ASandboxGameMode : public AGameModeBase {
     public:

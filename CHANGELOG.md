@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LeonTournament arena ceiling/walls raised to 14 m so the room is not a low box.
 - LeonTournament weapons idle/walk sway on the view model (aim ray unchanged).
 - LeonTournament weapon damage/stats retuned vs 100 HP: rifle mid TTK, shotgun close burst, rocket/grenade/laser two connecting hits, flame close-cone DPS (no full-health instagib).
+- LeonTournament arena keeps floor planar only (no wall mirror panels).
 
 #### Removed
 - Legacy `Projects/MultiverseTournament` product tree (already absent from the active tree; product is LeonTournament only).
@@ -33,12 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Planar reflection skips hidden and Movable meshes, so collected pickups no longer leave a ghost in floors/mirrors.
 - Planar capture always fills the floor FBO; a facing wall mirror uses a second pass so the wet floor stays visible.
 - Jolt `BoxShape` creation clamps convex radius to the shortest half-extent so thin walls/mirrors (5 cm scale) no longer abort on `BeginPlay`.
+- Planar reflection weight fades off the capture plane so chrome spheres and other curved meshes keep cubemap IBL instead of a stretched floor grab. Showcase `M_ChromeMirror` is IBL-only.
 
 #### Added
 - Component overlap Begin/End events (`UPrimitiveComponent::OnComponentBeginOverlap` / `EndOverlap`) driven by `UWorld::UpdateComponentOverlaps`.
 - `UGameplayStatics::ApplyPointDamage` / `ApplyRadialDamage` (authority-only) plus `AGameModeBase::NotifyActorDamaged` / `NotifyActorKilled`.
 - `AActor::FindComponentByClass<T>()`.
 - `APickup` / `ALaunchPad` bases and `ACharacter::LaunchCharacter`.
+- `PlanarReflectionQuality` / optional `PlanarReflectionResolutionScale` in `DefaultEngine.ini` (`Epic` = 1:1 viewport capture, default). `FWorldRenderer::SetPlanarReflectionQuality` for runtime.
 - Framed net RPCs (`ENetRPCKind`, `UNetConnection` IncomingRPC/OutgoingRPC, `AActor::CallServerRPC` / `CallClientRPC` / `CallMulticastRPC`) over loopback and IP demux; LeonTournament reload uses ServerRPC (fire-held stays on control bits).
 - Net actor spawn/destroy in snapshots plus relevancy lite (`bReplicates`, `bAlwaysRelevant`, `NetCullDistanceSquared`); `AProjectile` replicates by default.
 - `UCharacterMovementComponent::ResolvePenetration` (WorldStatic SAT MTD). SimulatedProxy pawns skip movement and physics write-back; Jolt `System::Update` runs on authority worlds only.
@@ -57,8 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Sandbox sample
 
 #### Added
-- Showcase registers floor + wall planar planes and spawns a vertical chrome mirror so dual-FBO reflections are visible without rebaking the map.
-- `ASandboxDemoPickup` (`APickup` bob/spin, respawn) in Showcase; Night spawns a wet puddle plate on the street.
+- Showcase and Night register a floor planar plane (`APickup` demo in Showcase; Night wet-street roughness override without rebake).
+- Showcase chrome sphere (`M_ChromeMirror`) uses cubemap IBL; planar stays on the studio floor.
 - `Projects/Sandbox/Scripts/package.py` shipping shortcut (same pattern as LeonTournament).
 
 ### Renderer math contract (CPU / GPU / baker)

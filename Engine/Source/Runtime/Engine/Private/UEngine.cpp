@@ -149,7 +149,6 @@ namespace Leon {
                                                                          : InProjectDesc.DefaultMap);
     }
 
-
     void UEngine::BindSession(const TRef<UGameInstance>& InGI, const TRef<UWorld>& InWorld) {
         GameInstance = InGI;
         ActiveWorld = InWorld;
@@ -196,7 +195,6 @@ namespace Leon {
         CurrentMapName = InVirtualMapPath;
         return true;
     }
-
 
     int UEngine::InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath) {
         // Shipping packages place Engine/Assets beside the exe; adopt that cwd so relative
@@ -276,6 +274,14 @@ namespace Leon {
             static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.RendererSettings", "ShadowMapResolution", 2048));
         bProjectEnablePlanarReflection =
             engineConfig.GetBool("/Script/Engine.RendererSettings", "EnablePlanarReflection", true);
+        ProjectPlanarReflectionQuality = ParsePlanarReflectionQuality(
+            engineConfig.GetString("/Script/Engine.RendererSettings", "PlanarReflectionQuality", "Epic"));
+        if (engineConfig.HasKey("/Script/Engine.RendererSettings", "PlanarReflectionResolutionScale")) {
+            ProjectPlanarReflectionResolutionScale = ClampPlanarReflectionResolutionScale(
+                engineConfig.GetFloat("/Script/Engine.RendererSettings", "PlanarReflectionResolutionScale", 1.0f));
+        } else {
+            ProjectPlanarReflectionResolutionScale = PlanarReflectionScaleFor(ProjectPlanarReflectionQuality);
+        }
         ProjectCascadeCount =
             static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.RendererSettings", "CascadeCount", 4));
         ProjectShadowDistance = engineConfig.GetFloat("/Script/Engine.RendererSettings", "ShadowDistance", 100.0f);
@@ -330,7 +336,8 @@ namespace Leon {
             GameInstance = CreateRef<UGameInstance>("GameInstance");
         ActiveWorld = UWorld::Create("MainWorld");
         ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection,
-                                                ProjectCascadeCount, ProjectShadowDistance);
+                                                ProjectCascadeCount, ProjectShadowDistance,
+                                                ProjectPlanarReflectionQuality, ProjectPlanarReflectionResolutionScale);
         GameInstance->SetWorld(ActiveWorld);
         GameInstance->Init();
 

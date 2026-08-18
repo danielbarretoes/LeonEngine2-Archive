@@ -13,7 +13,7 @@ LeonEngine2 cuenta actualmente con una **base de renderizado rasterizado física
 * **PBR Cook-Torrance (GGX + Smith + Schlick)** con conservación de energía estricta.
 * **Image-Based Lighting (IBL v4)**: BRDF LUT 2D en disco ($1.4\text{ ms}$), Caché binaria `.libl` ($11.5\text{ ms}$), Muestreo Quasi-Monte Carlo ponderado por coseno e integración con filtrado por ángulo sólido de la textura HDR original ($1024 \times 512$).
 * **Sombras Dinámicas en Tiempo Real**: Cascaded Shadow Maps (CSM de 4 cascadas sobre `Texture2DArray` con filtrado PCF Poisson) y Spot Shadows con filtrado de penumbra.
-* **Reflejos Planares en Tiempo Real**: Paso offscreen con cámara reflejada, perturbación de UVs por normales y composición Fresnel.
+* **Reflejos Planares en Tiempo Real**: Cámara reflejada en planos registrados (FBO suelo + FBO pared opcional), UVs proyectivas, peso que se apaga fuera del plano. Esferas chrome usan IBL, no planar.
 * **Sistema de Materiales de Primer Orden**: `FMaterial`, `FMaterialInstance`, `FMaterialComponent` y serialización de assets `.lmat`.
 * **Subred RHI OpenGL 4.5 con Direct State Access (DSA)** y caché de estado en CPU (`FOpenGLRenderAPI`).
 
@@ -86,7 +86,7 @@ El pipeline es un **Forward Renderer mono-hilo** (`1 draw call / mesh` tipico). 
 | **Spot Shadows (Depth 2D)** | **1** | Matriz de proyección perspectiva de spot, depth buffer $1024 \times 1024$ | [`FWorldRenderer.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Private/FWorldRenderer.cpp#L450) | L4 | FBO Depth |
 | **Shadow Filtering (PCF 16-tap Poisson)**| **1** | `sampler2DArrayShadow` y `sampler2DShadow` con sesgo adaptativo al ángulo | [`PBR_Lit.glsl`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Assets/Shaders/PBR_Lit.glsl#L180) | L4 | Shaders |
 | **Point Light Shadows (Omni Cubemap)**| **4** | No existe paso de shadow cubemap para luces puntuales | [`FWorldRenderer.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Private/FWorldRenderer.cpp) | L4 | FBO Cubemap |
-| **Planar Reflections en Tiempo Real** | **1** | Cámara reflejada, FBO **RGBA16F** + mips, materiales/texturas por submesh, Karis Li + BRDF | [`FWorldRenderer.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Private/FWorldRenderer.cpp) | L4 | FBO Color |
+| **Planar Reflections en Tiempo Real** | **1** | Cámara reflejada, dual FBO **RGBA16F** + mips, UVs proyectivas, peso on-plane, Karis Li + BRDF | [`FWorldRenderer.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Engine/Source/Runtime/Renderer/Private/FWorldRenderer.cpp) | L4 | FBO Color |
 
 ---
 
@@ -211,7 +211,7 @@ Inventario vivo del mapa de referencia (primitivas + `DaySky1k`). `NightLevel` v
 | `PBR Glossy Ruby Sphere` | Sphere | `M_RubyDielectric` | Dieléctrico $F_0=0.04$ | **SÍ**. |
 | `PBR Brushed Iron Cylinder` | Cylinder | `M_BrushedIron` | Metal + packed metal/rough/normal | **SÍ**. |
 | `PBR Cobalt Pyramid` | Pyramid | `M_CobaltPyramid` | Caras inclinadas | **SÍ**. |
-| `PBR Mirror Chrome Sphere` | Sphere | `M_ChromeMirror` | Specular IBL nítido | **SÍ**. |
+| `PBR Mirror Chrome Sphere` | Sphere | `M_ChromeMirror` | Specular IBL nítido (`UsePlanarReflection: false`) | **SÍ**: cubemap, no grab del suelo. |
 | `PBR Polished Brass Cone` | Cone | `M_PolishedBrass` | Metal cálido | **SÍ**. |
 | `PBR Pure Copper Cube` | Cube | `M_PureCopper` | Metal + maps | **SÍ**. |
 | `PBR Satin Titanium Sphere` | Sphere | `M_SatinTitanium` | Roughness media | **SÍ**. |

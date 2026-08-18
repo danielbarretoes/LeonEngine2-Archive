@@ -80,13 +80,14 @@ $$\mathbf{n}_{\text{world}} = \text{normalize}(v\_\text{Normal})$$
 | **2** | `u_MetallicMap` | R8 / RGBA8 | Linear | Metallic Channel (Red) |
 | **3** | `u_AOMap` | R8 / RGBA8 | Linear | Ambient Occlusion (Red) |
 | **4** | `u_RoughnessMap` | R8 / RGBA8 | Linear | Roughness Channel (Red) |
-| **5** | `u_PlanarReflectionMap` | RGBA16F | Linear HDR | Screen-Space Planar Reflection |
+| **5** | `u_PlanarReflectionMap` | RGBA16F | Linear HDR | Floor planar capture (projective UV, not screen UV) |
 | **6** | `u_BRDFLUT` | RG16F | Linear | Split-Sum 2D LUT |
 | **7** | `u_IrradianceMap` | Cubemap RGBA32F | Linear HDR | Diffuse Irradiance Environment |
 | **8** | `u_PrefilterMap` | Cubemap RGBA32F | Linear HDR | Specular Prefiltered Environment |
 | **9** | `u_EmissiveMap` | RGBA8 | sRGB $\to$ Linear | Emissive Radiance Map |
 | **10** | `u_CascadeShadowMap` | 2DArray Depth | Depth Compare | Directional CSM Shadow Map |
 | **11** | `u_SpotShadowMap` | 2D Depth | Depth Compare | Spotlight Shadow Map |
+| **13** | `u_PlanarReflectionMap1` | RGBA16F | Linear HDR | Optional wall planar capture |
 
 ---
 
@@ -105,6 +106,10 @@ $$\mathbf{n}_{\text{world}} = \text{normalize}(v\_\text{Normal})$$
 | **21** | Bitangent Vector | $\mathbf{B} \times 0.5 + 0.5$ |
 | **22** | UV Coordinates | $\text{vec3}(\text{fract}(\mathbf{uv}), 0.0)$ |
 | **23** | Direct Cosine $N \cdot L$ | $\text{vec3}(\max(\mathbf{N} \cdot \mathbf{L}, 0.0))$ |
+
+### 3.3 `UsePlanarReflection`
+
+Set this on materials that **are** the registered reflector (studio floor, wet street, wall mirror panel). Do not set it on chrome spheres, car bodies, or other curved metals: those sample the IBL prefilter cubemap. The shader also fades planar weight when the fragment is more than ~40 cm from the capture plane, so a leftover flag cannot stretch the floor grab over a ball.
 
 ---
 

@@ -23,6 +23,17 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         REQUIRE(spec.Attachments.Attachments.size() >= 1);
         CHECK(spec.Attachments.Attachments[0].TextureFormat == Leon::EFramebufferTextureFormat::RGBA16F);
         CHECK(spec.ColorMipLevels == 5); // roughness * 4 LOD blur chain
+        CHECK(renderer->GetPlanarReflectionQuality() == Leon::EPlanarReflectionQuality::Epic);
+        CHECK(renderer->GetPlanarReflectionResolutionScale() == doctest::Approx(1.0f));
+
+        renderer->SetPlanarReflectionQuality(Leon::EPlanarReflectionQuality::Low);
+        renderer->OnViewportResize(1280, 720);
+        auto low = renderer->GetPlanarReflectionFramebuffer();
+        REQUIRE(low != nullptr);
+        CHECK(low->GetSpecification().Width == 320);
+        CHECK(low->GetSpecification().Height == 180);
+        CHECK(low->GetSpecification().ColorMipLevels == 3);
+        renderer->SetPlanarReflectionQuality(Leon::EPlanarReflectionQuality::Epic);
 
         auto wall = renderer->GetWallPlanarReflectionFramebuffer();
         REQUIRE(wall != nullptr);

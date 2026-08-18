@@ -43,6 +43,8 @@ namespace Leon {
             ShadowSettings.CascadeCount = InWorld->GetPendingCascadeCount();
             ShadowSettings.ShadowDistance = InWorld->GetPendingShadowDistance();
             bEnablePlanarReflection = InWorld->GetPendingPlanarReflectionEnabled();
+            PlanarQuality = InWorld->GetPendingPlanarReflectionQuality();
+            PlanarResolutionScale = InWorld->GetPendingPlanarReflectionResolutionScale();
         }
 
         // -----------------------------------------------------------------------
@@ -65,12 +67,11 @@ namespace Leon {
         // 2. Offscreen framebuffers
         // -----------------------------------------------------------------------
         FFramebufferSpecification planarSpec;
-        planarSpec.Width = 1280;
-        planarSpec.Height = 720;
+        planarSpec.Width = PlanarCaptureWidth();
+        planarSpec.Height = PlanarCaptureHeight();
         // Must be HDR: PBR_Lit + Skybox write linear radiance > 1. RGBA8 clamps to white blobs on mirrors/wet floors.
-        // ColorMipLevels=5 → roughness * 4.0 LOD (matches prefilter) so wet floors blur emissive stamps instead of hard
-        // white rectangles.
-        planarSpec.ColorMipLevels = 5;
+        // ColorMipLevels follow quality (Epic = 5 → roughness * 4.0 LOD, matches prefilter).
+        planarSpec.ColorMipLevels = PlanarReflectionMipLevelsFor(PlanarQuality);
         planarSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
         PlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
         WallPlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
@@ -123,8 +124,16 @@ namespace Leon {
         bEnvironmentGenerated = false;
     }
 
-    void FWorldRenderer::ApplyProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection) {
+    void FWorldRenderer::ApplyProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
+                                                      EPlanarReflectionQuality InPlanarQuality,
+                                                      float InPlanarResolutionScale) {
         bEnablePlanarReflection = bInEnablePlanarReflection;
+        PlanarQuality = InPlanarQuality;
+        PlanarResolutionScale = InPlanarResolutionScale > 0.0f
+                                    ? ClampPlanarReflectionResolutionScale(InPlanarResolutionScale)
+                                    : PlanarReflectionScaleFor(InPlanarQuality);
+        EnsurePlanarFramebuffers();
+
         if (InShadowMapResolution == 0 || InShadowMapResolution == ShadowSettings.CascadeResolution)
             return;
 
@@ -137,6 +146,48 @@ namespace Leon {
         CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
     }
 
+    void FWorldRenderer::SetPlanarReflectionQuality(EPlanarReflectionQuality InQuality) {
+        PlanarQuality = InQuality;
+        PlanarResolutionScale = PlanarReflectionScaleFor(InQuality);
+        EnsurePlanarFramebuffers();
+    }
+
+    void FWorldRenderer::SetPlanarReflectionResolutionScale(float InScale) {
+        PlanarResolutionScale = ClampPlanarReflectionResolutionScale(InScale);
+        EnsurePlanarFramebuffers();
+    }
+
+    uint32_t FWorldRenderer::PlanarCaptureWidth() const {
+        uint32_t w = ViewportWidth > 0 ? ViewportWidth : 1280;
+        return std::max(8u, static_cast<uint32_t>(static_cast<float>(w) * PlanarResolutionScale + 0.5f));
+    }
+
+    uint32_t FWorldRenderer::PlanarCaptureHeight() const {
+        uint32_t h = ViewportHeight > 0 ? ViewportHeight : 720;
+        return std::max(8u, static_cast<uint32_t>(static_cast<float>(h) * PlanarResolutionScale + 0.5f));
+    }
+
+    void FWorldRenderer::EnsurePlanarFramebuffers() {
+        const uint32_t w = PlanarCaptureWidth();
+        const uint32_t h = PlanarCaptureHeight();
+        const uint32_t mips = PlanarReflectionMipLevelsFor(PlanarQuality);
+        auto recreateIfNeeded = [&](TRef<FFramebuffer>& InTarget) {
+            if (!InTarget || InTarget->GetSpecification().ColorMipLevels != mips) {
+                FFramebufferSpecification spec;
+                spec.Width = w;
+                spec.Height = h;
+                spec.ColorMipLevels = mips;
+                spec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
+                InTarget = FFramebuffer::Create(spec);
+                return;
+            }
+            if (InTarget->GetSpecification().Width != w || InTarget->GetSpecification().Height != h)
+                InTarget->Resize(w, h);
+        };
+        recreateIfNeeded(PlanarReflectionFramebuffer);
+        recreateIfNeeded(WallPlanarReflectionFramebuffer);
+    }
+
     // =========================================================================
     void FWorldRenderer::OnViewportResize(uint32_t InWidth, uint32_t InHeight) {
         ViewportWidth = InWidth;
@@ -147,15 +198,7 @@ namespace Leon {
                                         HDRSceneFramebuffer->GetSpecification().Height != InHeight)) {
                 HDRSceneFramebuffer->Resize(InWidth, InHeight);
             }
-            if (PlanarReflectionFramebuffer && (PlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
-                                                PlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
-                PlanarReflectionFramebuffer->Resize(InWidth, InHeight);
-            }
-            if (WallPlanarReflectionFramebuffer &&
-                (WallPlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
-                 WallPlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
-                WallPlanarReflectionFramebuffer->Resize(InWidth, InHeight);
-            }
+            EnsurePlanarFramebuffers();
             PostProcessPipeline.OnViewportResize(InWidth, InHeight);
         }
     }

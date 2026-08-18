@@ -58,7 +58,7 @@ Para eliminar cualquier "falsa confianza", se ha construido un arnés de pruebas
 | [`PBRShaderDirectLightsTests.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Tests/Shader/PBRShaderDirectLightsTests.cpp) | Directional, Point & Spot | Distancias $d \in \{1, 2, 12\}$, Cono y Penumbra | $N\cdot L$ respuesta, Atenuación UE4, Smoothstep |
 | [`PBRShaderIBLTests.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Tests/Shader/PBRShaderIBLTests.cpp) | Image-Based Lighting Pipeline | Cubemap $L=\pi$, Cubemap $L=0$, Metal $m=1$ con LUT | $E_{\text{diff}} = \text{albedo}$, $E_{\text{black}} = 0$, $E_{\text{metal}} = 0.90$ |
 | [`PBRShaderShadowTests.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Tests/Shader/PBRShaderShadowTests.cpp) | Sombras Cascaded & PCF | Unshadowed vs Shadowed ($Lo \cdot (1 - \text{shadow})$) | Oclusión completa ante $\text{shadow}=1$ |
-| [`PBRShaderPlanarReflectionTests.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Tests/Shader/PBRShaderPlanarReflectionTests.cpp) | Planar Reflections | Toggle $0 \leftrightarrow 1$, textura azul de reflexión | Mezcla especular con textura planar activa |
+| [`PBRShaderPlanarReflectionTests.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Tests/Shader/PBRShaderPlanarReflectionTests.cpp) | Planar Reflections | Toggle $0 \leftrightarrow 1$, UV proyectiva, peso off-plane | Mezcla en el plano; IBL si el mesh está elevado |
 | [`PBRShaderDeterminismTests.cpp`](file:///c:/Users/Daniel/Desktop/Code/LeonEngine2/Tests/Shader/PBRShaderDeterminismTests.cpp) | Repetibilidad GPU | 10 pasadas consecutivas con idénticas entradas | $\Delta = 0.000000$ bit-a-bit en VRAM |
 
 ---

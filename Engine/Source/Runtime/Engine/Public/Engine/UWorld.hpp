@@ -5,6 +5,7 @@
 #include "Gameplay/UObject.hpp"
 #include "Assets/FAssetTypes.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
+#include "Renderer/FPlanarReflectionTypes.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/ENetTypes.hpp"
 #include "Engine/FTimerManager.hpp"
@@ -122,12 +123,16 @@ namespace Leon {
 
         /** Project INI renderer defaults applied when the world renderer is first created. */
         void SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
-                                        uint32_t InCascadeCount = 0, float InShadowDistance = 0.0f);
+                                        uint32_t InCascadeCount = 0, float InShadowDistance = 0.0f,
+                                        EPlanarReflectionQuality InPlanarQuality = EPlanarReflectionQuality::Epic,
+                                        float InPlanarResolutionScale = 0.0f);
         bool HasPendingRendererDefaults() const { return bHasPendingRendererDefaults; }
         uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
         bool GetPendingPlanarReflectionEnabled() const { return bPendingPlanarReflection; }
         uint32_t GetPendingCascadeCount() const { return PendingCascadeCount; }
         float GetPendingShadowDistance() const { return PendingShadowDistance; }
+        EPlanarReflectionQuality GetPendingPlanarReflectionQuality() const { return PendingPlanarQuality; }
+        float GetPendingPlanarReflectionResolutionScale() const { return PendingPlanarResolutionScale; }
 
         bool OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,
                          FHitResult& OutHit) const;
@@ -147,8 +152,9 @@ namespace Leon {
                                     std::vector<FHitResult>& OutHits) const;
         bool OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
                                      AActor* InIgnore) const;
-        int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
-                                      AActor* InIgnore, std::vector<FHitResult>& OutHits) const;
+        int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,
+                                      ECollisionChannel InChannel, AActor* InIgnore,
+                                      std::vector<FHitResult>& OutHits) const;
 
         /** Diff overlap generators vs all primitives; fires Begin/End overlap delegates. */
         void UpdateComponentOverlaps();
@@ -182,6 +188,8 @@ namespace Leon {
         bool bPendingPlanarReflection = true;
         uint32_t PendingCascadeCount = 4;
         float PendingShadowDistance = 100.0f;
+        EPlanarReflectionQuality PendingPlanarQuality = EPlanarReflectionQuality::Epic;
+        float PendingPlanarResolutionScale = 1.0f;
 
         friend class FMapSerializer;
     };

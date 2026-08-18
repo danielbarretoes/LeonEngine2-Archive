@@ -22,7 +22,7 @@ namespace Leon {
         PlayerController->SetInputModeGameAndUI();
         PlayerController->SetShowMouseCursor(true);
 
-        PrintString("Welcome to LeonEngine — fly into the spinning pickup; look at the far wall mirror.", 5.0f);
+        PrintString("Welcome to LeonEngine — fly into the spinning pickup; look down at the floor.", 5.0f);
         CreateMainMenuIfNeeded();
     }
 
@@ -42,7 +42,7 @@ namespace Leon {
         MainMenuWidget->AddToViewport(0);
 
         if (!bIsShowcase) {
-            PrintString("Night Level — wet puddle uses the floor planar capture.", 4.0f);
+            PrintString("Night Level — wet street uses the floor planar capture.", 4.0f);
         }
 
         LE_CORE_INFO("ASandboxHUD: Menu widget on viewport (map='{0}', widgets={1})", mapName,

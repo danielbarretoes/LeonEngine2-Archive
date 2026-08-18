@@ -18,7 +18,7 @@ Source of truth: `Engine/Source/Runtime` and `Engine/Assets/Shaders`.
 
 World scale: scenes on the order of meters. Near/far is sufficient for that range.
 
-Planar reflections are **Y = 0 only** (mirror across the XZ plane).
+Planar reflections are **mirrored-camera captures of registered planes**, not cubemap probes. See [Planar reflections](#planar-reflections).
 
 ## Vertex layout
 
@@ -135,11 +135,35 @@ One scene exposure (`FSkyboxComponent::Exposure` → post-process `u_Exposure`).
 
 ## Negative scale
 
-`det(M) < 0` flips face culling and tangent handedness. Combined with Y=0 planar reflection, both winding flips apply.
+`det(M) < 0` flips face culling and tangent handedness. Combined with a floor planar capture, both winding flips apply.
+
+## Planar reflections
+
+This is **not** Unreal Sphere/Box Reflection Captures. The engine renders the scene from a camera reflected through a world plane (`n·x + d = 0`) into an offscreen HDR FBO, then samples that map with **projective UVs** (`u_PlanarViewProjection * worldPos`). Screen-space UVs turn every mirror into a zoomed framebuffer portal.
+
+| Path | FBO / unit | When |
+| :--- | :--- | :--- |
+| Floor | `PlanarReflectionFramebuffer` (unit 5) | Always, if any plane is registered |
+| Optional wall | `WallPlanarReflectionFramebuffer` (unit 13) | Camera faces a non-horizontal plane (`PlanarReflectionPlaneScore > 0.45`) |
+
+Games register planes with `FWorldRenderer::AddPlanarReflectionPlane`. LeonTournament and Sandbox register **floor only** `{0,1,0}, 0`. The dual-FBO wall path stays in the engine for optional mirrors.
+
+`UsePlanarReflection` on a material is for surfaces **on** that plane (wet floors, glass panels). Curved chrome (Showcase `M_ChromeMirror` sphere) uses **cubemap IBL**. The fragment shader fades planar weight by distance to the plane (`smoothstep(0.08, 0.40)`) so off-plane meshes keep IBL even if the flag is left on.
+
+Capture skips hidden and **Movable** meshes. Nested planar is disabled in the capture pass (`u_UsePlanarReflection = 0`).
+
+Quality (`[/Script/Engine.RendererSettings]`):
+
+| Key | Values | Effect |
+| :--- | :--- | :--- |
+| `PlanarReflectionQuality` | `Low` / `Medium` / `High` / `Epic` (aliases `Max`) | 25% / 50% / 75% / 100% of viewport; Epic uses 5 color mips |
+| `PlanarReflectionResolutionScale` | optional `0.25`–`1.0` | Overrides the scale from quality |
+
+Default is **Epic**. Capture viewport size follows the FBO, not the full window. Runtime: `FWorldRenderer::SetPlanarReflectionQuality`. Types live in `FPlanarReflectionTypes.hpp`.
 
 ## Resize
 
-Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, planar FBO, bloom/tone-map/FXAA targets, UI viewport.
+Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, planar FBOs, bloom/tone-map/FXAA targets, UI viewport.
 
 ## Cache
 
@@ -178,7 +202,7 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 
 - Forward renderer, one draw per mesh. No clustered lights, VSM, or GPU-driven path.
 - At most 16 point lights and 8 spot lights in the UBO; one shadowed spotlight.
-- Planar reflection is the Y=0 plane only.
+- No local cubemap / sphere reflection probes. Planar is for registered planes; curved metals use IBL.
 - No OIT.
 - No reversed-Z.
 - Bake AO settings may still appear on maps; they do not modulate stored irradiance.

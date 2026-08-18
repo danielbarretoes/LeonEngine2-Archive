@@ -8,6 +8,7 @@
 #include "Renderer/FRenderingMath.hpp"
 #include "Renderer/FVertexLayout.hpp"
 #include "Renderer/FIBLMath.hpp"
+#include "Renderer/FPlanarReflectionTypes.hpp"
 
 TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
 
@@ -149,6 +150,16 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK_FALSE(Leon::IsHorizontalPlanarPlane({0.0f, 0.0f, 1.0f}));
         CHECK(wall > Leon::kWallPlanarCaptureMinScore);
         CHECK(wallLookDown < Leon::kWallPlanarCaptureMinScore);
+    }
+
+    TEST_CASE("Planar reflection quality tokens default to Epic (full viewport)") {
+        CHECK(Leon::ParsePlanarReflectionQuality("") == Leon::EPlanarReflectionQuality::Epic);
+        CHECK(Leon::ParsePlanarReflectionQuality("Epic") == Leon::EPlanarReflectionQuality::Epic);
+        CHECK(Leon::ParsePlanarReflectionQuality("max") == Leon::EPlanarReflectionQuality::Epic);
+        CHECK(Leon::ParsePlanarReflectionQuality("Low") == Leon::EPlanarReflectionQuality::Low);
+        CHECK(Leon::PlanarReflectionScaleFor(Leon::EPlanarReflectionQuality::Epic) == doctest::Approx(1.0f));
+        CHECK(Leon::PlanarReflectionMipLevelsFor(Leon::EPlanarReflectionQuality::Epic) == 5);
+        CHECK(Leon::ClampPlanarReflectionResolutionScale(2.0f) == doctest::Approx(1.0f));
     }
 
     TEST_CASE("Cook-Torrance Lambert term uses albedo/PI") {

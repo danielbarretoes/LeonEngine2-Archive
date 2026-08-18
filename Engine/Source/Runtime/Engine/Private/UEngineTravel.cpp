@@ -48,14 +48,14 @@ namespace Leon {
         TravelToMap(target);
     }
 
-
     bool UEngine::TravelToMap(const std::string& InVirtualMapPath) {
         LE_CORE_INFO("UEngine: Traveling to '{0}'...", InVirtualMapPath);
 
         // Flow: load into a new UWorld first. Only on success: EndPlay+release old world, rebind, InitWorld/BeginPlay.
         auto newWorld = UWorld::Create("MainWorld");
         newWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection,
-                                             ProjectCascadeCount, ProjectShadowDistance);
+                                             ProjectCascadeCount, ProjectShadowDistance, ProjectPlanarReflectionQuality,
+                                             ProjectPlanarReflectionResolutionScale);
         if (GameInstance)
             newWorld->SetNetMode(GameInstance->GetNetMode());
 

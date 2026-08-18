@@ -441,16 +441,22 @@ namespace Leon {
     }
 
     void UWorld::SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
-                                            uint32_t InCascadeCount, float InShadowDistance) {
+                                            uint32_t InCascadeCount, float InShadowDistance,
+                                            EPlanarReflectionQuality InPlanarQuality, float InPlanarResolutionScale) {
         bHasPendingRendererDefaults = true;
         PendingShadowMapResolution = InShadowMapResolution > 0 ? InShadowMapResolution : 2048;
         bPendingPlanarReflection = bInEnablePlanarReflection;
+        PendingPlanarQuality = InPlanarQuality;
+        PendingPlanarResolutionScale = InPlanarResolutionScale > 0.0f
+                                           ? ClampPlanarReflectionResolutionScale(InPlanarResolutionScale)
+                                           : PlanarReflectionScaleFor(InPlanarQuality);
         if (InCascadeCount > 0)
             PendingCascadeCount = std::min(InCascadeCount, 4u);
         if (InShadowDistance > 0.0f)
             PendingShadowDistance = InShadowDistance;
         if (Renderer) {
-            Renderer->ApplyProjectRendererDefaults(PendingShadowMapResolution, bPendingPlanarReflection);
+            Renderer->ApplyProjectRendererDefaults(PendingShadowMapResolution, bPendingPlanarReflection,
+                                                   PendingPlanarQuality, PendingPlanarResolutionScale);
             Renderer->GetShadowSettings().CascadeCount = PendingCascadeCount;
             Renderer->GetShadowSettings().ShadowDistance = PendingShadowDistance;
         }

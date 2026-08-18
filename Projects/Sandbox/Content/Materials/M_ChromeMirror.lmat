@@ -5,4 +5,4 @@ Material:
   Metallic: 1.0
   Roughness: 0.02
   AO: 1.0
-  UsePlanarReflection: true
+  UsePlanarReflection: false

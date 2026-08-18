@@ -331,22 +331,9 @@ namespace Leon {
         FLeonTournamentArenaBuilder::SpawnBox(World, "WallE", {kHalf, kWallH * 0.5f, 0.0f}, {0.8f, kWallH, kHalf * 2.0f},
                           ELeonTournamentArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
 
-        constexpr float kMirror = kHalf - 0.46f;
-        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorN", {0.0f, 2.6f, -kMirror}, {16.0f, 4.2f, 0.05f},
-                                              ELeonTournamentArenaSurface::Mirror);
-        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorS", {0.0f, 2.6f, kMirror}, {16.0f, 4.2f, 0.05f},
-                                              ELeonTournamentArenaSurface::Mirror);
-        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorW", {-kMirror, 2.6f, 0.0f}, {0.05f, 4.2f, 16.0f},
-                                              ELeonTournamentArenaSurface::Mirror);
-        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorE", {kMirror, 2.6f, 0.0f}, {0.05f, 4.2f, 16.0f},
-                                              ELeonTournamentArenaSurface::Mirror);
         if (auto* renderer = World->GetWorldRenderer()) {
             renderer->ClearPlanarReflectionPlanes();
             renderer->AddPlanarReflectionPlane({0.0f, 1.0f, 0.0f}, 0.0f);
-            renderer->AddPlanarReflectionPlane({0.0f, 0.0f, 1.0f}, kMirror);
-            renderer->AddPlanarReflectionPlane({0.0f, 0.0f, -1.0f}, kMirror);
-            renderer->AddPlanarReflectionPlane({1.0f, 0.0f, 0.0f}, kMirror);
-            renderer->AddPlanarReflectionPlane({-1.0f, 0.0f, 0.0f}, kMirror);
         }
 
         auto maze = [&](const char* n, const glm::vec3& loc, const glm::vec3& sc) {

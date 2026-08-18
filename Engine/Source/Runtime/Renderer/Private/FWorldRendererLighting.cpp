@@ -324,6 +324,7 @@ namespace Leon {
         FPlanarReflectionPlane wall;
         if (WallPlanarReflectionFramebuffer && SelectWallMirrorPlane(InCamera, wall)) {
             WallPlanarPlaneNormal = wall.Normal;
+            WallPlanarPlaneDistance = wall.Distance;
             CapturePlanarReflection(InCamera, InSkybox, bHasDirLight, InDirLight, wall,
                                     *WallPlanarReflectionFramebuffer, WallPlanarViewProjection);
             bWallPlanarActive = true;
@@ -334,8 +335,12 @@ namespace Leon {
                                                  bool bHasDirLight, const FDirectionalLight& InDirLight,
                                                  const FPlanarReflectionPlane& InPlane, FFramebuffer& InTarget,
                                                  glm::mat4& OutViewProjection) {
-        uint32_t vpW = ViewportWidth > 0 ? ViewportWidth : 1280;
-        uint32_t vpH = ViewportHeight > 0 ? ViewportHeight : 720;
+        uint32_t vpW = InTarget.GetSpecification().Width;
+        uint32_t vpH = InTarget.GetSpecification().Height;
+        if (vpW == 0)
+            vpW = PlanarCaptureWidth();
+        if (vpH == 0)
+            vpH = PlanarCaptureHeight();
 
         glm::vec3 camPos = InCamera.GetPosition();
         glm::mat4 reflectMatrix = PlanarReflectionMatrix(InPlane.Normal, InPlane.Distance);

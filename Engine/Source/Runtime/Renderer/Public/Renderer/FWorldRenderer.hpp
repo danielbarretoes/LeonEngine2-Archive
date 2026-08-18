@@ -8,6 +8,7 @@
 #include "RHI/FShader.hpp"
 #include "RHI/FVertexArray.hpp"
 #include "Renderer/FPostProcessPipeline.hpp"
+#include "Renderer/FPlanarReflectionTypes.hpp"
 #include "Renderer/FShadowTypes.hpp"
 #include "Renderer/FShadowMath.hpp"
 
@@ -119,6 +120,10 @@ namespace Leon {
 
         void SetPlanarReflectionEnabled(bool bEnabled) { bEnablePlanarReflection = bEnabled; }
         bool IsPlanarReflectionEnabled() const { return bEnablePlanarReflection; }
+        void SetPlanarReflectionQuality(EPlanarReflectionQuality InQuality);
+        EPlanarReflectionQuality GetPlanarReflectionQuality() const { return PlanarQuality; }
+        void SetPlanarReflectionResolutionScale(float InScale);
+        float GetPlanarReflectionResolutionScale() const { return PlanarResolutionScale; }
 
         /** World plane n·x + Distance = 0. Floor is always captured; a facing wall mirror may use a second FBO. */
         struct FPlanarReflectionPlane {
@@ -133,7 +138,9 @@ namespace Leon {
          * @brief Apply project-level renderer defaults from DefaultEngine.ini.
          * Call before first FBO-heavy work when possible; CascadeResolution is read at construction.
          */
-        void ApplyProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection);
+        void ApplyProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
+                                          EPlanarReflectionQuality InPlanarQuality = EPlanarReflectionQuality::Epic,
+                                          float InPlanarResolutionScale = 0.0f);
 
     private:
         // ----- Render Passes -------------------------------------------------
@@ -166,6 +173,10 @@ namespace Leon {
 
         void UpdateIBL(const FSkyboxComponent& InSkybox);
 
+        void EnsurePlanarFramebuffers();
+        uint32_t PlanarCaptureWidth() const;
+        uint32_t PlanarCaptureHeight() const;
+
         // ----- Members -------------------------------------------------------
         UWorld* World = nullptr;
 
@@ -174,6 +185,8 @@ namespace Leon {
         int DebugMode = 0;
         bool bWireframeEnabled = false;
         bool bEnablePlanarReflection = true;
+        EPlanarReflectionQuality PlanarQuality = EPlanarReflectionQuality::Epic;
+        float PlanarResolutionScale = 1.0f;
 
         // Tracks the FBO active before Render() was called, restored after PostProcess
         uint32_t PreviousFBO = 0;
@@ -190,6 +203,7 @@ namespace Leon {
         float PlanarPlaneDistance = 0.0f;
         glm::mat4 WallPlanarViewProjection{1.0f};
         glm::vec3 WallPlanarPlaneNormal{0.0f, 0.0f, 1.0f};
+        float WallPlanarPlaneDistance = 0.0f;
         bool bWallPlanarActive = false;
         std::vector<FPlanarReflectionPlane> PlanarReflectionPlanes;
 

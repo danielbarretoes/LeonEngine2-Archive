@@ -147,7 +147,7 @@ This is **not** full Unreal config stacking (`Base.ini` + project + `Saved/Confi
 | :--- | :--- | :--- |
 | `/Script/Engine.DisplaySettings` | `WindowTitle`, `WindowWidth`, `WindowHeight`, `VSync`, `Fullscreen` | `FApplication` / `FWindow` |
 | `/Script/EngineSettings.GameMapsSettings` | `GameDefaultMap`, `GlobalDefaultGameMode` | Boot map + GameMode class |
-| `/Script/Engine.RendererSettings` | `ShadowMapResolution`, `EnablePlanarReflection` | `FWorldRenderer` project defaults (before first create) |
+| `/Script/Engine.RendererSettings` | `ShadowMapResolution`, `EnablePlanarReflection`, `PlanarReflectionQuality` (`Low`/`Medium`/`High`/`Epic`, default **Epic** = full viewport), optional `PlanarReflectionResolutionScale` (0.25–1.0) | `FWorldRenderer` project defaults (before first create) |
 | `/Script/Engine.RendererSettings` | `Exposure`, `SunIntensity` | Documented only — **map skybox / lights own these** (not overwritten) |
 | `/Script/Engine.InputSettings` | mouse look + Move* / Sprint keys | `FInputSettings` |
 | `/Script/<Project>.GameMode` | `GameModeClass`, `DefaultPawnClass`, … | `FGameModeConfig` |
@@ -289,6 +289,8 @@ PASS 5: Atmospheric Skybox Pass
 PASS 6: 3D In-World Text Pass
 PASS 7: Post-Process (Bloom + Tone Map + FXAA + Gamma)
 ```
+
+**Planar pass (PASS 3):** mirrored-camera capture into HDR FBOs, not cubemap probes. Floor FBO is always filled when a plane is registered; an optional wall FBO fills only when the camera faces that plane. Games currently register the floor (`n = +Y`, `d = 0`). Materials with `UsePlanarReflection` sample the capture on surfaces near the plane; chrome spheres and other curved metals stay on cubemap IBL. Contract: [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md#planar-reflections).
 
 ---
 
