@@ -22,7 +22,7 @@ namespace Leon {
     }
 
     ALeonTournamentCharacter::ALeonTournamentCharacter(entt::entity InHandle, UWorld* InWorld,
-                                 const std::string& InName)
+                                                       const std::string& InName)
         : ACharacter(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentCharacter");
     }
@@ -32,6 +32,10 @@ namespace Leon {
 
         if (!Health)
             Health = AddActorComponent<UHealthComponent>("Health");
+        if (!Inventory) {
+            Inventory = AddActorComponent<UInventoryComponent>("Inventory");
+            Inventory->SetSlotCount(static_cast<uint32_t>(ELeonTournamentWeaponId::Count));
+        }
         if (!Combat)
             Combat = AddActorComponent<ULeonTournamentCombatComponent>("Combat");
 
@@ -87,13 +91,6 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::EndPlay() {
-        for (auto*& slot : Inventory) {
-            if (slot && World) {
-                slot->SetOwnerCharacter(nullptr);
-                World->DestroyActor(slot);
-            }
-            slot = nullptr;
-        }
         Weapon = nullptr;
         ACharacter::EndPlay();
     }
@@ -135,49 +132,57 @@ namespace Leon {
     void ALeonTournamentCharacter::EnsureWeapon() {
         if (!World)
             return;
-        if (!Inventory[static_cast<size_t>(ELeonTournamentWeaponId::Rifle)]) {
-            Inventory[static_cast<size_t>(ELeonTournamentWeaponId::Rifle)] =
-                SpawnWeaponActor(ELeonTournamentWeaponId::Rifle);
-        }
+        if (!HasWeapon(ELeonTournamentWeaponId::Rifle))
+            GiveWeapon(ELeonTournamentWeaponId::Rifle, false);
         SelectWeapon(ELeonTournamentWeaponId::Rifle);
     }
 
     void ALeonTournamentCharacter::ClearInventoryKeepRifle() {
-        for (size_t i = 0; i < Inventory.size(); ++i) {
-            if (i == static_cast<size_t>(ELeonTournamentWeaponId::Rifle))
+        if (!Inventory)
+            return;
+        const uint32_t rifle = static_cast<uint32_t>(ELeonTournamentWeaponId::Rifle);
+        for (uint32_t i = 0; i < Inventory->GetSlotCount(); ++i) {
+            if (i == rifle)
                 continue;
-            if (Inventory[i] && World) {
-                Inventory[i]->SetOwnerCharacter(nullptr);
-                World->DestroyActor(Inventory[i]);
-            }
-            Inventory[i] = nullptr;
+            if (auto* weap = dynamic_cast<ALeonTournamentWeapon*>(Inventory->GetItem(i)))
+                weap->SetOwnerCharacter(nullptr);
+            Inventory->RemoveItem(i, true);
         }
-        if (auto* rifle = Inventory[static_cast<size_t>(ELeonTournamentWeaponId::Rifle)])
-            rifle->ResetMagazine();
+        if (auto* keep = GetInventoryWeapon(ELeonTournamentWeaponId::Rifle))
+            keep->ResetMagazine();
         SelectWeapon(ELeonTournamentWeaponId::Rifle);
     }
 
     bool ALeonTournamentCharacter::HasWeapon(ELeonTournamentWeaponId InId) const {
-        const size_t idx = static_cast<size_t>(InId);
-        return idx < Inventory.size() && Inventory[idx] != nullptr;
+        return Inventory && Inventory->HasItem(static_cast<uint32_t>(InId));
     }
 
     ALeonTournamentWeapon* ALeonTournamentCharacter::GetInventoryWeapon(ELeonTournamentWeaponId InId) const {
-        const size_t idx = static_cast<size_t>(InId);
-        return idx < Inventory.size() ? Inventory[idx] : nullptr;
+        if (!Inventory)
+            return nullptr;
+        return dynamic_cast<ALeonTournamentWeapon*>(Inventory->GetItem(static_cast<uint32_t>(InId)));
+    }
+
+    ELeonTournamentWeaponId ALeonTournamentCharacter::GetActiveWeaponId() const {
+        if (!Inventory)
+            return ELeonTournamentWeaponId::Rifle;
+        const uint32_t slot = Inventory->GetActiveSlot();
+        if (slot >= static_cast<uint32_t>(ELeonTournamentWeaponId::Count))
+            return ELeonTournamentWeaponId::Rifle;
+        return static_cast<ELeonTournamentWeaponId>(slot);
     }
 
     bool ALeonTournamentCharacter::SelectWeapon(ELeonTournamentWeaponId InId) {
-        const size_t idx = static_cast<size_t>(InId);
-        if (idx >= Inventory.size() || !Inventory[idx])
+        auto* next = GetInventoryWeapon(InId);
+        if (!next || !Inventory)
             return false;
-        if (Weapon && Weapon != Inventory[idx]) {
+        if (Weapon && Weapon != next) {
             Weapon->SetFireHeld(false);
             Weapon->CancelReload();
             Weapon->SetVisualHidden(true);
         }
-        ActiveWeaponId = InId;
-        Weapon = Inventory[idx];
+        Inventory->SetActiveSlot(static_cast<uint32_t>(InId));
+        Weapon = next;
         Weapon->SetVisualHidden(false);
         if (Combat)
             Combat->SetWeapon(Weapon);
@@ -186,30 +191,28 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::CycleWeapon(int InDirection) {
-        if (InDirection == 0)
+        if (!Inventory || InDirection == 0)
             return;
-        const int count = static_cast<int>(ELeonTournamentWeaponId::Count);
-        int cur = static_cast<int>(ActiveWeaponId);
-        for (int step = 0; step < count; ++step) {
-            cur = (cur + (InDirection > 0 ? 1 : -1) + count) % count;
-            if (SelectWeapon(static_cast<ELeonTournamentWeaponId>(cur)))
-                return;
-        }
+        Inventory->Cycle(InDirection);
+        SelectWeapon(GetActiveWeaponId());
     }
 
     bool ALeonTournamentCharacter::GiveWeapon(ELeonTournamentWeaponId InId, bool bAutoSwitch) {
-        const size_t idx = static_cast<size_t>(InId);
-        if (idx >= Inventory.size() || !World)
+        if (!Inventory || !World)
             return false;
-        if (Inventory[idx]) {
-            Inventory[idx]->ResetMagazine();
+        const uint32_t slot = static_cast<uint32_t>(InId);
+        if (auto* existing = GetInventoryWeapon(InId)) {
+            existing->ResetMagazine();
             if (bAutoSwitch)
                 SelectWeapon(InId);
             return true;
         }
-        Inventory[idx] = SpawnWeaponActor(InId);
-        if (!Inventory[idx])
+        ALeonTournamentWeapon* spawned = SpawnWeaponActor(InId);
+        if (!spawned || !Inventory->GiveItem(slot, spawned)) {
+            if (spawned)
+                World->DestroyActor(spawned);
             return false;
+        }
         if (bAutoSwitch)
             SelectWeapon(InId);
         return true;
@@ -366,10 +369,13 @@ namespace Leon {
     void ALeonTournamentCharacter::UpdatePresentationVisibility() {
         // FP body hide is UpdateMeshVisibility (!third-person + local). Never hide corpses.
         SetMeshHiddenInGame(false);
-        for (auto* slot : Inventory) {
-            if (!slot)
-                continue;
-            slot->SetVisualHidden(bDeadFrozen || slot != Weapon);
+        if (Inventory) {
+            for (AActor* actor : Inventory->GetItems()) {
+                auto* slot = dynamic_cast<ALeonTournamentWeapon*>(actor);
+                if (!slot)
+                    continue;
+                slot->SetVisualHidden(bDeadFrozen || slot != Weapon);
+            }
         }
         UpdateTeamOutline();
     }
@@ -397,8 +403,8 @@ namespace Leon {
         }
 
         const ELeonTournamentTeam myTeam = GetTeam();
-        const bool bAlly = localTeam != ELeonTournamentTeam::None && myTeam != ELeonTournamentTeam::None &&
-                           myTeam == localTeam;
+        const bool bAlly =
+            localTeam != ELeonTournamentTeam::None && myTeam != ELeonTournamentTeam::None && myTeam == localTeam;
         skel.bDrawOutline = true;
         skel.OutlineColor = bAlly ? glm::vec3(0.10f, 0.95f, 0.28f) : glm::vec3(1.0f, 0.02f, 0.02f);
         skel.OutlineWidth = 0.038f;
@@ -551,8 +557,7 @@ namespace Leon {
 
         bool bFire = FInput::IsMouseButtonPressed(Mouse::ButtonLeft);
         if (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
-            FInput::GetGamepadTrigger(GamepadAxis::RightTrigger, input.GamepadId, input.GamepadTriggerThreshold) >
-                0.0f)
+            FInput::GetGamepadTrigger(GamepadAxis::RightTrigger, input.GamepadId, input.GamepadTriggerThreshold) > 0.0f)
             bFire = true;
 
         bool bReload = FInput::IsKeyPressed(Key::R);
@@ -708,7 +713,7 @@ namespace Leon {
         FNetBlob::WriteI32(OutBytes, Weapon ? Weapon->GetCurrentAmmo() : 0);
         FNetBlob::WriteI32(OutBytes, Weapon ? Weapon->GetMagazineSize() : 0);
         FNetBlob::WriteU8(OutBytes, Weapon && Weapon->IsReloading() ? 1 : 0);
-        FNetBlob::WriteU8(OutBytes, static_cast<uint8_t>(ActiveWeaponId));
+        FNetBlob::WriteU8(OutBytes, static_cast<uint8_t>(GetActiveWeaponId()));
         FNetBlob::WriteU8(OutBytes, Health && Health->IsDead() ? 1 : 0);
         FNetBlob::WriteU8(OutBytes, PendingHitConfirm);
         FNetBlob::WriteU8(OutBytes, PendingDamageFlash);

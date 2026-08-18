@@ -105,6 +105,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/USceneComponent.cpp
     Source/Runtime/Gameplay/Private/UHealthComponent.cpp
     Source/Runtime/Gameplay/Private/UCombatComponent.cpp
+    Source/Runtime/Gameplay/Private/UInventoryComponent.cpp
     Source/Runtime/Gameplay/Private/UClassRegistry.cpp
     Source/Runtime/Gameplay/Private/UAnimInstance.cpp
     Source/Runtime/Gameplay/Private/USkeletalMeshComponent.cpp
@@ -119,6 +120,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/AProjectile.cpp
     Source/Runtime/Gameplay/Private/APickup.cpp
     Source/Runtime/Gameplay/Private/ALaunchPad.cpp
+    Source/Runtime/Gameplay/Private/AWeaponBase.cpp
     Source/Runtime/Gameplay/Private/USpringArmComponent.cpp
     Source/Runtime/Gameplay/Private/UParticleComponent.cpp
     Source/Runtime/Gameplay/Private/AController.cpp

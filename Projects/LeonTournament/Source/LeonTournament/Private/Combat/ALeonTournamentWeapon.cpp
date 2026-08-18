@@ -58,11 +58,10 @@ namespace Leon {
     } // namespace
 
     ALeonTournamentWeapon::ALeonTournamentWeapon(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AActor(InHandle, InWorld, InName) {
+        : AWeaponBase(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentWeapon");
         Config = LeonTournamentWeaponPreset(WeaponId);
-        CurrentAmmo = Config.MagazineSize;
-        CurrentSpreadDeg = Config.BaseSpreadDeg;
+        SetConfig(Config);
     }
 
     ALeonTournamentRifle::ALeonTournamentRifle(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
@@ -105,6 +104,11 @@ namespace Leon {
         SetWeaponId(ELeonTournamentWeaponId::Flamethrower);
     }
 
+    void ALeonTournamentWeapon::SetOwnerCharacter(ALeonTournamentCharacter* InOwner) {
+        OwnerCharacter = InOwner;
+        SetOwnerPawn(InOwner);
+    }
+
     void ALeonTournamentWeapon::SetWeaponId(ELeonTournamentWeaponId InId) {
         WeaponId = InId;
         SetConfig(LeonTournamentWeaponPreset(InId));
@@ -112,7 +116,10 @@ namespace Leon {
 
     void ALeonTournamentWeapon::SetConfig(const FLeonTournamentWeaponConfig& InConfig) {
         Config = InConfig;
-        CurrentAmmo = Config.MagazineSize;
+        SetAmmoCapacity(Config.MagazineSize);
+        SetFireRate(Config.FireRate);
+        SetReloadTime(Config.ReloadTime);
+        CurrentAmmo = AmmoCapacity;
         CurrentSpreadDeg = Config.BaseSpreadDeg;
     }
 
@@ -157,7 +164,7 @@ namespace Leon {
     }
 
     bool ALeonTournamentWeapon::CanFire() const {
-        if (!OwnerCharacter || bReloading || CurrentAmmo <= 0 || FireCooldown > 0.0f)
+        if (!AWeaponBase::CanFire() || !OwnerCharacter)
             return false;
         if (auto health = OwnerCharacter->GetHealthComponent()) {
             if (health->IsDead())
@@ -189,7 +196,8 @@ namespace Leon {
     void ALeonTournamentWeapon::SpawnFireEffects(const glm::vec3& InMuzzle, const glm::vec3& InTracerStart,
                                                  const glm::vec3& InTraceEnd, bool bHitWorld, bool bHitCharacter) {
         const FLeonTournamentWeaponVfxContext ctx{World, OwnerCharacter, WeaponId, &Config};
-        LastVfxSpawnCount = FLeonTournamentWeaponVfx::SpawnFireEffects(ctx, InMuzzle, InTracerStart, InTraceEnd, bHitWorld, bHitCharacter);
+        LastVfxSpawnCount = FLeonTournamentWeaponVfx::SpawnFireEffects(ctx, InMuzzle, InTracerStart, InTraceEnd,
+                                                                       bHitWorld, bHitCharacter);
     }
 
     void ALeonTournamentWeapon::SpawnRocketLaunchEffects(const glm::vec3& InMuzzle) {
@@ -312,7 +320,8 @@ namespace Leon {
         AddShotBloom();
         if (Config.RecoilPitchDeg > 0.0f) {
             std::uniform_real_distribution<float> kick(0.55f, 1.0f);
-            OwnerCharacter->SetControlPitch(OwnerCharacter->GetControlPitch() + Config.RecoilPitchDeg * kick(WeaponRng()));
+            OwnerCharacter->SetControlPitch(OwnerCharacter->GetControlPitch() +
+                                            Config.RecoilPitchDeg * kick(WeaponRng()));
         }
 
         const int pellets = std::max(1, Config.PelletCount);
@@ -359,7 +368,8 @@ namespace Leon {
         AddShotBloom();
         if (Config.RecoilPitchDeg > 0.0f) {
             std::uniform_real_distribution<float> kick(0.7f, 1.0f);
-            OwnerCharacter->SetControlPitch(OwnerCharacter->GetControlPitch() + Config.RecoilPitchDeg * kick(WeaponRng()));
+            OwnerCharacter->SetControlPitch(OwnerCharacter->GetControlPitch() +
+                                            Config.RecoilPitchDeg * kick(WeaponRng()));
         }
 
         const glm::vec3 muzzle = OwnerCharacter->GetMuzzleSocketLocation();
@@ -407,22 +417,14 @@ namespace Leon {
     }
 
     bool ALeonTournamentWeapon::ServerFire() {
-        if (!World || World->GetNetMode() == ENetMode::Client)
-            return false;
-        if (!CanFire() || !OwnerCharacter)
-            return false;
-        if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World->GetGameMode())) {
+        if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr)) {
             auto* gs = gm->GetGameState();
             if (gs && gs->GetMatchState() != ELeonTournamentMatchState::Playing)
                 return false;
         }
-
-        --CurrentAmmo;
-        FireCooldown = Config.FireRate > 0.0f ? 1.0f / Config.FireRate : 0.1f;
+        if (!AWeaponBase::ServerFire())
+            return false;
         bFiring = true;
-
-        if (CurrentAmmo <= 0)
-            StartReload();
 
         if (Config.FireMode == ELeonTournamentFireMode::Projectile)
             return FireProjectile();
@@ -432,27 +434,16 @@ namespace Leon {
     }
 
     bool ALeonTournamentWeapon::StartReload() {
-        if (World && World->GetNetMode() == ENetMode::Client)
-            return false;
-        if (bReloading || CurrentAmmo >= Config.MagazineSize)
-            return false;
         if (OwnerCharacter && OwnerCharacter->GetHealthComponent() && OwnerCharacter->GetHealthComponent()->IsDead())
             return false;
-        bReloading = true;
-        ReloadRemaining = Config.ReloadTime;
+        if (!AWeaponBase::StartReload())
+            return false;
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleReload", 0.7f);
         return true;
     }
 
-    void ALeonTournamentWeapon::CancelReload() {
-        bReloading = false;
-        ReloadRemaining = 0.0f;
-    }
-
     void ALeonTournamentWeapon::ResetMagazine() {
-        CancelReload();
-        CurrentAmmo = Config.MagazineSize;
-        FireCooldown = 0.0f;
+        AWeaponBase::ResetMagazine();
         CurrentSpreadDeg = Config.BaseSpreadDeg;
         bFiring = false;
         bFireHeld = false;
@@ -479,24 +470,12 @@ namespace Leon {
     }
 
     void ALeonTournamentWeapon::Tick(float DeltaSeconds) {
-        if (FireCooldown > 0.0f)
-            FireCooldown = std::max(0.0f, FireCooldown - DeltaSeconds);
+        AWeaponBase::Tick(DeltaSeconds);
         if (CurrentSpreadDeg > Config.BaseSpreadDeg)
             CurrentSpreadDeg =
                 std::max(Config.BaseSpreadDeg, CurrentSpreadDeg - Config.SpreadRecoveryPerSec * DeltaSeconds);
 
-        const bool bAuthority = !World || World->GetNetMode() != ENetMode::Client;
-        if (bAuthority && CurrentAmmo <= 0 && !bReloading)
-            StartReload();
-        if (bAuthority && bReloading) {
-            ReloadRemaining -= DeltaSeconds;
-            if (ReloadRemaining <= 0.0f) {
-                CurrentAmmo = Config.MagazineSize;
-                bReloading = false;
-                ReloadRemaining = 0.0f;
-            }
-        }
-
+        const bool bAuthority = !IsClientNetMode();
         bFiring = false;
         if (bAuthority && bFireHeld && CanFire())
             ServerFire();

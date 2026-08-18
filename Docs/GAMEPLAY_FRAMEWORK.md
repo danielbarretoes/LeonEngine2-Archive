@@ -12,6 +12,8 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 | `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement | Movement, mesh, weapons |
 | `APlayerController` | Input, possession, camera, local HUD interaction, commands to authority | Health, score, weapon implementation, match rules |
 | `APawn` / `ACharacter` | Capsule, movement, mesh, jump/fall/land, camera attach | Rifle/ammo, TDM, team assignment, kill scoring |
+| `UInventoryComponent` | Actor slot bag (`GiveItem` / `RemoveItem` / `Cycle`) | Weapon traces, ammo refill rules, teams |
+| `AWeaponBase` | Owner pawn, magazine, fire cooldown, reload timer | TDM, presets, VFX, damage traces |
 | `UActorComponent` | One explicit job (health, movement, particles, …) | Secret product-class dependencies |
 
 ## Match flow (canonical owners)
@@ -75,17 +77,17 @@ Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`
 | `AGameStateBase` | `ALeonTournamentGameState` | TeamScores, MatchState, MatchTime, Winner |
 | `APlayerState` | `ALeonTournamentPlayerState` | Team, kills, deaths |
 | `APlayerController` | `ALeonTournamentPlayerController` | Look/fire commands, local HUD |
-| `ACharacter` | `ALeonTournamentCharacter` | First-person shooter pawn |
+| `ACharacter` | `ALeonTournamentCharacter` | First-person shooter pawn; arsenal slots via Engine `UInventoryComponent` |
 | `UAnimInstance` | `ULeonTournamentAnimInstance` | Reads locomotion; no TDM rules |
 | `AAIController` | `ALeonTournamentBotController` | TDM enemy filter + BT asset; sight via Engine `UAIPerceptionComponent` |
 | `AHUD` | `ALeonTournamentHUD` | Crosshair, scores, hit marker |
-| — | `ALeonTournamentWeapon` | Arsenal, ammo, traces → damage |
+| `AWeaponBase` | `ALeonTournamentWeapon` | Arsenal, ammo, traces → damage |
 | — | `FLeonTournamentArenaBuilder` | Shared procedural arena/lab box spawn |
 | — | `FLeonTournamentDamageRules` | Friendly-fire / self-damage checks |
 | — | `FLeonTournamentWeaponVfx` | Muzzle/tracer/flame particle helpers |
 | — | `FLeonTournamentUILayout` | Product GI/GM accessors wrapping Engine `FUILayout` |
 
-`UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and traces live on `ALeonTournamentWeapon`.
+`UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and cooldown live on Engine `AWeaponBase`; traces and presets live on `ALeonTournamentWeapon`.
 
 ### LeonTournament source layout
 

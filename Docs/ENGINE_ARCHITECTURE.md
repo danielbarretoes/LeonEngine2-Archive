@@ -35,6 +35,7 @@ UObject
 │   ├── UPathFollowingComponent
 │   ├── UHealthComponent          (generic hit points)
 │   ├── UCombatComponent          (generic attack-gate / cooldown)
+│   ├── UInventoryComponent       (generic actor-slot bag)
 │   ├── UParticleComponent
 │   ├── USkeletalMeshComponent
 │   └── USpringArmComponent
@@ -48,6 +49,10 @@ UObject
     ├── AGameStateBase
     ├── AHUD
     ├── ACameraActor
+    ├── APickup
+    ├── ALaunchPad
+    ├── AProjectile
+    ├── AWeaponBase               (owner pawn, magazine, fire stub)
     └── volumes (ABlockingVolume, APhysicsVolume, ANavMeshBoundsVolume)
 ```
 
@@ -109,6 +114,8 @@ Hardware → FInput / FInputSettings → APlayerController → APawn / ACharacte
 ```
 
 Engine mappings are generic (`MoveForward`, `Look`, `Jump`, `Sprint`). Fire / Reload and any weapon action are bound in the game project.
+
+`UInventoryComponent` stores `AActor*` by slot id (`GiveItem` / `RemoveItem` / `GetActive` / `Cycle`). `AWeaponBase` owns magazine, fire cooldown, and a stub `ServerFire`; traces, VFX, and match rules stay in the game.
 
 ## Animation flow
 

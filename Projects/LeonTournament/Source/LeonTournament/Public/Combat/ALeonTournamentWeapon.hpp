@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Gameplay/AActor.hpp"
+#include "Gameplay/AWeaponBase.hpp"
 #include "FLeonTournamentTypes.hpp"
 
 namespace Leon {
 
     class ALeonTournamentCharacter;
 
-    class ALeonTournamentWeapon : public AActor {
+    class ALeonTournamentWeapon : public AWeaponBase {
     public:
         ALeonTournamentWeapon() = default;
         ALeonTournamentWeapon(entt::entity InHandle, UWorld* InWorld,
@@ -15,7 +15,7 @@ namespace Leon {
 
         void Tick(float DeltaSeconds) override;
 
-        void SetOwnerCharacter(ALeonTournamentCharacter* InOwner) { OwnerCharacter = InOwner; }
+        void SetOwnerCharacter(ALeonTournamentCharacter* InOwner);
         ALeonTournamentCharacter* GetOwnerCharacter() const { return OwnerCharacter; }
 
         ELeonTournamentWeaponId GetWeaponId() const { return WeaponId; }
@@ -24,20 +24,17 @@ namespace Leon {
         const FLeonTournamentWeaponConfig& GetConfig() const { return Config; }
         void SetConfig(const FLeonTournamentWeaponConfig& InConfig);
 
-        int32_t GetCurrentAmmo() const { return CurrentAmmo; }
-        int32_t GetMagazineSize() const { return Config.MagazineSize; }
-        bool IsReloading() const { return bReloading; }
         bool IsFiring() const { return bFiring; }
+        bool IsReloading() const { return IsReloadInProgress(); }
+        int32_t GetMagazineSize() const { return GetAmmoCapacity(); }
         bool CanAimDownSights() const { return Config.ScopeFOV > 1.0f; }
 
         void SetFireHeld(bool bHeld);
-        bool CanFire() const;
-        bool ServerFire();
-        bool StartReload();
-        void CancelReload();
-        void ResetMagazine();
+        bool CanFire() const override;
+        bool ServerFire() override;
+        bool StartReload() override;
+        void ResetMagazine() override;
         void ApplyReplicatedState(int32_t InAmmo, bool bInReloading);
-        float GetReloadRemaining() const { return ReloadRemaining; }
 
         /** True when magazine is empty and a reload can start. */
         bool NeedsReload() const;
@@ -65,18 +62,15 @@ namespace Leon {
         bool FireHitscan();
         bool FireProjectile();
         bool FireFlame();
-        bool ApplyHitscanDamage(const glm::vec3& InOrigin, const glm::vec3& InDir, float InDamage, glm::vec3& OutTraceEnd,
-                                bool& OutHitWorld, bool& OutHitCharacter, int32_t InMaxBounces = 0);
+        bool ApplyHitscanDamage(const glm::vec3& InOrigin, const glm::vec3& InDir, float InDamage,
+                                glm::vec3& OutTraceEnd, bool& OutHitWorld, bool& OutHitCharacter,
+                                int32_t InMaxBounces = 0);
 
     protected:
         ELeonTournamentWeaponId WeaponId = ELeonTournamentWeaponId::Rifle;
         FLeonTournamentWeaponConfig Config;
         ALeonTournamentCharacter* OwnerCharacter = nullptr;
-        int32_t CurrentAmmo = 20;
-        float FireCooldown = 0.0f;
-        float ReloadRemaining = 0.0f;
         float CurrentSpreadDeg = 0.35f;
-        bool bReloading = false;
         bool bFireHeld = false;
         bool bFiring = false;
         bool bVisualReady = false;

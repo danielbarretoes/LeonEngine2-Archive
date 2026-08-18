@@ -2,13 +2,12 @@
 
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/UHealthComponent.hpp"
+#include "Gameplay/UInventoryComponent.hpp"
 #include "ULeonTournamentAnimInstance.hpp"
 #include "ULeonTournamentCombatComponent.hpp"
 #include "ALeonTournamentWeapon.hpp"
 #include "FLeonTournamentTypes.hpp"
 #include "Engine/FNetBlob.hpp"
-
-#include <array>
 
 namespace Leon {
 
@@ -28,6 +27,7 @@ namespace Leon {
         void UpdateAnimInstance(UAnimInstance& InAnim) const override;
 
         TRef<UHealthComponent> GetHealthComponent() const { return Health; }
+        TRef<UInventoryComponent> GetInventoryComponent() const { return Inventory; }
         TRef<ULeonTournamentCombatComponent> GetCombatComponent() const { return Combat; }
         ALeonTournamentWeapon* GetWeapon() const { return Weapon; }
         ALeonTournamentPlayerState* GetPlayerState() const;
@@ -56,7 +56,7 @@ namespace Leon {
         bool HasWeapon(ELeonTournamentWeaponId InId) const;
         bool SelectWeapon(ELeonTournamentWeaponId InId);
         void CycleWeapon(int InDirection);
-        ELeonTournamentWeaponId GetActiveWeaponId() const { return ActiveWeaponId; }
+        ELeonTournamentWeaponId GetActiveWeaponId() const;
         ALeonTournamentWeapon* GetInventoryWeapon(ELeonTournamentWeaponId InId) const;
 
         void BotMoveToward(const glm::vec3& InWorldTarget, float DeltaSeconds, float InSpeedScale = 1.0f);
@@ -92,11 +92,10 @@ namespace Leon {
         void UpdateAimDownSights(float DeltaSeconds);
 
         TRef<UHealthComponent> Health;
+        TRef<UInventoryComponent> Inventory;
         TRef<ULeonTournamentCombatComponent> Combat;
         TRef<ULeonTournamentAnimInstance> AnimInst;
         ALeonTournamentWeapon* Weapon = nullptr;
-        std::array<ALeonTournamentWeapon*, static_cast<size_t>(ELeonTournamentWeaponId::Count)> Inventory{};
-        ELeonTournamentWeaponId ActiveWeaponId = ELeonTournamentWeaponId::Rifle;
         uint8_t PendingNetBits = 0;
         bool bHasPendingNetInput = false;
         bool bBot = false;
