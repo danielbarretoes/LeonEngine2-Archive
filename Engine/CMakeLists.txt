@@ -106,6 +106,9 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/UHealthComponent.cpp
     Source/Runtime/Gameplay/Private/UCombatComponent.cpp
     Source/Runtime/Gameplay/Private/UInventoryComponent.cpp
+    Source/Runtime/Gameplay/Private/FControlInput.cpp
+    Source/Runtime/Gameplay/Private/FProceduralPrimitiveSpawner.cpp
+    Source/Runtime/Gameplay/Private/UFootstepComponent.cpp
     Source/Runtime/Gameplay/Private/UClassRegistry.cpp
     Source/Runtime/Gameplay/Private/UAnimInstance.cpp
     Source/Runtime/Gameplay/Private/USkeletalMeshComponent.cpp

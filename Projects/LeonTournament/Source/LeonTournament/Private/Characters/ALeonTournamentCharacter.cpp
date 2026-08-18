@@ -8,6 +8,7 @@
 #include "Engine/Components.hpp"
 #include "Engine/UEngine.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Gameplay/FControlInput.hpp"
 #include "Physics/FSimplePhysicsScene.hpp"
 #include "Renderer/FRenderingMath.hpp"
 
@@ -38,6 +39,10 @@ namespace Leon {
         }
         if (!Combat)
             Combat = AddActorComponent<ULeonTournamentCombatComponent>("Combat");
+        if (!Footsteps) {
+            Footsteps = AddActorComponent<UFootstepComponent>("Footsteps");
+            Footsteps->SetSoundPath("/Game/Audio/SFX_Footstep");
+        }
 
         if (GetMesh()) {
             AnimInst = MakeRef<ULeonTournamentAnimInstance>("LeonTournamentAnim");
@@ -410,18 +415,6 @@ namespace Leon {
         skel.OutlineWidth = 0.038f;
     }
 
-    void ALeonTournamentCharacter::UpdateFootstepAudio(float DeltaSeconds) {
-        FootstepCooldown = std::max(0.0f, FootstepCooldown - DeltaSeconds);
-        if (bDeadFrozen || IsFalling())
-            return;
-        const float speed = GetAnimRepState().Speed;
-        if (speed < 1.15f || FootstepCooldown > 0.0f)
-            return;
-        const float maxSpeed = std::max(1.0f, GetMoveSpeed());
-        FootstepCooldown = std::clamp(0.42f * (maxSpeed / speed), 0.26f, 0.52f);
-        UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_Footstep", GetActorLocation(), 0.45f, 1200.0f);
-    }
-
     void ALeonTournamentCharacter::BeginDeathRagdoll() {
         auto cap = GetCapsuleComponent();
         if (!cap)
@@ -623,8 +616,6 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::Tick(float DeltaSeconds) {
-        if (GetLocalRole() == ENetRole::Authority && !IsLocallyControlled())
-            FlushPendingNetInput(DeltaSeconds);
         ACharacter::Tick(DeltaSeconds);
         UpdateAimDownSights(DeltaSeconds);
         DodgeCooldownRemaining = std::max(0.0f, DodgeCooldownRemaining - DeltaSeconds);
@@ -660,7 +651,6 @@ namespace Leon {
             }
         }
         UpdatePresentationVisibility();
-        UpdateFootstepAudio(DeltaSeconds);
     }
 
     void ALeonTournamentCharacter::UpdateAnimInstance(UAnimInstance& InAnim) const {
@@ -754,42 +744,27 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::SerializeControlInput(std::vector<uint8_t>& OutBytes) const {
-        FNetBlob::WriteF32(OutBytes, GetControlYaw());
-        FNetBlob::WriteF32(OutBytes, GetControlPitch());
-        uint8_t bits = 0;
-        const auto& in = FInputSettings::Get();
-        if (FInput::IsKeyPressed(in.MoveForwardKey))
-            bits |= 1;
-        if (FInput::IsKeyPressed(in.MoveBackwardKey))
-            bits |= 2;
-        if (FInput::IsKeyPressed(in.MoveLeftKey))
-            bits |= 4;
-        if (FInput::IsKeyPressed(in.MoveRightKey))
-            bits |= 8;
-        if (FInput::IsKeyPressed(in.JumpKey))
-            bits |= 16;
-        if (FInput::IsMouseButtonPressed(Mouse::ButtonLeft))
-            bits |= 64;
-        FNetBlob::WriteU8(OutBytes, bits);
+        FControlInput input = BuildLocalControlInput();
+        bool bFire = FInput::IsMouseButtonPressed(Mouse::ButtonLeft);
+        const FInputSettings& settings = FInputSettings::Get();
+        if (settings.bEnableGamepad && FInput::IsGamepadConnected(settings.GamepadId) &&
+            FInput::GetGamepadTrigger(GamepadAxis::RightTrigger, settings.GamepadId, settings.GamepadTriggerThreshold) >
+                0.0f)
+            bFire = true;
+        input.SetAction(FControlInput::CustomBit0, bFire);
+        input.Serialize(OutBytes);
     }
 
     void ALeonTournamentCharacter::ApplyControlInput(const uint8_t* InData, size_t InSize) {
-        std::vector<uint8_t> bytes(InData, InData + InSize);
-        size_t offset = 0;
-        float yaw = 0, pitch = 0;
-        uint8_t bits = 0;
-        if (!FNetBlob::ReadF32(bytes, offset, yaw) || !FNetBlob::ReadF32(bytes, offset, pitch) ||
-            !FNetBlob::ReadU8(bytes, offset, bits))
+        FControlInput input;
+        if (!input.Deserialize(InData, InSize))
             return;
-        SetControlYaw(yaw);
-        SetControlPitch(pitch);
-        PendingNetBits = bits;
-        bHasPendingNetInput = true;
+        ApplyControlSchema(input);
+        ApplyLookRotation();
         if (bDeadFrozen)
             return;
         if (Combat)
-            Combat->SetFireHeld((bits & 64) != 0);
-        ApplyLookRotation();
+            Combat->SetFireHeld(input.HasAction(FControlInput::CustomBit0));
     }
 
     bool ALeonTournamentCharacter::HandleServerRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) {
@@ -797,41 +772,12 @@ namespace Leon {
         (void)InSize;
         if (bDeadFrozen)
             return true;
-        // Discrete reload. Fire-held stays on control-input bit 64.
         if (InFunctionId == kServerRpcReload) {
             if (Combat)
                 Combat->RequestReload();
             return true;
         }
         return false;
-    }
-
-    void ALeonTournamentCharacter::FlushPendingNetInput(float DeltaSeconds) {
-        if (!bHasPendingNetInput)
-            return;
-        bHasPendingNetInput = false;
-        if (bDeadFrozen)
-            return;
-        const uint8_t bits = PendingNetBits;
-        glm::vec3 forward = GetControlPlanarForward();
-        glm::vec3 right(-forward.z, 0.0f, forward.x);
-        glm::vec3 wish(0.0f);
-        if (bits & 1)
-            wish += forward;
-        if (bits & 2)
-            wish -= forward;
-        if (bits & 4)
-            wish -= right;
-        if (bits & 8)
-            wish += right;
-        if (auto move = GetCharacterMovement()) {
-            if (glm::length(wish) > 1e-4f)
-                move->AddInputVector(glm::normalize(wish) * GetMoveSpeed());
-        }
-        if (bits & 16)
-            Jump();
-        ApplyLookRotation();
-        (void)DeltaSeconds;
     }
 
 } // namespace Leon

@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Engine `FUILayout` (measured canvas helpers), `UProgressBar`, and lite `UHorizontalBox` / `UVerticalBox`. LeonTournament HUD health/ammo use ProgressBar; product GI/GM accessors stay on `FLeonTournamentUILayout`.
 - `UAIPerceptionComponent` / `FAISightConfig` (radius, half-FOV, LOS trace) on `AAIController`. LeonTournament bots delegate sight and last-known memory; team filters stay in the project.
 - `UInventoryComponent` (slot bag: `GiveItem` / `RemoveItem` / `GetActive` / `Cycle`) and `AWeaponBase` (owner pawn, magazine, fire stub). LeonTournament characters store the arsenal on the Engine inventory; weapon traces/presets stay on `ALeonTournamentWeapon`.
+- `FControlInput` control blob (analog move, look, Jump/Crouch/Sprint bits) on `ACharacter`. LeonTournament maps held fire to `CustomBit0`; reload stays ServerRPC.
+- `FProceduralPrimitiveSpawner::SpawnStaticBox` and `UFootstepComponent` (game supplies the sound path).
 
 ### Renderer math contract (CPU / GPU / baker)
 

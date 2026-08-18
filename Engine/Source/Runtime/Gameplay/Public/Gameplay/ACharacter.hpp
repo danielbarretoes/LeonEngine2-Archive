@@ -3,6 +3,7 @@
 #include "Core/FInput.hpp"
 #include "Core/FInputSettings.hpp"
 #include "Gameplay/APawn.hpp"
+#include "Gameplay/FControlInput.hpp"
 #include "Gameplay/USkeletalMeshComponent.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/UCharacterMovementComponent.hpp"
@@ -31,6 +32,8 @@ namespace Leon {
         void PostInitializeComponents() override;
         void Tick(float DeltaSeconds) override;
         void SetupPlayerInputComponent(float DeltaSeconds) override;
+        void SerializeControlInput(std::vector<uint8_t>& OutBytes) const override;
+        void ApplyControlInput(const uint8_t* InData, size_t InSize) override;
 
         TRef<UCapsuleComponent> GetCapsuleComponent() const { return CapsuleComponent; }
         TRef<UCharacterMovementComponent> GetCharacterMovement() const { return CharacterMovement; }
@@ -122,6 +125,12 @@ namespace Leon {
     protected:
         /** When false, look still drives the camera but does not yaw the pawn (death free-cam). */
         virtual bool ShouldApplyControlYawToActor() const { return true; }
+        /** Remote control-move apply (listen-server). Death freeze overrides this. */
+        virtual bool CanApplyControlMove() const { return true; }
+
+        FControlInput BuildLocalControlInput() const;
+        void ApplyControlSchema(const FControlInput& InInput);
+        void FlushPendingControlInput(float DeltaSeconds);
 
     private:
         void SnapToFloor();
@@ -146,6 +155,8 @@ namespace Leon {
         bool bThirdPerson = false;
         bool bMeshHiddenInGame = false;
         bool bJumpWasDown = false;
+        bool bHasPendingControlInput = false;
+        FControlInput PendingControlInput;
 
         float Yaw = -90.0f;
         float Pitch = 0.0f;

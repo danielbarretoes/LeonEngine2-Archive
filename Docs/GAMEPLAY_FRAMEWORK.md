@@ -11,7 +11,9 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 | `AGameStateBase` | Replicated world/match facts (phase, timer, team scores, winner) | Input, camera, weapon impl, local UI, spawn algorithms |
 | `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement | Movement, mesh, weapons |
 | `APlayerController` | Input, possession, camera, local HUD interaction, commands to authority | Health, score, weapon implementation, match rules |
-| `APawn` / `ACharacter` | Capsule, movement, mesh, jump/fall/land, camera attach | Rifle/ammo, TDM, team assignment, kill scoring |
+| `APawn` / `ACharacter` | Capsule, movement, mesh, jump/fall/land, camera attach, `FControlInput` serialize | Rifle/ammo, TDM, team assignment, kill scoring |
+| `FControlInput` | Analog move, look, Jump/Crouch/Sprint bits | Fire, reload, weapon cycle, teams |
+| `UFootstepComponent` | Grounded cadence SFX from a game-supplied path | Product audio asset names hardcoded |
 | `UInventoryComponent` | Actor slot bag (`GiveItem` / `RemoveItem` / `Cycle`) | Weapon traces, ammo refill rules, teams |
 | `AWeaponBase` | Owner pawn, magazine, fire cooldown, reload timer | TDM, presets, VFX, damage traces |
 | `UActorComponent` | One explicit job (health, movement, particles, …) | Secret product-class dependencies |
@@ -87,7 +89,7 @@ Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`
 | — | `FLeonTournamentWeaponVfx` | Muzzle/tracer/flame particle helpers |
 | — | `FLeonTournamentUILayout` | Product GI/GM accessors wrapping Engine `FUILayout` |
 
-`UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and cooldown live on Engine `AWeaponBase`; traces and presets live on `ALeonTournamentWeapon`.
+`UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and cooldown live on Engine `AWeaponBase`; traces and presets live on `ALeonTournamentWeapon`. Held fire is `FControlInput::CustomBit0`; reload stays a ServerRPC.
 
 ### LeonTournament source layout
 

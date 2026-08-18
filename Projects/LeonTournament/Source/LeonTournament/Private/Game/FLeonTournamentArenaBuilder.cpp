@@ -1,4 +1,5 @@
 #include "FLeonTournamentArenaBuilder.hpp"
+#include "Gameplay/FProceduralPrimitiveSpawner.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Core/FApplication.hpp"
 #include "Engine/Components.hpp"
@@ -34,15 +35,9 @@ namespace Leon {
                                                   const glm::vec3& InLocation, const glm::vec3& InScale,
                                                   ELeonTournamentArenaSurface InSurface, const glm::vec3& InTint,
                                                   float InUvTile) {
-        if (!InWorld)
+        AActor* actor = FProceduralPrimitiveSpawner::SpawnStaticBox(InWorld, InName, InLocation, InScale);
+        if (!actor)
             return nullptr;
-        AActor* actor = InWorld->SpawnActor<AActor>(InName);
-        actor->SetActorLocation(InLocation);
-        actor->SetActorScale(InScale);
-        auto box = actor->AddActorComponent<UBoxComponent>("Box");
-        box->SetBoxExtent(glm::vec3(0.5f));
-        box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
-        box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         if (FApplication::HasInstance()) {
             auto va = FMeshPrimitives::CreateCube(1.0f);
             auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
@@ -76,15 +71,9 @@ namespace Leon {
     AActor* FLeonTournamentArenaBuilder::SpawnSimpleBox(UWorld* InWorld, const std::string& InName,
                                                         const glm::vec3& InLocation, const glm::vec3& InScale,
                                                         const glm::vec3& InColor) {
-        if (!InWorld)
+        AActor* actor = FProceduralPrimitiveSpawner::SpawnStaticBox(InWorld, InName, InLocation, InScale);
+        if (!actor)
             return nullptr;
-        AActor* actor = InWorld->SpawnActor<AActor>(InName);
-        actor->SetActorLocation(InLocation);
-        actor->SetActorScale(InScale);
-        auto box = actor->AddActorComponent<UBoxComponent>("Box");
-        box->SetBoxExtent(glm::vec3(0.5f));
-        box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
-        box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         if (FApplication::HasInstance()) {
             auto va = FMeshPrimitives::CreateCube(1.0f);
             auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
@@ -105,8 +94,7 @@ namespace Leon {
 
     AActor* FLeonTournamentArenaBuilder::SpawnPointLight(UWorld* InWorld, const std::string& InName,
                                                          const glm::vec3& InPos, const glm::vec3& InColor,
-                                                         float InIntensity, float InRadius,
-                                                         ELightMobility InMobility) {
+                                                         float InIntensity, float InRadius, ELightMobility InMobility) {
         if (!InWorld)
             return nullptr;
         AActor* actor = InWorld->SpawnActor<AActor>(InName);
@@ -125,8 +113,7 @@ namespace Leon {
     AActor* FLeonTournamentArenaBuilder::SpawnSpotLight(UWorld* InWorld, const std::string& InName,
                                                         const glm::vec3& InPos, const glm::vec3& InDir,
                                                         const glm::vec3& InColor, float InIntensity, float InRadius,
-                                                        float InInnerDeg, float InOuterDeg,
-                                                        ELightMobility InMobility) {
+                                                        float InInnerDeg, float InOuterDeg, ELightMobility InMobility) {
         if (!InWorld)
             return nullptr;
         AActor* actor = InWorld->SpawnActor<AActor>(InName);

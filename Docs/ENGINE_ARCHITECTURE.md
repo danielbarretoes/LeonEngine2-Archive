@@ -36,6 +36,7 @@ UObject
 │   ├── UHealthComponent          (generic hit points)
 │   ├── UCombatComponent          (generic attack-gate / cooldown)
 │   ├── UInventoryComponent       (generic actor-slot bag)
+│   ├── UFootstepComponent        (cadence SFX; sound path from game)
 │   ├── UParticleComponent
 │   ├── USkeletalMeshComponent
 │   └── USpringArmComponent
@@ -115,7 +116,11 @@ Hardware → FInput / FInputSettings → APlayerController → APawn / ACharacte
 
 Engine mappings are generic (`MoveForward`, `Look`, `Jump`, `Sprint`). Fire / Reload and any weapon action are bound in the game project.
 
+`FControlInput` is the listen-server control blob (`MoveX/Y`, look yaw/pitch, action bits). Engine bits are Jump/Crouch/Sprint; games OR `CustomBit0+` for held actions. Discrete reload / weapon cycle use ServerRPC.
+
 `UInventoryComponent` stores `AActor*` by slot id (`GiveItem` / `RemoveItem` / `GetActive` / `Cycle`). `AWeaponBase` owns magazine, fire cooldown, and a stub `ServerFire`; traces, VFX, and match rules stay in the game.
+
+`FProceduralPrimitiveSpawner::SpawnStaticBox` creates a WorldStatic collision box; game builders add materials/meshes.
 
 ## Animation flow
 

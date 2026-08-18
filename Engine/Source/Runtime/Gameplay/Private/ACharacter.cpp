@@ -49,8 +49,7 @@ namespace Leon {
         OutLocation = GetPawnViewLocation();
         if (bThirdPerson && SpringArm) {
             SpringArm->bDoCollisionTest = true;
-            const_cast<USpringArmComponent&>(*SpringArm)
-                .UpdateDesiredArmLocation(OutLocation, OutForward, right, up);
+            const_cast<USpringArmComponent&>(*SpringArm).UpdateDesiredArmLocation(OutLocation, OutForward, right, up);
             OutLocation = SpringArm->GetTargetLocation();
         }
     }
@@ -226,6 +225,7 @@ namespace Leon {
     void ACharacter::Tick(float DeltaSeconds) {
         if (GetLocalRole() == ENetRole::SimulatedProxy)
             return;
+        FlushPendingControlInput(DeltaSeconds);
         if (IsLocallyControlled())
             SetupPlayerInputComponent(DeltaSeconds);
         if (ShouldApplyControlYawToActor())
@@ -439,6 +439,56 @@ namespace Leon {
         ApplyMoveInput(DeltaSeconds, speedScale);
     }
 
+    FControlInput ACharacter::BuildLocalControlInput() const {
+        FControlInput input = FControlInput::SampleFromHardware();
+        input.LookYaw = GetControlYaw();
+        input.LookPitch = GetControlPitch();
+        return input;
+    }
+
+    void ACharacter::SerializeControlInput(std::vector<uint8_t>& OutBytes) const {
+        BuildLocalControlInput().Serialize(OutBytes);
+    }
+
+    void ACharacter::ApplyControlInput(const uint8_t* InData, size_t InSize) {
+        FControlInput input;
+        if (!input.Deserialize(InData, InSize))
+            return;
+        ApplyControlSchema(input);
+    }
+
+    void ACharacter::ApplyControlSchema(const FControlInput& InInput) {
+        SetControlYaw(InInput.LookYaw);
+        SetControlPitch(InInput.LookPitch);
+        PendingControlInput = InInput;
+        bHasPendingControlInput = true;
+    }
+
+    void ACharacter::FlushPendingControlInput(float DeltaSeconds) {
+        if (!bHasPendingControlInput)
+            return;
+        bHasPendingControlInput = false;
+        (void)DeltaSeconds;
+        if (!CanApplyControlMove())
+            return;
+
+        glm::vec3 forward = GetControlPlanarForward();
+        glm::vec3 right(-forward.z, 0.0f, forward.x);
+        glm::vec3 wish = forward * PendingControlInput.MoveY + right * PendingControlInput.MoveX;
+        float speed = GetMoveSpeed();
+        if (PendingControlInput.HasAction(FControlInput::SprintBit))
+            speed *= SprintMultiplier;
+        if (glm::length(wish) > 1e-4f && CharacterMovement)
+            CharacterMovement->AddInputVector(glm::normalize(wish) * speed);
+
+        const bool bJump = PendingControlInput.HasAction(FControlInput::JumpBit);
+        if (bJump && !bJumpWasDown)
+            Jump();
+        if (!bJump && bJumpWasDown)
+            StopJumping();
+        bJumpWasDown = bJump;
+    }
+
     void ACharacter::UpdateCameraFromView() {
         glm::vec3 camPos, look;
         GetViewPoint(camPos, look);
@@ -484,7 +534,9 @@ namespace Leon {
         return CharacterMovement && CharacterMovement->CanJump();
     }
 
-    void ACharacter::Landed(const FHitResult& InHit) { (void)InHit; }
+    void ACharacter::Landed(const FHitResult& InHit) {
+        (void)InHit;
+    }
 
     void ACharacter::OnMovementModeChanged(EMovementMode InPrevMode, EMovementMode InNewMode) {
         (void)InPrevMode;

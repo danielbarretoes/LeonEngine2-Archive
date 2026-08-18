@@ -4,6 +4,7 @@
 #include "Engine/UWorld.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "Gameplay/ANavMeshBoundsVolume.hpp"
+#include "Gameplay/FProceduralPrimitiveSpawner.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/AAIController.hpp"
 #include "Gameplay/ACharacter.hpp"
@@ -67,13 +68,7 @@ namespace Leon {
 
         AActor* SpawnStaticBox(UWorld& InWorld, const std::string& InName, const glm::vec3& InLocation,
                                const glm::vec3& InScale) {
-            AActor* actor = InWorld.SpawnActor<AActor>(InName);
-            actor->SetActorLocation(InLocation);
-            actor->SetActorScale(InScale);
-            auto box = actor->AddActorComponent<UBoxComponent>("Box");
-            box->SetBoxExtent(glm::vec3(0.5f));
-            box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
-            return actor;
+            return FProceduralPrimitiveSpawner::SpawnStaticBox(&InWorld, InName, InLocation, InScale);
         }
 
         ALeonTournamentBotController* FirstBot(UWorld& InWorld) {
@@ -333,7 +328,8 @@ namespace Leon {
                 if (glm::length(delta) > 2.0f)
                     ++moved;
                 if (bot->GetCurrentTarget() || bot->GetBotState() == ELeonTournamentBotState::Combat ||
-                    bot->GetBotState() == ELeonTournamentBotState::Fire || bot->GetBotState() == ELeonTournamentBotState::Search)
+                    bot->GetBotState() == ELeonTournamentBotState::Fire ||
+                    bot->GetBotState() == ELeonTournamentBotState::Search)
                     ++acquired;
                 if (pawn->GetWeapon())
                     endAmmoSum += pawn->GetWeapon()->GetCurrentAmmo();

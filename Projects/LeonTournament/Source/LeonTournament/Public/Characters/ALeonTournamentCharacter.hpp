@@ -3,6 +3,7 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/UInventoryComponent.hpp"
+#include "Gameplay/UFootstepComponent.hpp"
 #include "ULeonTournamentAnimInstance.hpp"
 #include "ULeonTournamentCombatComponent.hpp"
 #include "ALeonTournamentWeapon.hpp"
@@ -28,6 +29,7 @@ namespace Leon {
 
         TRef<UHealthComponent> GetHealthComponent() const { return Health; }
         TRef<UInventoryComponent> GetInventoryComponent() const { return Inventory; }
+        TRef<UFootstepComponent> GetFootstepComponent() const { return Footsteps; }
         TRef<ULeonTournamentCombatComponent> GetCombatComponent() const { return Combat; }
         ALeonTournamentWeapon* GetWeapon() const { return Weapon; }
         ALeonTournamentPlayerState* GetPlayerState() const;
@@ -75,16 +77,15 @@ namespace Leon {
 
     protected:
         bool ShouldApplyControlYawToActor() const override { return !bDeadFrozen; }
+        bool CanApplyControlMove() const override { return !bDeadFrozen; }
 
     private:
         void EnsureWeapon();
         void ClearInventoryKeepRifle();
         ALeonTournamentWeapon* SpawnWeaponActor(ELeonTournamentWeaponId InId);
         void ApplyLookRotation();
-        void FlushPendingNetInput(float DeltaSeconds);
         void UpdatePresentationVisibility();
         void UpdateTeamOutline();
-        void UpdateFootstepAudio(float DeltaSeconds);
         void BeginDeathRagdoll();
         void StopDeathRagdoll();
         void HandleWeaponSwitchInput();
@@ -95,9 +96,8 @@ namespace Leon {
         TRef<UInventoryComponent> Inventory;
         TRef<ULeonTournamentCombatComponent> Combat;
         TRef<ULeonTournamentAnimInstance> AnimInst;
+        TRef<UFootstepComponent> Footsteps;
         ALeonTournamentWeapon* Weapon = nullptr;
-        uint8_t PendingNetBits = 0;
-        bool bHasPendingNetInput = false;
         bool bBot = false;
         bool bDeadFrozen = false;
         bool bDeathForcedThirdPerson = false;
@@ -120,7 +120,6 @@ namespace Leon {
         bool bAimingDownSights = false;
         float DodgeCooldownRemaining = 0.0f;
         glm::vec3 PendingDeathImpulse{0.0f, 4.0f, 0.0f};
-        float FootstepCooldown = 0.0f;
         ELeonTournamentCharacterSkin CharacterSkin = ELeonTournamentCharacterSkin::YBot;
         mutable uint8_t PendingHitConfirm = 0;
         mutable uint8_t PendingDamageFlash = 0;
