@@ -71,6 +71,7 @@ namespace Leon {
         void DeserializeReplication(const uint8_t* InData, size_t InSize) override;
         void SerializeControlInput(std::vector<uint8_t>& OutBytes) const override;
         void ApplyControlInput(const uint8_t* InData, size_t InSize) override;
+        bool HandleServerRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) override;
 
     protected:
         bool ShouldApplyControlYawToActor() const override { return !bDeadFrozen; }

@@ -113,6 +113,8 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/UCharacterMovementComponent.cpp
     Source/Runtime/Gameplay/Private/UProjectileMovementComponent.cpp
     Source/Runtime/Gameplay/Private/AProjectile.cpp
+    Source/Runtime/Gameplay/Private/APickup.cpp
+    Source/Runtime/Gameplay/Private/ALaunchPad.cpp
     Source/Runtime/Gameplay/Private/USpringArmComponent.cpp
     Source/Runtime/Gameplay/Private/UParticleComponent.cpp
     Source/Runtime/Gameplay/Private/AController.cpp

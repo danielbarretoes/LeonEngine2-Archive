@@ -503,6 +503,17 @@ namespace Leon {
         return CharacterMovement ? CharacterMovement->GetVelocity().y : 0.0f;
     }
 
+    void ACharacter::LaunchCharacter(const glm::vec3& InVelocity) {
+        if (!CharacterMovement)
+            return;
+        glm::vec3 v = CharacterMovement->GetVelocity() + InVelocity;
+        if (InVelocity.y > 0.0f)
+            v.y = std::max(v.y, InVelocity.y);
+        CharacterMovement->SetVelocity(v);
+        if (v.y > 0.5f || glm::length(glm::vec3(v.x, 0.0f, v.z)) > 0.5f)
+            CharacterMovement->SetMovementMode(EMovementMode::Falling);
+    }
+
     void ACharacter::UpdateAnimInstance(UAnimInstance& InAnim) const {
         InAnim.ApplyRepState(AnimRepState);
         InAnim.SetFloat("VerticalSpeed", GetVerticalVelocity());

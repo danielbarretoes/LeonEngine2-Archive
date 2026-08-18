@@ -25,6 +25,8 @@ namespace Leon {
         glm::vec3 ImpactNormal{0.0f, 1.0f, 0.0f};
         float Distance = 0.0f;
         float Time = 0.0f;
+        /** Positive when the query shape starts overlapping the hit (AABB SAT depth). */
+        float PenetrationDepth = 0.0f;
         ECollisionChannel Channel = ECollisionChannel::Visibility;
         std::string BoneName;
         std::string PhysMaterial;

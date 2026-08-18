@@ -410,12 +410,18 @@ namespace Leon {
         OutHit.Location = (glm::max(InMin, minB) + glm::min(InMax, maxB)) * 0.5f;
         OutHit.ImpactPoint = OutHit.Location;
         glm::vec3 overlap = glm::min(InMax, maxB) - glm::max(InMin, minB);
-        if (overlap.x <= overlap.y && overlap.x <= overlap.z)
+        overlap = glm::max(overlap, glm::vec3(0.0f));
+        if (overlap.x <= overlap.y && overlap.x <= overlap.z) {
             OutHit.Normal = (InMin.x + InMax.x < minB.x + maxB.x) ? glm::vec3(-1, 0, 0) : glm::vec3(1, 0, 0);
-        else if (overlap.y <= overlap.z)
+            OutHit.PenetrationDepth = overlap.x;
+        } else if (overlap.y <= overlap.z) {
             OutHit.Normal = (InMin.y + InMax.y < minB.y + maxB.y) ? glm::vec3(0, -1, 0) : glm::vec3(0, 1, 0);
-        else
+            OutHit.PenetrationDepth = overlap.y;
+        } else {
             OutHit.Normal = (InMin.z + InMax.z < minB.z + maxB.z) ? glm::vec3(0, 0, -1) : glm::vec3(0, 0, 1);
+            OutHit.PenetrationDepth = overlap.z;
+        }
+        OutHit.bStartPenetrating = OutHit.PenetrationDepth > 0.0f;
         OutHit.ImpactNormal = OutHit.Normal;
         OutHit.Channel = InCollider.ObjectType;
         return true;

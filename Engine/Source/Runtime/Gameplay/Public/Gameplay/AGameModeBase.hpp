@@ -6,6 +6,7 @@
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/APlayerState.hpp"
+#include "Gameplay/FDamageInfo.hpp"
 
 #include <string>
 
@@ -31,6 +32,11 @@ namespace Leon {
 
         virtual AActor* FindPlayerStart(const std::string& InIncomingName = "") const;
         virtual APlayerStart* ChoosePlayerStart() const;
+
+        /** Called after health damage is applied (authority). Default no-op. */
+        virtual void NotifyActorDamaged(AActor* DamagedActor, const FDamageInfo& InInfo);
+        /** Called when an actor with health transitions to dead via Apply*Damage (authority). */
+        virtual void NotifyActorKilled(AActor* Victim, const FDamageInfo& InInfo);
 
         std::string DefaultPawnClass = "ADefaultPawn";
         std::string PlayerControllerClass = "APlayerController";

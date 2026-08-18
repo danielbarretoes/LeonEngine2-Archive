@@ -75,6 +75,9 @@ namespace Leon {
         bool IsMovingOnGround() const;
         float GetVerticalVelocity() const;
 
+        /** Add / replace movement velocity (jump pads, knockback). */
+        virtual void LaunchCharacter(const glm::vec3& InVelocity);
+
         glm::vec3 MoveBlocked(const glm::vec3& InWorldDelta);
         void GetCapsuleAABB(glm::vec3& OutMin, glm::vec3& OutMax) const;
         /** Full capsule height (diameter along up axis). */

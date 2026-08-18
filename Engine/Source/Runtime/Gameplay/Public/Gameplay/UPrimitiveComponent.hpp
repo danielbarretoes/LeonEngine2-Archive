@@ -2,10 +2,14 @@
 
 #include "Gameplay/USceneComponent.hpp"
 #include "Physics/ECollisionTypes.hpp"
+#include "Physics/FHitResult.hpp"
 #include "Physics/IPhysicsScene.hpp"
 
+#include <functional>
 #include <glm/glm.hpp>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace Leon {
 
@@ -24,6 +28,9 @@ namespace Leon {
         void EndPlay() override;
         void Tick(float DeltaSeconds) override;
 
+        /** Half-extents used for overlap queries (box/sphere/capsule approximated as AABB). */
+        virtual glm::vec3 GetOverlapQueryHalfExtent() const { return glm::vec3(0.5f); }
+
         void SetCollisionEnabled(ECollisionEnabled InEnabled);
         ECollisionEnabled GetCollisionEnabled() const { return CollisionEnabled; }
 
@@ -39,6 +46,18 @@ namespace Leon {
 
         void SetGenerateOverlapEvents(bool bEnabled) { bGenerateOverlapEvents = bEnabled; }
         bool GetGenerateOverlapEvents() const { return bGenerateOverlapEvents; }
+
+        using FOverlapEvent = std::function<void(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                                                 UPrimitiveComponent* OtherComp, const FHitResult& SweepResult)>;
+        std::vector<FOverlapEvent> OnComponentBeginOverlap;
+        std::vector<FOverlapEvent> OnComponentEndOverlap;
+
+        /** Called by UWorld after physics; diffs query results vs last frame. */
+        void UpdateOverlaps(const std::vector<UPrimitiveComponent*>& InCandidates);
+
+        const std::unordered_set<UPrimitiveComponent*>& GetOverlappingComponents() const {
+            return OverlappingComponents;
+        }
 
         void SetSimulatePhysics(bool bSimulate);
         bool IsSimulatingPhysics() const { return bSimulatePhysics; }
@@ -71,6 +90,7 @@ namespace Leon {
         FCollisionResponseContainer Responses;
         std::string CollisionProfile = "BlockAll";
         bool bGenerateOverlapEvents = false;
+        std::unordered_set<UPrimitiveComponent*> OverlappingComponents;
         bool bSimulatePhysics = false;
         bool bEnableGravity = true;
         float Mass = 1.0f;
@@ -91,6 +111,7 @@ namespace Leon {
         UBoxComponent(const std::string& InName = "BoxComponent");
         void SetBoxExtent(const glm::vec3& InExtent) { BoxExtent = InExtent; }
         const glm::vec3& GetBoxExtent() const { return BoxExtent; }
+        glm::vec3 GetOverlapQueryHalfExtent() const override;
         FPhysicsBodyCreateInfo MakeBodyCreateInfo() const override;
 
     private:
@@ -102,6 +123,7 @@ namespace Leon {
         USphereComponent(const std::string& InName = "SphereComponent");
         void SetSphereRadius(float InRadius) { SphereRadius = InRadius; }
         float GetSphereRadius() const { return SphereRadius; }
+        glm::vec3 GetOverlapQueryHalfExtent() const override;
         FPhysicsBodyCreateInfo MakeBodyCreateInfo() const override;
 
     private:
@@ -118,6 +140,7 @@ namespace Leon {
         void SetCapsuleSize(float InRadius, float InHalfHeight);
         float GetUnscaledCapsuleRadius() const { return CapsuleRadius; }
         float GetUnscaledCapsuleHalfHeight() const { return CapsuleHalfHeight; }
+        glm::vec3 GetOverlapQueryHalfExtent() const override;
         FPhysicsBodyCreateInfo MakeBodyCreateInfo() const override;
 
     private:

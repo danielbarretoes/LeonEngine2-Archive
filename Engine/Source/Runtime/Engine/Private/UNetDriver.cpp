@@ -1,6 +1,7 @@
 #include "Engine/UNetDriver.hpp"
 #include "Engine/FNetBlob.hpp"
 #include "Engine/UWorld.hpp"
+#include "Gameplay/AActor.hpp"
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/ADefaultPawn.hpp"
 #include "Gameplay/AGameStateBase.hpp"
@@ -12,17 +13,48 @@
 #include "Core/FFrameProfiler.hpp"
 
 #include <cstring>
+#include <functional>
+#include <unordered_set>
 
 namespace Leon {
 
     namespace {
         constexpr uint32_t kSnapshotMagic = 0x4E455432; // "NET2"
+        constexpr uint32_t kRpcMagic = 0x52504331;      // "RPC1"
+
+        struct FUUIDHash {
+            size_t operator()(const FUUID& InGuid) const {
+                return std::hash<uint64_t>{}(InGuid.High) ^ (std::hash<uint64_t>{}(InGuid.Low) << 1);
+            }
+        };
     }
 
     UNetConnection* UNetDriver::AddConnection() {
         auto conn = std::make_shared<UNetConnection>();
         Connections.push_back(conn);
         return conn.get();
+    }
+
+    bool UNetDriver::IsRPCBatch(const std::vector<uint8_t>& InBytes) {
+        if (InBytes.size() < 4)
+            return false;
+        size_t offset = 0;
+        uint32_t magic = 0;
+        return FNetBlob::ReadU32(InBytes, offset, magic) && magic == kRpcMagic;
+    }
+
+    bool UNetDriver::AppendOutgoingRPC(UNetConnection& InConn, const FUUID& InActorGuid, ENetRPCKind InKind,
+                                       uint16_t InFunctionId, const std::vector<uint8_t>& InPayload) {
+        if (InPayload.size() > kMaxNetRPCPayloadBytes)
+            return false;
+        if (InConn.OutgoingRPC.empty())
+            FNetBlob::WriteU32(InConn.OutgoingRPC, kRpcMagic);
+        FNetBlob::WriteU64(InConn.OutgoingRPC, InActorGuid.High);
+        FNetBlob::WriteU64(InConn.OutgoingRPC, InActorGuid.Low);
+        FNetBlob::WriteU8(InConn.OutgoingRPC, static_cast<uint8_t>(InKind));
+        FNetBlob::WriteU16(InConn.OutgoingRPC, InFunctionId);
+        FNetBlob::WriteBlob(InConn.OutgoingRPC, InPayload);
+        return true;
     }
 
     void UNetDriver::BuildSnapshot(std::vector<uint8_t>& OutBytes) const {
@@ -106,7 +138,52 @@ namespace Leon {
             pawn->SerializeReplication(blob);
             FNetBlob::WriteBlob(OutBytes, blob);
         }
-        FFrameProfiler::Working().ReplicatedActors = static_cast<int32_t>(pawns.size() + players.size());
+
+        // Collect viewer locations for relevancy (any possessed player pawn).
+        std::vector<glm::vec3> viewers;
+        for (APawn* pawn : pawns)
+            viewers.push_back(pawn->GetActorLocation());
+
+        std::vector<AActor*> repActors;
+        for (const auto& ref : World->GetAllActors()) {
+            AActor* actor = ref.get();
+            if (!actor || actor->IsPendingKill() || !actor->GetReplicates())
+                continue;
+            if (dynamic_cast<APawn*>(actor) || dynamic_cast<APlayerState*>(actor) ||
+                dynamic_cast<AGameStateBase*>(actor))
+                continue;
+            bool bRelevant = false;
+            if (viewers.empty()) {
+                bRelevant = actor->IsAlwaysRelevant() || actor->GetNetCullDistanceSquared() <= 0.0f;
+            } else {
+                for (const glm::vec3& viewer : viewers) {
+                    if (actor->IsNetRelevantFor(viewer)) {
+                        bRelevant = true;
+                        break;
+                    }
+                }
+            }
+            if (bRelevant)
+                repActors.push_back(actor);
+        }
+        FNetBlob::WriteU32(OutBytes, static_cast<uint32_t>(repActors.size()));
+        for (AActor* actor : repActors) {
+            FNetBlob::WriteU64(OutBytes, actor->GetActorGuid().High);
+            FNetBlob::WriteU64(OutBytes, actor->GetActorGuid().Low);
+            FNetBlob::WriteString(OutBytes, actor->GetClass());
+            glm::vec3 loc = actor->GetActorLocation();
+            glm::vec3 rot = actor->GetActorRotation();
+            FNetBlob::WriteF32(OutBytes, loc.x);
+            FNetBlob::WriteF32(OutBytes, loc.y);
+            FNetBlob::WriteF32(OutBytes, loc.z);
+            FNetBlob::WriteF32(OutBytes, rot.x);
+            FNetBlob::WriteF32(OutBytes, rot.y);
+            FNetBlob::WriteF32(OutBytes, rot.z);
+            std::vector<uint8_t> blob;
+            actor->SerializeReplication(blob);
+            FNetBlob::WriteBlob(OutBytes, blob);
+        }
+        FFrameProfiler::Working().ReplicatedActors = static_cast<int32_t>(pawns.size() + players.size() + repActors.size());
     }
 
     void UNetDriver::ApplySnapshot(const std::vector<uint8_t>& InBytes) {
@@ -238,6 +315,62 @@ namespace Leon {
             if (!blob.empty())
                 pawn->DeserializeReplication(blob.data(), blob.size());
         }
+
+        // Net-spawned replicating actors (projectiles, pickups, …) — not pawns/PS/GS.
+        uint32_t repActorCount = 0;
+        if (!FNetBlob::ReadU32(InBytes, offset, repActorCount))
+            return;
+        std::unordered_set<FUUID, FUUIDHash> seenGuids;
+        seenGuids.reserve(repActorCount * 2 + 1);
+        for (uint32_t i = 0; i < repActorCount; ++i) {
+            uint64_t hi = 0, lo = 0;
+            std::string className;
+            float x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0;
+            std::vector<uint8_t> blob;
+            if (!FNetBlob::ReadU64(InBytes, offset, hi) || !FNetBlob::ReadU64(InBytes, offset, lo) ||
+                !FNetBlob::ReadString(InBytes, offset, className) || !FNetBlob::ReadF32(InBytes, offset, x) ||
+                !FNetBlob::ReadF32(InBytes, offset, y) || !FNetBlob::ReadF32(InBytes, offset, z) ||
+                !FNetBlob::ReadF32(InBytes, offset, rx) || !FNetBlob::ReadF32(InBytes, offset, ry) ||
+                !FNetBlob::ReadF32(InBytes, offset, rz) || !FNetBlob::ReadBlob(InBytes, offset, blob))
+                return;
+            FUUID guid(hi, lo);
+            seenGuids.insert(guid);
+            AActor* found = World->FindActorByGuid(guid);
+            if (!found) {
+                if (!className.empty() && UClassRegistry::Get().HasClass(className))
+                    found = UClassRegistry::Get().CreateActorOfClass(className, World, className);
+                if (!found)
+                    found = World->SpawnActor<AActor>(className.empty() ? "NetActor" : className);
+                if (!found)
+                    continue;
+                found->SetActorGuid(guid);
+                found->SetClass(className.empty() ? found->GetClass() : className);
+                found->SetReplicates(true);
+            }
+            found->SetLocalRole(ENetRole::SimulatedProxy);
+            found->SetActorLocation({x, y, z});
+            found->SetActorRotation({rx, ry, rz});
+            if (!blob.empty())
+                found->DeserializeReplication(blob.data(), blob.size());
+        }
+
+        if (World->GetNetMode() == ENetMode::Client) {
+            std::vector<AActor*> toDestroy;
+            for (const auto& ref : World->GetAllActors()) {
+                AActor* actor = ref.get();
+                if (!actor || actor->IsPendingKill() || !actor->GetReplicates())
+                    continue;
+                if (actor->GetLocalRole() != ENetRole::SimulatedProxy)
+                    continue;
+                if (dynamic_cast<APawn*>(actor) || dynamic_cast<APlayerState*>(actor) ||
+                    dynamic_cast<AGameStateBase*>(actor))
+                    continue;
+                if (seenGuids.find(actor->GetActorGuid()) == seenGuids.end())
+                    toDestroy.push_back(actor);
+            }
+            for (AActor* actor : toDestroy)
+                World->DestroyActor(actor);
+        }
     }
 
     void UNetDriver::ConsumeIncomingInput() {
@@ -270,6 +403,52 @@ namespace Leon {
             }
             pc->GetPawn()->ApplyControlInput(conn->IncomingInput.data(), conn->IncomingInput.size());
             conn->IncomingInput.clear();
+        }
+    }
+
+    void UNetDriver::ConsumeIncomingRPCs() {
+        if (!World)
+            return;
+
+        // Flow: framed RPC batch
+        // 1. Peer shuttles OutgoingRPC → IncomingRPC (loopback / IP demux).
+        // 2. ListenServer only dispatches Server kind; Client dispatches Client/Multicast.
+        // 3. Actor GUID resolves the target; unknown GUIDs are skipped.
+        const ENetMode mode = World->GetNetMode();
+        for (auto& conn : Connections) {
+            if (!conn || conn->IncomingRPC.empty())
+                continue;
+            const std::vector<uint8_t>& bytes = conn->IncomingRPC;
+            size_t offset = 0;
+            uint32_t magic = 0;
+            if (!FNetBlob::ReadU32(bytes, offset, magic) || magic != kRpcMagic) {
+                conn->IncomingRPC.clear();
+                continue;
+            }
+            while (offset < bytes.size()) {
+                uint64_t hi = 0, lo = 0;
+                uint8_t kindRaw = 0;
+                uint16_t functionId = 0;
+                std::vector<uint8_t> payload;
+                if (!FNetBlob::ReadU64(bytes, offset, hi) || !FNetBlob::ReadU64(bytes, offset, lo) ||
+                    !FNetBlob::ReadU8(bytes, offset, kindRaw) || !FNetBlob::ReadU16(bytes, offset, functionId) ||
+                    !FNetBlob::ReadBlob(bytes, offset, payload))
+                    break;
+                if (payload.size() > kMaxNetRPCPayloadBytes)
+                    continue;
+                const auto kind = static_cast<ENetRPCKind>(kindRaw);
+                AActor* actor = World->FindActorByGuid(FUUID(hi, lo));
+                if (!actor)
+                    continue;
+                if (kind == ENetRPCKind::Server) {
+                    if (mode == ENetMode::ListenServer)
+                        actor->HandleServerRPC(functionId, payload.data(), payload.size());
+                } else if (kind == ENetRPCKind::Client || kind == ENetRPCKind::Multicast) {
+                    if (mode == ENetMode::Client)
+                        actor->HandleClientRPC(functionId, payload.data(), payload.size());
+                }
+            }
+            conn->IncomingRPC.clear();
         }
     }
 

@@ -17,8 +17,12 @@
 
 namespace Leon {
 
+    namespace {
+        constexpr uint16_t kServerRpcReload = 1;
+    }
+
     ALeonTournamentCharacter::ALeonTournamentCharacter(entt::entity InHandle, UWorld* InWorld,
-                                                       const std::string& InName)
+                                 const std::string& InName)
         : ACharacter(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentCharacter");
     }
@@ -308,14 +312,7 @@ namespace Leon {
                 cap->AddImpulse(InVelocity * 55.0f);
             return;
         }
-        if (auto move = GetCharacterMovement()) {
-            glm::vec3 v = move->GetVelocity() + InVelocity;
-            if (InVelocity.y > 0.0f)
-                v.y = std::max(v.y, InVelocity.y);
-            move->SetVelocity(v);
-            if (v.y > 0.5f || glm::length(glm::vec3(v.x, 0.0f, v.z)) > 0.5f)
-                move->SetMovementMode(EMovementMode::Falling);
-        }
+        LaunchCharacter(InVelocity);
     }
 
     void ALeonTournamentCharacter::TryDodge() {
@@ -565,8 +562,12 @@ namespace Leon {
 
         if (Combat) {
             Combat->SetFireHeld(bFire);
-            if (bReload && !bReloadWasDown)
-                Combat->RequestReload();
+            if (bReload && !bReloadWasDown) {
+                if (IsNetworkAuthority())
+                    Combat->RequestReload();
+                else
+                    CallServerRPC(kServerRpcReload);
+            }
             bReloadWasDown = bReload;
         }
         HandleWeaponSwitchInput();
@@ -764,8 +765,6 @@ namespace Leon {
             bits |= 16;
         if (FInput::IsMouseButtonPressed(Mouse::ButtonLeft))
             bits |= 64;
-        if (FInput::IsKeyPressed(Key::R))
-            bits |= 128;
         FNetBlob::WriteU8(OutBytes, bits);
     }
 
@@ -783,12 +782,23 @@ namespace Leon {
         bHasPendingNetInput = true;
         if (bDeadFrozen)
             return;
-        if (Combat) {
+        if (Combat)
             Combat->SetFireHeld((bits & 64) != 0);
-            if (bits & 128)
-                Combat->RequestReload();
-        }
         ApplyLookRotation();
+    }
+
+    bool ALeonTournamentCharacter::HandleServerRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) {
+        (void)InData;
+        (void)InSize;
+        if (bDeadFrozen)
+            return true;
+        // Discrete reload. Fire-held stays on control-input bit 64.
+        if (InFunctionId == kServerRpcReload) {
+            if (Combat)
+                Combat->RequestReload();
+            return true;
+        }
+        return false;
     }
 
     void ALeonTournamentCharacter::FlushPendingNetInput(float DeltaSeconds) {

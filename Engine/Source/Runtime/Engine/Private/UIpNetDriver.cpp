@@ -110,7 +110,9 @@ namespace Leon {
                 conn = Connections.front().get();
             if (!conn)
                 continue;
-            if (bListening)
+            if (UNetDriver::IsRPCBatch(packet.Bytes))
+                conn->IncomingRPC = std::move(packet.Bytes);
+            else if (bListening)
                 conn->IncomingInput = std::move(packet.Bytes);
             else
                 conn->Incoming = std::move(packet.Bytes);
@@ -130,10 +132,22 @@ namespace Leon {
                 if (conn)
                     conn->Outgoing.clear();
             }
-        } else if (!Connections.empty() && Connections.front() && !Connections.front()->OutgoingInput.empty()) {
-            Transport->SendToAll(Connections.front()->OutgoingInput.data(), Connections.front()->OutgoingInput.size(),
-                                 false);
-            Connections.front()->OutgoingInput.clear();
+            for (auto& conn : Connections) {
+                if (conn && !conn->OutgoingRPC.empty() && Transport) {
+                    Transport->SendToAll(conn->OutgoingRPC.data(), conn->OutgoingRPC.size(), true);
+                    conn->OutgoingRPC.clear();
+                }
+            }
+        } else if (!Connections.empty() && Connections.front()) {
+            auto& front = Connections.front();
+            if (!front->OutgoingInput.empty()) {
+                Transport->SendToAll(front->OutgoingInput.data(), front->OutgoingInput.size(), false);
+                front->OutgoingInput.clear();
+            }
+            if (!front->OutgoingRPC.empty()) {
+                Transport->SendToAll(front->OutgoingRPC.data(), front->OutgoingRPC.size(), true);
+                front->OutgoingRPC.clear();
+            }
         }
 
         auto& timing = FFrameProfiler::Working();

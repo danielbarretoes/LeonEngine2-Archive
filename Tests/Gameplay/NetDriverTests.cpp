@@ -65,6 +65,172 @@ namespace Leon {
             conn.BoundPlayerId = 7;
             CHECK(conn.BoundPlayerId == 7);
         }
+
+        TEST_CASE("Client ServerRPC mutates authority actor state over loopback") {
+            auto serverWorld = UWorld::Create("ServerRpc");
+            auto clientWorld = UWorld::Create("ClientRpc");
+            serverWorld->SetNetMode(ENetMode::ListenServer);
+            clientWorld->SetNetMode(ENetMode::Client);
+
+            ULoopbackNetDriver serverDriver;
+            ULoopbackNetDriver clientDriver;
+            serverDriver.SetWorld(serverWorld.get());
+            clientDriver.SetWorld(clientWorld.get());
+            ULoopbackNetDriver::Pair(serverDriver, clientDriver);
+            serverWorld->SetNetDriver(&serverDriver);
+            clientWorld->SetNetDriver(&clientDriver);
+
+            class ARpcProbePawn : public APawn {
+            public:
+                using APawn::APawn;
+                int ServerCalls = 0;
+                int ClientCalls = 0;
+                bool HandleServerRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) override {
+                    (void)InData;
+                    (void)InSize;
+                    if (InFunctionId == 7) {
+                        ++ServerCalls;
+                        return true;
+                    }
+                    return false;
+                }
+                bool HandleClientRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) override {
+                    (void)InData;
+                    (void)InSize;
+                    if (InFunctionId == 9) {
+                        ++ClientCalls;
+                        return true;
+                    }
+                    return false;
+                }
+            };
+
+            serverWorld->InitWorld();
+            serverWorld->BeginPlay();
+            clientWorld->InitWorld();
+            clientWorld->BeginPlay();
+
+            const FUUID guid = FUUID::Generate();
+            auto* serverProbe = serverWorld->SpawnActor<ARpcProbePawn>("RpcProbeServer");
+            auto* clientProbe = clientWorld->SpawnActor<ARpcProbePawn>("RpcProbeClient");
+            REQUIRE(serverProbe);
+            REQUIRE(clientProbe);
+            serverProbe->SetActorGuid(guid);
+            clientProbe->SetActorGuid(guid);
+            serverProbe->SetLocalRole(ENetRole::Authority);
+            clientProbe->SetLocalRole(ENetRole::AutonomousProxy);
+
+            clientProbe->CallServerRPC(7);
+            // Client Tick flushes OutgoingRPC via loopback; server Tick consumes IncomingRPC.
+            clientWorld->Tick(FTimestep(0.05f));
+            serverWorld->Tick(FTimestep(0.05f));
+            CHECK(serverProbe->ServerCalls == 1);
+
+            serverProbe->CallMulticastRPC(9);
+            serverWorld->Tick(FTimestep(0.05f));
+            clientWorld->Tick(FTimestep(0.05f));
+            CHECK(serverProbe->ClientCalls == 1);
+            CHECK(clientProbe->ClientCalls == 1);
+        }
+
+        TEST_CASE("Replicating actor spawns and destroys on client via snapshot") {
+            auto serverWorld = UWorld::Create("ServerSpawn");
+            auto clientWorld = UWorld::Create("ClientSpawn");
+            serverWorld->SetNetMode(ENetMode::ListenServer);
+            clientWorld->SetNetMode(ENetMode::Client);
+
+            ULoopbackNetDriver serverDriver;
+            ULoopbackNetDriver clientDriver;
+            serverDriver.SetWorld(serverWorld.get());
+            clientDriver.SetWorld(clientWorld.get());
+            ULoopbackNetDriver::Pair(serverDriver, clientDriver);
+            serverWorld->SetNetDriver(&serverDriver);
+            clientWorld->SetNetDriver(&clientDriver);
+
+            auto* gm = serverWorld->SpawnActor<AGameModeBase>("GameMode");
+            serverWorld->SetGameMode(gm);
+            serverWorld->InitWorld();
+            serverWorld->BeginPlay();
+            REQUIRE(serverWorld->GetGameMode()->Login("Host"));
+
+            clientWorld->InitWorld();
+            clientWorld->BeginPlay();
+
+            auto* proj = serverWorld->SpawnActor<AActor>("RepProp");
+            REQUIRE(proj);
+            proj->SetClass("AActor");
+            proj->SetReplicates(true);
+            proj->SetAlwaysRelevant(true);
+            proj->SetActorLocation({9.0f, 1.0f, 2.0f});
+            const FUUID guid = proj->GetActorGuid();
+
+            for (int i = 0; i < 3; ++i) {
+                serverWorld->Tick(FTimestep(0.05f));
+                clientWorld->Tick(FTimestep(0.05f));
+            }
+
+            AActor* clientActor = clientWorld->FindActorByGuid(guid);
+            REQUIRE(clientActor);
+            CHECK(clientActor->GetActorLocation().x == doctest::Approx(9.0f));
+            CHECK(clientActor->GetLocalRole() == ENetRole::SimulatedProxy);
+
+            serverWorld->DestroyActor(proj);
+            for (int i = 0; i < 3; ++i) {
+                serverWorld->Tick(FTimestep(0.05f));
+                clientWorld->Tick(FTimestep(0.05f));
+            }
+            CHECK(clientWorld->FindActorByGuid(guid) == nullptr);
+        }
+
+        TEST_CASE("NetCullDistanceSquared drops far replicating actors") {
+            auto serverWorld = UWorld::Create("ServerCull");
+            auto clientWorld = UWorld::Create("ClientCull");
+            serverWorld->SetNetMode(ENetMode::ListenServer);
+            clientWorld->SetNetMode(ENetMode::Client);
+
+            ULoopbackNetDriver serverDriver;
+            ULoopbackNetDriver clientDriver;
+            serverDriver.SetWorld(serverWorld.get());
+            clientDriver.SetWorld(clientWorld.get());
+            ULoopbackNetDriver::Pair(serverDriver, clientDriver);
+            serverWorld->SetNetDriver(&serverDriver);
+            clientWorld->SetNetDriver(&clientDriver);
+
+            auto* gm = serverWorld->SpawnActor<AGameModeBase>("GameMode");
+            serverWorld->SetGameMode(gm);
+            serverWorld->InitWorld();
+            serverWorld->BeginPlay();
+            REQUIRE(serverWorld->GetGameMode()->Login("Host"));
+            APawn* hostPawn = serverWorld->GetPlayerControllers()[0]->GetPawn();
+            REQUIRE(hostPawn);
+            hostPawn->SetActorLocation({0.0f, 0.0f, 0.0f});
+
+            clientWorld->InitWorld();
+            clientWorld->BeginPlay();
+
+            auto* nearActor = serverWorld->SpawnActor<AActor>("Near");
+            auto* farActor = serverWorld->SpawnActor<AActor>("Far");
+            REQUIRE(nearActor);
+            REQUIRE(farActor);
+            nearActor->SetReplicates(true);
+            farActor->SetReplicates(true);
+            nearActor->SetAlwaysRelevant(false);
+            farActor->SetAlwaysRelevant(false);
+            nearActor->SetNetCullDistanceSquared(100.0f); // 10 units
+            farActor->SetNetCullDistanceSquared(100.0f);
+            nearActor->SetActorLocation({3.0f, 0.0f, 0.0f});
+            farActor->SetActorLocation({50.0f, 0.0f, 0.0f});
+            const FUUID nearGuid = nearActor->GetActorGuid();
+            const FUUID farGuid = farActor->GetActorGuid();
+
+            for (int i = 0; i < 3; ++i) {
+                serverWorld->Tick(FTimestep(0.05f));
+                clientWorld->Tick(FTimestep(0.05f));
+            }
+
+            CHECK(clientWorld->FindActorByGuid(nearGuid) != nullptr);
+            CHECK(clientWorld->FindActorByGuid(farGuid) == nullptr);
+        }
     }
 
 } // namespace Leon

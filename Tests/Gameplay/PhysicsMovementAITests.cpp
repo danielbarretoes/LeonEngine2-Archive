@@ -147,6 +147,59 @@ TEST_SUITE("CharacterMovement") {
         CHECK(move->GetMovementMode() == Leon::EMovementMode::Walking);
     }
 
+    TEST_CASE("ResolvePenetration pushes capsule out of a blocking box") {
+        auto world = Leon::UWorld::Create("PenWorld");
+        auto* wall = world->SpawnActor<Leon::AActor>("Wall");
+        wall->SetActorLocation({0.0f, 1.0f, 0.0f});
+        auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
+        box->SetBoxExtent({0.25f, 1.0f, 0.25f});
+        box->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+
+        auto* ch = world->SpawnActor<Leon::ACharacter>("Stuck");
+        ch->SetActorLocation({0.0f, 1.0f, 0.0f});
+        auto move = ch->GetCharacterMovement();
+        REQUIRE(move);
+
+        glm::vec3 minB, maxB;
+        ch->GetCapsuleAABB(minB, maxB);
+        const glm::vec3 half = (maxB - minB) * 0.5f;
+        CHECK(world->OverlapAnyTestByChannel((minB + maxB) * 0.5f, half, Leon::ECollisionChannel::WorldStatic, ch));
+
+        CHECK(move->ResolvePenetration());
+        ch->GetCapsuleAABB(minB, maxB);
+        CHECK_FALSE(world->OverlapAnyTestByChannel((minB + maxB) * 0.5f, (maxB - minB) * 0.5f,
+                                                   Leon::ECollisionChannel::WorldStatic, ch));
+    }
+
+    TEST_CASE("SimulatedProxy does not write transform from movement or physics") {
+        auto world = Leon::UWorld::Create("ProxyWorld");
+        auto* ch = world->SpawnActor<Leon::ACharacter>("ProxyChar");
+        ch->SetActorLocation({1.0f, 1.7f, 2.0f});
+        const glm::vec3 loc = ch->GetActorLocation();
+        ch->SetLocalRole(Leon::ENetRole::SimulatedProxy);
+
+        auto move = ch->GetCharacterMovement();
+        REQUIRE(move);
+        move->AddInputVector({20.0f, 0.0f, 0.0f});
+        move->PerformMovement(0.05f);
+        CHECK(ch->GetActorLocation().x == doctest::Approx(loc.x));
+        CHECK(ch->GetActorLocation().y == doctest::Approx(loc.y));
+
+        Leon::IPhysicsScene* scene = world->GetPhysicsScene();
+        REQUIRE(scene);
+        Leon::FPhysicsBodyCreateInfo info;
+        info.Motion = Leon::EPhysicsMotionType::Dynamic;
+        info.bSimulatePhysics = true;
+        info.bEnableGravity = true;
+        info.Location = loc;
+        info.Actor = ch;
+        auto* body = scene->CreateRigidBody(info);
+        REQUIRE(body);
+        scene->Tick(0.5f);
+        CHECK(ch->GetActorLocation().y == doctest::Approx(loc.y));
+        scene->DestroyRigidBody(body);
+    }
+
     TEST_CASE("HasAuthority and IsLocallyControlled") {
         auto world = Leon::UWorld::Create("Auth");
         auto* pc = world->SpawnActor<Leon::APlayerController>("PC");

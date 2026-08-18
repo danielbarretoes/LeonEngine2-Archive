@@ -89,6 +89,9 @@ namespace Leon {
         for (auto& body : Bodies) {
             if (!body || !body->bSimulating)
                 continue;
+            // Simulated proxies receive pose from net snapshots. Do not integrate or write actors.
+            if (body->Info.Actor && body->Info.Actor->GetLocalRole() == ENetRole::SimulatedProxy)
+                continue;
             if (body->Info.bEnableGravity)
                 body->LinearVelocity += gravity * InDeltaSeconds;
             body->LinearVelocity += body->PendingForce * InDeltaSeconds / std::max(body->Info.Mass, 0.001f);

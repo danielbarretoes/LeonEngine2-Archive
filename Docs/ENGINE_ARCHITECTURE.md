@@ -144,6 +144,20 @@ Engine: `FParticleEmitterSettings`, `UParticleComponent`, `FParticleRenderer`. D
 
 `UPrimitiveComponent` line traces, sweeps, and overlaps are geometry queries. Damage, teams, and “enemy” filters are gameplay.
 
+```text
+Authority (Standalone / ListenServer)
+  → UCharacterMovementComponent::PerformMovement
+  → ResolvePenetration (WorldStatic SAT MTD, skip walkable floors)
+  → MoveAlongFloor / MoveThroughAir
+  → kinematic SyncPhysicsTransform → IPhysicsBody
+
+SimulatedProxy
+  → pose from net snapshot only
+  → no PerformMovement, no dynamics write-back, no Jolt System::Update on Client worlds
+```
+
+Gameplay pose is owned by CharacterMovement (pawns) and SimplePhysics write-back (simulating bodies) on authority. The Jolt plugin ticks the native world on authority only; it does not currently map Jolt body poses onto actors. Ragdoll on SimulatedProxy is visual/net pose, not local dynamics.
+
 ## Asset flow
 
 ```text
@@ -159,3 +173,15 @@ Engine never hardcodes `Projects/<Product>/…` paths.
 ## World / level
 
 A level stores geometry, lights, volumes, navigation, and placed actors. Match rules live on `AGameModeBase`. Replicated match facts live on `AGameStateBase`. `UWorld` does not own TDM scoring.
+
+## Networking (listen-server lite)
+
+```text
+ListenServer  →  BuildSnapshot (NET2)  →  client ApplySnapshot
+Client        →  SerializeControlInput →  server ApplyControlInput
+Either        →  Call*RPC (RPC1 batch) →  HandleServerRPC / HandleClientRPC
+```
+
+`UNetConnection` keeps three channels: snapshot (`Incoming`/`Outgoing`), control input, and framed RPCs. `ULoopbackNetDriver` shuttles all three; `UIpNetDriver` demuxes RPC batches by magic. Actor GUID is the net id.
+
+Snapshots replicate GameState, PlayerStates, possessed pawns, then other `bReplicates` actors (spawn by class name, cull when missing). Relevancy v1: `bAlwaysRelevant` or within `NetCullDistanceSquared` of a viewer pawn. No prediction yet.

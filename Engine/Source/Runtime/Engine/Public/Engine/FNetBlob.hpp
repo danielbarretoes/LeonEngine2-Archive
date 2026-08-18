@@ -13,6 +13,11 @@ namespace Leon {
     struct FNetBlob {
         static void WriteU8(std::vector<uint8_t>& Out, uint8_t InValue) { Out.push_back(InValue); }
 
+        static void WriteU16(std::vector<uint8_t>& Out, uint16_t InValue) {
+            Out.push_back(static_cast<uint8_t>(InValue));
+            Out.push_back(static_cast<uint8_t>(InValue >> 8));
+        }
+
         static void WriteU32(std::vector<uint8_t>& Out, uint32_t InValue) {
             Out.push_back(static_cast<uint8_t>(InValue));
             Out.push_back(static_cast<uint8_t>(InValue >> 8));
@@ -49,6 +54,14 @@ namespace Leon {
             if (Offset >= In.size())
                 return false;
             OutValue = In[Offset++];
+            return true;
+        }
+
+        static bool ReadU16(const std::vector<uint8_t>& In, size_t& Offset, uint16_t& OutValue) {
+            if (Offset + 2 > In.size())
+                return false;
+            OutValue = static_cast<uint16_t>(In[Offset]) | (static_cast<uint16_t>(In[Offset + 1]) << 8);
+            Offset += 2;
             return true;
         }
 

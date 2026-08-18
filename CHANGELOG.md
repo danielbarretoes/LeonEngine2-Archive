@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 - Anim Lab: opposing teams + friendly fire so dummy damage works; lab weapon pickups with 5s respawn; capsule foot plant; TAB scoreboard grouped by team.
 
+#### Added
+- Component overlap Begin/End events (`UPrimitiveComponent::OnComponentBeginOverlap` / `EndOverlap`) driven by `UWorld::UpdateComponentOverlaps`.
+- `UGameplayStatics::ApplyPointDamage` / `ApplyRadialDamage` (authority-only) plus `AGameModeBase::NotifyActorDamaged` / `NotifyActorKilled`.
+- `AActor::FindComponentByClass<T>()`.
+- `APickup` / `ALaunchPad` bases and `ACharacter::LaunchCharacter`.
+- Framed net RPCs (`ENetRPCKind`, `UNetConnection` IncomingRPC/OutgoingRPC, `AActor::CallServerRPC` / `CallClientRPC` / `CallMulticastRPC`) over loopback and IP demux; LeonTournament reload uses ServerRPC (fire-held stays on control bits).
+- Net actor spawn/destroy in snapshots plus relevancy lite (`bReplicates`, `bAlwaysRelevant`, `NetCullDistanceSquared`); `AProjectile` replicates by default.
+- `UCharacterMovementComponent::ResolvePenetration` (WorldStatic SAT MTD). SimulatedProxy pawns skip movement and physics write-back; Jolt `System::Update` runs on authority worlds only.
+
 ### Renderer math contract (CPU / GPU / baker)
 
 #### Fixed

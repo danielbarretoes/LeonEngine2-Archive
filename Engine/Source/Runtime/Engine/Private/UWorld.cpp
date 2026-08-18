@@ -11,6 +11,7 @@
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerState.hpp"
+#include "Gameplay/UPrimitiveComponent.hpp"
 #include "Renderer/FWorldRenderer.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UNetDriver.hpp"
@@ -190,8 +191,10 @@ namespace Leon {
         float deltaSeconds = InTs.GetSeconds();
         bIsTicking = true;
 
-        if (NetDriver)
+        if (NetDriver) {
             NetDriver->ConsumeIncomingInput();
+            NetDriver->ConsumeIncomingRPCs();
+        }
 
         if (bBegunPlay) {
             auto tickOnce = [&](AActor* actor) {
@@ -253,6 +256,9 @@ namespace Leon {
             FFrameProfiler::FScope physics(&FFrameProfiler::Working().PhysicsMs);
             PhysicsScene->Tick(deltaSeconds);
         }
+
+        if (bBegunPlay)
+            UpdateComponentOverlaps();
 
         if (NetDriver) {
             FFrameProfiler::FScope net(&FFrameProfiler::Working().NetworkMs);
@@ -536,6 +542,30 @@ namespace Leon {
             return 0;
         }
         return PhysicsScene->OverlapMultiByChannel(InPos, InHalfExtent, InChannel, InIgnore, OutHits);
+    }
+
+    void UWorld::UpdateComponentOverlaps() {
+        std::vector<UPrimitiveComponent*> generators;
+        std::vector<UPrimitiveComponent*> candidates;
+        generators.reserve(32);
+        candidates.reserve(64);
+
+        for (const auto& actorRef : Actors) {
+            AActor* actor = actorRef.get();
+            if (!actor || actor->IsPendingKill() || !actor->HasBegunPlay())
+                continue;
+            for (const auto& compRef : actor->GetActorComponents()) {
+                auto* prim = dynamic_cast<UPrimitiveComponent*>(compRef.get());
+                if (!prim || prim->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+                    continue;
+                candidates.push_back(prim);
+                if (prim->GetGenerateOverlapEvents())
+                    generators.push_back(prim);
+            }
+        }
+
+        for (UPrimitiveComponent* gen : generators)
+            gen->UpdateOverlaps(candidates);
     }
 
 } // namespace Leon

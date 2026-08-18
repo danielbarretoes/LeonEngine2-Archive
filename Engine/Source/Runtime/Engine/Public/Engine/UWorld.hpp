@@ -146,6 +146,9 @@ namespace Leon {
         int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
                                       AActor* InIgnore, std::vector<FHitResult>& OutHits) const;
 
+        /** Diff overlap generators vs all primitives; fires Begin/End overlap delegates. */
+        void UpdateComponentOverlaps();
+
     private:
         void DestroyActorImmediate(AActor* InActor);
         void UnbindActorAliases(AActor* InActor);

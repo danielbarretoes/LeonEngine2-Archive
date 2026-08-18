@@ -60,6 +60,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Gameplay/EngineGameSeparationTests.cpp
     Gameplay/NamingConventionTests.cpp
     Gameplay/HealthComponentTests.cpp
+    Gameplay/OverlapAndDamageTests.cpp
     Gameplay/PhysicsMovementAITests.cpp
     Gameplay/AudioDeviceTests.cpp
     Lightmass/StaticLightingTests.cpp

@@ -79,6 +79,16 @@ namespace Leon {
             return HasAuthority();
         }
 
+        bool GetReplicates() const { return bReplicates; }
+        void SetReplicates(bool bInReplicates) { bReplicates = bInReplicates; }
+        bool IsAlwaysRelevant() const { return bAlwaysRelevant; }
+        void SetAlwaysRelevant(bool bInAlwaysRelevant) { bAlwaysRelevant = bInAlwaysRelevant; }
+        float GetNetCullDistanceSquared() const { return NetCullDistanceSquared; }
+        void SetNetCullDistanceSquared(float InDistSq) { NetCullDistanceSquared = InDistSq; }
+
+        /** Relevancy v1: AlwaysRelevant, or within NetCullDistanceSquared of the viewer (0 = unlimited). */
+        bool IsNetRelevantFor(const glm::vec3& InViewerLocation) const;
+
         /**
          * @brief Optional extra bytes appended to net snapshots. Override in subclasses.
          */
@@ -92,6 +102,29 @@ namespace Leon {
         virtual void ApplyControlInput(const uint8_t* InData, size_t InSize) {
             (void)InData;
             (void)InSize;
+        }
+
+        /**
+         * @brief Queue or execute a ServerRPC (client → authority).
+         * Authority calls HandleServerRPC immediately; AutonomousProxy queues on the net connection.
+         */
+        void CallServerRPC(uint16_t InFunctionId, const std::vector<uint8_t>& InPayload = {});
+        /** Authority → owning/all clients. Queues Client kind; does not run locally. */
+        void CallClientRPC(uint16_t InFunctionId, const std::vector<uint8_t>& InPayload = {});
+        /** Authority → all clients + local HandleClientRPC on listen-server host. */
+        void CallMulticastRPC(uint16_t InFunctionId, const std::vector<uint8_t>& InPayload = {});
+
+        virtual bool HandleServerRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) {
+            (void)InFunctionId;
+            (void)InData;
+            (void)InSize;
+            return false;
+        }
+        virtual bool HandleClientRPC(uint16_t InFunctionId, const uint8_t* InData, size_t InSize) {
+            (void)InFunctionId;
+            (void)InData;
+            (void)InSize;
+            return false;
         }
 
         template <typename T> TRef<T> FindActorComponent() const {
@@ -135,6 +168,14 @@ namespace Leon {
         }
 
         const std::vector<TRef<UActorComponent>>& GetActorComponents() const { return ActorComponents; }
+
+        template <typename T> T* FindComponentByClass() const {
+            for (const auto& comp : ActorComponents) {
+                if (T* typed = dynamic_cast<T*>(comp.get()))
+                    return typed;
+            }
+            return nullptr;
+        }
 
         template <typename T, typename... TArgs> T& AddComponent(TArgs&&... InArgs) {
             LE_CORE_ASSERT(World != nullptr, "Actor world is null!");
@@ -186,6 +227,10 @@ namespace Leon {
         bool bHasBegunPlay = false;
         bool bCanEverTick = true;
         bool bPendingKill = false;
+        bool bReplicates = false;
+        bool bAlwaysRelevant = false;
+        /** Squared cull radius for non-AlwaysRelevant replicating actors. <= 0 means unlimited. */
+        float NetCullDistanceSquared = 0.0f;
         ENetRole LocalRole = ENetRole::Authority;
         std::vector<TRef<UActorComponent>> ActorComponents;
         USceneComponent* RootComponent = nullptr;

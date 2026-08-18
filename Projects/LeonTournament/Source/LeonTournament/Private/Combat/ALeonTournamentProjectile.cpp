@@ -387,6 +387,14 @@ namespace Leon {
 
     void ALeonTournamentProjectile::Tick(float DeltaSeconds) {
         AProjectile::Tick(DeltaSeconds);
+        if (GetLocalRole() == ENetRole::SimulatedProxy) {
+            TrailCooldown -= DeltaSeconds;
+            if (TrailCooldown <= 0.0f) {
+                SpawnTrail();
+                TrailCooldown = IsPellet() ? 0.018f : 0.04f;
+            }
+            return;
+        }
         if (HasExploded()) {
             if (World)
                 World->DestroyActor(this);

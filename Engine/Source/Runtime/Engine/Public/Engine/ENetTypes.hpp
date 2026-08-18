@@ -17,4 +17,11 @@ namespace Leon {
         Authority = 3
     };
 
+    /** Direction of a framed RPC batch entry (see UNetDriver IncomingRPC / OutgoingRPC). */
+    enum class ENetRPCKind : uint8_t {
+        Server = 0,
+        Client = 1,
+        Multicast = 2
+    };
+
 } // namespace Leon

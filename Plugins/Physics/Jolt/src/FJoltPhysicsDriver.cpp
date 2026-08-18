@@ -1,6 +1,8 @@
 #include "FJoltPhysicsDriver.hpp"
 #include "Physics/FSimplePhysicsScene.hpp"
 #include "Physics/IPhysicsScene.hpp"
+#include "Engine/UWorld.hpp"
+#include "Engine/ENetTypes.hpp"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/RegisterTypes.h>
@@ -111,7 +113,10 @@ namespace Leon {
         }
 
         void Tick(float InDeltaSeconds) override {
-            if (System && Temp && Jobs)
+            // Gameplay pose is CharacterMovement / SimplePhysics on authority.
+            // Client worlds skip Jolt integration so SimulatedProxy pawns are not dual-simulated.
+            const bool bAuthority = !GetWorld() || GetWorld()->GetNetMode() != ENetMode::Client;
+            if (bAuthority && System && Temp && Jobs)
                 System->Update(InDeltaSeconds, 1, Temp.get(), Jobs.get());
             FSimplePhysicsScene::Tick(InDeltaSeconds);
         }

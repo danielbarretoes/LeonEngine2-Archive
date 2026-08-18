@@ -8,6 +8,8 @@ namespace Leon {
     AProjectile::AProjectile(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : AActor(InHandle, InWorld, InName) {
         SetClass("AProjectile");
+        SetReplicates(true);
+        SetAlwaysRelevant(true);
         CollisionComponent = AddActorComponent<USphereComponent>("CollisionComponent");
         CollisionComponent->SetSphereRadius(0.18f);
         CollisionComponent->SetCollisionObjectType(ECollisionChannel::WorldDynamic);
@@ -66,6 +68,11 @@ namespace Leon {
     }
 
     void AProjectile::Tick(float DeltaSeconds) {
+        // Simulated proxies take pose from net snapshots; skip local ballistic simulation.
+        if (GetLocalRole() == ENetRole::SimulatedProxy) {
+            AActor::Tick(DeltaSeconds);
+            return;
+        }
         AActor::Tick(DeltaSeconds);
         if (bExploded)
             return;

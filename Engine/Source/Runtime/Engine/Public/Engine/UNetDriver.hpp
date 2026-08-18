@@ -2,6 +2,7 @@
 
 #include "Core/Base.hpp"
 #include "Assets/FAssetTypes.hpp"
+#include "Engine/ENetTypes.hpp"
 
 #include <cstdint>
 #include <string>
@@ -12,6 +13,9 @@ namespace Leon {
     class UWorld;
     class UNetDriver;
 
+    /** Max payload bytes per RPC entry (reject larger before queueing). */
+    constexpr size_t kMaxNetRPCPayloadBytes = 1024;
+
     /**
      * @brief One peer on a UNetDriver. Incoming bytes are filled by the driver before Tick.
      */
@@ -21,14 +25,17 @@ namespace Leon {
         std::vector<uint8_t> Outgoing;
         std::vector<uint8_t> IncomingInput;
         std::vector<uint8_t> OutgoingInput;
+        /** Framed RPC batch (magic RPC1 + entries). Separate from snapshots / control input. */
+        std::vector<uint8_t> IncomingRPC;
+        std::vector<uint8_t> OutgoingRPC;
         /** PlayerId of the remote pawn this connection drives. -1 = unbound. */
         int32_t BoundPlayerId = -1;
     };
 
     /**
-     * @brief Minimal listen-server snapshot driver (no RPCs / relevancy / prediction).
-     * Replicates GameState, PlayerState, pawn transforms, and optional subclass blobs.
-     * NetGUID = Actor GUID.
+     * @brief Minimal listen-server snapshot driver (+ framed Server/Client/Multicast RPCs).
+     * Replicates GameState, PlayerState, pawns, and other bReplicates actors (relevancy lite).
+     * NetGUID = Actor GUID. No prediction yet.
      */
     class UNetDriver {
     public:
@@ -39,6 +46,14 @@ namespace Leon {
 
         virtual void Tick(float InDeltaSeconds);
         virtual void ConsumeIncomingInput();
+        virtual void ConsumeIncomingRPCs();
+
+        /** Append one RPC entry to a connection OutgoingRPC batch (creates magic header if empty). */
+        static bool AppendOutgoingRPC(UNetConnection& InConn, const FUUID& InActorGuid, ENetRPCKind InKind,
+                                      uint16_t InFunctionId, const std::vector<uint8_t>& InPayload);
+
+        /** True if buffer starts with the RPC1 batch magic. */
+        static bool IsRPCBatch(const std::vector<uint8_t>& InBytes);
 
         const std::vector<TRef<UNetConnection>>& GetConnections() const { return Connections; }
         UNetConnection* AddConnection();

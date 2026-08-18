@@ -1,5 +1,7 @@
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/UParticleComponent.hpp"
+#include "Gameplay/UHealthComponent.hpp"
+#include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Audio/FAudioDevice.hpp"
 #include "Audio/USoundWave.hpp"
@@ -11,6 +13,9 @@
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/FOnScreenDebugMessage.hpp"
 #include "Engine/UWorld.hpp"
+
+#include <algorithm>
+#include <cmath>
 
 namespace Leon {
 
@@ -84,6 +89,100 @@ namespace Leon {
         auto wave = USoundWave::Load(InSoundPath);
         if (wave)
             FAudioDevice::Get().PlaySoundAtLocation(wave, InLocation, InVolume, InAttenuationRadius);
+    }
+
+    bool UGameplayStatics::ApplyPointDamage(UWorld* InWorld, AActor* DamagedActor, float BaseDamage,
+                                            const glm::vec3& HitFromDirection, const FHitResult& HitInfo,
+                                            AActor* DamageInstigator, AActor* DamageCauser) {
+        if (!InWorld || !DamagedActor || BaseDamage <= 0.0f)
+            return false;
+        if (InWorld->GetNetMode() == ENetMode::Client)
+            return false;
+
+        UHealthComponent* health = DamagedActor->FindComponentByClass<UHealthComponent>();
+        if (!health || health->IsDead())
+            return false;
+
+        const float before = health->GetHealth();
+        FDamageInfo info;
+        info.DamageAmount = BaseDamage;
+        info.DamageType = EDamageType::Point;
+        info.Instigator = DamageInstigator;
+        info.Causer = DamageCauser;
+        info.HitActor = DamagedActor;
+        info.HitComponent = static_cast<UActorComponent*>(HitInfo.Component);
+        info.HitLocation = HitInfo.ImpactPoint;
+        info.HitNormal = HitInfo.ImpactNormal;
+        const float dirLen = glm::length(HitFromDirection);
+        if (dirLen > 1e-5f)
+            info.Impulse = (HitFromDirection / dirLen) * BaseDamage * 0.05f;
+
+        health->ApplyDamage(info);
+        if (health->GetHealth() >= before)
+            return false;
+
+        if (AGameModeBase* gm = GetGameMode(InWorld)) {
+            gm->NotifyActorDamaged(DamagedActor, info);
+            if (health->IsDead())
+                gm->NotifyActorKilled(DamagedActor, info);
+        }
+        return true;
+    }
+
+    int32_t UGameplayStatics::ApplyRadialDamage(UWorld* InWorld, float BaseDamage, const glm::vec3& Origin,
+                                                float DamageRadius, AActor* DamageInstigator, AActor* DamageCauser,
+                                                float MinimumDamage, AActor* IgnoreActor) {
+        if (!InWorld || BaseDamage <= 0.0f || DamageRadius <= 0.0f)
+            return 0;
+        if (InWorld->GetNetMode() == ENetMode::Client)
+            return 0;
+
+        int32_t hitCount = 0;
+        const float radiusSq = DamageRadius * DamageRadius;
+        AGameModeBase* gm = GetGameMode(InWorld);
+        for (const auto& actorRef : InWorld->GetAllActors()) {
+            AActor* actor = actorRef.get();
+            if (!actor || actor == IgnoreActor || actor->IsPendingKill())
+                continue;
+            UHealthComponent* health = actor->FindComponentByClass<UHealthComponent>();
+            if (!health || health->IsDead())
+                continue;
+
+            const glm::vec3 delta = actor->GetActorLocation() - Origin;
+            const float distSq = glm::dot(delta, delta);
+            if (distSq > radiusSq)
+                continue;
+
+            const float dist = std::sqrt(distSq);
+            const float alpha = 1.0f - (dist / DamageRadius);
+            const float amount = std::max(MinimumDamage, BaseDamage * alpha);
+            if (amount <= 0.0f)
+                continue;
+
+            const float before = health->GetHealth();
+            FDamageInfo info;
+            info.DamageAmount = amount;
+            info.DamageType = EDamageType::Radial;
+            info.Instigator = DamageInstigator;
+            info.Causer = DamageCauser;
+            info.HitActor = actor;
+            info.HitLocation = actor->GetActorLocation();
+            info.HitNormal = dist > 1e-5f ? glm::normalize(delta) : glm::vec3(0.0f, 1.0f, 0.0f);
+            if (dist > 1e-5f)
+                info.Impulse = info.HitNormal * amount * 0.08f;
+
+            health->ApplyDamage(info);
+            if (health->GetHealth() >= before)
+                continue;
+
+            ++hitCount;
+            if (gm) {
+                gm->NotifyActorDamaged(actor, info);
+                if (health->IsDead())
+                    gm->NotifyActorKilled(actor, info);
+            }
+        }
+        return hitCount;
     }
 
 } // namespace Leon

@@ -1,12 +1,69 @@
 #include "Gameplay/AActor.hpp"
 #include "Gameplay/USceneComponent.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/UNetDriver.hpp"
 
 namespace Leon {
 
     AActor::AActor(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : UObject(InName), EntityHandle(InHandle), World(InWorld) {
         ActorGuid = FUUID::Generate();
+    }
+
+    void AActor::CallServerRPC(uint16_t InFunctionId, const std::vector<uint8_t>& InPayload) {
+        if (InPayload.size() > kMaxNetRPCPayloadBytes)
+            return;
+        if (IsNetworkAuthority()) {
+            HandleServerRPC(InFunctionId, InPayload.data(), InPayload.size());
+            return;
+        }
+        if (!World || World->GetNetMode() != ENetMode::Client)
+            return;
+        UNetDriver* driver = World->GetNetDriver();
+        if (!driver || driver->GetConnections().empty() || !driver->GetConnections().front())
+            return;
+        UNetDriver::AppendOutgoingRPC(*driver->GetConnections().front(), ActorGuid, ENetRPCKind::Server, InFunctionId,
+                                      InPayload);
+    }
+
+    void AActor::CallClientRPC(uint16_t InFunctionId, const std::vector<uint8_t>& InPayload) {
+        if (!IsNetworkAuthority() || InPayload.size() > kMaxNetRPCPayloadBytes)
+            return;
+        if (!World)
+            return;
+        UNetDriver* driver = World->GetNetDriver();
+        if (!driver)
+            return;
+        for (const auto& conn : driver->GetConnections()) {
+            if (conn)
+                UNetDriver::AppendOutgoingRPC(*conn, ActorGuid, ENetRPCKind::Client, InFunctionId, InPayload);
+        }
+    }
+
+    void AActor::CallMulticastRPC(uint16_t InFunctionId, const std::vector<uint8_t>& InPayload) {
+        if (!IsNetworkAuthority() || InPayload.size() > kMaxNetRPCPayloadBytes)
+            return;
+        HandleClientRPC(InFunctionId, InPayload.data(), InPayload.size());
+        if (!World)
+            return;
+        UNetDriver* driver = World->GetNetDriver();
+        if (!driver)
+            return;
+        for (const auto& conn : driver->GetConnections()) {
+            if (conn)
+                UNetDriver::AppendOutgoingRPC(*conn, ActorGuid, ENetRPCKind::Multicast, InFunctionId, InPayload);
+        }
+    }
+
+    bool AActor::IsNetRelevantFor(const glm::vec3& InViewerLocation) const {
+        if (!bReplicates || bPendingKill)
+            return false;
+        if (bAlwaysRelevant)
+            return true;
+        if (NetCullDistanceSquared <= 0.0f)
+            return true;
+        const glm::vec3 delta = GetActorLocation() - InViewerLocation;
+        return glm::dot(delta, delta) <= NetCullDistanceSquared;
     }
 
     void AActor::ExecuteBeginPlay() {

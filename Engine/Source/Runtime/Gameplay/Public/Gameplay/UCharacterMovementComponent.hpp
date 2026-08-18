@@ -57,6 +57,13 @@ namespace Leon {
         void StopMovementImmediately();
         void ResetForRespawn();
 
+        /**
+         * Push the capsule out of WorldStatic overlaps along the SAT MTD.
+         * Walkable floors (Normal.y > 0.7) are skipped so SnapToFloor stays in charge.
+         * No-op on SimulatedProxy (pose comes from net).
+         */
+        bool ResolvePenetration();
+
         void SetFloorZ(float InZ) { FloorZ = InZ; }
         float GetFloorZ() const { return FloorZ; }
 
@@ -64,7 +71,6 @@ namespace Leon {
         void ApplyGravity(float DeltaSeconds);
         void MoveAlongFloor(float DeltaSeconds);
         void MoveThroughAir(float DeltaSeconds);
-        bool ResolvePenetration();
         class ACharacter* GetCharacter() const;
 
         EMovementMode MovementMode = EMovementMode::Walking;

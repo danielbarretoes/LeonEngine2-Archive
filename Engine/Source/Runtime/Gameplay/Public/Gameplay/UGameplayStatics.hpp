@@ -2,6 +2,8 @@
 
 #include "Core/Base.hpp"
 #include "Engine/FParticleTypes.hpp"
+#include "Gameplay/FDamageInfo.hpp"
+#include "Physics/FHitResult.hpp"
 #include <glm/glm.hpp>
 #include <string>
 
@@ -12,6 +14,7 @@ namespace Leon {
     class AGameModeBase;
     class AGameStateBase;
     class APawn;
+    class AActor;
     class UParticleComponent;
 
     /**
@@ -47,6 +50,23 @@ namespace Leon {
         /** Fire-and-forget 3D one-shot with distance attenuation. */
         static void PlaySoundAtLocation(const std::string& InSoundPath, const glm::vec3& InLocation,
                                         float InVolume = 1.0f, float InAttenuationRadius = 2500.0f);
+
+        /**
+         * Authority-only point damage into UHealthComponent on DamagedActor.
+         * Notifies AGameModeBase::NotifyActorDamaged / NotifyActorKilled when present.
+         * @return true if health was modified.
+         */
+        static bool ApplyPointDamage(UWorld* InWorld, AActor* DamagedActor, float BaseDamage,
+                                     const glm::vec3& HitFromDirection, const FHitResult& HitInfo,
+                                     AActor* DamageInstigator, AActor* DamageCauser);
+
+        /**
+         * Authority-only radial damage to all actors with UHealthComponent in radius (linear falloff).
+         * @return number of actors that took damage.
+         */
+        static int32_t ApplyRadialDamage(UWorld* InWorld, float BaseDamage, const glm::vec3& Origin, float DamageRadius,
+                                         AActor* DamageInstigator, AActor* DamageCauser,
+                                         float MinimumDamage = 0.0f, AActor* IgnoreActor = nullptr);
     };
 
     /**

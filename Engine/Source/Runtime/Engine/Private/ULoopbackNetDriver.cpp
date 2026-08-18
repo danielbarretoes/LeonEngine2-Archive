@@ -29,6 +29,10 @@ namespace Leon {
             remote->IncomingInput = local->OutgoingInput;
             local->OutgoingInput.clear();
         }
+        if (!local->OutgoingRPC.empty()) {
+            remote->IncomingRPC = local->OutgoingRPC;
+            local->OutgoingRPC.clear();
+        }
     }
 
 } // namespace Leon

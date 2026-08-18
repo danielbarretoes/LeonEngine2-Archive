@@ -206,4 +206,14 @@ namespace Leon {
         return pawn;
     }
 
+    void AGameModeBase::NotifyActorDamaged(AActor* DamagedActor, const FDamageInfo& InInfo) {
+        (void)DamagedActor;
+        (void)InInfo;
+    }
+
+    void AGameModeBase::NotifyActorKilled(AActor* Victim, const FDamageInfo& InInfo) {
+        (void)Victim;
+        (void)InInfo;
+    }
+
 } // namespace Leon

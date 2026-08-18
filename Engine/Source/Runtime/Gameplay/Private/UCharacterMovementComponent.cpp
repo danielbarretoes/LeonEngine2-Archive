@@ -97,7 +97,57 @@ namespace Leon {
         return true;
     }
 
-    bool UCharacterMovementComponent::ResolvePenetration() { return false; }
+    bool UCharacterMovementComponent::ResolvePenetration() {
+        auto* character = GetCharacter();
+        if (!character || !character->GetWorld())
+            return false;
+        if (character->GetLocalRole() == ENetRole::SimulatedProxy)
+            return false;
+
+        // Flow: capsule depenetration
+        // 1. Overlap WorldStatic with the capsule AABB
+        // 2. Pick the deepest SAT axis (skip walkable floors — SnapToFloor owns those)
+        // 3. Push along the MTD + skin; repeat a few times if still overlapping
+        constexpr float kSkin = 0.02f;
+        constexpr float kWalkableY = 0.7f;
+        constexpr int kMaxIters = 4;
+        bool bMoved = false;
+
+        for (int iter = 0; iter < kMaxIters; ++iter) {
+            glm::vec3 minB, maxB;
+            character->GetCapsuleAABB(minB, maxB);
+            const glm::vec3 center = (minB + maxB) * 0.5f;
+            const glm::vec3 half = (maxB - minB) * 0.5f;
+            std::vector<FHitResult> hits;
+            if (character->GetWorld()->OverlapMultiByChannel(center, half, ECollisionChannel::WorldStatic, character,
+                                                             hits) <= 0)
+                break;
+
+            const FHitResult* best = nullptr;
+            float bestDepth = 0.0f;
+            for (const auto& hit : hits) {
+                if (!hit.bBlockingHit || hit.PenetrationDepth <= 1e-5f)
+                    continue;
+                if (hit.Normal.y > kWalkableY)
+                    continue;
+                if (hit.PenetrationDepth > bestDepth) {
+                    bestDepth = hit.PenetrationDepth;
+                    best = &hit;
+                }
+            }
+            if (!best)
+                break;
+
+            glm::vec3 n = best->Normal;
+            const float nLen = glm::length(n);
+            if (nLen < 1e-6f)
+                break;
+            n /= nLen;
+            character->SetActorLocation(character->GetActorLocation() + n * (bestDepth + kSkin));
+            bMoved = true;
+        }
+        return bMoved;
+    }
 
     void UCharacterMovementComponent::ApplyGravity(float DeltaSeconds) {
         float scale = GravityScale;
@@ -217,6 +267,9 @@ namespace Leon {
     void UCharacterMovementComponent::PerformMovement(float DeltaSeconds) {
         if (DeltaSeconds <= 0.0f)
             return;
+        auto* character = GetCharacter();
+        if (character && character->GetLocalRole() == ENetRole::SimulatedProxy)
+            return;
         if (MovementMode == EMovementMode::None) {
             ConsumeInputVector();
             bHasRequestedVelocity = false;
@@ -225,6 +278,8 @@ namespace Leon {
         }
         if (bPressedJump)
             DoJump();
+
+        ResolvePenetration();
 
         if (IsMovingOnGround())
             MoveAlongFloor(DeltaSeconds);
