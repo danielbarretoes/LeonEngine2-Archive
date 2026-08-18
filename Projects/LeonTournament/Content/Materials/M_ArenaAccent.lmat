@@ -9,4 +9,4 @@ Material:
   OcclusionStrength: 1.0
   UVTiling: [1.0, 1.0]
   UVOffset: [0.0, 0.0]
-  UsePlanarReflection: true
+  UsePlanarReflection: false

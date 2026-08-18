@@ -342,7 +342,7 @@ namespace Leon {
             anyHitChar = anyHitChar || hitChar;
             anyHitWorld = anyHitWorld || hitWorld;
             if (pellets > 1 && i > 0) {
-                const glm::vec3 tracerStart = origin + dir * 0.25f;
+                const glm::vec3 tracerStart = muzzle + dir * 0.08f;
                 FParticleEmitterSettings tracer;
                 tracer.Kind = EParticleKind::Beam;
                 tracer.Lifetime = 0.04f;
@@ -354,7 +354,7 @@ namespace Leon {
             }
         }
 
-        const glm::vec3 tracerStart = origin + aimDir * 0.35f;
+        const glm::vec3 tracerStart = muzzle + aimDir * 0.08f;
         if (WeaponId == ELeonTournamentWeaponId::Laser)
             SpawnLaserEffects(muzzle, primaryEnd, anyHitChar);
         else
@@ -373,15 +373,19 @@ namespace Leon {
         }
 
         const glm::vec3 muzzle = OwnerCharacter->GetMuzzleSocketLocation();
+        const glm::vec3 aimPoint = origin + aimDir * Config.Range;
+        glm::vec3 toAim = aimPoint - muzzle;
+        const float toAimLen = glm::length(toAim);
+        const glm::vec3 spawnDir = toAimLen > 1e-4f ? toAim / toAimLen : aimDir;
         const int shots = std::max(1, Config.PelletCount);
         const float cone = CurrentSpreadDeg + Config.PelletSpreadDeg;
         bool anySpawned = false;
         for (int i = 0; i < shots; ++i) {
-            glm::vec3 dir = (shots > 1) ? ApplyAimSpread(aimDir, cone) : ApplyAimSpread(aimDir, CurrentSpreadDeg);
+            glm::vec3 dir = (shots > 1) ? ApplyAimSpread(spawnDir, cone) : ApplyAimSpread(spawnDir, CurrentSpreadDeg);
             auto* proj = World->SpawnActor<ALeonTournamentProjectile>(shots > 1 ? "Pellet" : "Projectile");
             if (!proj)
                 continue;
-            proj->SetActorLocation(origin + dir * 0.45f);
+            proj->SetActorLocation(muzzle + dir * 0.35f);
             proj->Launch(OwnerCharacter, this, dir, Config);
             anySpawned = true;
         }
@@ -463,14 +467,33 @@ namespace Leon {
         OwnerCharacter->GetAimRay(camOrigin, look);
         (void)camOrigin;
         const glm::vec3 muzzle = OwnerCharacter->GetMuzzleSocketLocation();
+        glm::vec3 right, up;
+        StableViewBasis(look, right, up);
+
+        float walk = 0.0f;
+        if (auto move = OwnerCharacter->GetCharacterMovement()) {
+            glm::vec3 planar(move->GetVelocity().x, 0.0f, move->GetVelocity().z);
+            walk = std::clamp(glm::length(planar) / 6.0f, 0.0f, 1.0f);
+        }
+        const float ads = OwnerCharacter->IsAimingDownSights() ? 0.22f : 1.0f;
+        const float idleX = std::sin(SwayPhase * 1.15f) * 0.012f;
+        const float idleY = std::cos(SwayPhase * 1.45f) * 0.010f;
+        const float bobX = std::sin(SwayPhase * 8.5f) * 0.022f * walk;
+        const float bobY = std::abs(std::sin(SwayPhase * 17.0f)) * 0.030f * walk;
+        const glm::vec3 sway = (right * (idleX + bobX) + up * (idleY + bobY)) * ads;
+
         const float kick = bFiring ? 0.03f : 0.0f;
-        SetActorLocation(muzzle + look * (0.12f - kick));
-        SetActorRotation(Leon::EulerAligningLocalY(look));
+        SetActorLocation(muzzle + look * (0.12f - kick) + sway);
+        glm::vec3 euler = Leon::EulerAligningLocalY(look);
+        euler.z += (idleX + bobX) * 18.0f * ads;
+        euler.x += (idleY + bobY) * 12.0f * ads;
+        SetActorRotation(euler);
         SetVisualHidden(bVisualHidden);
     }
 
     void ALeonTournamentWeapon::Tick(float DeltaSeconds) {
         AWeaponBase::Tick(DeltaSeconds);
+        SwayPhase += DeltaSeconds;
         if (CurrentSpreadDeg > Config.BaseSpreadDeg)
             CurrentSpreadDeg =
                 std::max(Config.BaseSpreadDeg, CurrentSpreadDeg - Config.SpreadRecoveryPerSec * DeltaSeconds);

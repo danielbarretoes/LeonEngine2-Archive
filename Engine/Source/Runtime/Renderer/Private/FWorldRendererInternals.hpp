@@ -144,4 +144,11 @@ namespace Leon {
         }
     }
 
+    // Planar capture is a static-world pass. Hidden or Movable meshes (pickups, projectiles)
+    // must not contribute — otherwise a collected pickup leaves a ghost in the floor/mirror.
+    inline bool CanContributeToPlanarReflection(bool bVisible, bool bVisibleInReflection,
+                                                EComponentMobility InMobility) {
+        return bVisible && bVisibleInReflection && InMobility != EComponentMobility::Movable;
+    }
+
 } // namespace Leon

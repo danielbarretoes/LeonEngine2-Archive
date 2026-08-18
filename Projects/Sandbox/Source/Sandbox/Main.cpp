@@ -2,6 +2,7 @@
 #include "Gameplay/UClassRegistry.hpp"
 #include "ASandboxGameMode.hpp"
 #include "ASandboxHUD.hpp"
+#include "ASandboxDemoPickup.hpp"
 #include "FOpenGLRenderDriver.hpp"
 #include "FJoltPhysicsDriver.hpp"
 
@@ -67,6 +68,7 @@ int main(int argc, char** argv) {
     auto& registry = Leon::UClassRegistry::Get();
     registry.RegisterClass<Leon::ASandboxGameMode>("ASandboxGameMode");
     registry.RegisterClass<Leon::ASandboxHUD>("ASandboxHUD");
+    registry.RegisterClass<Leon::ASandboxDemoPickup>("ASandboxDemoPickup");
 
     Leon::FApplicationCommandLineArgs args{argc, argv};
     const std::string projectFile = ResolveSandboxProjectFile(argc, argv);

@@ -4,11 +4,29 @@
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Assets/UAssetManager.hpp"
+#include "Renderer/FMaterialInstance.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "Engine/Components.hpp"
 #include "Core/FApplication.hpp"
 
 namespace Leon {
+
+    namespace {
+        void ConfigurePickupMesh(FMeshComponent& InMesh, bool bActive) {
+            InMesh.Mobility = EComponentMobility::Movable;
+            InMesh.bCastShadows = false;
+            InMesh.bVisible = bActive;
+            InMesh.bVisibleInReflection = false;
+        }
+
+        void StylePickupMaterial(FMaterialInstance& InMat, const glm::vec3& InColor) {
+            InMat.SetAlbedoColor(InColor);
+            InMat.SetMetallic(0.42f);
+            InMat.SetRoughness(0.28f);
+            InMat.SetEmissiveColor(InColor);
+            InMat.SetEmissiveIntensity(2.2f);
+        }
+    } // namespace
 
     ALeonTournamentPickup::ALeonTournamentPickup(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : APickup(InHandle, InWorld, InName) {
@@ -17,8 +35,11 @@ namespace Leon {
 
     void ALeonTournamentPickup::SetPickupActive(bool bInActive) {
         APickup::SetPickupActive(bInActive);
-        if (HasComponent<FMeshComponent>())
-            GetComponent<FMeshComponent>().bVisible = bInActive;
+        if (HasComponent<FMeshComponent>()) {
+            auto& mesh = GetComponent<FMeshComponent>();
+            mesh.bVisible = bInActive;
+            mesh.bVisibleInReflection = false;
+        }
     }
 
     bool ALeonTournamentPickup::CanBePickedUp(APawn* InPawn) const {
@@ -53,28 +74,29 @@ namespace Leon {
         const auto cfg = LeonTournamentWeaponPreset(InId);
         VisualColor = cfg.VisualColor;
         if (HasComponent<FMaterialComponent>()) {
-            if (auto mat = GetComponent<FMaterialComponent>().MaterialInstance)
+            if (auto mat = GetComponent<FMaterialComponent>().MaterialInstance) {
                 mat->SetAlbedoColor(VisualColor);
+                mat->SetEmissiveColor(VisualColor);
+            }
         }
     }
 
     void ALeonTournamentWeaponPickup::BuildVisual() {
         if (HasComponent<FMeshComponent>() || !FApplication::HasInstance())
             return;
-        auto va = FMeshPrimitives::CreateCylinder(0.18f, 0.12f, 0.55f, 12, true);
+        auto va = FMeshPrimitives::CreatePyramid(0.42f, 0.72f, 0.42f);
         auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
         if (!va || !shader)
             return;
         auto& mesh = AddComponent<FMeshComponent>(va, shader);
-        mesh.MeshType = "Cylinder";
-        mesh.MeshRadius = 0.18f;
-        mesh.MeshHeight = 0.55f;
-        mesh.Mobility = EComponentMobility::Movable;
-        mesh.bCastShadows = false;
-        mesh.bVisible = IsPickupActive();
+        mesh.MeshType = "Pyramid";
+        mesh.MeshWidth = 0.42f;
+        mesh.MeshHeight = 0.72f;
+        mesh.MeshDepth = 0.42f;
+        ConfigurePickupMesh(mesh, IsPickupActive());
         if (auto parent = UAssetManager::GetDefaultMaterial()) {
             auto inst = parent->CreateInstance("WeaponPickupMat");
-            inst->SetAlbedoColor(VisualColor);
+            StylePickupMaterial(*inst, VisualColor);
             AddComponent<FMaterialComponent>(inst);
         }
     }
@@ -94,18 +116,17 @@ namespace Leon {
     void ALeonTournamentHealthPickup::BuildVisual() {
         if (HasComponent<FMeshComponent>() || !FApplication::HasInstance())
             return;
-        auto va = FMeshPrimitives::CreateCube(0.45f);
+        auto va = FMeshPrimitives::CreateCube(0.42f);
         auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
         if (!va || !shader)
             return;
         auto& mesh = AddComponent<FMeshComponent>(va, shader);
         mesh.MeshType = "Box";
-        mesh.Mobility = EComponentMobility::Movable;
-        mesh.bCastShadows = false;
-        mesh.bVisible = IsPickupActive();
+        mesh.MeshSize = 0.42f;
+        ConfigurePickupMesh(mesh, IsPickupActive());
         if (auto parent = UAssetManager::GetDefaultMaterial()) {
             auto inst = parent->CreateInstance("HealthPickupMat");
-            inst->SetAlbedoColor(VisualColor);
+            StylePickupMaterial(*inst, VisualColor);
             AddComponent<FMaterialComponent>(inst);
         }
     }

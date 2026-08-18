@@ -15,12 +15,7 @@ namespace Leon {
     enum class ELeonTournamentSessionMode : uint8_t { Offline = 0, LanHost = 1, LanClient = 2 };
 
     /** Selectable pawn mesh; each skin keeps its own .lskeleton. Mixamo anims link by bone name. */
-    enum class ELeonTournamentCharacterSkin : uint8_t {
-        YBot = 0,
-        Patrick = 1,
-        Trump = 2,
-        Count = 3
-    };
+    enum class ELeonTournamentCharacterSkin : uint8_t { YBot = 0, Patrick = 1, Trump = 2, Count = 3 };
 
     inline const char* LeonTournamentCharacterSkinName(ELeonTournamentCharacterSkin InSkin) {
         switch (InSkin) {
@@ -60,8 +55,8 @@ namespace Leon {
     }
 
     inline ELeonTournamentCharacterSkin LeonTournamentNextCharacterSkin(ELeonTournamentCharacterSkin InSkin) {
-        const uint8_t next = static_cast<uint8_t>(
-            (static_cast<uint8_t>(InSkin) + 1) % static_cast<uint8_t>(ELeonTournamentCharacterSkin::Count));
+        const uint8_t next = static_cast<uint8_t>((static_cast<uint8_t>(InSkin) + 1) %
+                                                  static_cast<uint8_t>(ELeonTournamentCharacterSkin::Count));
         return static_cast<ELeonTournamentCharacterSkin>(next);
     }
 
@@ -166,9 +161,9 @@ namespace Leon {
     }
 
     struct FLeonTournamentWeaponConfig {
-        float FireRate = 12.0f;
-        float Damage = 18.0f;
-        int32_t MagazineSize = 40;
+        float FireRate = 7.5f;
+        float Damage = 16.0f;
+        int32_t MagazineSize = 24;
         float ReloadTime = 1.45f;
         float Range = 200.0f;
         /** Half-angle cone (degrees) at rest; bloom opens the random aim field. */

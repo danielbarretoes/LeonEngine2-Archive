@@ -18,12 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared `FStringUtils::Trim`; PBR fragment BRDF/shadow helpers in `PBR_Common.glsl` with OpenGL shader `#include` resolve.
 - Split large translation units: `FWorldRenderer` (Lighting/Geometry/PostProcess), `FMapSerializer` deserialize unit, `UEngineTravel`.
 - `Scripts/verify_ue_naming.py` enforces EnTT `F*Component` and forbids `class F* : public U*`.
+- `APickup` spins on a tilted yaw (independent of bob) so collectibles read clearly in-world.
+- LeonTournament arena ceiling/walls raised to 14 m so the room is not a low box.
+- LeonTournament weapons idle/walk sway on the view model (aim ray unchanged).
+- LeonTournament weapon damage/stats retuned vs 100 HP: rifle mid TTK, shotgun close burst, rocket/grenade/laser two connecting hits, flame close-cone DPS (no full-health instagib).
 
 #### Removed
 - Legacy `Projects/MultiverseTournament` product tree (already absent from the active tree; product is LeonTournament only).
 
 #### Fixed
 - Anim Lab: opposing teams + friendly fire so dummy damage works; lab weapon pickups with 5s respawn; capsule foot plant; TAB scoreboard grouped by team.
+- Planar reflections sample the mirrored camera with projective UVs (`u_PlanarViewProjection * worldPos`) so small mirrors are not a zoomed screen grab.
+- LeonTournament hitscan follows `ACharacter::GetViewPoint` (spring-arm camera in third person) so shots land on the HUD crosshair when looking down.
+- Planar reflection skips hidden and Movable meshes, so collected pickups no longer leave a ghost in floors/mirrors.
+- Planar capture always fills the floor FBO; a facing wall mirror uses a second pass so the wet floor stays visible.
+- Jolt `BoxShape` creation clamps convex radius to the shortest half-extent so thin walls/mirrors (5 cm scale) no longer abort on `BeginPlay`.
 
 #### Added
 - Component overlap Begin/End events (`UPrimitiveComponent::OnComponentBeginOverlap` / `EndOverlap`) driven by `UWorld::UpdateComponentOverlaps`.
@@ -44,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `USkeletalMeshComponent::GetBoneLocation` / `GetSocketLocation` and optional `FSkeletalMeshSocket`.
 - UMG `USlider`, `UCheckBox`, `UWidgetSwitcher`, `UScrollBox`.
 - `ACharacter::EnableRagdoll` from `UPhysicsAsset` bodies + distance constraints, with capsule fallback.
+
+### Sandbox sample
+
+#### Added
+- Showcase registers floor + wall planar planes and spawns a vertical chrome mirror so dual-FBO reflections are visible without rebaking the map.
+- `ASandboxDemoPickup` (`APickup` bob/spin, respawn) in Showcase; Night spawns a wet puddle plate on the street.
+- `Projects/Sandbox/Scripts/package.py` shipping shortcut (same pattern as LeonTournament).
 
 ### Renderer math contract (CPU / GPU / baker)
 

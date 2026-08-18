@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/matrix.hpp>
 #include <algorithm>
 #include <cmath>
 
@@ -55,6 +56,49 @@ namespace Leon {
         glm::mat3 rotation(right, forward, up);
         glm::quat q = glm::normalize(glm::quat_cast(rotation));
         return glm::degrees(glm::eulerAngles(q));
+    }
+
+    /** Plane n·x + Distance = 0 (n unit). Householder reflection through that plane. */
+    inline glm::mat4 PlanarReflectionMatrix(const glm::vec3& InNormal, float InDistance) {
+        glm::vec3 n = SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat3 r = glm::mat3(1.0f) - 2.0f * glm::outerProduct(n, n);
+        glm::mat4 m(1.0f);
+        m[0] = glm::vec4(r[0], 0.0f);
+        m[1] = glm::vec4(r[1], 0.0f);
+        m[2] = glm::vec4(r[2], 0.0f);
+        m[3] = glm::vec4(-2.0f * InDistance * n, 1.0f);
+        return m;
+    }
+
+    inline glm::vec3 ReflectPointThroughPlane(const glm::vec3& InPoint, const glm::vec3& InNormal, float InDistance) {
+        glm::vec3 n = SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        return InPoint - 2.0f * (glm::dot(n, InPoint) + InDistance) * n;
+    }
+
+    inline bool IsHorizontalPlanarPlane(const glm::vec3& InNormal) {
+        return std::abs(SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f)).y) > 0.85f;
+    }
+
+    /** Wall capture only when the camera is reasonably facing that plane. */
+    inline constexpr float kWallPlanarCaptureMinScore = 0.45f;
+
+    /**
+     * Higher score wins among candidate planes.
+     * Camera on the back side of the plane is rejected so wall mirrors only fire from the interior.
+     */
+    inline float PlanarReflectionPlaneScore(const glm::vec3& InNormal, float InDistance,
+                                            const glm::vec3& InCameraPosition, const glm::vec3& InCameraForward) {
+        glm::vec3 n = SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        const float side = glm::dot(n, InCameraPosition) + InDistance;
+        if (side < 0.05f)
+            return -1.0e9f;
+        const float lookingAt = -glm::dot(InCameraForward, n);
+        float score = lookingAt;
+        if (std::abs(n.y) > 0.85f)
+            score += std::max(0.0f, -InCameraForward.y) * 1.35f;
+        else
+            score += std::max(0.0f, lookingAt) * 0.4f;
+        return score;
     }
 
     /**

@@ -328,3 +328,43 @@ float CalculateSpotShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
     if (u_UseSpotShadows == 0) return 0.0;
     return SampleSpotShadowMap(u_SpotShadowMap, fragPos, normal, lightDir);
 }
+
+// Project the fragment through a mirrored camera used to fill a planar map.
+// Screen-space UVs turn every mirror into a zoomed portal of the framebuffer.
+vec2 PlanarReflectionUVFrom(mat4 planarVP, vec3 worldPos, vec3 N, float roughness, out float clipW) {
+    vec4 planarClip = planarVP * vec4(worldPos, 1.0);
+    clipW = planarClip.w;
+    float invW = 1.0 / max(abs(planarClip.w), 1e-5);
+    vec2 uv = planarClip.xy * invW * 0.5 + 0.5;
+    uv += vec2(N.x, N.z) * 0.03 * (1.0 - roughness);
+    return uv;
+}
+
+vec2 PlanarReflectionUV(vec3 worldPos, vec3 N, float roughness, out float clipW) {
+    return PlanarReflectionUVFrom(u_PlanarViewProjection, worldPos, N, roughness, clipW);
+}
+
+vec3 SampleOnePlanarLi(sampler2D planarMap, mat4 planarVP, vec3 planeN, vec3 worldPos, vec3 N, float roughness,
+                       out float weight) {
+    float clipW = 0.0;
+    vec2 uv = PlanarReflectionUVFrom(planarVP, worldPos, N, roughness, clipW);
+    float inFront = step(1e-5, clipW);
+    float inBounds = float(uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0);
+    float planeAlign = smoothstep(0.35, 0.70, abs(dot(N, normalize(planeN))));
+    weight = clamp(1.0 - roughness * 1.1, 0.0, 1.0) * inFront * inBounds * planeAlign;
+    const float MAX_PLANAR_LOD = 4.0;
+    return textureLod(planarMap, clamp(uv, 0.001, 0.999), roughness * MAX_PLANAR_LOD).rgb;
+}
+
+vec3 SamplePlanarReflectionLi(vec3 worldPos, vec3 N, float roughness, out float weight) {
+    float w0 = 0.0;
+    vec3 li0 = SampleOnePlanarLi(u_PlanarReflectionMap, u_PlanarViewProjection, u_PlanarPlaneNormal, worldPos, N,
+                                 roughness, w0);
+    float w1 = 0.0;
+    vec3 li1 = vec3(0.0);
+    if (u_UsePlanarReflection1 == 1)
+        li1 = SampleOnePlanarLi(u_PlanarReflectionMap1, u_PlanarViewProjection1, u_PlanarPlaneNormal1, worldPos, N,
+                                roughness, w1);
+    weight = max(w0, w1);
+    return w1 > w0 ? li1 : li0;
+}

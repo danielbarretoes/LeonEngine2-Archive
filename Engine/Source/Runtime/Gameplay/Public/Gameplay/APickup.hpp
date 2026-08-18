@@ -32,6 +32,8 @@ namespace Leon {
         void SetBobEnabled(bool bEnabled) { bBobEnabled = bEnabled; }
         void SetBobAmplitude(float InAmplitude) { BobAmplitude = InAmplitude; }
         void SetBobSpeed(float InSpeed) { BobSpeed = InSpeed; }
+        void SetSpinDegreesPerSecond(float InDegrees) { SpinDegreesPerSecond = InDegrees; }
+        float GetSpinDegreesPerSecond() const { return SpinDegreesPerSecond; }
 
     protected:
         virtual bool CanBePickedUp(APawn* InPawn) const;
@@ -46,7 +48,9 @@ namespace Leon {
         float BobPhase = 0.0f;
         float BobAmplitude = 0.12f;
         float BobSpeed = 2.4f;
-        float SpinDegreesPerSecond = 45.0f;
+        float SpinYaw = 0.0f;
+        float SpinDegreesPerSecond = 120.0f;
+        float SpinTiltDegrees = 22.0f;
         float RespawnRemaining = 0.0f;
         bool bActive = true;
         bool bBobEnabled = true;

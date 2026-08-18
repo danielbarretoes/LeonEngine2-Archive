@@ -5,8 +5,11 @@
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Gameplay/APickup.hpp"
+#include "Gameplay/APawn.hpp"
 #include "Physics/FHitResult.hpp"
 
+#include <cmath>
 #include <doctest/doctest.h>
 
 namespace Leon {
@@ -25,6 +28,12 @@ namespace Leon {
                 GM->DefaultPawnClass = "None";
                 World->BeginPlay();
             }
+        };
+
+        class ATestPickup : public APickup {
+        public:
+            using APickup::APickup;
+            bool GiveTo(APawn*) override { return true; }
         };
     } // namespace
 
@@ -106,6 +115,19 @@ namespace Leon {
             CHECK(n == 1);
             CHECK(hNear->GetHealth() < 100.0f);
             CHECK(hFar->GetHealth() == doctest::Approx(100.0f));
+        }
+    }
+
+    TEST_SUITE("APickup presentation") {
+        TEST_CASE("active pickup yaws and stays tilted") {
+            FOverlapDamageFixture f;
+            auto* pu = f.World->SpawnActor<ATestPickup>("SpinPU");
+            REQUIRE(pu);
+            pu->SetSpinDegreesPerSecond(90.0f);
+            const float yaw0 = pu->GetActorRotation().y;
+            pu->Tick(0.5f);
+            CHECK(pu->GetActorRotation().y == doctest::Approx(yaw0 + 45.0f).epsilon(0.05f));
+            CHECK(std::abs(pu->GetActorRotation().x) > 10.0f);
         }
     }
 

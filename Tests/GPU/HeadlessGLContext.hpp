@@ -30,6 +30,18 @@ namespace Leon::TestGPU {
         shader->SetFloat2(name, v.x, v.y);
     }
 
+    inline glm::mat3 FloorFacingNormalMatrix() {
+        glm::mat3 m(1.0f);
+        m[1] = glm::vec3(0.0f, 0.0f, 1.0f);
+        m[2] = glm::vec3(0.0f, 1.0f, 0.0f);
+        return m;
+    }
+
+    inline void ApplyFloorView(FCameraBufferData& camData) {
+        camData.CameraPosition = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+        camData.CameraForward = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+    }
+
     struct FTestVertex {
         glm::vec3 Position;
         glm::vec3 Normal;
@@ -126,10 +138,15 @@ namespace Leon::TestGPU {
             // Unit 11: Spot Shadow Map (Texture2DShadow)
             glActiveTexture(GL_TEXTURE11);
             glBindTexture(GL_TEXTURE_2D, DefaultShadowTex);
+
+            // Unit 13: second planar capture (wall mirrors)
+            glActiveTexture(GL_TEXTURE13);
+            glBindTexture(GL_TEXTURE_2D, DefaultBlackTex);
         }
 
         void ResetShaderUniforms(const TRef<FShader>& shader) {
-            if (!shader) return;
+            if (!shader)
+                return;
             shader->Bind();
             shader->SetInt("u_AlphaMode", 0);
             shader->SetFloat("u_AlphaCutoff", 0.5f);
@@ -140,6 +157,7 @@ namespace Leon::TestGPU {
             shader->SetInt("u_UseRoughnessMap", 0);
             shader->SetInt("u_UseEmissiveMap", 0);
             shader->SetInt("u_UsePlanarReflection", 0);
+            shader->SetInt("u_UsePlanarReflection1", 0);
             shader->SetInt("u_UseIBL", 0);
             shader->SetInt("u_UseShadows", 0);
             shader->SetInt("u_UseSpotShadows", 0);
@@ -161,7 +179,7 @@ namespace Leon::TestGPU {
 
         GLuint Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
             GLuint tex = 0;
-            uint8_t data[4] = { r, g, b, a };
+            uint8_t data[4] = {r, g, b, a};
             glCreateTextures(GL_TEXTURE_2D, 1, &tex);
             glTextureStorage2D(tex, 1, GL_RGBA8, 1, 1);
             glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -174,7 +192,7 @@ namespace Leon::TestGPU {
 
         GLuint Create1x1SRGBTexture(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
             GLuint tex = 0;
-            uint8_t data[4] = { r, g, b, a };
+            uint8_t data[4] = {r, g, b, a};
             glCreateTextures(GL_TEXTURE_2D, 1, &tex);
             glTextureStorage2D(tex, 1, GL_SRGB8_ALPHA8, 1, 1);
             glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -187,7 +205,7 @@ namespace Leon::TestGPU {
 
         GLuint Create1x1FloatTexture(float r, float g, float b, float a = 1.0f) {
             GLuint tex = 0;
-            float data[4] = { r, g, b, a };
+            float data[4] = {r, g, b, a};
             glCreateTextures(GL_TEXTURE_2D, 1, &tex);
             glTextureStorage2D(tex, 1, GL_RGBA32F, 1, 1);
             glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -308,14 +326,16 @@ namespace Leon::TestGPU {
 
         void InitGeometry() {
             // Fullscreen / Unit Quad centered facing +Z with normal +Z
-            std::vector<FTestVertex> vertices = {
-                { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) },
-                { glm::vec3( 1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) },
-                { glm::vec3( 1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(1.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) },
-                { glm::vec3(-1.0f,  1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec2(0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f) }
-            };
+            std::vector<FTestVertex> vertices = {{glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f),
+                                                  glm::vec2(0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)},
+                                                 {glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f),
+                                                  glm::vec2(1.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)},
+                                                 {glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f),
+                                                  glm::vec2(1.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)},
+                                                 {glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f),
+                                                  glm::vec2(0.0f, 1.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)}};
 
-            std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
+            std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0};
 
             glCreateVertexArrays(1, &VAO);
             glBindVertexArray(VAO);
@@ -330,7 +350,8 @@ namespace Leon::TestGPU {
 
             // layout(location = 0) in vec3 aPos
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(FTestVertex), (void*)offsetof(FTestVertex, Position));
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(FTestVertex),
+                                  (void*)offsetof(FTestVertex, Position));
 
             // layout(location = 1) in vec3 aNormal
             glEnableVertexAttribArray(1);
@@ -338,7 +359,8 @@ namespace Leon::TestGPU {
 
             // layout(location = 2) in vec2 aTexCoord
             glEnableVertexAttribArray(2);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(FTestVertex), (void*)offsetof(FTestVertex, TexCoord));
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(FTestVertex),
+                                  (void*)offsetof(FTestVertex, TexCoord));
 
             // layout(location = 3) in vec4 aTangent
             glEnableVertexAttribArray(3);
@@ -350,7 +372,8 @@ namespace Leon::TestGPU {
 
             // layout(location = 5) in vec2 aLightmapUV
             glEnableVertexAttribArray(5);
-            glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(FTestVertex), (void*)offsetof(FTestVertex, LightmapUV));
+            glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(FTestVertex),
+                                  (void*)offsetof(FTestVertex, LightmapUV));
 
             glBindVertexArray(0);
         }

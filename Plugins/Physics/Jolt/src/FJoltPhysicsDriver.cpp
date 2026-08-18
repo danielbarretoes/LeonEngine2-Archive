@@ -42,12 +42,12 @@ namespace Leon {
             ObjectToBroadPhase[Layers::NON_MOVING] = BroadPhaseLayers::NON_MOVING;
             ObjectToBroadPhase[Layers::MOVING] = BroadPhaseLayers::MOVING;
         }
-            uint GetNumBroadPhaseLayers() const override { return BroadPhaseLayers::NUM_LAYERS; }
-            BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer inLayer) const override { return ObjectToBroadPhase[inLayer]; }
+        uint GetNumBroadPhaseLayers() const override { return BroadPhaseLayers::NUM_LAYERS; }
+        BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer inLayer) const override { return ObjectToBroadPhase[inLayer]; }
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
-            const char* GetBroadPhaseLayerName(BroadPhaseLayer inLayer) const override {
-                return (inLayer == BroadPhaseLayers::NON_MOVING) ? "NON_MOVING" : "MOVING";
-            }
+        const char* GetBroadPhaseLayerName(BroadPhaseLayer inLayer) const override {
+            return (inLayer == BroadPhaseLayers::NON_MOVING) ? "NON_MOVING" : "MOVING";
+        }
 #endif
 
     private:
@@ -102,8 +102,9 @@ namespace Leon {
                 bTypesRegistered = true;
             }
             Temp = std::make_unique<TempAllocatorImpl>(8 * 1024 * 1024);
-            Jobs = std::make_unique<JobSystemThreadPool>(cMaxPhysicsJobs, cMaxPhysicsBarriers,
-                                                         std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1));
+            Jobs = std::make_unique<JobSystemThreadPool>(
+                cMaxPhysicsJobs, cMaxPhysicsBarriers,
+                std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1));
             BPLayers = std::make_unique<FJoltBPLayerInterface>();
             ObjVsBP = std::make_unique<FJoltObjectVsBroadPhaseLayerFilter>();
             ObjVsObj = std::make_unique<FJoltObjectLayerPairFilter>();
@@ -128,12 +129,19 @@ namespace Leon {
 
             RefConst<Shape> shape;
             if (InInfo.Shape == EPhysicsShapeType::Sphere)
-                shape = new SphereShape(InInfo.SphereRadius);
+                shape = new SphereShape(std::max(InInfo.SphereRadius, 0.01f));
             else if (InInfo.Shape == EPhysicsShapeType::Capsule) {
                 float cyl = std::max(InInfo.CapsuleHalfHeight - InInfo.CapsuleRadius, 0.01f);
-                shape = new CapsuleShape(cyl, InInfo.CapsuleRadius);
-            } else
-                shape = new BoxShape(Vec3(InInfo.BoxHalfExtent.x, InInfo.BoxHalfExtent.y, InInfo.BoxHalfExtent.z));
+                shape = new CapsuleShape(cyl, std::max(InInfo.CapsuleRadius, 0.01f));
+            } else {
+                // Jolt BoxShape requires half-extent >= convex radius (default 5 cm). Thin
+                // mirrors/puddles (actor scale 0.05 → 2.5 cm half-extent) must shrink the radius.
+                const float hx = std::max(InInfo.BoxHalfExtent.x, 0.01f);
+                const float hy = std::max(InInfo.BoxHalfExtent.y, 0.01f);
+                const float hz = std::max(InInfo.BoxHalfExtent.z, 0.01f);
+                const float convex = std::min(cDefaultConvexRadius, std::min({hx, hy, hz}));
+                shape = new BoxShape(Vec3(hx, hy, hz), convex);
+            }
 
             EMotionType motion = EMotionType::Static;
             ObjectLayer layer = Layers::NON_MOVING;
@@ -171,6 +179,8 @@ namespace Leon {
         FPhysicsModule::Register([]() -> TRef<IPhysicsScene> { return CreateRef<FJoltPhysicsScene>(); });
     }
 
-    const char* FJoltPhysicsDriver::GetJoltVersion() { return "5.3.0"; }
+    const char* FJoltPhysicsDriver::GetJoltVersion() {
+        return "5.3.0";
+    }
 
 } // namespace Leon

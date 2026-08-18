@@ -23,6 +23,11 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         REQUIRE(spec.Attachments.Attachments.size() >= 1);
         CHECK(spec.Attachments.Attachments[0].TextureFormat == Leon::EFramebufferTextureFormat::RGBA16F);
         CHECK(spec.ColorMipLevels == 5); // roughness * 4 LOD blur chain
+
+        auto wall = renderer->GetWallPlanarReflectionFramebuffer();
+        REQUIRE(wall != nullptr);
+        CHECK(wall->GetSpecification().Attachments.Attachments[0].TextureFormat ==
+              Leon::EFramebufferTextureFormat::RGBA16F);
     }
 
     TEST_CASE("Planar Karis HDR: metallic mirror keeps HDR Li after BRDF scale") {
@@ -39,8 +44,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
 
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
-        camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        Leon::TestGPU::ApplyFloorView(camData);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData;
@@ -51,7 +55,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
-        Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", glm::mat3(1.0f));
+        Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", Leon::TestGPU::FloorFacingNormalMatrix());
         shader->SetInt("u_UseIBL", 0);
         shader->SetInt("u_UseShadows", 0);
         shader->SetInt("u_UseSpotShadows", 0);
@@ -62,7 +66,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         shader->SetInt("u_UseAOMap", 0);
         shader->SetInt("u_UseEmissiveMap", 0);
         shader->SetInt("u_DebugMode", 0);
-        Leon::TestGPU::SetFloat2(shader, "u_ScreenSize", glm::vec2(1.0f, 1.0f));
+        Leon::TestGPU::SetMat4(shader, "u_PlanarViewProjection", glm::mat4(1.0f));
         shader->SetFloat("u_AO", 1.0f);
         Leon::TestGPU::SetFloat3(shader, "u_EmissiveColor", glm::vec3(0.0f));
         Leon::TestGPU::SetFloat3(shader, "u_AlbedoColor", glm::vec3(1.0f));
@@ -101,11 +105,10 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         gl.BindDefaultTextures();
         gl.BindFramebuffer(1, 1);
 
-        // Quad normal is +Z; camera on +Z → near-normal incidence (low dielectric Fresnel)
+        // Floor-facing N (+Y) with camera above → near-normal incidence (low dielectric Fresnel)
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
-        camData.CameraPosition = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        camData.CameraForward = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        Leon::TestGPU::ApplyFloorView(camData);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData{};
@@ -113,14 +116,14 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
-        Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", glm::mat3(1.0f));
+        Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", Leon::TestGPU::FloorFacingNormalMatrix());
         shader->SetInt("u_UseIBL", 0);
         shader->SetInt("u_UseShadows", 0);
         shader->SetInt("u_UseSpotShadows", 0);
         shader->SetInt("u_UseNormalMap", 0);
         shader->SetInt("u_UseAlbedoMap", 0);
         shader->SetInt("u_DebugMode", 0);
-        Leon::TestGPU::SetFloat2(shader, "u_ScreenSize", glm::vec2(1.0f, 1.0f));
+        Leon::TestGPU::SetMat4(shader, "u_PlanarViewProjection", glm::mat4(1.0f));
         shader->SetFloat("u_AO", 1.0f);
         Leon::TestGPU::SetFloat3(shader, "u_EmissiveColor", glm::vec3(0.0f));
         // Match M_FloorTiles-ish dielectric
@@ -165,7 +168,7 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
 
         Leon::FCameraBufferData camData;
         camData.ViewProjection = glm::mat4(1.0f);
-        camData.CameraPosition = glm::vec4(0.0f, 0.5f, 1.0f, 0.0f);
+        Leon::TestGPU::ApplyFloorView(camData);
         gl.UpdateCameraUBO(camData);
 
         Leon::FLightingBufferData lightData{};
@@ -173,13 +176,13 @@ TEST_SUITE("Shader GPU - Planar Reflection HDR Composition") {
         gl.UpdateLightingUBO(lightData);
 
         Leon::TestGPU::SetMat4(shader, "u_Model", glm::mat4(1.0f));
-        Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", glm::mat3(1.0f));
+        Leon::TestGPU::SetMat3(shader, "u_NormalMatrix", Leon::TestGPU::FloorFacingNormalMatrix());
         shader->SetInt("u_UseShadows", 0);
         shader->SetInt("u_UseSpotShadows", 0);
         shader->SetInt("u_UseNormalMap", 0);
         shader->SetInt("u_UseAlbedoMap", 0);
         shader->SetInt("u_DebugMode", 0);
-        Leon::TestGPU::SetFloat2(shader, "u_ScreenSize", glm::vec2(1.0f, 1.0f));
+        Leon::TestGPU::SetMat4(shader, "u_PlanarViewProjection", glm::mat4(1.0f));
         shader->SetFloat("u_AO", 1.0f);
         Leon::TestGPU::SetFloat3(shader, "u_EmissiveColor", glm::vec3(0.0f));
         Leon::TestGPU::SetFloat3(shader, "u_AlbedoColor", glm::vec3(0.75f));

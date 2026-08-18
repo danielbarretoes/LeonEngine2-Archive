@@ -37,6 +37,28 @@
 
 namespace Leon {
 
+    void FWorldRenderer::BindPlanarReflectionUniforms(FShader& InShader, bool bEnabled) {
+        if (bEnabled && PlanarReflectionFramebuffer) {
+            PlanarReflectionFramebuffer->BindTexture(0, 5);
+            InShader.SetInt("u_UsePlanarReflection", 1);
+            InShader.SetMat4("u_PlanarViewProjection", glm::value_ptr(PlanarViewProjection));
+            InShader.SetFloat3("u_PlanarPlaneNormal", PlanarPlaneNormal.x, PlanarPlaneNormal.y, PlanarPlaneNormal.z);
+        } else {
+            InShader.SetInt("u_UsePlanarReflection", 0);
+        }
+        if (bEnabled && bWallPlanarActive && WallPlanarReflectionFramebuffer) {
+            WallPlanarReflectionFramebuffer->BindTexture(0, 13);
+            InShader.SetInt("u_UsePlanarReflection1", 1);
+            InShader.SetMat4("u_PlanarViewProjection1", glm::value_ptr(WallPlanarViewProjection));
+            InShader.SetFloat3("u_PlanarPlaneNormal1", WallPlanarPlaneNormal.x, WallPlanarPlaneNormal.y,
+                               WallPlanarPlaneNormal.z);
+        } else {
+            if (DefaultBlackTexture)
+                DefaultBlackTexture->Bind(13);
+            InShader.SetInt("u_UsePlanarReflection1", 0);
+        }
+    }
+
     // =========================================================================
     // PASS 4: Geometry Pass
     // Audit fix ALTO-01: shadow maps + IBL bound ONCE before the loop, not per-object
@@ -44,6 +66,8 @@ namespace Leon {
     // =========================================================================
     void FWorldRenderer::RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
                                             uint32_t InVpWidth, uint32_t InVpHeight) {
+        (void)InVpWidth;
+        (void)InVpHeight;
         auto& reg = World->GetRegistry();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
@@ -122,13 +146,7 @@ namespace Leon {
             mesh.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && mesh.bReceiveShadows) ? 1 : 0);
 
             bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
-            if (bApplyPlanarReflection) {
-                PlanarReflectionFramebuffer->BindTexture(0, 5);
-                mesh.Shader->SetInt("u_UsePlanarReflection", 1);
-                mesh.Shader->SetFloat2("u_ScreenSize", static_cast<float>(InVpWidth), static_cast<float>(InVpHeight));
-            } else {
-                mesh.Shader->SetInt("u_UsePlanarReflection", 0);
-            }
+            BindPlanarReflectionUniforms(*mesh.Shader, bApplyPlanarReflection);
 
             ApplyMeshRasterState(*matInst, model, false);
             matInst->Bind(mesh.Shader);
@@ -206,14 +224,7 @@ namespace Leon {
                 }
 
                 bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
-                if (bApplyPlanarReflection) {
-                    PlanarReflectionFramebuffer->BindTexture(0, 5);
-                    activeShader->SetInt("u_UsePlanarReflection", 1);
-                    activeShader->SetFloat2("u_ScreenSize", static_cast<float>(InVpWidth),
-                                            static_cast<float>(InVpHeight));
-                } else {
-                    activeShader->SetInt("u_UsePlanarReflection", 0);
-                }
+                BindPlanarReflectionUniforms(*activeShader, bApplyPlanarReflection);
 
                 ApplyMeshRasterState(*matInst, model, false);
                 matInst->Bind(activeShader);
@@ -275,14 +286,7 @@ namespace Leon {
                     continue;
                 }
                 bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
-                if (bApplyPlanarReflection) {
-                    PlanarReflectionFramebuffer->BindTexture(0, 5);
-                    activeShader->SetInt("u_UsePlanarReflection", 1);
-                    activeShader->SetFloat2("u_ScreenSize", static_cast<float>(InVpWidth),
-                                            static_cast<float>(InVpHeight));
-                } else {
-                    activeShader->SetInt("u_UsePlanarReflection", 0);
-                }
+                BindPlanarReflectionUniforms(*activeShader, bApplyPlanarReflection);
                 ApplyMeshRasterState(*matInst, model, false);
                 matInst->Bind(activeShader);
                 BindLightmapUniforms(*activeShader, false, false, glm::vec2(1.0f), glm::vec2(0.0f), nullptr);
@@ -311,7 +315,8 @@ namespace Leon {
                     continue;
                 UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
                 outlineShader->Bind();
-                outlineShader->SetFloat3("u_OutlineColor", skel.OutlineColor.x, skel.OutlineColor.y, skel.OutlineColor.z);
+                outlineShader->SetFloat3("u_OutlineColor", skel.OutlineColor.x, skel.OutlineColor.y,
+                                         skel.OutlineColor.z);
                 outlineShader->SetFloat("u_OutlineWidth", skel.OutlineWidth);
                 skel.SkeletalMesh->GetVertexArray()->Bind();
                 for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
@@ -343,7 +348,8 @@ namespace Leon {
             draw.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && draw.bReceiveShadows) ? 1 : 0);
             draw.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             draw.Shader->SetInt("u_DebugMode", DebugMode);
-            draw.Shader->SetInt("u_UsePlanarReflection", 0);
+            BindPlanarReflectionUniforms(*draw.Shader,
+                                         draw.Mat->GetUsePlanarReflection() && PlanarReflectionFramebuffer);
             ApplyMeshRasterState(*draw.Mat, draw.Model, true);
             draw.Mat->Bind(draw.Shader);
             BindLightmapUniforms(*draw.Shader, draw.bUseLightmap, draw.bLightmapUseTexCoord, draw.LightmapScale,

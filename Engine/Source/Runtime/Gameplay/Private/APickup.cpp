@@ -102,8 +102,12 @@ namespace Leon {
             glm::vec3 loc = HomeLocation;
             loc.y += std::sin(BobPhase) * BobAmplitude;
             SetActorLocation(loc);
-            SetActorRotation({0.0f, BobPhase * SpinDegreesPerSecond, 0.0f});
         }
+
+        SpinYaw += DeltaSeconds * SpinDegreesPerSecond;
+        if (SpinYaw >= 360.0f || SpinYaw <= -360.0f)
+            SpinYaw = std::fmod(SpinYaw, 360.0f);
+        SetActorRotation({SpinTiltDegrees, SpinYaw, 0.0f});
 
         // Radius fallback when overlaps are not yet generating (e.g. no physics pair).
         TryCollectOverlappingPawns();

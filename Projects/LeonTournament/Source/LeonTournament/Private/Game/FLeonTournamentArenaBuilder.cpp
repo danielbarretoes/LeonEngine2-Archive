@@ -24,6 +24,8 @@ namespace Leon {
                 return "/Game/Materials/M_ArenaAccent.lmat";
             case ELeonTournamentArenaSurface::Ceiling:
                 return "/Game/Materials/M_LabProp.lmat";
+            case ELeonTournamentArenaSurface::Mirror:
+                return "/Game/Materials/M_ArenaMirror.lmat";
             case ELeonTournamentArenaSurface::Prop:
             default:
                 return "/Game/Materials/M_LabProp.lmat";
@@ -54,9 +56,8 @@ namespace Leon {
                     mat->SetAlbedoColor(InTint);
                     if (InUvTile > 0.0f)
                         mat->SetUVTiling({InUvTile, InUvTile});
-                    if (InSurface == ELeonTournamentArenaSurface::Floor ||
-                        InSurface == ELeonTournamentArenaSurface::Metal)
-                        mat->SetUsePlanarReflection(true);
+                    mat->SetUsePlanarReflection(InSurface == ELeonTournamentArenaSurface::Floor ||
+                                                InSurface == ELeonTournamentArenaSurface::Mirror);
                     actor->AddComponent<FMaterialComponent>(mat);
                 } else if (auto parent = UAssetManager::GetDefaultMaterial()) {
                     auto inst = parent->CreateInstance(InName + "Mat");

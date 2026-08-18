@@ -18,7 +18,7 @@ Environment:
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/NightLevel.llightmap"
-    LightmapBakeHash: "b652ce42643314e6"
+    LightmapBakeHash: "8755cc4cbe9363bb"
   Skybox:
     Enabled: true
     Exposure: 0.75

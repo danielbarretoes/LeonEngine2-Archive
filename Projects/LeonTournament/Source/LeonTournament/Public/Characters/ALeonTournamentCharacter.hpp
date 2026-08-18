@@ -40,7 +40,7 @@ namespace Leon {
         bool IsDeadFrozen() const { return bDeadFrozen; }
 
         void GetAimRay(glm::vec3& OutOrigin, glm::vec3& OutDirection) const;
-        /** Grip / muzzle for VFX. In third person matches mid-body aim origin. */
+        /** Grip / muzzle for VFX. Hitscan uses GetAimRay (camera), not this. */
         glm::vec3 GetMuzzleSocketLocation() const;
         /** Impulse used by rocket splash / jump pads (sets Falling when upward). */
         void ApplyLaunchVelocity(const glm::vec3& InVelocity);

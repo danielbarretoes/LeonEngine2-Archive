@@ -293,13 +293,8 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::GetAimRay(glm::vec3& OutOrigin, glm::vec3& OutDirection) const {
-        // Direction follows look / crosshair. In third person the shot starts at capsule centre
-        // (mid-body) so traces are not cast from the spring-arm camera behind the pawn.
-        OutDirection = GetControlLookDirection();
-        if (IsThirdPerson())
-            OutOrigin = GetActorLocation();
-        else
-            OutOrigin = GetPawnViewLocation();
+        // Same ray as the rendered camera / HUD crosshair (spring arm in third person).
+        GetViewPoint(OutOrigin, OutDirection);
     }
 
     glm::vec3 ALeonTournamentCharacter::GetMuzzleSocketLocation() const {

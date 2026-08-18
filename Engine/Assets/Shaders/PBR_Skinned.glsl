@@ -150,6 +150,7 @@ layout(binding = 2) uniform sampler2D u_MetallicMap;
 layout(binding = 3) uniform sampler2D u_AOMap;
 layout(binding = 4) uniform sampler2D u_RoughnessMap;
 layout(binding = 5) uniform sampler2D u_PlanarReflectionMap;
+layout(binding = 13) uniform sampler2D u_PlanarReflectionMap1;
 
 // Real IBL Maps
 layout(binding = 6) uniform sampler2D u_BRDFLUT;
@@ -172,10 +173,14 @@ uniform int u_UseAOMap;
 uniform int u_UseRoughnessMap;
 uniform int u_UseEmissiveMap;
 uniform int u_UsePlanarReflection;
+uniform int u_UsePlanarReflection1 = 0;
 uniform int u_UseShadows;
 uniform int u_UseSpotShadows;
 uniform int u_DebugMode;
-uniform vec2 u_ScreenSize;
+uniform mat4 u_PlanarViewProjection = mat4(1.0);
+uniform vec3 u_PlanarPlaneNormal = vec3(0.0, 1.0, 0.0);
+uniform mat4 u_PlanarViewProjection1 = mat4(1.0);
+uniform vec3 u_PlanarPlaneNormal1 = vec3(0.0, 0.0, 1.0);
 uniform int u_UseLightmap;
 uniform int u_LightmapUseTexCoord;
 uniform vec2 u_LightmapScale;
@@ -396,16 +401,9 @@ void main() {
     // Then apply the split-sum BRDF factor once — do NOT replace specularIBL with planar*F alone
     // (that skipped the LUT scale/bias and kept sharp emissive peaks at full intensity).
     if (u_UsePlanarReflection == 1) {
-        vec2 screenUV = gl_FragCoord.xy / u_ScreenSize;
-        vec2 perturbedUV = clamp(screenUV + vec2(N.x, N.z) * 0.03 * (1.0 - roughness), 0.001, 0.999);
-
-        const float MAX_PLANAR_LOD = 4.0;
-        float planarLod = roughness * MAX_PLANAR_LOD;
-        vec3 planarLi = textureLod(u_PlanarReflectionMap, perturbedUV, planarLod).rgb;
-
-        // Wide GGX lobes cannot be represented by a single planar ray — fade toward IBL with roughness.
-        float reflectStrength = clamp(1.0 - roughness * 1.1, 0.0, 1.0);
-        reflectionLi = mix(reflectionLi, planarLi, reflectStrength);
+        float planarWeight = 0.0;
+        vec3 planarLi = SamplePlanarReflectionLi(v_FragPos, N, roughness, planarWeight);
+        reflectionLi = mix(reflectionLi, planarLi, planarWeight);
     }
 
     vec3 specularIBL = reflectionLi * (F_IBL * envBRDF.x + envBRDF.y);
@@ -467,7 +465,9 @@ void main() {
         FragColor = vec4(R * 0.5 + 0.5, 1.0);
         return;
     } else if (u_DebugMode == 13) {
-        FragColor = vec4(texture(u_PlanarReflectionMap, gl_FragCoord.xy / u_ScreenSize).rgb, 1.0);
+        float planarClipW = 0.0;
+        vec2 planarUV = PlanarReflectionUV(v_FragPos, N, 0.0, planarClipW);
+        FragColor = vec4(texture(u_PlanarReflectionMap, clamp(planarUV, 0.001, 0.999)).rgb, 1.0);
         return;
     } else if (u_DebugMode == 14) {
         FragColor = vec4(albedo, 1.0);

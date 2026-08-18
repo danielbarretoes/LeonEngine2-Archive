@@ -5,7 +5,8 @@
 namespace Leon {
 
     /**
-     * @brief Sandbox project GameMode — configures HUD and default gameplay classes.
+     * Sandbox GameMode — fly spectator, HUD chip, and runtime demos of engine features
+     * that the baked Showcase/Night maps do not spawn themselves (planar planes, APickup).
      */
     class ASandboxGameMode : public AGameModeBase {
     public:
@@ -13,6 +14,12 @@ namespace Leon {
         ASandboxGameMode(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "SandboxGameMode");
 
         void InitGame() override;
+        void StartPlay() override;
+
+    private:
+        void SetupPlanarReflections();
+        void SpawnShowcaseDemos();
+        void SpawnNightDemos();
     };
 
 } // namespace Leon

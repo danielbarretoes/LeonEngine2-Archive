@@ -73,6 +73,7 @@ namespace Leon {
         planarSpec.ColorMipLevels = 5;
         planarSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
         PlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
+        WallPlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
 
         FFramebufferSpecification hdrSpec;
         hdrSpec.Width = 1280;
@@ -149,6 +150,11 @@ namespace Leon {
             if (PlanarReflectionFramebuffer && (PlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
                                                 PlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
                 PlanarReflectionFramebuffer->Resize(InWidth, InHeight);
+            }
+            if (WallPlanarReflectionFramebuffer &&
+                (WallPlanarReflectionFramebuffer->GetSpecification().Width != InWidth ||
+                 WallPlanarReflectionFramebuffer->GetSpecification().Height != InHeight)) {
+                WallPlanarReflectionFramebuffer->Resize(InWidth, InHeight);
             }
             PostProcessPipeline.OnViewportResize(InWidth, InHeight);
         }
@@ -389,6 +395,5 @@ namespace Leon {
         FFrameProfiler::Working().VisibleActors = static_cast<int32_t>(stats.MeshesDrawn);
         FFrameProfiler::Working().CulledActors = static_cast<int32_t>(stats.MeshesCulled);
     }
-
 
 } // namespace Leon

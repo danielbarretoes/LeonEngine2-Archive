@@ -266,39 +266,100 @@ namespace Leon {
         SpotShadowFramebuffer->Unbind();
     }
 
+    void FWorldRenderer::ClearPlanarReflectionPlanes() {
+        PlanarReflectionPlanes.clear();
+    }
+
+    void FWorldRenderer::AddPlanarReflectionPlane(const glm::vec3& InNormal, float InDistance) {
+        glm::vec3 n = SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        PlanarReflectionPlanes.push_back({n, InDistance});
+    }
+
+    FWorldRenderer::FPlanarReflectionPlane FWorldRenderer::SelectFloorPlane() const {
+        for (const auto& plane : PlanarReflectionPlanes) {
+            if (IsHorizontalPlanarPlane(plane.Normal))
+                return {SafeNormalize(plane.Normal, glm::vec3(0.0f, 1.0f, 0.0f)), plane.Distance};
+        }
+        return {{0.0f, 1.0f, 0.0f}, 0.0f};
+    }
+
+    bool FWorldRenderer::SelectWallMirrorPlane(const FPerspectiveCamera& InCamera,
+                                               FPlanarReflectionPlane& OutPlane) const {
+        const glm::vec3 camPos = InCamera.GetPosition();
+        const glm::vec3 camFwd = InCamera.GetForwardDirection();
+        float bestScore = kWallPlanarCaptureMinScore;
+        bool found = false;
+        for (const auto& plane : PlanarReflectionPlanes) {
+            if (IsHorizontalPlanarPlane(plane.Normal))
+                continue;
+            const glm::vec3 n = SafeNormalize(plane.Normal, glm::vec3(0.0f, 0.0f, 1.0f));
+            const float score = PlanarReflectionPlaneScore(n, plane.Distance, camPos, camFwd);
+            if (score > bestScore) {
+                bestScore = score;
+                OutPlane = {n, plane.Distance};
+                found = true;
+            }
+        }
+        return found;
+    }
+
     // =========================================================================
     // PASS 3: Planar Reflection Pass
+    // Floor is always captured. A facing wall mirror uses a second FBO so the wet floor
+    // stays live while looking at a mirror (Unreal PlanarReflection actors, not probes).
     // =========================================================================
     void FWorldRenderer::RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera,
                                                     const FSkyboxComponent* InSkybox, bool bHasDirLight,
                                                     const FDirectionalLight& InDirLight) {
+        bWallPlanarActive = false;
         if (!bEnablePlanarReflection || !PlanarReflectionFramebuffer)
             return;
 
+        const FPlanarReflectionPlane floor = SelectFloorPlane();
+        PlanarPlaneNormal = floor.Normal;
+        PlanarPlaneDistance = floor.Distance;
+        CapturePlanarReflection(InCamera, InSkybox, bHasDirLight, InDirLight, floor, *PlanarReflectionFramebuffer,
+                                PlanarViewProjection);
+
+        FPlanarReflectionPlane wall;
+        if (WallPlanarReflectionFramebuffer && SelectWallMirrorPlane(InCamera, wall)) {
+            WallPlanarPlaneNormal = wall.Normal;
+            CapturePlanarReflection(InCamera, InSkybox, bHasDirLight, InDirLight, wall,
+                                    *WallPlanarReflectionFramebuffer, WallPlanarViewProjection);
+            bWallPlanarActive = true;
+        }
+    }
+
+    void FWorldRenderer::CapturePlanarReflection(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
+                                                 bool bHasDirLight, const FDirectionalLight& InDirLight,
+                                                 const FPlanarReflectionPlane& InPlane, FFramebuffer& InTarget,
+                                                 glm::mat4& OutViewProjection) {
         uint32_t vpW = ViewportWidth > 0 ? ViewportWidth : 1280;
         uint32_t vpH = ViewportHeight > 0 ? ViewportHeight : 720;
 
         glm::vec3 camPos = InCamera.GetPosition();
-        glm::vec3 mirrorPos = glm::vec3(camPos.x, -camPos.y, camPos.z);
-
-        glm::mat4 reflectMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, -1.0f, 1.0f));
+        glm::mat4 reflectMatrix = PlanarReflectionMatrix(InPlane.Normal, InPlane.Distance);
         glm::mat4 mirrorView = InCamera.GetViewMatrix() * reflectMatrix;
         glm::mat4 mirrorProj = InCamera.GetProjectionMatrix();
         glm::mat4 mirroredVP = mirrorProj * mirrorView;
+        OutViewProjection = mirroredVP;
 
-        FPerspectiveCamera mirroredCamera = InCamera;
-        mirroredCamera.SetPosition(mirrorPos);
-        mirroredCamera.SetRotation(-InCamera.GetPitch(), InCamera.GetYaw());
+        glm::vec3 mirrorPos = ReflectPointThroughPlane(camPos, InPlane.Normal, InPlane.Distance);
+        glm::vec3 mirrorFwd = glm::mat3(reflectMatrix) * InCamera.GetForwardDirection();
+        if (glm::dot(mirrorFwd, mirrorFwd) < 1e-8f)
+            mirrorFwd = glm::vec3(0.0f, 0.0f, -1.0f);
+        else
+            mirrorFwd = glm::normalize(mirrorFwd);
 
         if (CameraUBO) {
             FCameraBufferData mirrorCamData;
             mirrorCamData.ViewProjection = mirroredVP;
             mirrorCamData.CameraPosition = glm::vec4(mirrorPos, 1.0f);
-            mirrorCamData.CameraForward = glm::vec4(mirroredCamera.GetForwardDirection(), 0.0f);
+            mirrorCamData.CameraForward = glm::vec4(mirrorFwd, 0.0f);
             CameraUBO->SetData(&mirrorCamData, sizeof(FCameraBufferData), 0);
         }
 
-        PlanarReflectionFramebuffer->Bind();
+        InTarget.Bind();
         FRenderCommand::SetViewport(0, 0, vpW, vpH);
         FRenderCommand::SetClearColor(0.04f, 0.05f, 0.07f, 1.0f);
         FRenderCommand::Clear();
@@ -306,7 +367,6 @@ namespace Leon {
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetClipDistance(true);
 
-        // Skybox in reflection
         if (InSkybox && InSkybox->bEnabled && SkyboxShader && SkyboxVA) {
             FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
             FRenderCommand::SetDepthMask(false);
@@ -337,13 +397,11 @@ namespace Leon {
             FRenderCommand::SetDepthFunc(EDepthFunc::Less);
         }
 
-        // Bind shadow maps to slots 10-11 so depth samplers always reference valid depth textures
         if (CascadeShadowFramebuffer)
             CascadeShadowFramebuffer->BindDepthTexture(10);
         if (SpotShadowFramebuffer)
             SpotShadowFramebuffer->BindDepthTexture(11);
 
-        // Bind fallback 1x1 textures on material slots (overridden per-draw by MaterialInstance::Bind)
         if (DefaultWhiteTexture) {
             DefaultWhiteTexture->Bind(0);
             DefaultWhiteTexture->Bind(2);
@@ -352,10 +410,11 @@ namespace Leon {
         }
         if (DefaultFlatNormalTexture)
             DefaultFlatNormalTexture->Bind(1);
-        if (DefaultBlackTexture)
+        if (DefaultBlackTexture) {
             DefaultBlackTexture->Bind(5);
+            DefaultBlackTexture->Bind(13);
+        }
 
-        // IBL for reflected geometry (same lighting environment as the main view)
         bool bIBLAvailable = bUseIBL && IBLEnvironment.BRDFLUT;
         if (bIBLAvailable) {
             if (IBLEnvironment.BRDFLUT)
@@ -366,7 +425,6 @@ namespace Leon {
                 IBLEnvironment.PrefilterMap->Bind(8);
         }
 
-        // Y-reflection reverses winding and must flip world normals (det < 0).
         auto CullModeForReflection = [](ECullMode InMode) -> ECullMode {
             if (InMode == ECullMode::Back)
                 return ECullMode::Front;
@@ -378,25 +436,27 @@ namespace Leon {
             return SafeNormalMatrix(reflectMatrix * InModel);
         };
 
-        // Visible meshes in reflection (full materials + textures; no nested planar, no shadows)
         auto& reg = World->GetRegistry();
-        const FFrustumPlanes reflectionFrustum = ExtractFrustumPlanes(mirroredCamera.GetViewProjectionMatrix());
+        const FFrustumPlanes reflectionFrustum = ExtractFrustumPlanes(mirroredVP);
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
         for (auto entity : meshView) {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.Shader || !mesh.bVisibleInReflection)
+            if (!mesh.VertexArray || !mesh.Shader ||
+                !CanContributeToPlanarReflection(mesh.bVisible, mesh.bVisibleInReflection, mesh.Mobility))
                 continue;
             if (IsProceduralMeshCulled(transform, mesh, reflectionFrustum))
                 continue;
 
             mesh.Shader->Bind();
             mesh.Shader->SetInt("u_UsePlanarReflection", 0);
+            mesh.Shader->SetInt("u_UsePlanarReflection1", 0);
             mesh.Shader->SetInt("u_UseShadows", 0);
             mesh.Shader->SetInt("u_UseSpotShadows", 0);
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", 0);
             mesh.Shader->SetInt("u_EnableClipPlane", 1);
-            mesh.Shader->SetFloat4("u_ClipPlane", 0.0f, 1.0f, 0.0f, 0.0f);
+            mesh.Shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z,
+                                   InPlane.Distance);
 
             TRef<FMaterialInstance> matInst = nullptr;
             if (reg.all_of<FMaterialComponent>(entity)) {
@@ -434,7 +494,8 @@ namespace Leon {
         for (auto entity : staticMeshView) {
             auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
             if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
-                !staticMeshComp.bVisibleInReflection)
+                !CanContributeToPlanarReflection(staticMeshComp.bVisible, staticMeshComp.bVisibleInReflection,
+                                                 staticMeshComp.Mobility))
                 continue;
             if (IsStaticMeshCulled(transform, staticMeshComp, reflectionFrustum))
                 continue;
@@ -447,12 +508,13 @@ namespace Leon {
 
             shader->Bind();
             shader->SetInt("u_UsePlanarReflection", 0);
+            shader->SetInt("u_UsePlanarReflection1", 0);
             shader->SetInt("u_UseShadows", 0);
             shader->SetInt("u_UseSpotShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
             shader->SetInt("u_EnableClipPlane", 1);
-            shader->SetFloat4("u_ClipPlane", 0.0f, 1.0f, 0.0f, 0.0f);
+            shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z, InPlane.Distance);
 
             staticMeshComp.StaticMesh->GetVertexArray()->Bind();
             for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
@@ -490,7 +552,8 @@ namespace Leon {
         auto skelView = reg.view<FTransformComponent, FSkinnedMeshRenderState>();
         for (auto entity : skelView) {
             auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
-            if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bVisibleInReflection)
+            if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bVisible ||
+                !skel.bVisibleInReflection)
                 continue;
             if (IsSkeletalMeshCulled(transform, skel, reflectionFrustum))
                 continue;
@@ -501,12 +564,13 @@ namespace Leon {
             UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
             shader->Bind();
             shader->SetInt("u_UsePlanarReflection", 0);
+            shader->SetInt("u_UsePlanarReflection1", 0);
             shader->SetInt("u_UseShadows", 0);
             shader->SetInt("u_UseSpotShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
             shader->SetInt("u_EnableClipPlane", 1);
-            shader->SetFloat4("u_ClipPlane", 0.0f, 1.0f, 0.0f, 0.0f);
+            shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z, InPlane.Distance);
             skel.SkeletalMesh->GetVertexArray()->Bind();
             for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
                 if (submesh.IndexCount == 0)
@@ -529,9 +593,8 @@ namespace Leon {
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
 
-        // Text in reflection
         auto textView = reg.view<FTransformComponent, FTextComponent>();
-        FTextRenderer::BeginScene(mirroredCamera);
+        FTextRenderer::BeginScene(InCamera);
         for (auto entity : textView) {
             auto [transform, textComp] = textView.get<FTransformComponent, FTextComponent>(entity);
             if (textComp.Text.empty())
@@ -541,12 +604,10 @@ namespace Leon {
         }
         FTextRenderer::EndScene();
 
-        // Roughness-aware specular needs a planar mip chain (sampled via textureLod in PBR_Lit).
-        PlanarReflectionFramebuffer->GenerateColorMipmaps();
-        PlanarReflectionFramebuffer->Unbind();
+        InTarget.GenerateColorMipmaps();
+        InTarget.Unbind();
         FRenderCommand::SetClipDistance(false);
     }
-
 
     // =========================================================================
     // IBL update (triggered when HDR path changes)

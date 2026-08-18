@@ -13,6 +13,7 @@
 #include "Gameplay/ANavMeshBoundsVolume.hpp"
 #include "Gameplay/ACharacter.hpp"
 #include "AI/UNavigationSystem.hpp"
+#include "Renderer/FWorldRenderer.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
@@ -314,8 +315,8 @@ namespace Leon {
         bArenaBuilt = true;
 
         constexpr float kHalf = 36.0f;
-        constexpr float kCeilY = 7.25f;
-        constexpr float kWallH = 8.0f;
+        constexpr float kCeilY = 14.0f;
+        constexpr float kWallH = 14.0f;
 
         FLeonTournamentArenaBuilder::SpawnBox(World, "Floor", {0.0f, -0.25f, 0.0f}, {kHalf * 2.0f, 0.5f, kHalf * 2.0f},
                           ELeonTournamentArenaSurface::Floor, {1.0f, 1.0f, 1.0f}, 8.0f);
@@ -329,6 +330,24 @@ namespace Leon {
                           ELeonTournamentArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
         FLeonTournamentArenaBuilder::SpawnBox(World, "WallE", {kHalf, kWallH * 0.5f, 0.0f}, {0.8f, kWallH, kHalf * 2.0f},
                           ELeonTournamentArenaSurface::Wall, {1.0f, 1.0f, 1.0f}, 3.0f);
+
+        constexpr float kMirror = kHalf - 0.46f;
+        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorN", {0.0f, 2.6f, -kMirror}, {16.0f, 4.2f, 0.05f},
+                                              ELeonTournamentArenaSurface::Mirror);
+        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorS", {0.0f, 2.6f, kMirror}, {16.0f, 4.2f, 0.05f},
+                                              ELeonTournamentArenaSurface::Mirror);
+        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorW", {-kMirror, 2.6f, 0.0f}, {0.05f, 4.2f, 16.0f},
+                                              ELeonTournamentArenaSurface::Mirror);
+        FLeonTournamentArenaBuilder::SpawnBox(World, "MirrorE", {kMirror, 2.6f, 0.0f}, {0.05f, 4.2f, 16.0f},
+                                              ELeonTournamentArenaSurface::Mirror);
+        if (auto* renderer = World->GetWorldRenderer()) {
+            renderer->ClearPlanarReflectionPlanes();
+            renderer->AddPlanarReflectionPlane({0.0f, 1.0f, 0.0f}, 0.0f);
+            renderer->AddPlanarReflectionPlane({0.0f, 0.0f, 1.0f}, kMirror);
+            renderer->AddPlanarReflectionPlane({0.0f, 0.0f, -1.0f}, kMirror);
+            renderer->AddPlanarReflectionPlane({1.0f, 0.0f, 0.0f}, kMirror);
+            renderer->AddPlanarReflectionPlane({-1.0f, 0.0f, 0.0f}, kMirror);
+        }
 
         auto maze = [&](const char* n, const glm::vec3& loc, const glm::vec3& sc) {
             FLeonTournamentArenaBuilder::SpawnBox(World, n, loc, sc, ELeonTournamentArenaSurface::Wall, {0.92f, 0.92f, 0.95f}, 2.0f);
@@ -530,18 +549,18 @@ namespace Leon {
         int idx = 0;
         for (float z = -28.0f; z <= 28.0f + 0.1f; z += 14.0f) {
             for (float x = -28.0f; x <= 28.0f + 0.1f; x += 14.0f) {
-                FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_" + std::to_string(idx++), {x, 4.8f, z}, warm, 14.0f, 18.0f);
+                FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_" + std::to_string(idx++), {x, 10.5f, z}, warm, 14.0f, 18.0f);
             }
         }
-        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_Mid", {0.0f, 6.5f, 0.0f}, {0.0f, -1.0f, 0.0f}, cool, 22.0f, 28.0f, 18.0f, 32.0f);
-        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_NW", {-20.0f, 6.2f, -20.0f}, {0.2f, -1.0f, 0.2f}, warm, 16.0f, 22.0f, 15.0f, 28.0f);
-        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_NE", {20.0f, 6.2f, -20.0f}, {-0.2f, -1.0f, 0.2f}, warm, 16.0f, 22.0f, 15.0f, 28.0f);
-        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_SW", {-20.0f, 6.2f, 20.0f}, {0.2f, -1.0f, -0.2f}, neon, 14.0f, 20.0f, 14.0f, 26.0f);
-        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_SE", {20.0f, 6.2f, 20.0f}, {-0.2f, -1.0f, -0.2f}, neon, 14.0f, 20.0f, 14.0f, 26.0f);
-        FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_Center", {0.0f, 5.5f, 0.0f}, {1.0f, 0.95f, 0.85f}, 18.0f, 24.0f,
+        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_Mid", {0.0f, 12.5f, 0.0f}, {0.0f, -1.0f, 0.0f}, cool, 22.0f, 28.0f, 18.0f, 32.0f);
+        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_NW", {-20.0f, 12.2f, -20.0f}, {0.2f, -1.0f, 0.2f}, warm, 16.0f, 22.0f, 15.0f, 28.0f);
+        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_NE", {20.0f, 12.2f, -20.0f}, {-0.2f, -1.0f, 0.2f}, warm, 16.0f, 22.0f, 15.0f, 28.0f);
+        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_SW", {-20.0f, 12.2f, 20.0f}, {0.2f, -1.0f, -0.2f}, neon, 14.0f, 20.0f, 14.0f, 26.0f);
+        FLeonTournamentArenaBuilder::SpawnSpotLight(World, "Spot_SE", {20.0f, 12.2f, 20.0f}, {-0.2f, -1.0f, -0.2f}, neon, 14.0f, 20.0f, 14.0f, 26.0f);
+        FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_Center", {0.0f, 11.0f, 0.0f}, {1.0f, 0.95f, 0.85f}, 18.0f, 24.0f,
                         ELightMobility::Static);
-        FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_North", {0.0f, 5.2f, -26.0f}, cool, 12.0f, 18.0f, ELightMobility::Static);
-        FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_South", {0.0f, 5.2f, 26.0f}, cool, 12.0f, 18.0f, ELightMobility::Static);
+        FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_North", {0.0f, 10.8f, -26.0f}, cool, 12.0f, 18.0f, ELightMobility::Static);
+        FLeonTournamentArenaBuilder::SpawnPointLight(World, "PL_South", {0.0f, 10.8f, 26.0f}, cool, 12.0f, 18.0f, ELightMobility::Static);
     }
 
     void ALeonTournamentGameMode::TryApplyCachedArenaLightmaps() {

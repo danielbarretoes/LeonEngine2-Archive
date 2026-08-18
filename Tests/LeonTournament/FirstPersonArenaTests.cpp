@@ -105,6 +105,45 @@ namespace Leon {
             CHECK(fwd.x == doctest::Approx(1.0f).epsilon(0.05f));
             CHECK(std::abs(ch->GetActorRotation().x) < 0.01f);
         }
+
+        TEST_CASE("third person aim ray matches camera when looking down") {
+            auto world = UWorld::Create("TPAim");
+            world->BeginPlay();
+            auto* pc = world->SpawnActor<ALeonTournamentPlayerController>("PC");
+            auto* ch = world->SpawnActor<ALeonTournamentCharacter>("Char");
+            world->AddPlayerController(pc);
+            pc->Possess(ch);
+            ch->SetThirdPerson(true);
+            ch->SetActorLocation({0.0f, 1.7f, 0.0f});
+            ch->SetControlYaw(90.0f);
+            ch->SetControlPitch(-55.0f);
+            ch->Tick(0.016f);
+
+            glm::vec3 viewLoc, viewFwd;
+            ch->GetViewPoint(viewLoc, viewFwd);
+            glm::vec3 aimOrig, aimDir;
+            ch->GetAimRay(aimOrig, aimDir);
+            CHECK(glm::length(aimOrig - viewLoc) < 0.02f);
+            CHECK(glm::dot(glm::normalize(aimDir), glm::normalize(viewFwd)) > 0.999f);
+            CHECK(glm::length(aimOrig - ch->GetActorLocation()) > 0.5f);
+        }
+
+        TEST_CASE("held weapon sways over time") {
+            auto world = UWorld::Create("WeapSway");
+            world->BeginPlay();
+            auto* pc = world->SpawnActor<ALeonTournamentPlayerController>("PC");
+            auto* ch = world->SpawnActor<ALeonTournamentCharacter>("Char");
+            world->AddPlayerController(pc);
+            pc->Possess(ch);
+            ch->Tick(0.016f);
+            auto* weap = ch->GetWeapon();
+            REQUIRE(weap);
+            weap->Tick(0.016f);
+            const glm::vec3 a = weap->GetActorLocation();
+            weap->Tick(0.35f);
+            const glm::vec3 b = weap->GetActorLocation();
+            CHECK(glm::length(a - b) > 0.002f);
+        }
     }
 
     TEST_SUITE("LocomotionDirection8Way") {

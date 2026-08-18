@@ -17,7 +17,8 @@ namespace Leon {
         Prop = 2,
         Metal = 3,
         Accent = 4,
-        Ceiling = 5
+        Ceiling = 5,
+        Mirror = 6
     };
 
     /** Shared procedural arena / lab geometry spawning (collision + PBR mesh). */

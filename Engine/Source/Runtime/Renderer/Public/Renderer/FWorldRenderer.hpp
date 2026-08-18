@@ -13,6 +13,7 @@
 
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
 
 namespace Leon {
 
@@ -100,6 +101,7 @@ namespace Leon {
 
         TRef<FFramebuffer> GetHDRSceneFramebuffer() const { return HDRSceneFramebuffer; }
         TRef<FFramebuffer> GetPlanarReflectionFramebuffer() const { return PlanarReflectionFramebuffer; }
+        TRef<FFramebuffer> GetWallPlanarReflectionFramebuffer() const { return WallPlanarReflectionFramebuffer; }
 
         void SetDebugMode(int InMode) { DebugMode = InMode; }
         int GetDebugMode() const { return DebugMode; }
@@ -118,6 +120,15 @@ namespace Leon {
         void SetPlanarReflectionEnabled(bool bEnabled) { bEnablePlanarReflection = bEnabled; }
         bool IsPlanarReflectionEnabled() const { return bEnablePlanarReflection; }
 
+        /** World plane n·x + Distance = 0. Floor is always captured; a facing wall mirror may use a second FBO. */
+        struct FPlanarReflectionPlane {
+            glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+            float Distance = 0.0f;
+        };
+
+        void ClearPlanarReflectionPlanes();
+        void AddPlanarReflectionPlane(const glm::vec3& InNormal, float InDistance);
+
         /**
          * @brief Apply project-level renderer defaults from DefaultEngine.ini.
          * Call before first FBO-heavy work when possible; CascadeResolution is read at construction.
@@ -134,6 +145,16 @@ namespace Leon {
 
         void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
                                         bool bHasDirLight, const FDirectionalLight& InDirLight);
+
+        void CapturePlanarReflection(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
+                                     bool bHasDirLight, const FDirectionalLight& InDirLight,
+                                     const FPlanarReflectionPlane& InPlane, FFramebuffer& InTarget,
+                                     glm::mat4& OutViewProjection);
+
+        FPlanarReflectionPlane SelectFloorPlane() const;
+        bool SelectWallMirrorPlane(const FPerspectiveCamera& InCamera, FPlanarReflectionPlane& OutPlane) const;
+
+        void BindPlanarReflectionUniforms(FShader& InShader, bool bEnabled);
 
         void RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
                                 uint32_t InVpWidth, uint32_t InVpHeight);
@@ -163,6 +184,15 @@ namespace Leon {
 
         // Offscreen targets
         TRef<FFramebuffer> PlanarReflectionFramebuffer;
+        TRef<FFramebuffer> WallPlanarReflectionFramebuffer;
+        glm::mat4 PlanarViewProjection{1.0f};
+        glm::vec3 PlanarPlaneNormal{0.0f, 1.0f, 0.0f};
+        float PlanarPlaneDistance = 0.0f;
+        glm::mat4 WallPlanarViewProjection{1.0f};
+        glm::vec3 WallPlanarPlaneNormal{0.0f, 0.0f, 1.0f};
+        bool bWallPlanarActive = false;
+        std::vector<FPlanarReflectionPlane> PlanarReflectionPlanes;
+
         TRef<FFramebuffer> HDRSceneFramebuffer;
 
         // Uniform buffer objects

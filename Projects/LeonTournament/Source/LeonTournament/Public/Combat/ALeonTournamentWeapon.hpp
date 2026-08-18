@@ -76,6 +76,7 @@ namespace Leon {
         bool bVisualReady = false;
         bool bVisualHidden = false;
         int32_t LastVfxSpawnCount = 0;
+        float SwayPhase = 0.0f;
     };
 
     class ALeonTournamentRifle : public ALeonTournamentWeapon {

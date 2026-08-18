@@ -37,7 +37,7 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 
 ## Not Engine tooling
 
-- **No** `*sandbox*` scripts under `Scripts/` — product shortcuts live in the game, e.g. [`Projects/Sandbox/Scripts/run.py`](../Projects/Sandbox/Scripts/run.py).
+- **No** `*sandbox*` scripts under `Scripts/` — product shortcuts live in the game, e.g. [`Projects/Sandbox/Scripts/run.py`](../Projects/Sandbox/Scripts/run.py) / `package.py`.
 - Content one-shots (e.g. normal map generators) belong under the **project** (`Projects/Sandbox/Tools/`), not Engine Scripts.
 
 ## Examples
@@ -56,6 +56,7 @@ Or:
 ```bat
 python Projects/Sandbox/Scripts/run.py
 python Projects/Sandbox/Scripts/validate.py
+python Projects/Sandbox/Scripts/package.py
 ```
 
 ### External game

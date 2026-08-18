@@ -118,6 +118,39 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(z == glm::vec3(0, 1, 0));
     }
 
+    TEST_CASE("Planar reflection through floor and vertical wall") {
+        glm::vec3 floorHit = Leon::ReflectPointThroughPlane({0.0f, 2.0f, 4.0f}, {0.0f, 1.0f, 0.0f}, 0.0f);
+        CHECK(floorHit.x == doctest::Approx(0.0f));
+        CHECK(floorHit.y == doctest::Approx(-2.0f));
+        CHECK(floorHit.z == doctest::Approx(4.0f));
+
+        constexpr float kMirror = 35.54f;
+        glm::vec3 n(0.0f, 0.0f, 1.0f);
+        glm::vec3 wallHit = Leon::ReflectPointThroughPlane({0.0f, 1.7f, 0.0f}, n, kMirror);
+        CHECK(wallHit.x == doctest::Approx(0.0f));
+        CHECK(wallHit.y == doctest::Approx(1.7f));
+        CHECK(wallHit.z == doctest::Approx(-2.0f * kMirror));
+
+        glm::vec4 viaMatrix = Leon::PlanarReflectionMatrix(n, kMirror) * glm::vec4(0.0f, 1.7f, 0.0f, 1.0f);
+        CHECK(viaMatrix.z == doctest::Approx(wallHit.z).epsilon(1e-4f));
+    }
+
+    TEST_CASE("Planar capture prefers the wall you face over the floor") {
+        glm::vec3 eye(0.0f, 1.7f, 0.0f);
+        glm::vec3 lookWall(0.0f, 0.0f, -1.0f);
+        glm::vec3 lookFloor(0.0f, -1.0f, 0.0f);
+        const float wall = Leon::PlanarReflectionPlaneScore({0.0f, 0.0f, 1.0f}, 35.54f, eye, lookWall);
+        const float floorFacingWall = Leon::PlanarReflectionPlaneScore({0.0f, 1.0f, 0.0f}, 0.0f, eye, lookWall);
+        const float floorLookDown = Leon::PlanarReflectionPlaneScore({0.0f, 1.0f, 0.0f}, 0.0f, eye, lookFloor);
+        const float wallLookDown = Leon::PlanarReflectionPlaneScore({0.0f, 0.0f, 1.0f}, 35.54f, eye, lookFloor);
+        CHECK(wall > floorFacingWall);
+        CHECK(floorLookDown > wallLookDown);
+        CHECK(Leon::IsHorizontalPlanarPlane({0.0f, 1.0f, 0.0f}));
+        CHECK_FALSE(Leon::IsHorizontalPlanarPlane({0.0f, 0.0f, 1.0f}));
+        CHECK(wall > Leon::kWallPlanarCaptureMinScore);
+        CHECK(wallLookDown < Leon::kWallPlanarCaptureMinScore);
+    }
+
     TEST_CASE("Cook-Torrance Lambert term uses albedo/PI") {
         glm::vec3 N(0, 0, 1), V(0, 0, 1), L(0, 0, 1);
         glm::vec3 lo = Leon::EvaluateCookTorrance(N, V, L, glm::vec3(1.0f), 0.0f, 1.0f, glm::vec3(1.0f));

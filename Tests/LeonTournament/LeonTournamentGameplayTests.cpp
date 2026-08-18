@@ -64,9 +64,8 @@ namespace Leon {
 
         TEST_CASE("arena builder spawns box at location") {
             FMatchWorld f;
-            AActor* box = FLeonTournamentArenaBuilder::SpawnBox(
-                f.World.get(), "TestBox", {1.0f, 2.0f, 3.0f}, {2.0f, 2.0f, 2.0f},
-                ELeonTournamentArenaSurface::Prop);
+            AActor* box = FLeonTournamentArenaBuilder::SpawnBox(f.World.get(), "TestBox", {1.0f, 2.0f, 3.0f},
+                                                                {2.0f, 2.0f, 2.0f}, ELeonTournamentArenaSurface::Prop);
             REQUIRE(box);
             CHECK(glm::length(box->GetActorLocation() - glm::vec3(1.0f, 2.0f, 3.0f)) < 0.01f);
             CHECK_FALSE(box->GetActorComponents().empty());
@@ -309,7 +308,7 @@ namespace Leon {
             CHECK(weap->GetCurrentAmmo() == mag);
         }
 
-        TEST_CASE("laser is one-shot scoped hitscan") {
+        TEST_CASE("laser is scoped hitscan two-shot") {
             FMatchWorld f;
             f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
             auto* ch = f.World->SpawnActor<ALeonTournamentCharacter>("LaserGunner");
@@ -317,13 +316,55 @@ namespace Leon {
             auto* weap = ch->GetWeapon();
             REQUIRE(weap);
             CHECK(weap->GetWeaponId() == ELeonTournamentWeaponId::Laser);
-            CHECK(weap->GetMagazineSize() == 1);
+            CHECK(weap->GetMagazineSize() >= 2);
             CHECK(weap->CanAimDownSights());
             CHECK(weap->GetConfig().ScopeFOV == doctest::Approx(32.0f));
             CHECK(weap->GetConfig().FireMode == ELeonTournamentFireMode::Hitscan);
+            CHECK(weap->GetConfig().Damage < 100.0f);
+            CHECK(weap->GetConfig().Damage * 2.0f >= 100.0f);
+            const int32_t ammoBefore = weap->GetCurrentAmmo();
             CHECK(weap->ServerFire());
-            CHECK(weap->GetCurrentAmmo() == 0);
-            CHECK(weap->IsReloading());
+            CHECK(weap->GetCurrentAmmo() == ammoBefore - 1);
+            CHECK_FALSE(weap->IsReloading());
+        }
+
+        TEST_CASE("weapon presets keep distinct TTK roles") {
+            constexpr float kHp = 100.0f;
+            const auto rifle = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rifle);
+            CHECK(rifle.Damage < kHp);
+            CHECK(rifle.Damage * 7.0f >= kHp);
+            CHECK(rifle.Damage * rifle.FireRate > 90.0f);
+            CHECK(rifle.Damage * rifle.FireRate < 150.0f);
+
+            const auto shotgun = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Shotgun);
+            CHECK(shotgun.Damage < kHp);
+            CHECK(shotgun.Damage * shotgun.PelletCount >= kHp);
+            CHECK(shotgun.Damage * (shotgun.PelletCount - 2) < kHp);
+            CHECK(shotgun.Range < rifle.Range * 0.25f);
+
+            const auto rocket = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rocket);
+            CHECK(rocket.Damage < kHp);
+            CHECK(rocket.Damage * 2.0f >= kHp);
+            CHECK(rocket.SplashDamage < kHp);
+            CHECK(rocket.SplashDamage * 3.0f >= kHp);
+
+            const auto laser = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Laser);
+            CHECK(laser.Damage < kHp);
+            CHECK(laser.Damage * 2.0f >= kHp);
+            CHECK(laser.BaseSpreadDeg == doctest::Approx(0.0f));
+
+            const auto grenade = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Grenade);
+            CHECK(grenade.Damage < kHp);
+            CHECK(grenade.Damage * 2.0f >= kHp);
+            CHECK(grenade.SplashDamage < grenade.Damage);
+            CHECK(grenade.ProjectileGravityScale > rocket.ProjectileGravityScale);
+
+            const auto flame = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Flamethrower);
+            CHECK(flame.PelletCount == 1);
+            CHECK(flame.Damage * flame.FireRate > 80.0f);
+            CHECK(flame.Damage * flame.FireRate < 140.0f);
+            CHECK(flame.Range > 6.0f);
+            CHECK(flame.Range < 14.0f);
         }
 
         TEST_CASE("grenade rocket and flame presets") {
@@ -362,8 +403,9 @@ namespace Leon {
             proj->NotifyHit(hit);
             CHECK(proj->HasExploded());
             REQUIRE(b->GetHealthComponent());
-            CHECK(b->GetHealthComponent()->IsDead());
-            CHECK(b->IsDeadFrozen());
+            CHECK(b->GetHealthComponent()->GetHealth() ==
+                  doctest::Approx(b->GetHealthComponent()->GetMaxHealth() - cfg.Damage).epsilon(0.2f));
+            CHECK_FALSE(b->GetHealthComponent()->IsDead());
         }
 
         TEST_CASE("weapon pickup grants and respawns after 15s") {
@@ -381,6 +423,14 @@ namespace Leon {
             f.World->Tick(FTimestep(0.05f));
             CHECK(ch->HasWeapon(ELeonTournamentWeaponId::Laser));
             CHECK_FALSE(pu->IsPickupActive());
+            if (pu->HasComponent<FMeshComponent>()) {
+                CHECK_FALSE(pu->GetComponent<FMeshComponent>().bVisible);
+                CHECK_FALSE(pu->GetComponent<FMeshComponent>().bVisibleInReflection);
+            }
+
+            const float yawBefore = pu->GetActorRotation().y;
+            pu->Tick(0.25f);
+            CHECK(pu->GetActorRotation().y == doctest::Approx(yawBefore).epsilon(0.01f));
 
             ch->SetActorLocation(pu->GetActorLocation() + glm::vec3(0.0f, 0.0f, 20.0f));
             pu->Tick(14.0f);
