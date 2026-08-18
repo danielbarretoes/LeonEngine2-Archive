@@ -55,6 +55,8 @@ namespace Leon {
 
         bool FindFloor(float InSweepDistance, struct FHitResult& OutHit) const;
         void PerformMovement(float DeltaSeconds);
+        float GetMaxStepHeight() const { return MaxStepHeight; }
+        void SetMaxStepHeight(float InHeight) { MaxStepHeight = std::max(0.0f, InHeight); }
         void SmoothClientPosition(float DeltaSeconds);
         void StopMovementImmediately();
         void ResetForRespawn();
@@ -73,6 +75,7 @@ namespace Leon {
         void ApplyGravity(float DeltaSeconds);
         void MoveAlongFloor(float DeltaSeconds);
         void MoveThroughAir(float DeltaSeconds);
+        void TryStepUp(class ACharacter* InCharacter, const glm::vec3& InDelta);
         class ACharacter* GetCharacter() const;
 
         EMovementMode MovementMode = EMovementMode::Walking;

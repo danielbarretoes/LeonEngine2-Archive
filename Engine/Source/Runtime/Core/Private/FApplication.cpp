@@ -1,14 +1,18 @@
 #include "Core/FApplication.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FFrameProfiler.hpp"
 #include "Core/events/FKeyEvent.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FDebugOverlay.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "Renderer/FParticleRenderer.hpp"
 #include "RHI/FRenderer.hpp"
+#include "RHI/FRenderCommand.hpp"
 #include "Renderer/FTextRenderer.hpp"
+#include "Physics/IPhysicsScene.hpp"
 
+#include <algorithm>
 #include <GLFW/glfw3.h>
 
 namespace Leon {
@@ -140,8 +144,9 @@ namespace Leon {
 
         while (bRunning) {
             float time = (float)glfwGetTime();
-            FTimestep timestep = time - LastFrameTime;
+            const float rawDt = time - LastFrameTime;
             LastFrameTime = time;
+            FTimestep timestep = std::min(rawDt, kPhysicsMaxFrameDeltaSeconds);
 
             if (!bMinimized) {
                 OnUpdate(timestep);
@@ -157,7 +162,24 @@ namespace Leon {
                 }
             }
 
-            AppWindow->OnUpdate();
+            {
+                const auto presentStart = std::chrono::high_resolution_clock::now();
+                AppWindow->OnUpdate();
+                const auto presentEnd = std::chrono::high_resolution_clock::now();
+                FFrameProfiler::SetPresentMs(
+                    std::chrono::duration<float, std::milli>(presentEnd - presentStart).count());
+            }
+            FRenderCommand::ResolveGPUTimeQueries();
+            auto& last = FFrameProfiler::LastMutable();
+            last.GPUShadowMs = FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::Shadow);
+            last.GPUOpaqueMs = FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::Opaque);
+            last.GPUPostProcessMs = FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::PostProcess);
+            last.GPUPlanarMs = FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::Planar);
+            last.GPUMs = last.GPUShadowMs + last.GPUOpaqueMs + last.GPUPostProcessMs + last.GPUPlanarMs +
+                         FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::Sky) +
+                         FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::Transparent) +
+                         FRenderCommand::GetGPUTimeMs(EGPUTimerSlot::Particles);
+            FFrameStatsCollector::Capture(last);
         }
 
         OnShutdown();

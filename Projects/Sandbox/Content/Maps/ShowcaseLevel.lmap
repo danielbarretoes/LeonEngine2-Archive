@@ -12,13 +12,13 @@ Environment:
     NumIndirectBounces: 2
     SamplesPerTexel: 8
     IndirectIntensity: 1
-    AmbientOcclusion: false
+    AmbientOcclusion: true
     AOIntensity: 1
-    AORadius: 0.35
+    AORadius: 1
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
-    LightmapBakeHash: "8dd1f2c9be155f8b"
+    LightmapBakeHash: "ce33386c59afd905"
   Skybox:
     Enabled: true
     Exposure: 0.9
@@ -143,10 +143,10 @@ Actors:
       ReceiveShadows: true
       VisibleInReflection: false
       Mobility: Static
-      LightmapResolution: 128
+      LightmapResolution: 64
       LightmapIndex: 0
-      LightmapScale: [0.125, 0.5]
-      LightmapBias: [0.00195312, 0.0078125]
+      LightmapScale: [0.0625, 0.25]
+      LightmapBias: [0.646484, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_StudioFloor.lmat"
@@ -174,7 +174,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 1
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.259766, 0.515625]
+      LightmapBias: [0.195312, 0.265625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_EmeraldRamp.lmat"
@@ -202,7 +202,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 2
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.195312, 0.515625]
+      LightmapBias: [0.130859, 0.265625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_ContainerCube.lmat"
@@ -230,7 +230,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 3
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.130859, 0.515625]
+      LightmapBias: [0.0664062, 0.265625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_PolishedGold.lmat"
@@ -258,7 +258,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 4
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.0664062, 0.515625]
+      LightmapBias: [0.00195312, 0.265625]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_RubyDielectric.lmat"
@@ -286,7 +286,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 5
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.00195312, 0.515625]
+      LightmapBias: [0.904297, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_BrushedIron.lmat"
@@ -314,7 +314,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 6
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.902344, 0.0078125]
+      LightmapBias: [0.839844, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_CobaltPyramid.lmat"
@@ -342,7 +342,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 7
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.837891, 0.0078125]
+      LightmapBias: [0.775391, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_ChromeMirror.lmat"
@@ -370,7 +370,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 8
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.773438, 0.0078125]
+      LightmapBias: [0.710938, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_PolishedBrass.lmat"
@@ -398,7 +398,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 9
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.128906, 0.0078125]
+      LightmapBias: [0.00195312, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_PureCopper.lmat"
@@ -426,7 +426,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 10
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.708984, 0.0078125]
+      LightmapBias: [0.582031, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_SatinTitanium.lmat"
@@ -454,7 +454,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 11
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.644531, 0.0078125]
+      LightmapBias: [0.517578, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_RoughCastIron.lmat"
@@ -482,7 +482,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 12
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.580078, 0.0078125]
+      LightmapBias: [0.453125, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_MatteObsidian.lmat"
@@ -510,7 +510,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 13
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.515625, 0.0078125]
+      LightmapBias: [0.388672, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_NeonCyanEmissive.lmat"
@@ -538,7 +538,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 14
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.451172, 0.0078125]
+      LightmapBias: [0.324219, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_AmberEmissive.lmat"
@@ -566,7 +566,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 15
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.386719, 0.0078125]
+      LightmapBias: [0.259766, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_WoodFloor.lmat"
@@ -594,7 +594,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 16
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.322266, 0.0078125]
+      LightmapBias: [0.195312, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_RedPlastic.lmat"
@@ -622,7 +622,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 17
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.257812, 0.0078125]
+      LightmapBias: [0.130859, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_SapphireCrystal.lmat"
@@ -650,7 +650,7 @@ Actors:
       LightmapResolution: 64
       LightmapIndex: 18
       LightmapScale: [0.0625, 0.25]
-      LightmapBias: [0.193359, 0.0078125]
+      LightmapBias: [0.0664062, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/ShowcaseLevel.llightmap"
     Material:
       Asset: "/Game/Materials/M_IndustrialMetal.lmat"

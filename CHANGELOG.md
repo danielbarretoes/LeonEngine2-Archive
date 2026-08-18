@@ -21,14 +21,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `APickup` spins on a tilted yaw (independent of bob) so collectibles read clearly in-world.
 - LeonTournament arena ceiling/walls raised to 14 m so the room is not a low box.
 - LeonTournament weapons idle/walk sway on the view model (aim ray unchanged).
+- LeonTournament main menu is a left panel over a 3D character preview (PLAY / TRAINING / LAN / QUIT). Lobby keeps the same preview with +/- bots and MAP / MODE arrows (TDM only for now).
 - LeonTournament weapon damage/stats retuned vs 100 HP: rifle mid TTK, shotgun close burst, rocket/grenade/laser two connecting hits, flame close-cone DPS (no full-health instagib).
 - LeonTournament arena keeps floor planar only (no wall mirror panels).
-- LeonTournament shadows use 2048 cascades (4 splits, 100 m) again; 1024 made the arena look softer after the old 2048 override was removed.
+- Jolt now owns gameplay traces, sweeps, and overlaps: shared MeshShape BVHs for static meshes, channel/broadphase query filters, per-body hit collectors, and `OptimizeBroadPhase` after BeginPlay.
+- Frame profiler / stats collector: percentiles, histogram, bound class, memory and GPU timer slots; OpenGL GPU queries; auto-play `--report` with subsystem averages. See `Docs/PERFORMANCE_AUDIT.md`.
 
 #### Removed
 - Legacy `Projects/MultiverseTournament` product tree (already absent from the active tree; product is LeonTournament only).
 
 #### Fixed
+- Jolt sweep/overlap contact points are converted from `inBaseOffset`-relative to world space — rocket (and other projectile) impact FX no longer spawn at the map origin.
+- LeonTournament no longer re-skins every mesh vertex each tick for foot plant (bind-pose sole Y is cached on skin apply) — major Debug FPS recovery with multiple pawns.
+- OpenGL Debug builds no longer enable `GL_DEBUG_OUTPUT_SYNCHRONOUS` (callback stays, without per-call CPU stalls).
+- HDR skybox no longer draws a permanent white vertical line at world −X: equirect `atan` wrap no longer selects the 1×1 mip.
+- LeonTournament skin foot plant uses foot/toe bind-pose bones when mesh AABB hangs below the soles, with no extra sink — Trump no longer stands underground.
+- LeonTournament plants skins on foot-weighted sole vertices (not padded AABB or ankle bones) and re-snaps idle/menu poses so Patrick is not hovering and Trump is not buried.
+- LeonTournament menu/lobby character preview stays inside the camera frustum when the window is smaller than 1280×720 (placed in the gap right of the UI rail; skin picker is bottom-right anchored).
+- LeonTournament menu camera looks at mid-torso (~1.4 m, pitch -8°) so the full preview pawn is framed, not just the top of the head.
+- Jolt overlap/sweep contact normals use `-mPenetrationAxis` so depenetration pushes the pawn out of walls (was tunnelling + camera shake); MeshShape is used for all static triangle meshes (AABB fallback filled rooms); collectors keep one hit per body so dense floors cannot hide walls.
+- Ragdoll pose writeback reapplies the captured component-space bone scale so Mixamo/IBP scale is not stripped (corpses no longer inflate ~x100).
 - LeonTournament: death uses physical ragdoll only (no `PlayDeathMontage` / Death anim state); capsule ragdoll freezes the last mesh pose instead of keeping locomotion/death clips running.
 - LeonTournament death ragdoll temporarily disabled (mesh scale/writeback bugs); death uses `DeathFromTheFront` montage / Death anim state again.
 - LeonTournament: `StartMatch` no longer runs while `UWorld` is deferring BeginPlay (next-tick timer), and `RestartPlayer` calls `EnsureWeapon` before spawn validation — fixes false `has no weapon` errors on Night/Orbital.

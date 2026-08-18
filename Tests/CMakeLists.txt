@@ -17,6 +17,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Cache/SerializationTests.cpp
     Cache/CacheInvalidationTests.cpp
     GPU/CubemapSeamTests.cpp
+    Shader/SkyboxEquirectSeamTests.cpp
     GPU/TextureUploadTests.cpp
     IBL/DeterminismTests.cpp
     Shader/PBRShaderFresnelTests.cpp
@@ -50,6 +51,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Asset/HDRAssetTests.cpp
     Asset/MeshImportTests.cpp
     Physics/TriangleMeshCollisionTests.cpp
+    Physics/JoltPhysicsSceneTests.cpp
     Asset/SkeletalAnimationTests.cpp
     Asset/AssetValidationTests.cpp
     Gameplay/GameplayFrameworkTests.cpp
@@ -71,6 +73,8 @@ set(LEON_ENGINE_TEST_SOURCES
     Lightmass/StaticLightingTests.cpp
     Renderer/ViewportResizeTests.cpp
     Renderer/GoldenSceneTests.cpp
+    Core/FrameProfilerTests.cpp
+    Performance/ScalingBenchmarkTests.cpp
 )
 
 set(LEON_TOURNAMENT_TEST_SOURCES

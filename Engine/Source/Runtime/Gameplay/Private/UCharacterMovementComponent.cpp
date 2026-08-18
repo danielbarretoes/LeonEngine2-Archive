@@ -149,6 +149,25 @@ namespace Leon {
         return bMoved;
     }
 
+    void UCharacterMovementComponent::TryStepUp(ACharacter* InCharacter, const glm::vec3& InDelta) {
+        if (!InCharacter || !InCharacter->GetWorld() || MaxStepHeight <= 1e-4f)
+            return;
+        UWorld* world = InCharacter->GetWorld();
+        const glm::vec3 start = InCharacter->GetActorLocation();
+        const float radius = InCharacter->GetCapsuleRadius();
+        FHitResult upHit;
+        float up = MaxStepHeight;
+        const glm::vec3 upEnd = start + glm::vec3(0.0f, MaxStepHeight, 0.0f);
+        if (world->SweepSingleByChannel(start, upEnd, radius, ECollisionChannel::WorldStatic, InCharacter, upHit) &&
+            upHit.bBlockingHit) {
+            if (upHit.Distance < 0.04f)
+                return;
+            up = std::max(upHit.Distance - 0.02f, 0.0f);
+        }
+        InCharacter->SetActorLocation(start + glm::vec3(0.0f, up, 0.0f));
+        InCharacter->MoveBlocked(InDelta);
+    }
+
     void UCharacterMovementComponent::ApplyGravity(float DeltaSeconds) {
         float scale = GravityScale;
         if (auto* character = GetCharacter()) {
@@ -198,8 +217,14 @@ namespace Leon {
         }
 
         glm::vec3 delta(Velocity.x * DeltaSeconds, 0.0f, Velocity.z * DeltaSeconds);
+        const glm::vec3 origin = character->GetActorLocation();
         character->MoveBlocked(delta);
-        // Walking clamps to FloorZ / supporting geometry (engine spawn convention).
+        glm::vec3 planarMoved = character->GetActorLocation() - origin;
+        planarMoved.y = 0.0f;
+        if (glm::length(delta) > 0.02f && glm::length(planarMoved) < glm::length(delta) * 0.45f) {
+            character->SetActorLocation(origin);
+            TryStepUp(character, delta);
+        }
         character->SnapToFloorPublic();
         Velocity.y = 0.0f;
 
@@ -270,6 +295,12 @@ namespace Leon {
         auto* character = GetCharacter();
         if (character && character->GetLocalRole() == ENetRole::SimulatedProxy)
             return;
+        if (character && character->IsRagdoll()) {
+            ConsumeInputVector();
+            bHasRequestedVelocity = false;
+            RequestedVelocity = glm::vec3(0.0f);
+            return;
+        }
         if (MovementMode == EMovementMode::None) {
             ConsumeInputVector();
             bHasRequestedVelocity = false;

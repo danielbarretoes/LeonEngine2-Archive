@@ -49,6 +49,7 @@ namespace Leon {
         void OpenAnimLab();
         void OpenNightArena();
         void OpenPlayableMap(ELeonTournamentPlayableMap InMap);
+        void NotifySelectedCharacterChanged();
         void StartMatch();
         void EndMatch(ELeonTournamentMatchWinner InWinner);
         void ReturnToMenu();
@@ -89,6 +90,10 @@ namespace Leon {
         bool IsCombatAllowed() const;
         void ValidateSpawnedCharacter(ALeonTournamentCharacter& InCharacter, ELeonTournamentTeam InTeam);
         void ApplyMatchCapacityFromLobby();
+        void EnsureMenuShowcase();
+        void DestroyMenuShowcase();
+        void PlaceMenuShowcase(ALeonTournamentCharacter& InCharacter);
+        void RefreshMenuShowcasePlacement();
 
         FLeonTournamentMatchConfig Config;
         float StartingRemaining = 0.0f;
@@ -112,6 +117,9 @@ namespace Leon {
         float AutoPlayMsMax = 0.0f;
         int32_t AutoPlaySamples = 0;
         bool bAutoPlayFinished = false;
+        bool bAutoPlayCollectorReady = false;
+        ALeonTournamentCharacter* ShowcaseCharacter = nullptr;
+        AActor* ShowcaseFloor = nullptr;
     };
 
 } // namespace Leon

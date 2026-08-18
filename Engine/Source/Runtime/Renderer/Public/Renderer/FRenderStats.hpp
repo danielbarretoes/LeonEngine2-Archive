@@ -12,6 +12,10 @@ namespace Leon {
         unsigned int TriangleCount = 0;
         unsigned int MeshesDrawn = 0;
         unsigned int MeshesCulled = 0;
+        unsigned int ShaderChanges = 0;
+        unsigned int TextureBinds = 0;
+        unsigned int VAOBinds = 0;
+        unsigned int FBOSwitches = 0;
         size_t AllocatedGPUMemoryBytes = 0;
 
         void Reset() {
@@ -21,6 +25,10 @@ namespace Leon {
             TriangleCount = 0;
             MeshesDrawn = 0;
             MeshesCulled = 0;
+            ShaderChanges = 0;
+            TextureBinds = 0;
+            VAOBinds = 0;
+            FBOSwitches = 0;
         }
     };
 

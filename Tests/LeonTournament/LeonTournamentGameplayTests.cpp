@@ -19,12 +19,18 @@
 #include "Physics/FHitResult.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ULeonTournamentGameInstance.hpp"
+#include "Assets/USkeletalMesh.hpp"
+#include "Assets/USkeleton.hpp"
 #include "Core/FWorldUnits.hpp"
 #include "Engine/ECollisionChannel.hpp"
 #include "Engine/Components.hpp"
 #include "LeonTournamentTestSetup.hpp"
+#include "Renderer/FPerspectiveCamera.hpp"
 
+#include <string>
 #include <vector>
+#include <cmath>
+#include <glm/glm.hpp>
 
 namespace Leon {
 
@@ -510,6 +516,106 @@ namespace Leon {
             CHECK(gi.GetSessionMode() == ELeonTournamentSessionMode::LanClient);
             CHECK(gi.GetJoinAddress() == "192.168.1.50");
             CHECK(gi.GetLanPort() == 7777);
+            gi.CycleSelectedGameMode(1);
+            CHECK(gi.GetSelectedGameMode() == ELeonTournamentGameModeId::TeamDeathmatch);
+            CHECK(std::string(LeonTournamentGameModeName(gi.GetSelectedGameMode())) == "TDM");
+        }
+
+        TEST_CASE("bind-pose feet ignore loose AABB and keep tight AABB") {
+            auto makeMesh = [](float InFootY, float InAabbMinY) {
+                auto skel = USkeleton::Create("FeetSkel");
+                FSkeletonBone hips;
+                hips.Name = "Hips";
+                hips.ParentIndex = -1;
+                FSkeletonBone foot;
+                foot.Name = "mixamorig:RightFoot";
+                foot.ParentIndex = 0;
+                foot.RestLocal.Translation = glm::vec3(0.0f, InFootY, 0.0f);
+                skel->GetBones() = {hips, foot};
+                skel->RebuildLookup();
+                auto mesh = USkeletalMesh::Create("FeetMesh");
+                mesh->SetSkeleton(skel);
+                mesh->SetBounds(glm::vec3(-0.2f, InAabbMinY, -0.2f), glm::vec3(0.2f, 0.9f, 0.2f), glm::vec3(0.0f),
+                                1.0f);
+                return mesh;
+            };
+            CHECK(ALeonTournamentCharacter::BindPoseFeetY(*makeMesh(-0.90f, -1.20f)) ==
+                  doctest::Approx(-0.90f).epsilon(1e-4f));
+            CHECK(ALeonTournamentCharacter::BindPoseFeetY(*makeMesh(-0.90f, -0.92f)) ==
+                  doctest::Approx(-0.92f).epsilon(1e-4f));
+        }
+
+        TEST_CASE("bind-pose feet prefer sole vertices over bones and cape AABB") {
+            auto skel = USkeleton::Create("SoleSkel");
+            FSkeletonBone hips;
+            hips.Name = "Hips";
+            hips.ParentIndex = -1;
+            FSkeletonBone foot;
+            foot.Name = "mixamorig:RightFoot";
+            foot.ParentIndex = 0;
+            foot.RestLocal.Translation = glm::vec3(0.0f, -0.90f, 0.0f);
+            skel->GetBones() = {hips, foot};
+            skel->RebuildLookup();
+            auto mesh = USkeletalMesh::Create("SoleMesh");
+            mesh->SetSkeleton(skel);
+            mesh->SetBounds(glm::vec3(-0.2f, -1.50f, -0.2f), glm::vec3(0.2f, 0.9f, 0.2f), glm::vec3(0.0f), 1.0f);
+            FSkinnedMeshVertex sole;
+            sole.Position = {0.05f, -1.05f, 0.12f};
+            sole.BoneIndices = {1, 0, 0, 0};
+            sole.BoneWeights = {1.0f, 0.0f, 0.0f, 0.0f};
+            FSkinnedMeshVertex cape;
+            cape.Position = {0.0f, -1.50f, -0.1f};
+            cape.BoneIndices = {0, 0, 0, 0};
+            cape.BoneWeights = {1.0f, 0.0f, 0.0f, 0.0f};
+            mesh->GetVertices() = {sole, cape};
+            CHECK(ALeonTournamentCharacter::BindPoseFeetY(*mesh) == doctest::Approx(-1.05f).epsilon(1e-4f));
+        }
+
+        TEST_CASE("skin plant has no extra foot bias") {
+            FMatchWorld f;
+            auto* ch = f.World->SpawnActor<ALeonTournamentCharacter>("P");
+            REQUIRE(ch->GetMesh());
+            ch->ApplyCharacterSkin(ELeonTournamentCharacterSkin::Trump);
+            const float y = ch->GetMesh()->GetRelativeLocation().y;
+            const float halfH = ch->GetCapsuleHalfHeight();
+            if (auto skm = ch->GetMesh()->GetSkeletalMesh()) {
+                const float scale = ch->GetMesh()->GetRelativeScale3D().x;
+                CHECK(y ==
+                      doctest::Approx(-halfH - ALeonTournamentCharacter::BindPoseFeetY(*skm) * scale).epsilon(1e-4f));
+            } else {
+                CHECK(y == doctest::Approx(-halfH).epsilon(1e-4f));
+            }
+        }
+
+        TEST_CASE("menu showcase stays inside the frustum at 16:9 and 4:3") {
+            auto projectNdc = [](const FPerspectiveCamera& InCam, const glm::vec3& InWorld) {
+                const glm::vec4 clip = InCam.GetViewProjectionMatrix() * glm::vec4(InWorld, 1.0f);
+                return glm::vec3(clip) / clip.w;
+            };
+            auto checkViewport = [&](float InW, float InH, bool bLobby) {
+                FPerspectiveCamera cam(45.0f, InW / InH, 0.1f, 1000.0f);
+                cam.SetPosition(kLeonTournamentMenuCameraPosition);
+                cam.SetRotation(kLeonTournamentMenuCameraPitchDeg, kLeonTournamentMenuCameraYawDeg);
+                const float panel = LeonTournamentMenuPanelWidthPx(InW, bLobby);
+                const glm::vec3 loc = LeonTournamentMenuShowcaseLocation(cam.GetPosition(), cam.GetForwardDirection(),
+                                                                         cam.GetRightDirection(), cam.GetFOV(),
+                                                                         cam.GetAspectRatio(), 0.9f, InW, panel);
+                const glm::vec3 ndc = projectNdc(cam, loc);
+                CHECK(std::abs(ndc.x) < 0.92f);
+                const float panelNdc = panel / InW * 2.0f - 1.0f;
+                CHECK(ndc.x > panelNdc);
+                const glm::vec3 feet = projectNdc(cam, {loc.x, 0.0f, loc.z});
+                const glm::vec3 head = projectNdc(cam, {loc.x, 1.8f, loc.z});
+                CHECK(std::abs(feet.x) < 0.92f);
+                CHECK(std::abs(head.x) < 0.92f);
+                CHECK(feet.y > -0.88f);
+                CHECK(head.y < 0.88f);
+                CHECK(feet.y < ndc.y);
+                CHECK(ndc.y < head.y);
+            };
+            checkViewport(1280.0f, 720.0f, false);
+            checkViewport(800.0f, 600.0f, false);
+            checkViewport(800.0f, 600.0f, true);
         }
 
         TEST_CASE("PlayerState stats survive respawn") {

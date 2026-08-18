@@ -286,6 +286,7 @@ namespace Leon {
 
     void FOpenGLTexture2D::Bind(uint32_t InSlot) const {
         glBindTextureUnit(InSlot, RendererID);
+        FRenderer::GetStatsMutable().TextureBinds++;
     }
 
 } // namespace Leon

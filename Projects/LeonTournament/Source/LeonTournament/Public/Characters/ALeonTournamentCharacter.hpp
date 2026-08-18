@@ -10,9 +10,12 @@
 #include "FLeonTournamentTypes.hpp"
 #include "Engine/FNetBlob.hpp"
 
+#include <vector>
+
 namespace Leon {
 
     class ALeonTournamentPlayerState;
+    class USkeletalMesh;
 
     class ALeonTournamentCharacter : public ACharacter {
     public:
@@ -51,7 +54,7 @@ namespace Leon {
         void OnServerDeath(const FDamageInfo& InInfo);
         void OnServerRespawn(const glm::vec3& InLocation);
 
-        virtual bool ShouldSpawnWeapon() const { return true; }
+        virtual bool ShouldSpawnWeapon() const;
 
         /** Grant default rifle if missing and select it. Safe to call before or after BeginPlay. */
         void EnsureWeapon();
@@ -72,6 +75,14 @@ namespace Leon {
         void ApplyCharacterSkin(ELeonTournamentCharacterSkin InSkin);
         ELeonTournamentCharacterSkin GetCharacterSkin() const { return CharacterSkin; }
 
+        void SetMenuShowcase(bool bEnabled);
+        bool IsMenuShowcase() const { return bMenuShowcase; }
+
+        /** Lowest bind-pose Y of foot-weighted vertices (soles), else foot bones, else AABB. */
+        static float BindPoseFeetY(const USkeletalMesh& InMesh);
+        /** Bind-pose feet Y after skinning with InPalette (tests / one-shot); do not call per tick. */
+        static float SkinnedFeetY(const USkeletalMesh& InMesh, const std::vector<glm::mat4>& InPalette);
+
         void SerializeReplication(std::vector<uint8_t>& OutBytes) const override;
         void DeserializeReplication(const uint8_t* InData, size_t InSize) override;
         void SerializeControlInput(std::vector<uint8_t>& OutBytes) const override;
@@ -80,7 +91,9 @@ namespace Leon {
 
     protected:
         bool ShouldApplyControlYawToActor() const override { return !bDeadFrozen; }
-        bool CanApplyControlMove() const override { return !bDeadFrozen && ACharacter::CanApplyControlMove(); }
+        bool CanApplyControlMove() const override {
+            return !bDeadFrozen && !bMenuShowcase && ACharacter::CanApplyControlMove();
+        }
 
     private:
         void ClearInventoryKeepRifle();
@@ -93,6 +106,7 @@ namespace Leon {
         void HandleWeaponSwitchInput();
         void HandleCameraToggleInput();
         void UpdateAimDownSights(float DeltaSeconds);
+        void PlantMeshFeetOnCapsule();
 
         TRef<UHealthComponent> Health;
         TRef<UInventoryComponent> Inventory;
@@ -101,6 +115,7 @@ namespace Leon {
         TRef<UFootstepComponent> Footsteps;
         ALeonTournamentWeapon* Weapon = nullptr;
         bool bBot = false;
+        bool bMenuShowcase = false;
         bool bDeadFrozen = false;
         bool bDeathForcedThirdPerson = false;
         bool bDeathCamArmOverride = false;
@@ -123,6 +138,9 @@ namespace Leon {
         float DodgeCooldownRemaining = 0.0f;
         glm::vec3 PendingDeathImpulse{0.0f, 4.0f, 0.0f};
         ELeonTournamentCharacterSkin CharacterSkin = ELeonTournamentCharacterSkin::YBot;
+        /** Bind-pose sole Y in mesh space; filled on skin apply (vertex scan is too heavy per tick). */
+        float CachedBindPoseFeetY = 0.0f;
+        bool bCachedBindPoseFeetY = false;
         mutable uint8_t PendingHitConfirm = 0;
         mutable uint8_t PendingDamageFlash = 0;
     };

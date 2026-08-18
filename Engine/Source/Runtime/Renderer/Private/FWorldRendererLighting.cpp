@@ -45,6 +45,8 @@ namespace Leon {
                                                   FCameraBufferData& OutCamData) {
         if (!InDirLightComp || !InDirLightComp->bEnabled || !ShadowDepthShader || !CascadeShadowFramebuffer)
             return;
+        if (ShadowSettings.CascadeCount == 0)
+            return;
 
         float nearClip = InCamera.GetNearClip();
         float farClip = ShadowSettings.ShadowDistance;

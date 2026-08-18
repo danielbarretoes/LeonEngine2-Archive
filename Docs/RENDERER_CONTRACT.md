@@ -79,6 +79,8 @@ Prefilter: GGX/Karis split-sum. BRDF LUT uses IBL Smith (`k = a²/2`), texel cen
 
 Runtime: IBL and skybox multiply `EnvironmentIntensity`. Scene `Exposure` is applied only in `ToneMapping.glsl`.
 
+The HDR skybox samples equirectangular 2D (`atan2(z,x)`). The u wrap at world −X would pick the 1×1 mip via implicit LOD; `Skybox.glsl` uses wrap-aware `textureGrad` so that seam is not a bright vertical line.
+
 Energy check: uniform `Li = 1` ⇒ `E = π`. Albedo `1` ⇒ `Lo_diffuse = 1` (`u_DebugMode == 35`).
 
 ## Shadows

@@ -2,6 +2,7 @@
 
 #include "Core/Base.hpp"
 #include "Gameplay/UObject.hpp"
+#include "Physics/IPhysicsScene.hpp"
 
 #include <glm/glm.hpp>
 #include <cstdint>
@@ -21,12 +22,18 @@ namespace Leon {
         glm::vec3 BoxExtent{0.1f, 0.1f, 0.1f};
         float Radius = 0.08f;
         float CapsuleHalfHeight = 0.16f;
+        float Mass = 5.0f;
     };
 
     struct FPhysicsAssetConstraint {
         std::string BoneA;
         std::string BoneB;
+        EPhysicsConstraintType Type = EPhysicsConstraintType::SwingTwist;
         float RestLength = 0.0f;
+        glm::vec3 Axis{0.0f, 1.0f, 0.0f};
+        float Swing1LimitRadians = 0.7f;
+        float Swing2LimitRadians = 0.7f;
+        float TwistLimitRadians = 0.5f;
     };
 
     /**
@@ -42,17 +49,13 @@ namespace Leon {
         void AddConstraint(const FPhysicsAssetConstraint& InConstraint) { Constraints.push_back(InConstraint); }
         const std::vector<FPhysicsAssetConstraint>& GetConstraints() const { return Constraints; }
 
-        /**
-         * Build a Mixamo/UE-style ragdoll from common bone name tokens (hips, spine, head, arms, legs).
-         * Constraints are left empty so TryEnableRagdoll can wire parent links from the skeleton.
-         */
         static TRef<UPhysicsAsset> CreateHumanoidFromSkeleton(const USkeleton& InSkeleton);
 
         bool SaveToFile(const std::string& InPath) const;
         bool LoadFromFile(const std::string& InPath);
 
-        static constexpr uint32_t Magic = 0x48535950;
-        static constexpr uint32_t Version = 2;
+        static constexpr uint32_t Magic = 0x4853504C; // LPHY
+        static constexpr uint32_t Version = 3;
 
     private:
         std::vector<FPhysicsAssetBody> Bodies;

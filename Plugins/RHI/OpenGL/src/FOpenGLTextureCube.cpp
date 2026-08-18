@@ -96,6 +96,7 @@ namespace Leon {
 
     void FOpenGLTextureCube::Bind(uint32_t InSlot) const {
         glBindTextureUnit(InSlot, RendererID);
+        FRenderer::GetStatsMutable().TextureBinds++;
     }
 
     void FOpenGLTextureCube::Unbind() const {

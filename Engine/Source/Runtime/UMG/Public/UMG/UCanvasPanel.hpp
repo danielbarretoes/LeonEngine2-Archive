@@ -20,6 +20,8 @@ namespace Leon {
         static FAnchors BottomCenter() { return {{0.5f, 1.0f}, {0.5f, 1.0f}}; }
         static FAnchors Center() { return {{0.5f, 0.5f}, {0.5f, 0.5f}}; }
         static FAnchors Fill() { return {{0.0f, 0.0f}, {1.0f, 1.0f}}; }
+        /** Left edge, full height (menu / lobby rail). */
+        static FAnchors LeftStretch() { return {{0.0f, 0.0f}, {0.0f, 1.0f}}; }
         /** Left–right stretch along the top edge (score bar). */
         static FAnchors TopStretch() { return {{0.0f, 0.0f}, {1.0f, 0.0f}}; }
     };

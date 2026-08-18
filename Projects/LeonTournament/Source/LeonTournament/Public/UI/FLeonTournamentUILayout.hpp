@@ -9,6 +9,7 @@ namespace Leon {
     class ALeonTournamentGameMode;
     class ALeonTournamentGameState;
     class APlayerController;
+    class UWidget;
 
     /** Product accessors on top of engine FUILayout. */
     struct FLeonTournamentUILayout : FUILayout {
@@ -17,6 +18,9 @@ namespace Leon {
         static ALeonTournamentGameMode* GM(APlayerController* InPC);
         static ALeonTournamentGameState* GS(APlayerController* InPC);
         static bool IsClientWorld(APlayerController* InPC);
+        static glm::vec2 ResolveViewportSize(const UCanvasPanel* InRoot);
+        static void ApplyMenuRailLayout(UCanvasPanel& InRoot, const TRef<UWidget>& InPanel, const TRef<UButton>& InPrev,
+                                        const TRef<UTextBlock>& InLabel, const TRef<UButton>& InNext, bool bLobby);
     };
 
 } // namespace Leon

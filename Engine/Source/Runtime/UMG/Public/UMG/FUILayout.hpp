@@ -44,18 +44,19 @@ namespace Leon {
         static FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f);
         static FMargin BoxC(float InOx, float InOy, float InW, float InH);
         static FMargin BoxTopStretch(float InTop, float InH, float InLeft = 0.0f, float InRight = 0.0f);
+        static FMargin BoxLeftStretch(float InLeft, float InW, float InTop = 0.0f, float InBottom = 0.0f);
 
         static glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f,
                                        float InPadY = 6.0f);
-        static TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel,
-                                        float InFont = kFsButton, float InMinW = 200.0f, float InMinH = 0.0f);
+        static TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = kFsButton,
+                                        float InMinW = 200.0f, float InMinH = 0.0f);
 
         static void PlaceButtonTL(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InX, float InY);
         static void PlaceButtonC(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InOx, float InOy);
         static void PlaceTextTL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InY,
                                 float InMinW = 0.0f, float InMinH = 0.0f);
-        static void PlaceTextTC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InTop,
-                                float InMinW = 0.0f, float InOx = 0.0f);
+        static void PlaceTextTC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InTop, float InMinW = 0.0f,
+                                float InOx = 0.0f);
         static void PlaceTextBL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InBottom,
                                 float InMinW = 0.0f);
         static void PlaceTextBR(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InRight, float InBottom,

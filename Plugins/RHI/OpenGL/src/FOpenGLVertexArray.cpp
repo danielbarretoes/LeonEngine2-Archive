@@ -1,6 +1,7 @@
 #include "FOpenGLVertexArray.hpp"
 #include "FOpenGLBuffer.hpp"
 #include "Core/FLog.hpp"
+#include "RHI/FRenderer.hpp"
 
 #include <glad/glad.h>
 
@@ -38,6 +39,7 @@ namespace Leon {
 
     void FOpenGLVertexArray::Bind() const {
         glBindVertexArray(RendererID);
+        FRenderer::GetStatsMutable().VAOBinds++;
     }
 
     void FOpenGLVertexArray::Unbind() const {

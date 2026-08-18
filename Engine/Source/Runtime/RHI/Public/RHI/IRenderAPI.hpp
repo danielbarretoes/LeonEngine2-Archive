@@ -72,6 +72,14 @@ namespace Leon {
         virtual FGPUInfo GetGPUInfo() = 0;
         virtual FGPUVRAMStats GetGPUVRAMStats() = 0;
 
+        virtual void BeginGPUTimeQuery(uint32_t InSlot) { (void)InSlot; }
+        virtual void EndGPUTimeQuery(uint32_t InSlot) { (void)InSlot; }
+        virtual void ResolveGPUTimeQueries() {}
+        virtual float GetGPUTimeMs(uint32_t InSlot) const {
+            (void)InSlot;
+            return 0.0f;
+        }
+
         static ERenderAPI GetAPI() { return CurrentAPI; }
         static void SetAPI(ERenderAPI InAPI) { CurrentAPI = InAPI; }
 

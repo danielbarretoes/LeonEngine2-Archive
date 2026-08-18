@@ -7,10 +7,10 @@ Map:
 Environment:
   WorldSettings:
     StaticLighting: true
-    LightingBuildQuality: Preview
-    LightmapResolution: 48
-    NumIndirectBounces: 1
-    SamplesPerTexel: 4
+    LightingBuildQuality: Draft
+    LightmapResolution: 64
+    NumIndirectBounces: 2
+    SamplesPerTexel: 8
     IndirectIntensity: 1.15
     AmbientOcclusion: true
     AOIntensity: 1
@@ -18,7 +18,7 @@ Environment:
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/TournamentArenaNight.llightmap"
-    LightmapBakeHash: "4f7788f0fdff6548"
+    LightmapBakeHash: "d01f35060e741eb0"
   Skybox:
     Enabled: true
     Exposure: 0.88

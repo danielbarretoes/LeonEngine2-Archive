@@ -40,10 +40,18 @@ void main() {
     vec3 dir = normalize(v_TexCoords);
 
     if (u_UseHDREnvironmentMap == 1) {
-        // Spherical equirectangular coordinates
+        // Equirect: u wraps at atan2 ±π (world −X). Implicit LOD uses dFdx(u), which
+        // jumps ~1.0 there and selects the 1×1 mip — a bright vertical seam in every map.
         float u = 0.5 + atan(dir.z, dir.x) / (2.0 * PI);
         float v = 0.5 - asin(clamp(dir.y, -1.0, 1.0)) / PI;
-        vec3 hdrSample = texture(u_HDREnvironmentMap, vec2(u, v)).rgb;
+        vec2 uv = vec2(u, v);
+        vec2 dx = dFdx(uv);
+        vec2 dy = dFdy(uv);
+        if (abs(dx.x) > 0.5)
+            dx.x -= sign(dx.x);
+        if (abs(dy.x) > 0.5)
+            dy.x -= sign(dy.x);
+        vec3 hdrSample = textureGrad(u_HDREnvironmentMap, uv, dx, dy).rgb;
         FragColor = vec4(hdrSample * u_EnvironmentIntensity, 1.0);
         return;
     }

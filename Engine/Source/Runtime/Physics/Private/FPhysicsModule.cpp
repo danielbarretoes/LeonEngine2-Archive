@@ -14,6 +14,10 @@ namespace Leon {
         FactorySlot() = std::move(InFactory);
     }
 
+    void FPhysicsModule::Unregister() {
+        FactorySlot() = {};
+    }
+
     bool FPhysicsModule::IsRegistered() {
         return static_cast<bool>(FactorySlot());
     }

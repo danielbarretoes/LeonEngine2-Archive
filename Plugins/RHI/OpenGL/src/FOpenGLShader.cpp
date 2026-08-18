@@ -1,5 +1,6 @@
 #include "FOpenGLShader.hpp"
 #include "Core/FLog.hpp"
+#include "RHI/FRenderer.hpp"
 
 #include <cstring>
 #include <filesystem>
@@ -232,6 +233,7 @@ namespace Leon {
             return;
         GBoundProgram = RendererID;
         glUseProgram(RendererID);
+        FRenderer::GetStatsMutable().ShaderChanges++;
     }
 
     void FOpenGLShader::Unbind() const {

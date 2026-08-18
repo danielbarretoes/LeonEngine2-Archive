@@ -247,11 +247,13 @@ namespace Leon {
     void FOpenGLFramebuffer::BindTexture(uint32_t InAttachmentIndex, uint32_t InSlot) const {
         LE_CORE_ASSERT(InAttachmentIndex < ColorAttachments.size(), "Attachment index out of bounds!");
         glBindTextureUnit(InSlot, ColorAttachments[InAttachmentIndex]);
+        FRenderer::GetStatsMutable().TextureBinds++;
     }
 
     void FOpenGLFramebuffer::BindDepthTexture(uint32_t InSlot) const {
         LE_CORE_ASSERT(DepthAttachment != 0, "No depth attachment in framebuffer!");
         glBindTextureUnit(InSlot, DepthAttachment);
+        FRenderer::GetStatsMutable().TextureBinds++;
     }
 
     void FOpenGLFramebuffer::AttachDepthTextureLayer(uint32_t InLayer) {

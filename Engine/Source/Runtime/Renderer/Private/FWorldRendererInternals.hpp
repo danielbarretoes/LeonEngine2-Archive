@@ -13,6 +13,7 @@
 #include "Renderer/FMaterialInstance.hpp"
 #include "Renderer/FRenderingMath.hpp"
 #include "RHI/FTexture.hpp"
+#include "Core/FFrameProfiler.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -25,6 +26,15 @@
 namespace Leon {
 
     constexpr uint32_t kMaxOpaqueInstances = 64;
+
+    struct FGpuCpuScope {
+        FFrameProfiler::FScope Cpu;
+        uint32_t Slot = 0;
+        FGpuCpuScope(float* InCpuMs, uint32_t InSlot) : Cpu(InCpuMs), Slot(InSlot) {
+            FRenderCommand::BeginGPUTimeQuery(InSlot);
+        }
+        ~FGpuCpuScope() { FRenderCommand::EndGPUTimeQuery(Slot); }
+    };
 
     inline glm::mat4 ResolveActorWorldMatrix(UWorld* InWorld, entt::entity InEntity,
                                              const FTransformComponent& InTransform) {

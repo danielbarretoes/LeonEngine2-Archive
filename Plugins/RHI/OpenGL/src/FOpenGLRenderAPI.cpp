@@ -1,5 +1,6 @@
 #include "FOpenGLRenderAPI.hpp"
 #include "RHI/FVertexArray.hpp"
+#include "RHI/FRenderer.hpp"
 
 #include <glad/glad.h>
 
@@ -52,6 +53,8 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthTesting(bool InEnabled) {
+        if (bDepthTestEnabled == InEnabled)
+            return;
         bDepthTestEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_DEPTH_TEST);
@@ -60,11 +63,15 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthMask(bool InEnabled) {
+        if (bDepthMaskEnabled == InEnabled)
+            return;
         bDepthMaskEnabled = InEnabled;
         glDepthMask(InEnabled ? GL_TRUE : GL_FALSE);
     }
 
     void FOpenGLRenderAPI::SetDepthFunc(EDepthFunc InFunc) {
+        if (DepthFunc == InFunc)
+            return;
         DepthFunc = InFunc;
         switch (InFunc) {
         case EDepthFunc::Less:
@@ -84,6 +91,8 @@ namespace Leon {
 
     void FOpenGLRenderAPI::SetCulling(bool InEnabled, ECullMode InMode) {
         bool bEffectiveEnable = InEnabled && (InMode != ECullMode::None);
+        if (bCullEnabled == bEffectiveEnable && (!bEffectiveEnable || CullMode == InMode))
+            return;
         bCullEnabled = bEffectiveEnable;
         if (bEffectiveEnable)
             glEnable(GL_CULL_FACE);
@@ -113,6 +122,8 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetBlendState(bool InEnabled) {
+        if (bBlendEnabled == InEnabled)
+            return;
         bBlendEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_BLEND);
@@ -215,8 +226,11 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::BindFramebuffer(uint32_t InRendererID) {
+        if (CurrentFBO == InRendererID)
+            return;
         CurrentFBO = InRendererID;
         glBindFramebuffer(GL_FRAMEBUFFER, InRendererID);
+        FRenderer::GetStatsMutable().FBOSwitches++;
     }
 
     void FOpenGLRenderAPI::DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
@@ -253,6 +267,68 @@ namespace Leon {
 
     void FOpenGLRenderAPI::SetLineWidth(float InWidth) {
         glLineWidth(InWidth);
+    }
+
+    FOpenGLRenderAPI::~FOpenGLRenderAPI() {
+        if (bGPUQueriesReady)
+            glDeleteQueries(static_cast<GLsizei>(kGPUQueryFrames * kGPUQuerySlots), &GPUQueries[0][0]);
+    }
+
+    void FOpenGLRenderAPI::EnsureGPUQueries() {
+        if (bGPUQueriesReady)
+            return;
+        glGenQueries(static_cast<GLsizei>(kGPUQueryFrames * kGPUQuerySlots), &GPUQueries[0][0]);
+        bGPUQueriesReady = true;
+    }
+
+    void FOpenGLRenderAPI::BeginGPUTimeQuery(uint32_t InSlot) {
+        EnsureGPUQueries();
+        if (InSlot >= kGPUQuerySlots || GPUActiveSlot >= 0)
+            return;
+        GPUActiveSlot = static_cast<int>(InSlot);
+        glBeginQuery(GL_TIME_ELAPSED, GPUQueries[GPUWriteFrame][InSlot]);
+    }
+
+    void FOpenGLRenderAPI::EndGPUTimeQuery(uint32_t InSlot) {
+        if (GPUActiveSlot != static_cast<int>(InSlot))
+            return;
+        glEndQuery(GL_TIME_ELAPSED);
+        GPUQueryIssued[GPUWriteFrame][InSlot] = true;
+        GPUActiveSlot = -1;
+    }
+
+    void FOpenGLRenderAPI::ResolveGPUTimeQueries() {
+        if (!bGPUQueriesReady)
+            return;
+        if (GPUActiveSlot >= 0) {
+            glEndQuery(GL_TIME_ELAPSED);
+            GPUQueryIssued[GPUWriteFrame][static_cast<uint32_t>(GPUActiveSlot)] = true;
+            GPUActiveSlot = -1;
+        }
+
+        const int readFrame = (GPUWriteFrame + 1) % static_cast<int>(kGPUQueryFrames);
+        for (uint32_t slot = 0; slot < kGPUQuerySlots; ++slot) {
+            if (!GPUQueryIssued[readFrame][slot])
+                continue;
+            GLuint available = 0;
+            glGetQueryObjectuiv(GPUQueries[readFrame][slot], GL_QUERY_RESULT_AVAILABLE, &available);
+            if (!available)
+                continue;
+            GLuint64 ns = 0;
+            glGetQueryObjectui64v(GPUQueries[readFrame][slot], GL_QUERY_RESULT, &ns);
+            GPUResolvedMs[slot] = static_cast<float>(static_cast<double>(ns) / 1.0e6);
+            GPUQueryIssued[readFrame][slot] = false;
+        }
+
+        GPUWriteFrame = (GPUWriteFrame + 1) % static_cast<int>(kGPUQueryFrames);
+        for (uint32_t slot = 0; slot < kGPUQuerySlots; ++slot)
+            GPUQueryIssued[GPUWriteFrame][slot] = false;
+    }
+
+    float FOpenGLRenderAPI::GetGPUTimeMs(uint32_t InSlot) const {
+        if (InSlot >= kGPUQuerySlots)
+            return 0.0f;
+        return GPUResolvedMs[InSlot];
     }
 
 } // namespace Leon

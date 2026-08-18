@@ -267,14 +267,15 @@ namespace Leon {
                    glm::vec4(0.85f, 0.95f, 1.0f, 1.0f));
         textY += lineHeight;
         DrawString(textX, textY,
-                   std::format("Shadow {:.1f}  Opaque {:.1f}  Sky {:.1f}  IBL {:.1f}  PP {:.1f}  UI {:.1f}  Net {:.1f}",
-                               timing.ShadowMs, timing.OpaqueMs, timing.SkyMs, timing.IBLMs, timing.PostProcessMs,
-                               timing.UIMs, timing.NetworkMs),
+                   std::format("Shadow {:.1f}  Opaque {:.1f}  Planar {:.1f}  Sky {:.1f}  PP {:.1f}  UI {:.1f}  Present {:.1f}",
+                               timing.ShadowMs, timing.OpaqueMs, timing.PlanarMs, timing.SkyMs, timing.PostProcessMs,
+                               timing.UIMs, timing.PresentMs),
                    glm::vec4(0.75f, 0.85f, 0.95f, 1.0f));
         textY += lineHeight;
         DrawString(textX, textY,
-                   std::format("ShadowDraws: {}  Ping: {:.0f}ms  Pkt {}/{}  B/s {}", timing.ShadowDrawCalls,
-                               timing.PingMs, timing.PacketsSent, timing.PacketsReceived, timing.BytesPerSec),
+                   std::format("GPU sh {:.1f} op {:.1f} pl {:.1f} pp {:.1f}  Tick A/C {}/{}  Paths {}  ShDraw {}",
+                               timing.GPUShadowMs, timing.GPUOpaqueMs, timing.GPUPlanarMs, timing.GPUPostProcessMs,
+                               timing.TickActors, timing.TickComponents, timing.PathRequests, timing.ShadowDrawCalls),
                    glm::vec4(0.75f, 0.85f, 0.95f, 1.0f));
         textY += lineHeight;
 

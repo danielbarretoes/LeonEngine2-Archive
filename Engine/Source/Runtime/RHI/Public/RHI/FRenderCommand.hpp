@@ -103,6 +103,22 @@ namespace Leon {
             return RenderAPI ? RenderAPI->GetGPUVRAMStats() : FGPUVRAMStats{};
         }
 
+        static void BeginGPUTimeQuery(uint32_t InSlot) {
+            if (RenderAPI)
+                RenderAPI->BeginGPUTimeQuery(InSlot);
+        }
+        static void EndGPUTimeQuery(uint32_t InSlot) {
+            if (RenderAPI)
+                RenderAPI->EndGPUTimeQuery(InSlot);
+        }
+        static void ResolveGPUTimeQueries() {
+            if (RenderAPI)
+                RenderAPI->ResolveGPUTimeQueries();
+        }
+        static float GetGPUTimeMs(uint32_t InSlot) {
+            return RenderAPI ? RenderAPI->GetGPUTimeMs(InSlot) : 0.0f;
+        }
+
     private:
         static TScope<IRenderAPI> RenderAPI;
     };

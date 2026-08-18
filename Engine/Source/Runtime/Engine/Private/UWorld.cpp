@@ -16,6 +16,7 @@
 #include "Engine/Components.hpp"
 #include "Engine/UNetDriver.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Gameplay/USkeletalMeshComponent.hpp"
 #include "Physics/IPhysicsScene.hpp"
 #include "AI/UNavigationSystem.hpp"
 #include "Renderer/FDebugRenderer.hpp"
@@ -188,10 +189,14 @@ namespace Leon {
                 actor->MarkBegunPlay();
             }
         }
+        if (PhysicsScene)
+            PhysicsScene->NotifyBeginPlayFinished();
     }
 
     void UWorld::Tick(FTimestep InTs) {
-        float deltaSeconds = InTs.GetSeconds();
+        float deltaSeconds = std::min(InTs.GetSeconds(), kPhysicsMaxFrameDeltaSeconds);
+        if (deltaSeconds < 0.0f)
+            deltaSeconds = 0.0f;
         bIsTicking = true;
 
         if (NetDriver) {
@@ -202,6 +207,7 @@ namespace Leon {
         TimerManager.Tick(deltaSeconds);
 
         if (bBegunPlay) {
+            FFrameProfiler::Working().ActorCount = static_cast<int32_t>(Actors.size());
             auto tickOnce = [&](AActor* actor) {
                 if (!actor || actor->IsPendingKill() || !actor->HasBegunPlay() || !actor->CanEverTick())
                     return;
@@ -259,11 +265,31 @@ namespace Leon {
 
         if (PhysicsScene) {
             FFrameProfiler::FScope physics(&FFrameProfiler::Working().PhysicsMs);
+            PhysicsScene->SyncKinematicTransforms();
             PhysicsScene->Tick(deltaSeconds);
+            PhysicsScene->SyncDynamicTransforms();
         }
 
-        if (bBegunPlay)
+        if (bBegunPlay) {
+            for (const auto& actorRef : Actors) {
+                AActor* actor = actorRef.get();
+                if (!actor || actor->IsPendingKill())
+                    continue;
+                for (const auto& compRef : actor->GetActorComponents()) {
+                    auto* skel = dynamic_cast<USkeletalMeshComponent*>(compRef.get());
+                    if (skel && skel->IsRagdoll())
+                        skel->ApplyRagdollPoseFromBodies();
+                }
+            }
+        }
+
+        if (PhysicsScene)
+            PhysicsScene->DrainContacts();
+
+        if (bBegunPlay) {
+            FFrameProfiler::FScope overlaps(&FFrameProfiler::Working().OverlapsMs);
             UpdateComponentOverlaps();
+        }
 
         if (NetDriver) {
             FFrameProfiler::FScope net(&FFrameProfiler::Working().NetworkMs);
@@ -591,7 +617,7 @@ namespace Leon {
             if (!actor || actor->IsPendingKill() || !actor->HasBegunPlay())
                 continue;
             for (const auto& compRef : actor->GetActorComponents()) {
-                auto* prim = dynamic_cast<UPrimitiveComponent*>(compRef.get());
+                UPrimitiveComponent* prim = compRef ? compRef->AsPrimitiveComponent() : nullptr;
                 if (!prim || prim->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
                     continue;
                 candidates.push_back(prim);

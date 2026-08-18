@@ -23,6 +23,9 @@ namespace Leon {
     FMargin FUILayout::BoxTopStretch(float InTop, float InH, float InLeft, float InRight) {
         return FMargin(InLeft, InTop, InRight, -(InTop + InH));
     }
+    FMargin FUILayout::BoxLeftStretch(float InLeft, float InW, float InTop, float InBottom) {
+        return FMargin(InLeft, InTop, -(InLeft + InW), InBottom);
+    }
 
     glm::vec2 FUILayout::MeasurePadded(const std::string& InText, float InScale, float InPadX, float InPadY) {
         const glm::vec2 m = FUIRenderer::MeasureString(InText, InScale);
@@ -63,8 +66,8 @@ namespace Leon {
         const glm::vec2 s = InBtn->GetSize();
         InRoot.AddChild(InBtn, FAnchors::Center(), BoxC(InOx, InOy, s.x, s.y));
     }
-    void FUILayout::PlaceTextTL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InY, float InMinW,
-                                float InMinH) {
+    void FUILayout::PlaceTextTL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InY,
+                                float InMinW, float InMinH) {
         if (!InText)
             return;
         const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(), InText->GetFontScale());
@@ -97,8 +100,8 @@ namespace Leon {
         const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(), InText->GetFontScale());
         InRoot.AddChild(InText, FAnchors::BottomCenter(), BoxBC(InBottom, std::max(InMinW, e.x), e.y));
     }
-    void FUILayout::PlaceTextC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InOx, float InOy, float InMinW,
-                               float InMinH) {
+    void FUILayout::PlaceTextC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InOx, float InOy,
+                               float InMinW, float InMinH) {
         if (!InText)
             return;
         const glm::vec2 e = MeasurePadded(InText->GetText().empty() ? " " : InText->GetText(), InText->GetFontScale());

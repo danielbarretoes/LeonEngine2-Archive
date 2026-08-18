@@ -24,6 +24,8 @@ namespace Leon {
         UPrimitiveComponent(const std::string& InName = "PrimitiveComponent");
         ~UPrimitiveComponent() override;
 
+        UPrimitiveComponent* AsPrimitiveComponent() override { return this; }
+
         void BeginPlay() override;
         void EndPlay() override;
         void Tick(float DeltaSeconds) override;
@@ -49,8 +51,11 @@ namespace Leon {
 
         using FOverlapEvent = std::function<void(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                                  UPrimitiveComponent* OtherComp, const FHitResult& SweepResult)>;
+        using FHitEvent = std::function<void(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+                                             UPrimitiveComponent* OtherComp, const FHitResult& Hit)>;
         std::vector<FOverlapEvent> OnComponentBeginOverlap;
         std::vector<FOverlapEvent> OnComponentEndOverlap;
+        std::vector<FHitEvent> OnComponentHit;
 
         /** Called by UWorld after physics; diffs query results vs last frame. */
         void UpdateOverlaps(const std::vector<UPrimitiveComponent*>& InCandidates);
@@ -74,8 +79,12 @@ namespace Leon {
         float GetAngularDamping() const { return AngularDamping; }
         void SetRestitution(float InValue) { Restitution = InValue; }
         float GetRestitution() const { return Restitution; }
-        void SetFriction(float InValue) { Friction = InValue; }
+        void SetFriction(float InValue);
         float GetFriction() const { return Friction; }
+        void SetPhysicalMaterial(UPhysicalMaterial* InMaterial);
+        UPhysicalMaterial* GetPhysicalMaterial() const { return PhysicalMaterial; }
+        void SetUseCCD(bool bEnable) { bUseCCD = bEnable; }
+        bool GetUseCCD() const { return bUseCCD; }
 
         IPhysicsBody* GetPhysicsBody() const { return PhysicsBody; }
         void UnregisterPhysics();
@@ -100,6 +109,8 @@ namespace Leon {
         float AngularDamping = 0.05f;
         float Restitution = 0.0f;
         float Friction = 0.7f;
+        bool bUseCCD = false;
+        UPhysicalMaterial* PhysicalMaterial = nullptr;
         IPhysicsBody* PhysicsBody = nullptr;
     };
 

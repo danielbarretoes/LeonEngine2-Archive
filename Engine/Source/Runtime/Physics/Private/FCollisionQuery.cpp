@@ -457,11 +457,15 @@ namespace Leon {
     } // namespace
 
     bool ColliderRespondsToChannel(const FColliderDesc& InCollider, ECollisionChannel InQuery) {
+        if (InCollider.Component) {
+            const ECollisionEnabled enabled = InCollider.Component->GetCollisionEnabled();
+            if (enabled == ECollisionEnabled::NoCollision || enabled == ECollisionEnabled::PhysicsOnly)
+                return false;
+            return InCollider.Component->GetCollisionResponseToChannel(InQuery) == ECollisionResponse::Block;
+        }
         if (InCollider.CollisionEnabled == ECollisionEnabled::NoCollision ||
             InCollider.CollisionEnabled == ECollisionEnabled::PhysicsOnly)
             return false;
-        if (InCollider.Component)
-            return InCollider.Responses.Get(InQuery) == ECollisionResponse::Block;
         return TraceChannelAccepts(InQuery, InCollider.ObjectType);
     }
 

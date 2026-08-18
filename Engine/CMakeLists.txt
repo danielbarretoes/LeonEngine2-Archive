@@ -10,6 +10,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Core/Private/FConfigFile.cpp
     Source/Runtime/Core/Private/FInput.cpp
     Source/Runtime/Core/Private/FLayerStack.cpp
+    Source/Runtime/Core/Private/FFrameProfiler.cpp
     Source/Runtime/Core/Private/FLog.cpp
     Source/Runtime/Core/Private/FPlatformMemory.cpp
     Source/Runtime/Core/Private/FProjectDescriptor.cpp
@@ -121,6 +122,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Physics/Private/FPhysicsModule.cpp
     Source/Runtime/Physics/Private/FSimplePhysicsScene.cpp
     Source/Runtime/Physics/Private/FCollisionQuery.cpp
+    Source/Runtime/Physics/Private/UPhysicalMaterial.cpp
     Source/Runtime/Gameplay/Private/UPrimitiveComponent.cpp
     Source/Runtime/Gameplay/Private/UNavMovementComponent.cpp
     Source/Runtime/Gameplay/Private/UCharacterMovementComponent.cpp

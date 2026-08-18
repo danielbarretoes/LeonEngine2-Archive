@@ -1,19 +1,12 @@
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Engine/UWorld.hpp"
-#include "Physics/FSimplePhysicsScene.hpp"
 #include "Physics/IPhysicsScene.hpp"
 
 #include <algorithm>
 #include <glm/gtc/quaternion.hpp>
 
 namespace Leon {
-
-    namespace {
-        FSimplePhysicsBody* AsSimpleBody(IPhysicsBody* InBody) {
-            return dynamic_cast<FSimplePhysicsBody*>(InBody);
-        }
-    } // namespace
 
     UPrimitiveComponent::UPrimitiveComponent(const std::string& InName) : USceneComponent(InName) {}
 
@@ -23,23 +16,20 @@ namespace Leon {
 
     void UPrimitiveComponent::BeginPlay() {
         RegisterPhysics();
+        if (!bSimulatePhysics && ObjectType == ECollisionChannel::WorldStatic)
+            SetComponentTickEnabled(false);
     }
 
     void UPrimitiveComponent::EndPlay() {
         UnregisterPhysics();
         OnComponentBeginOverlap.clear();
         OnComponentEndOverlap.clear();
+        OnComponentHit.clear();
         OverlappingComponents.clear();
     }
 
     void UPrimitiveComponent::Tick(float DeltaSeconds) {
         (void)DeltaSeconds;
-        if (!PhysicsBody)
-            return;
-        if (Owner && Owner->GetLocalRole() == ENetRole::SimulatedProxy)
-            return;
-        if (!bSimulatePhysics)
-            SyncPhysicsTransform();
     }
 
     void UPrimitiveComponent::UpdateOverlaps(const std::vector<UPrimitiveComponent*>& InCandidates) {
@@ -54,10 +44,23 @@ namespace Leon {
         std::unordered_set<UPrimitiveComponent*> now;
         now.reserve(InCandidates.size());
 
+        std::vector<FOverlapEvent> beginQueue;
+        std::vector<std::pair<UPrimitiveComponent*, FHitResult>> beginHits;
+        std::vector<FOverlapEvent> endQueue;
+        std::vector<std::pair<UPrimitiveComponent*, FHitResult>> endHits;
+
         for (UPrimitiveComponent* other : InCandidates) {
             if (!other || other == this || !other->GetOwner() || other->GetOwner() == Owner)
                 continue;
-            if (other->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+            if (other->GetOwner()->IsPendingKill() || other->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+                continue;
+            if (GetCollisionResponseToChannel(other->GetCollisionObjectType()) == ECollisionResponse::Ignore)
+                continue;
+            if (other->GetCollisionResponseToChannel(ObjectType) == ECollisionResponse::Ignore)
+                continue;
+            if (GetCollisionResponseToChannel(other->GetCollisionObjectType()) != ECollisionResponse::Overlap &&
+                other->GetCollisionResponseToChannel(ObjectType) != ECollisionResponse::Overlap &&
+                GetCollisionResponseToChannel(other->GetCollisionObjectType()) != ECollisionResponse::Block)
                 continue;
 
             const glm::vec3 oPos = other->GetComponentLocation();
@@ -77,10 +80,7 @@ namespace Leon {
                 hit.Location = 0.5f * (myPos + oPos);
                 hit.ImpactPoint = hit.Location;
                 hit.bBlockingHit = false;
-                for (auto& cb : OnComponentBeginOverlap) {
-                    if (cb)
-                        cb(this, other->GetOwner(), other, hit);
-                }
+                beginHits.push_back({other, hit});
             }
         }
 
@@ -92,19 +92,37 @@ namespace Leon {
             hit.Component = prev;
             hit.Location = GetComponentLocation();
             hit.ImpactPoint = hit.Location;
-            for (auto& cb : OnComponentEndOverlap) {
-                if (cb)
-                    cb(this, prev->GetOwner(), prev, hit);
-            }
+            endHits.push_back({prev, hit});
         }
 
         OverlappingComponents = std::move(now);
+
+        for (auto& [other, hit] : beginHits) {
+            if (!other || !other->GetOwner() || other->GetOwner()->IsPendingKill())
+                continue;
+            for (auto& cb : OnComponentBeginOverlap) {
+                if (cb)
+                    cb(this, other->GetOwner(), other, hit);
+            }
+        }
+        for (auto& [prev, hit] : endHits) {
+            AActor* otherOwner = prev ? prev->GetOwner() : nullptr;
+            if (otherOwner && otherOwner->IsPendingKill())
+                otherOwner = nullptr;
+            for (auto& cb : OnComponentEndOverlap) {
+                if (cb)
+                    cb(this, otherOwner, prev, hit);
+            }
+        }
     }
 
     FPhysicsBodyCreateInfo UPrimitiveComponent::MakeBodyCreateInfo() const {
         FPhysicsBodyCreateInfo info;
         info.Location = GetComponentLocation();
+        const glm::vec3 rot = GetComponentRotation();
+        info.Rotation = glm::quat(glm::radians(rot));
         info.ObjectType = ObjectType;
+        info.CollisionEnabled = CollisionEnabled;
         info.Responses = Responses;
         info.Mass = Mass;
         info.LinearDamping = LinearDamping;
@@ -113,9 +131,11 @@ namespace Leon {
         info.Friction = Friction;
         info.bEnableGravity = bEnableGravity;
         info.bSimulatePhysics = bSimulatePhysics;
+        info.bUseCCD = bUseCCD;
         info.Motion = bSimulatePhysics ? EPhysicsMotionType::Dynamic : EPhysicsMotionType::Kinematic;
         info.Actor = Owner;
         info.Component = const_cast<UPrimitiveComponent*>(this);
+        info.PhysicalMaterial = PhysicalMaterial;
         return info;
     }
 
@@ -129,12 +149,13 @@ namespace Leon {
     }
 
     void UPrimitiveComponent::UnregisterPhysics() {
-        if (!PhysicsBody || !Owner || !Owner->GetWorld()) {
-            PhysicsBody = nullptr;
+        if (!PhysicsBody) {
             return;
         }
-        if (IPhysicsScene* scene = Owner->GetWorld()->GetPhysicsScene())
-            scene->DestroyRigidBody(PhysicsBody);
+        if (Owner && Owner->GetWorld()) {
+            if (IPhysicsScene* scene = Owner->GetWorld()->GetPhysicsScene())
+                scene->DestroyRigidBody(PhysicsBody);
+        }
         PhysicsBody = nullptr;
     }
 
@@ -148,6 +169,8 @@ namespace Leon {
 
     void UPrimitiveComponent::SetCollisionEnabled(ECollisionEnabled InEnabled) {
         CollisionEnabled = InEnabled;
+        if (PhysicsBody)
+            PhysicsBody->SetCollisionEnabled(InEnabled);
     }
 
     void UPrimitiveComponent::SetCollisionObjectType(ECollisionChannel InType) {
@@ -157,6 +180,8 @@ namespace Leon {
     void UPrimitiveComponent::SetCollisionResponseToChannel(ECollisionChannel InChannel,
                                                             ECollisionResponse InResponse) {
         Responses.Set(InChannel, InResponse);
+        if (PhysicsBody)
+            PhysicsBody->SetCollisionResponses(Responses);
     }
 
     ECollisionResponse UPrimitiveComponent::GetCollisionResponseToChannel(ECollisionChannel InChannel) const {
@@ -166,6 +191,8 @@ namespace Leon {
     void UPrimitiveComponent::SetCollisionResponseToAllChannels(ECollisionResponse InResponse) {
         for (uint8_t i = 0; i < kCollisionChannelCount; ++i)
             Responses.Set(static_cast<ECollisionChannel>(i), InResponse);
+        if (PhysicsBody)
+            PhysicsBody->SetCollisionResponses(Responses);
     }
 
     void UPrimitiveComponent::SetCollisionProfileName(const std::string& InProfile) {
@@ -179,8 +206,6 @@ namespace Leon {
             SetCollisionObjectType(ECollisionChannel::Pawn);
             SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
             SetCollisionResponseToAllChannels(ECollisionResponse::Block);
-            // Movement sweeps WorldStatic. Other pawns must not answer that query or
-            // clustered spawns pin everyone in place. Walls still block as WorldStatic.
             SetCollisionResponseToChannel(ECollisionChannel::WorldStatic, ECollisionResponse::Ignore);
             SetCollisionResponseToChannel(ECollisionChannel::Camera, ECollisionResponse::Ignore);
         } else {
@@ -202,20 +227,34 @@ namespace Leon {
 
     void UPrimitiveComponent::SetEnableGravity(bool bEnable) {
         bEnableGravity = bEnable;
-        if (auto* simple = AsSimpleBody(PhysicsBody))
-            simple->Info.bEnableGravity = bEnable;
+        if (PhysicsBody)
+            PhysicsBody->SetEnableGravity(bEnable);
     }
 
     void UPrimitiveComponent::SetMass(float InMass) {
         Mass = std::max(InMass, 0.001f);
-        if (auto* simple = AsSimpleBody(PhysicsBody))
-            simple->Info.Mass = Mass;
+        if (PhysicsBody)
+            PhysicsBody->SetMass(Mass);
     }
 
     void UPrimitiveComponent::SetLinearDamping(float InDamping) {
         LinearDamping = InDamping;
-        if (auto* simple = AsSimpleBody(PhysicsBody))
-            simple->Info.LinearDamping = InDamping;
+        if (PhysicsBody)
+            PhysicsBody->SetLinearDamping(InDamping);
+    }
+
+    void UPrimitiveComponent::SetFriction(float InValue) {
+        Friction = InValue;
+        if (PhysicsBody)
+            PhysicsBody->SetFriction(InValue);
+    }
+
+    void UPrimitiveComponent::SetPhysicalMaterial(UPhysicalMaterial* InMaterial) {
+        PhysicalMaterial = InMaterial;
+        if (!PhysicsBody || !InMaterial)
+            return;
+        PhysicsBody->SetFriction(InMaterial->Friction);
+        PhysicsBody->SetRestitution(InMaterial->Restitution);
     }
 
     void UPrimitiveComponent::RecreatePhysicsBody() {
@@ -265,6 +304,8 @@ namespace Leon {
     void UCapsuleComponent::SetCapsuleSize(float InRadius, float InHalfHeight) {
         CapsuleRadius = InRadius;
         CapsuleHalfHeight = std::max(InHalfHeight, InRadius);
+        if (PhysicsBody)
+            RecreatePhysicsBody();
     }
 
     glm::vec3 UCapsuleComponent::GetOverlapQueryHalfExtent() const {

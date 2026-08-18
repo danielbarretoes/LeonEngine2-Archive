@@ -29,7 +29,11 @@ namespace Leon {
         }
     } // namespace
 
-    UAIPerceptionComponent::UAIPerceptionComponent(const std::string& InName) : UActorComponent(InName) {}
+    UAIPerceptionComponent::UAIPerceptionComponent(const std::string& InName) : UActorComponent(InName) {
+        // Spread perception updates across frames so N bots do not trace on the same tick.
+        const uint32_t salt = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) >> 4);
+        UpdateAccumulator = static_cast<float>(salt % 120) * 0.001f;
+    }
 
     void UAIPerceptionComponent::Tick(float DeltaSeconds) {
         AgeMemory(DeltaSeconds);
@@ -135,8 +139,6 @@ namespace Leon {
         const float ang = AngleDegrees(glm::vec3(forward.x, 0.0f, forward.z), planar);
         float score = (1.0f - dist / std::max(SightConfig.SightRadius, 0.01f)) * 40.0f +
                       (1.0f - ang / 90.0f) * 20.0f;
-        if (HasLineOfSight(InActor))
-            score += 100.0f;
         if (&InActor == InPrevious)
             score += 25.0f;
         return score;
@@ -198,17 +200,43 @@ namespace Leon {
         if (previous && (previous->IsPendingKill() || IsActorDead(previous) || !PassesPredicate(previous)))
             previous = nullptr;
 
-        AActor* best = nullptr;
-        float bestScore = -1.0e9f;
+        struct FCandidate {
+            AActor* Actor = nullptr;
+            float Score = 0.0f;
+        };
+        FCandidate top[4];
+        int topCount = 0;
+        auto consider = [&](AActor* other, float score) {
+            if (topCount < 4) {
+                top[topCount++] = {other, score};
+            } else {
+                int worst = 0;
+                for (int i = 1; i < 4; ++i) {
+                    if (top[i].Score < top[worst].Score)
+                        worst = i;
+                }
+                if (score > top[worst].Score)
+                    top[worst] = {other, score};
+            }
+        };
+
         for (const auto& actor : world->GetAllActors()) {
             AActor* other = actor.get();
             if (!PassesPredicate(other) || !IsInSightCone(*other))
                 continue;
             PerceivedActors.push_back(other);
-            const float score = ScoreCandidate(*other, previous);
+            consider(other, ScoreCandidate(*other, previous));
+        }
+
+        AActor* best = nullptr;
+        float bestScore = -1.0e9f;
+        for (int i = 0; i < topCount; ++i) {
+            float score = top[i].Score;
+            if (HasLineOfSight(*top[i].Actor))
+                score += 100.0f;
             if (score > bestScore) {
                 bestScore = score;
-                best = other;
+                best = top[i].Actor;
             }
         }
 

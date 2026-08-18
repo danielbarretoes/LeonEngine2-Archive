@@ -25,19 +25,23 @@ namespace Leon {
 
     private:
         void Build();
+        void ApplyViewportLayout();
         void RefreshCharacterLabel();
+        void NotifyCharacterCycled();
         void OnOffline();
         void OnAnimLab();
-        void OnNightArena();
         void OnHostLan();
         void OnJoinLan();
         void OnQuit();
         void OnPrevCharacter();
         void OnNextCharacter();
         TRef<UCanvasPanel> Root;
-        TRef<UWidgetSwitcher> SessionSwitcher;
+        TRef<UImage> Panel;
+        TRef<UButton> PrevCharBtn;
+        TRef<UButton> NextCharBtn;
         TRef<UEditableText> AddressField;
         TRef<UTextBlock> CharacterLabel;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;
         bool bPadLBWasDown = false;
@@ -52,26 +56,35 @@ namespace Leon {
 
     private:
         void Build();
+        void ApplyViewportLayout();
         void RefreshCharacterLabel();
+        void NotifyCharacterCycled();
         void OnStart();
         void OnBack();
         void OnPrevCharacter();
         void OnNextCharacter();
         void OnPrevMap();
         void OnNextMap();
+        void OnPrevGameMode();
+        void OnNextGameMode();
         void OnAdjustBotsTeam1(int InDelta);
         void OnAdjustBotsTeam2(int InDelta);
         void RefreshBotLabels();
         void RefreshMapLabel();
+        void RefreshGameModeLabel();
         TRef<UCanvasPanel> Root;
+        TRef<UImage> Panel;
+        TRef<UButton> PrevCharBtn;
+        TRef<UButton> NextCharBtn;
         TRef<UScrollBox> RosterScroll;
         TRef<UTextBlock> RosterText;
         TRef<UTextBlock> CharacterLabel;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
         TRef<UTextBlock> MapLabel;
+        TRef<UTextBlock> GameModeLabel;
         TRef<UTextBlock> TitleText;
         TRef<UTextBlock> BotsTeam1Label;
         TRef<UTextBlock> BotsTeam2Label;
-        TRef<USlider> BotsTeam1Slider;
         TRef<UTextBlock> CapacityHint;
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;

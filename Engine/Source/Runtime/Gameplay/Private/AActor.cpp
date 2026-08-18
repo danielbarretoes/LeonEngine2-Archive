@@ -2,6 +2,8 @@
 #include "Gameplay/USceneComponent.hpp"
 #include "Engine/UWorld.hpp"
 #include "Engine/UNetDriver.hpp"
+#include "Physics/IPhysicsScene.hpp"
+#include "Core/FFrameProfiler.hpp"
 
 namespace Leon {
 
@@ -74,18 +76,25 @@ namespace Leon {
                 comp->MarkBegunPlay();
             }
         }
+        if (World && World->GetPhysicsScene())
+            World->GetPhysicsScene()->CreatePhysicsState(this);
     }
 
     void AActor::ExecuteTick(float DeltaSeconds) {
+        auto& timing = FFrameProfiler::Working();
+        ++timing.TickActors;
         Tick(DeltaSeconds);
         for (auto& comp : ActorComponents) {
             if (comp && comp->IsComponentTickEnabled()) {
+                ++timing.TickComponents;
                 comp->Tick(DeltaSeconds);
             }
         }
     }
 
     void AActor::ExecuteEndPlay() {
+        if (World && World->GetPhysicsScene())
+            World->GetPhysicsScene()->DestroyPhysicsState(this);
         for (auto& comp : ActorComponents) {
             if (comp) {
                 comp->EndPlay();

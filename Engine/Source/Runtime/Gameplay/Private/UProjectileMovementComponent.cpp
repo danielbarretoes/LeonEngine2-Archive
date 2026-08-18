@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace Leon {
 
@@ -39,32 +40,43 @@ namespace Leon {
         }
 
         const glm::vec3 start = owner->GetActorLocation();
-        const glm::vec3 end = start + Velocity * DeltaSeconds;
-        FHitResult hit;
-        if (SweepStep(start, end, hit) && hit.bBlockingHit) {
-            if (auto* proj = dynamic_cast<AProjectile*>(owner); proj && !proj->IsArmed()) {
-                owner->SetActorLocation(end);
+        const glm::vec3 remaining = Velocity * DeltaSeconds;
+        const float remainLen = glm::length(remaining);
+        const float maxStep = std::max(2.0f * ProjectileRadius, 0.08f);
+        int32_t steps = 1;
+        if (remainLen > maxStep)
+            steps = std::min(16, static_cast<int32_t>(std::ceil(remainLen / maxStep)));
+        const glm::vec3 step = remaining / static_cast<float>(steps);
+        glm::vec3 pos = start;
+        for (int32_t i = 0; i < steps; ++i) {
+            const glm::vec3 end = pos + step;
+            FHitResult hit;
+            if (SweepStep(pos, end, hit) && hit.bBlockingHit) {
+                if (auto* proj = dynamic_cast<AProjectile*>(owner); proj && !proj->IsArmed()) {
+                    owner->SetActorLocation(end);
+                    return;
+                }
+                if (owner->IsPendingKill())
+                    return;
+                owner->SetActorLocation(hit.Location);
+                if (auto* proj = dynamic_cast<AProjectile*>(owner))
+                    proj->NotifyHit(hit);
+                if (owner->IsPendingKill())
+                    return;
+                if (auto* proj = dynamic_cast<AProjectile*>(owner); proj && proj->HasExploded())
+                    return;
+                if (bShouldBounce && glm::length(hit.Normal) > 1e-4f) {
+                    Velocity = glm::reflect(Velocity, glm::normalize(hit.Normal)) * Bounciness;
+                    owner->SetActorLocation(hit.Location + glm::normalize(hit.Normal) * 0.04f);
+                    if (bRotationFollowsVelocity && glm::length(Velocity) > 1e-4f)
+                        owner->SetActorRotation(Leon::EulerAligningLocalY(glm::normalize(Velocity)));
+                }
                 return;
             }
-            if (owner->IsPendingKill())
-                return;
-            owner->SetActorLocation(hit.Location);
-            if (auto* proj = dynamic_cast<AProjectile*>(owner))
-                proj->NotifyHit(hit);
-            if (owner->IsPendingKill())
-                return;
-            if (auto* proj = dynamic_cast<AProjectile*>(owner); proj && proj->HasExploded())
-                return;
-            if (bShouldBounce && glm::length(hit.Normal) > 1e-4f) {
-                Velocity = glm::reflect(Velocity, glm::normalize(hit.Normal)) * Bounciness;
-                owner->SetActorLocation(hit.Location + glm::normalize(hit.Normal) * 0.04f);
-                if (bRotationFollowsVelocity && glm::length(Velocity) > 1e-4f)
-                    owner->SetActorRotation(Leon::EulerAligningLocalY(glm::normalize(Velocity)));
-            }
-            return;
+            pos = end;
         }
 
-        owner->SetActorLocation(end);
+        owner->SetActorLocation(pos);
         if (bRotationFollowsVelocity && glm::length(Velocity) > 1e-4f)
             owner->SetActorRotation(Leon::EulerAligningLocalY(glm::normalize(Velocity)));
     }

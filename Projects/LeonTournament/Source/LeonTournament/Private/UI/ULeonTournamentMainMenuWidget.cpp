@@ -121,10 +121,15 @@ namespace Leon {
         FUIRenderer::Init();
         Root = std::make_shared<UCanvasPanel>("MenuRoot");
         Root->SetSize({1280, 720});
-        Root->SetBackgroundColor({0.02f, 0.03f, 0.06f, 0.92f});
+        Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.0f});
 
-        constexpr float leftX = 72.0f;
-        float y = 64.0f;
+        Panel = std::make_shared<UImage>("MenuPanel");
+        Panel->SetTintColor({0.02f, 0.03f, 0.06f, 0.92f});
+        Root->AddChild(Panel, FAnchors::LeftStretch(),
+                       FUILayout::BoxLeftStretch(0.0f, kLeonTournamentMenuPanelDesignWidth));
+
+        constexpr float leftX = 48.0f;
+        float y = 48.0f;
 
         auto title = std::make_shared<UTextBlock>("Title");
         title->SetText("LEON TOURNAMENT");
@@ -138,59 +143,27 @@ namespace Leon {
         sub->SetFontScale(kFsBody);
         sub->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
         PlaceTextTL(*Root, sub, leftX, y);
-        y += MeasurePadded(sub->GetText(), sub->GetFontScale()).y + 16.0f;
+        y += MeasurePadded(sub->GetText(), sub->GetFontScale()).y + 28.0f;
 
-        auto tabOffline = MakeButton("TabOffline", "OFFLINE", kFsCaption, 130.0f, 36.0f);
-        tabOffline->OnClicked.AddLambda([this]() {
-            if (SessionSwitcher)
-                SessionSwitcher->SetActiveWidgetIndex(0);
-        });
-        PlaceButtonTL(*Root, tabOffline, leftX, y);
-        auto tabLan = MakeButton("TabLan", "LAN", kFsCaption, 130.0f, 36.0f);
-        tabLan->OnClicked.AddLambda([this]() {
-            if (SessionSwitcher)
-                SessionSwitcher->SetActiveWidgetIndex(1);
-        });
-        PlaceButtonTL(*Root, tabLan, leftX + 140.0f, y);
+        auto play = MakeButton("Play", "PLAY", kFsButton, 300.0f);
+        play->OnClicked.AddLambda([this]() { OnOffline(); });
+        PlaceButtonTL(*Root, play, leftX, y);
+        y += play->GetSize().y + 12.0f;
 
-        SessionSwitcher = std::make_shared<UWidgetSwitcher>("SessionSwitcher");
-        SessionSwitcher->SetSize({280.0f, 28.0f});
-        auto offlineHint = std::make_shared<UTextBlock>("OfflineHint");
-        offlineHint->SetText("Local match");
-        offlineHint->SetFontScale(kFsCaption);
-        auto lanHint = std::make_shared<UTextBlock>("LanHint");
-        lanHint->SetText("Listen / join");
-        lanHint->SetFontScale(kFsCaption);
-        SessionSwitcher->AddChild(offlineHint);
-        SessionSwitcher->AddChild(lanHint);
-        SessionSwitcher->SetActiveWidgetIndex(0);
-        Root->AddChild(SessionSwitcher, FAnchors::TopLeft(), BoxTL(leftX, y + 40.0f, 280.0f, 28.0f));
-        y += 76.0f;
+        auto training = MakeButton("Training", "TRAINING", kFsButton, 300.0f);
+        training->OnClicked.AddLambda([this]() { OnAnimLab(); });
+        PlaceButtonTL(*Root, training, leftX, y);
+        y += training->GetSize().y + 12.0f;
 
-        auto offline = MakeButton("Offline", "PLAY OFFLINE", kFsButton, 280.0f);
-        offline->OnClicked.AddLambda([this]() { OnOffline(); });
-        PlaceButtonTL(*Root, offline, leftX, y);
-        y += offline->GetSize().y + 12.0f;
-
-        auto animLab = MakeButton("AnimLab", "ANIM LAB", kFsButton, 280.0f);
-        animLab->OnClicked.AddLambda([this]() { OnAnimLab(); });
-        PlaceButtonTL(*Root, animLab, leftX, y);
-        y += animLab->GetSize().y + 12.0f;
-
-        auto nightArena = MakeButton("NightArena", "NIGHT ARENA", kFsButton, 280.0f);
-        nightArena->OnClicked.AddLambda([this]() { OnNightArena(); });
-        PlaceButtonTL(*Root, nightArena, leftX, y);
-        y += nightArena->GetSize().y + 12.0f;
-
-        auto host = MakeButton("Host", "HOST LAN", kFsButton, 280.0f);
+        auto host = MakeButton("Host", "HOST LAN", kFsButton, 300.0f);
         host->OnClicked.AddLambda([this]() { OnHostLan(); });
         PlaceButtonTL(*Root, host, leftX, y);
         y += host->GetSize().y + 12.0f;
 
-        auto join = MakeButton("Join", "JOIN LAN", kFsButton, 280.0f);
+        auto join = MakeButton("Join", "JOIN LAN", kFsButton, 300.0f);
         join->OnClicked.AddLambda([this]() { OnJoinLan(); });
         PlaceButtonTL(*Root, join, leftX, y);
-        y += join->GetSize().y + 18.0f;
+        y += join->GetSize().y + 16.0f;
 
         auto ipLabel = std::make_shared<UTextBlock>("IpLabel");
         ipLabel->SetText("IP Address");
@@ -209,58 +182,46 @@ namespace Leon {
                 inst->SetJoinAddress(InText.empty() ? "127.0.0.1" : InText);
         };
         const float fieldH = 44.0f;
-        const float fieldW = 280.0f;
+        const float fieldW = 300.0f;
         AddressField->SetSize({fieldW, fieldH});
         Root->AddChild(AddressField, FAnchors::TopLeft(), BoxTL(leftX, y, fieldW, fieldH));
-        y += fieldH + 20.0f;
+        y += fieldH + 24.0f;
 
-        auto quit = MakeButton("Quit", "QUIT", kFsButton, 280.0f);
+        auto quit = MakeButton("Quit", "QUIT", kFsButton, 300.0f);
         quit->OnClicked.AddLambda([this]() { OnQuit(); });
         PlaceButtonTL(*Root, quit, leftX, y);
 
-        constexpr float charX = 430.0f;
-        float charY = 220.0f;
-
-        auto charTitle = std::make_shared<UTextBlock>("CharTitle");
-        charTitle->SetText("CHARACTER");
-        charTitle->SetFontScale(kFsCaption);
-        charTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
-        PlaceTextTL(*Root, charTitle, charX, charY);
-        charY += MeasurePadded(charTitle->GetText(), charTitle->GetFontScale()).y + 10.0f;
-
-        auto prevChar = MakeButton("PrevChar", "<", kFsSub, 56.0f, 52.0f);
-        prevChar->OnClicked.AddLambda([this]() { OnPrevCharacter(); });
-        PlaceButtonTL(*Root, prevChar, charX, charY);
+        PrevCharBtn = MakeButton("PrevChar", "<", kFsSub, 56.0f, 52.0f);
+        PrevCharBtn->OnClicked.AddLambda([this]() { OnPrevCharacter(); });
 
         CharacterLabel = std::make_shared<UTextBlock>("CharName");
         CharacterLabel->SetFontScale(kFsSub);
         CharacterLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
         CharacterLabel->SetJustification(ETextAlignment::Center);
-        CharacterLabel->SetText("PATRICK");
-        const float nameW = 220.0f;
-        const float nameH = MeasurePadded("PATRICK", kFsSub).y;
-        Root->AddChild(
-            CharacterLabel, FAnchors::TopLeft(),
-            BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f, nameW, nameH));
+        CharacterLabel->SetText("YBOT");
         RefreshCharacterLabel();
 
-        auto nextChar = MakeButton("NextChar", ">", kFsSub, 56.0f, 52.0f);
-        nextChar->OnClicked.AddLambda([this]() { OnNextCharacter(); });
-        PlaceButtonTL(*Root, nextChar, charX + prevChar->GetSize().x + 12.0f + nameW + 12.0f, charY);
-        charY += prevChar->GetSize().y + 12.0f;
-
-        auto charHint = std::make_shared<UTextBlock>("CharHint");
-        charHint->SetText("Same Mixamo skeleton â€” shared anims");
-        charHint->SetFontScale(kFsCaption);
-        charHint->SetColor({0.55f, 0.62f, 0.75f, 1.0f});
-        PlaceTextTL(*Root, charHint, charX, charY);
+        NextCharBtn = MakeButton("NextChar", ">", kFsSub, 56.0f, 52.0f);
+        NextCharBtn->OnClicked.AddLambda([this]() { OnNextCharacter(); });
 
         SetWidgetTree(Root);
-        SetSize({1280, 720});
+        ApplyViewportLayout();
+    }
+
+    void ULeonTournamentMainMenuWidget::ApplyViewportLayout() {
+        if (!Root)
+            return;
+        const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
+        AppliedViewport = vp;
+        SetSize(vp);
+        FLeonTournamentUILayout::ApplyMenuRailLayout(*Root, Panel, PrevCharBtn, CharacterLabel, NextCharBtn, false);
     }
 
     void ULeonTournamentMainMenuWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
+        const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
+        if (glm::length(vp - AppliedViewport) > 1.0f)
+            ApplyViewportLayout();
         RefreshCharacterLabel();
         // Xbox: A/Start = Offline, LB/RB = character
         if (GamepadEdge(GamepadButton::A, bPadAWasDown) || GamepadEdge(GamepadButton::Start, bPadStartWasDown))
@@ -279,18 +240,24 @@ namespace Leon {
         CharacterLabel->SetText(LeonTournamentCharacterSkinName(skin));
     }
 
+    void ULeonTournamentMainMenuWidget::NotifyCharacterCycled() {
+        RefreshCharacterLabel();
+        if (auto* gm = GM(OwningPlayer))
+            gm->NotifySelectedCharacterChanged();
+    }
+
     void ULeonTournamentMainMenuWidget::OnPrevCharacter() {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.45f);
         if (auto* gi = GI())
             gi->CycleSelectedCharacterSkin(-1);
-        RefreshCharacterLabel();
+        NotifyCharacterCycled();
     }
 
     void ULeonTournamentMainMenuWidget::OnNextCharacter() {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.45f);
         if (auto* gi = GI())
             gi->CycleSelectedCharacterSkin(1);
-        RefreshCharacterLabel();
+        NotifyCharacterCycled();
     }
 
     void ULeonTournamentMainMenuWidget::OnOffline() {
@@ -309,14 +276,6 @@ namespace Leon {
             return;
         if (auto* gm = GM(OwningPlayer))
             gm->OpenAnimLab();
-    }
-
-    void ULeonTournamentMainMenuWidget::OnNightArena() {
-        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
-        if (IsClientWorld(OwningPlayer))
-            return;
-        if (auto* gm = GM(OwningPlayer))
-            gm->OpenNightArena();
     }
 
     void ULeonTournamentMainMenuWidget::OnHostLan() {

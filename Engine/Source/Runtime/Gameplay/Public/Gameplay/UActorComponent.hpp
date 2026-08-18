@@ -18,6 +18,9 @@ namespace Leon {
         virtual void Tick(float DeltaSeconds) { (void)DeltaSeconds; }
         virtual void EndPlay() {}
 
+        /** Avoids dynamic_cast on the world overlap gather hot path. */
+        virtual class UPrimitiveComponent* AsPrimitiveComponent() { return nullptr; }
+
         AActor* GetOwner() const { return Owner; }
         void SetOwner(AActor* InOwner) { Owner = InOwner; }
 

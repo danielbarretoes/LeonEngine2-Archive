@@ -84,6 +84,8 @@ namespace Leon {
 
         virtual void EnableRagdoll(const glm::vec3& InImpulse);
         virtual void StopRagdoll();
+        /** Place the capsule from the ragdoll pelvis and restore Walking. */
+        virtual void RecoverFromRagdoll();
         bool IsRagdoll() const { return bIsRagdoll; }
 
         bool IsFalling() const;

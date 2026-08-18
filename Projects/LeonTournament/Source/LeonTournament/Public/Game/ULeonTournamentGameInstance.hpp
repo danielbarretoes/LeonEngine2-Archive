@@ -43,6 +43,17 @@ namespace Leon {
                 SelectedPlayableMap = LeonTournamentPrevPlayableMap(SelectedPlayableMap);
         }
 
+        ELeonTournamentGameModeId GetSelectedGameMode() const { return SelectedGameMode; }
+        void SetSelectedGameMode(ELeonTournamentGameModeId InMode) {
+            SelectedGameMode = LeonTournamentClampGameModeId(InMode);
+        }
+        void CycleSelectedGameMode(int InDelta) {
+            if (InDelta >= 0)
+                SelectedGameMode = LeonTournamentNextGameModeId(SelectedGameMode);
+            else
+                SelectedGameMode = LeonTournamentPrevGameModeId(SelectedGameMode);
+        }
+
         bool ConsumePendingMatchStart() {
             const bool bPending = bPendingMatchStart;
             bPendingMatchStart = false;
@@ -75,6 +86,7 @@ namespace Leon {
         ELeonTournamentSessionMode SessionMode = ELeonTournamentSessionMode::Offline;
         ELeonTournamentCharacterSkin SelectedCharacterSkin = ELeonTournamentCharacterSkin::YBot;
         ELeonTournamentPlayableMap SelectedPlayableMap = ELeonTournamentPlayableMap::Arena;
+        ELeonTournamentGameModeId SelectedGameMode = ELeonTournamentGameModeId::TeamDeathmatch;
         int32_t DesiredBotsTeam1 = 2;
         int32_t DesiredBotsTeam2 = 2;
         std::string JoinAddress = "127.0.0.1";

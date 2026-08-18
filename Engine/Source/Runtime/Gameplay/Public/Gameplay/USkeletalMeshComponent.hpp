@@ -46,6 +46,7 @@ namespace Leon {
         bool IsHiddenInGame() const { return bHiddenInGame; }
 
         const std::vector<glm::mat4>& GetBonePalette() const { return BonePalette; }
+        const std::vector<glm::mat4>& GetComponentSpaceTransforms() const { return ComponentSpaceTransforms; }
 
         bool GetBoneMatrix(const std::string& InBoneName, glm::mat4& OutWorld) const;
         bool GetBoneLocation(const std::string& InBoneName, glm::vec3& OutLocation) const;
@@ -58,6 +59,8 @@ namespace Leon {
         bool TryEnableRagdoll(const glm::vec3& InImpulse);
         void StopRagdoll();
         bool IsRagdoll() const { return bSimulatingRagdoll; }
+        void ApplyRagdollPoseFromBodies();
+        bool GetRagdollRootTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const;
 
     private:
         void EnsureRenderComponent();
@@ -78,18 +81,19 @@ namespace Leon {
         std::vector<std::string> RagdollBoneNames;
         /** Parent-relative component-space pose captured at ragdoll start (non-simulated bones follow). */
         std::vector<glm::mat4> RagdollLocalFromParent;
+        std::vector<glm::vec3> RagdollBoneScale;
         std::vector<uint8_t> RagdollBoneIsSimulated;
         FPose EvaluatedPose;
         bool bHiddenInGame = false;
         bool bSimulatingRagdoll = false;
 
         static glm::quat NormalizedMat3Quat(const glm::mat4& InM);
+        static glm::vec3 Mat3Scale(const glm::mat4& InM);
         static void PhysicsWorldToComponent(const glm::mat4& InMeshWorld, const glm::vec3& InWorldPos,
                                             const glm::quat& InWorldRot, glm::mat4& OutComponent);
         static void ComponentToPhysicsWorld(const glm::mat4& InMeshWorld, const glm::mat4& InComponent,
                                             glm::vec3& OutWorldPos, glm::quat& OutWorldRot);
         void CaptureRagdollRestLocals();
-        void ApplyRagdollPoseFromBodies();
     };
 
 } // namespace Leon

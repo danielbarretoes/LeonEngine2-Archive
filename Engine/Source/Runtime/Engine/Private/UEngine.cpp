@@ -30,6 +30,8 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdio>
+#include <cstdlib>
+#include <algorithm>
 #include <utility>
 
 namespace Leon {
@@ -321,6 +323,20 @@ namespace Leon {
             rawMapPath = mapArg;
         if (const std::string gmArg = readArgValue("--gamemode=", "--gamemode"); !gmArg.empty())
             GameModeConfig.GameModeClass = gmArg;
+        if (const std::string widthArg = readArgValue("--width=", "--width"); !widthArg.empty())
+            windowWidth = static_cast<uint32_t>(std::max(1, std::atoi(widthArg.c_str())));
+        if (const std::string heightArg = readArgValue("--height=", "--height"); !heightArg.empty())
+            windowHeight = static_cast<uint32_t>(std::max(1, std::atoi(heightArg.c_str())));
+        if (const std::string cascadeArg = readArgValue("--cascade-count=", "--cascade-count"); !cascadeArg.empty())
+            ProjectCascadeCount = static_cast<uint32_t>(std::max(0, std::atoi(cascadeArg.c_str())));
+        for (int i = 1; i < InArgs.Count; ++i) {
+            const char* raw = InArgs.Args ? InArgs.Args[i] : nullptr;
+            if (!raw)
+                continue;
+            std::string arg = raw;
+            if (arg == "--no-vsync")
+                bVSync = false;
+        }
 
         // 3. Initialize FApplication
         FApplicationProps appProps;

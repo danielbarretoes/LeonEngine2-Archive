@@ -8,7 +8,11 @@
 #include "Engine/UWorld.hpp"
 #include "Physics/IPhysicsScene.hpp"
 #include "Core/FFrameProfiler.hpp"
+#include "Gameplay/FGameplayDebugger.hpp"
+#include "Renderer/FDebugRenderer.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
@@ -93,19 +97,8 @@ namespace Leon {
             PushToRenderComponent();
             return;
         }
-        if (bSimulatingRagdoll) {
-            ApplyRagdollPoseFromBodies();
-            if (SkeletalMesh && SkeletalMesh->GetSkeleton()) {
-                if (SkeletalMesh->HasMeshBindPoses())
-                    FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms,
-                                                       SkeletalMesh->GetInverseBindPoses(), BonePalette);
-                else
-                    FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms,
-                                                       BonePalette);
-            }
-            PushToRenderComponent();
+        if (bSimulatingRagdoll)
             return;
-        }
         // Capsule ragdoll fallback: keep the last evaluated pose; do not keep driving montages/locomotion.
         if (AActor* owner = GetOwner()) {
             if (auto* character = dynamic_cast<ACharacter*>(owner); character && character->IsRagdoll()) {
@@ -129,14 +122,12 @@ namespace Leon {
         anim->NativeUpdateAnimation(DeltaSeconds);
         anim->Evaluate(EvaluatedPose);
 
-        std::vector<glm::mat4> component;
-        FAnimRuntime::LocalToComponent(*SkeletalMesh->GetSkeleton(), EvaluatedPose, component);
+        FAnimRuntime::LocalToComponent(*SkeletalMesh->GetSkeleton(), EvaluatedPose, ComponentSpaceTransforms);
         if (SkeletalMesh->HasMeshBindPoses())
-            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), component,
+            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms,
                                                SkeletalMesh->GetInverseBindPoses(), BonePalette);
         else
-            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), component, BonePalette);
-        ComponentSpaceTransforms = std::move(component);
+            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms, BonePalette);
         PushToRenderComponent();
     }
 
@@ -198,7 +189,9 @@ namespace Leon {
         return true;
     }
 
-    void USkeletalMeshComponent::AddSocket(const FSkeletalMeshSocket& InSocket) { Sockets.push_back(InSocket); }
+    void USkeletalMeshComponent::AddSocket(const FSkeletalMeshSocket& InSocket) {
+        Sockets.push_back(InSocket);
+    }
 
     const FSkeletalMeshSocket* USkeletalMeshComponent::FindSocket(const std::string& InName) const {
         for (const auto& socket : Sockets) {
@@ -263,9 +256,10 @@ namespace Leon {
             info.Motion = EPhysicsMotionType::Dynamic;
             info.bSimulatePhysics = true;
             info.bEnableGravity = true;
-            info.ObjectType = ECollisionChannel::Pawn;
-            info.Mass = 8.0f;
+            info.ObjectType = ECollisionChannel::PhysicsBody;
+            info.Mass = desc.Mass > 0.0f ? desc.Mass : 5.0f;
             info.LinearDamping = 0.4f;
+            info.AngularDamping = 0.4f;
             info.Location = worldPos + desc.Offset;
             info.Rotation = worldRot;
             info.Component = this;
@@ -290,6 +284,13 @@ namespace Leon {
             RagdollBoneNames.push_back(desc.BoneName);
         }
 
+        auto nameContains = [](const std::string& InName, const char* InToken) {
+            std::string lower = InName;
+            for (char& ch : lower)
+                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            return lower.find(InToken) != std::string::npos;
+        };
+
         std::vector<FPhysicsAssetConstraint> links = PhysicsAsset->GetConstraints();
         if (links.empty() && SkeletalMesh && SkeletalMesh->GetSkeleton()) {
             const auto& bones = SkeletalMesh->GetSkeleton()->GetBones();
@@ -306,6 +307,7 @@ namespace Leon {
                         FPhysicsAssetConstraint c;
                         c.BoneA = parentName;
                         c.BoneB = RagdollBoneNames[i];
+                        c.Type = EPhysicsConstraintType::SwingTwist;
                         links.push_back(c);
                         break;
                     }
@@ -324,10 +326,16 @@ namespace Leon {
             }
             if (!a || !b)
                 continue;
+            scene->IgnoreCollision(a, b);
             FPhysicsConstraintCreateInfo info;
             info.BodyA = a;
             info.BodyB = b;
+            info.Type = link.Type;
             info.RestLength = link.RestLength;
+            info.Axis = link.Axis;
+            info.Swing1LimitRadians = link.Swing1LimitRadians;
+            info.Swing2LimitRadians = link.Swing2LimitRadians;
+            info.TwistLimitRadians = link.TwistLimitRadians;
             IPhysicsConstraint* constraint = scene->CreateConstraint(info);
             if (!constraint) {
                 cleanup();
@@ -337,8 +345,15 @@ namespace Leon {
         }
 
         CaptureRagdollRestLocals();
-        if (!RagdollBodies.empty())
-            RagdollBodies.front()->AddImpulse(InImpulse);
+        IPhysicsBody* impulseBody = RagdollBodies.empty() ? nullptr : RagdollBodies.front();
+        for (size_t i = 0; i < RagdollBoneNames.size(); ++i) {
+            if (nameContains(RagdollBoneNames[i], "hips") || nameContains(RagdollBoneNames[i], "pelvis")) {
+                impulseBody = RagdollBodies[i];
+                break;
+            }
+        }
+        if (impulseBody)
+            impulseBody->AddImpulse(InImpulse);
         bSimulatingRagdoll = true;
         return true;
     }
@@ -361,6 +376,7 @@ namespace Leon {
         RagdollBodies.clear();
         RagdollBoneNames.clear();
         RagdollLocalFromParent.clear();
+        RagdollBoneScale.clear();
         RagdollBoneIsSimulated.clear();
         bSimulatingRagdoll = false;
     }
@@ -389,6 +405,10 @@ namespace Leon {
         OutWorldRot = glm::normalize(meshRot * boneRot);
     }
 
+    glm::vec3 USkeletalMeshComponent::Mat3Scale(const glm::mat4& InM) {
+        return {glm::length(glm::vec3(InM[0])), glm::length(glm::vec3(InM[1])), glm::length(glm::vec3(InM[2]))};
+    }
+
     void USkeletalMeshComponent::PhysicsWorldToComponent(const glm::mat4& InMeshWorld, const glm::vec3& InWorldPos,
                                                          const glm::quat& InWorldRot, glm::mat4& OutComponent) {
         // Do NOT use inv(meshWorld)*T*R when the mesh has non-1 scale — that scales the bone basis and
@@ -402,14 +422,17 @@ namespace Leon {
 
     void USkeletalMeshComponent::CaptureRagdollRestLocals() {
         RagdollLocalFromParent.clear();
+        RagdollBoneScale.clear();
         RagdollBoneIsSimulated.clear();
         if (!SkeletalMesh || !SkeletalMesh->GetSkeleton())
             return;
         EnsureComponentSpace();
         const auto& bones = SkeletalMesh->GetSkeleton()->GetBones();
         RagdollLocalFromParent.resize(bones.size(), glm::mat4(1.0f));
+        RagdollBoneScale.assign(bones.size(), glm::vec3(1.0f));
         RagdollBoneIsSimulated.assign(bones.size(), 0);
         for (size_t i = 0; i < bones.size() && i < ComponentSpaceTransforms.size(); ++i) {
+            RagdollBoneScale[i] = Mat3Scale(ComponentSpaceTransforms[i]);
             const int32_t parent = bones[i].ParentIndex;
             if (parent < 0 || parent >= static_cast<int32_t>(ComponentSpaceTransforms.size()))
                 RagdollLocalFromParent[i] = ComponentSpaceTransforms[i];
@@ -443,6 +466,10 @@ namespace Leon {
             glm::quat rot;
             RagdollBodies[i]->GetTransform(loc, rot);
             PhysicsWorldToComponent(meshWorld, loc, rot, ComponentSpaceTransforms[static_cast<size_t>(bone)]);
+            if (static_cast<size_t>(bone) < RagdollBoneScale.size()) {
+                const glm::vec3 s = glm::max(RagdollBoneScale[static_cast<size_t>(bone)], glm::vec3(1.0e-4f));
+                ComponentSpaceTransforms[static_cast<size_t>(bone)] *= glm::scale(glm::mat4(1.0f), s);
+            }
         }
 
         // Non-simulated bones keep the death pose relative to their (possibly simulated) parent.
@@ -458,6 +485,54 @@ namespace Leon {
                         ComponentSpaceTransforms[static_cast<size_t>(parent)] * RagdollLocalFromParent[i];
             }
         }
+
+        if (SkeletalMesh->HasMeshBindPoses())
+            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms,
+                                               SkeletalMesh->GetInverseBindPoses(), BonePalette);
+        else
+            FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms, BonePalette);
+        PushToRenderComponent();
+
+        if (FGameplayDebugger::ShowPhysics()) {
+            for (size_t i = 0; i < RagdollBodies.size(); ++i) {
+                if (!RagdollBodies[i])
+                    continue;
+                glm::vec3 loc;
+                glm::quat rot;
+                RagdollBodies[i]->GetTransform(loc, rot);
+                float radius = 0.08f;
+                float halfHeight = 0.16f;
+                if (PhysicsAsset && i < PhysicsAsset->GetBodies().size()) {
+                    radius = PhysicsAsset->GetBodies()[i].Radius;
+                    halfHeight = PhysicsAsset->GetBodies()[i].CapsuleHalfHeight;
+                }
+                FDebugRenderer::DrawDebugCapsule(loc, radius, halfHeight, glm::vec4(1.0f, 0.45f, 0.12f, 1.0f));
+            }
+        }
+    }
+
+    bool USkeletalMeshComponent::GetRagdollRootTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const {
+        auto tryToken = [&](const char* InToken) {
+            for (size_t i = 0; i < RagdollBoneNames.size() && i < RagdollBodies.size(); ++i) {
+                if (!RagdollBodies[i])
+                    continue;
+                std::string lower = RagdollBoneNames[i];
+                for (char& ch : lower)
+                    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                if (lower.find(InToken) == std::string::npos)
+                    continue;
+                RagdollBodies[i]->GetTransform(OutLocation, OutRotation);
+                return true;
+            }
+            return false;
+        };
+        if (tryToken("hips") || tryToken("pelvis") || tryToken("spine"))
+            return true;
+        if (!RagdollBodies.empty() && RagdollBodies.front()) {
+            RagdollBodies.front()->GetTransform(OutLocation, OutRotation);
+            return true;
+        }
+        return false;
     }
 
 } // namespace Leon

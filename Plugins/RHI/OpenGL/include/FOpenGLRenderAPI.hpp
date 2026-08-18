@@ -38,7 +38,17 @@ namespace Leon {
         FGPUInfo GetGPUInfo() override;
         FGPUVRAMStats GetGPUVRAMStats() override;
 
+        void BeginGPUTimeQuery(uint32_t InSlot) override;
+        void EndGPUTimeQuery(uint32_t InSlot) override;
+        void ResolveGPUTimeQueries() override;
+        float GetGPUTimeMs(uint32_t InSlot) const override;
+
+        FOpenGLRenderAPI() = default;
+        ~FOpenGLRenderAPI() override;
+
     private:
+        void EnsureGPUQueries();
+
         // CPU State Cache to prevent redundant OpenGL driver state switches
         bool bDepthTestEnabled = false;
         bool bDepthMaskEnabled = true;
@@ -50,6 +60,15 @@ namespace Leon {
         EBlendFactor DstBlend = EBlendFactor::OneMinusSrcAlpha;
         uint32_t CurrentFBO = 0;
         uint32_t ViewportX = 0, ViewportY = 0, ViewportW = 0, ViewportH = 0;
+
+        static constexpr uint32_t kGPUQuerySlots = 8;
+        static constexpr uint32_t kGPUQueryFrames = 3;
+        unsigned int GPUQueries[kGPUQueryFrames][kGPUQuerySlots]{};
+        bool GPUQueryIssued[kGPUQueryFrames][kGPUQuerySlots]{};
+        int GPUWriteFrame = 0;
+        int GPUActiveSlot = -1;
+        float GPUResolvedMs[kGPUQuerySlots]{};
+        bool bGPUQueriesReady = false;
     };
 
 } // namespace Leon

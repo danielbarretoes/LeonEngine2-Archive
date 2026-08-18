@@ -9,17 +9,91 @@
 #include "Engine/UEngine.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/FControlInput.hpp"
+#include "Assets/UPhysicsAsset.hpp"
+#include "Assets/USkeletalMesh.hpp"
+#include "Assets/USkeleton.hpp"
+#include "Assets/FAnimRuntime.hpp"
 #include "Renderer/FRenderingMath.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 #include <glm/gtc/quaternion.hpp>
 
 namespace Leon {
 
     namespace {
         constexpr uint16_t kServerRpcReload = 1;
-    }
+
+        bool IsFootPlantBone(const std::string& InName) {
+            const std::string n = ToLowerCopy(StripBoneNamespace(InName));
+            if (n.find("footstep") != std::string::npos)
+                return false;
+            return n.find("toe") != std::string::npos || n.find("foot") != std::string::npos ||
+                   n.find("ankle") != std::string::npos || n.find("ball") != std::string::npos;
+        }
+
+        float FootBoneMinY(const USkeletalMesh& InMesh) {
+            auto skeleton = InMesh.GetSkeleton();
+            if (!skeleton || skeleton->GetNumBones() == 0)
+                return 1.0e9f;
+            FPose rest;
+            FAnimRuntime::RestPose(*skeleton, rest);
+            std::vector<glm::mat4> component;
+            FAnimRuntime::LocalToComponent(*skeleton, rest, component);
+            float feetY = 1.0e9f;
+            const auto& bones = skeleton->GetBones();
+            for (size_t i = 0; i < bones.size() && i < component.size(); ++i) {
+                if (!IsFootPlantBone(bones[i].Name))
+                    continue;
+                feetY = std::min(feetY, component[i][3].y);
+            }
+            return feetY;
+        }
+
+        float FootWeightedVertexMinY(const USkeletalMesh& InMesh, const std::vector<glm::mat4>* InPalette) {
+            auto skeleton = InMesh.GetSkeleton();
+            const auto& verts = InMesh.GetVertices();
+            if (!skeleton || verts.empty())
+                return 1.0e9f;
+            const auto& bones = skeleton->GetBones();
+            std::vector<char> isFoot(bones.size(), 0);
+            for (size_t i = 0; i < bones.size(); ++i)
+                isFoot[i] = IsFootPlantBone(bones[i].Name) ? 1 : 0;
+
+            constexpr float kMinFootWeight = 0.35f;
+            float minY = 1.0e9f;
+            bool bFound = false;
+            const bool bSkin = InPalette && InPalette->size() == bones.size();
+            for (const auto& v : verts) {
+                float footW = 0.0f;
+                glm::vec4 skinned(0.0f);
+                for (int k = 0; k < 4; ++k) {
+                    const int idx = v.BoneIndices[k];
+                    const float w = v.BoneWeights[k];
+                    if (w <= 1e-4f || idx < 0 || idx >= static_cast<int>(isFoot.size()))
+                        continue;
+                    if (isFoot[static_cast<size_t>(idx)])
+                        footW += w;
+                    if (bSkin)
+                        skinned += w * ((*InPalette)[static_cast<size_t>(idx)] * glm::vec4(v.Position, 1.0f));
+                }
+                if (footW < kMinFootWeight)
+                    continue;
+                const float y = bSkin ? skinned.y : v.Position.y;
+                minY = std::min(minY, y);
+                bFound = true;
+            }
+            return bFound ? minY : 1.0e9f;
+        }
+
+        float AabbMinY(const USkeletalMesh& InMesh) {
+            const glm::vec3 extent = InMesh.GetBoundsMax() - InMesh.GetBoundsMin();
+            if (glm::length(extent) <= 1e-4f)
+                return 1.0e9f;
+            return InMesh.GetBoundsMin().y;
+        }
+    } // namespace
 
     ALeonTournamentCharacter::ALeonTournamentCharacter(entt::entity InHandle, UWorld* InWorld,
                                                        const std::string& InName)
@@ -29,6 +103,8 @@ namespace Leon {
 
     void ALeonTournamentCharacter::PostInitializeComponents() {
         ACharacter::PostInitializeComponents();
+        if (GetName() == kLeonTournamentMenuShowcaseActorName)
+            SetMenuShowcase(true);
 
         if (!Health)
             Health = AddActorComponent<UHealthComponent>("Health");
@@ -58,6 +134,65 @@ namespace Leon {
         UpdatePresentationVisibility();
     }
 
+    float ALeonTournamentCharacter::BindPoseFeetY(const USkeletalMesh& InMesh) {
+        const float vertY = FootWeightedVertexMinY(InMesh, nullptr);
+        if (vertY < 1.0e8f)
+            return vertY;
+
+        const float aabbMin = AabbMinY(InMesh);
+        const bool bHasBounds = aabbMin < 1.0e8f;
+        const float boneY = FootBoneMinY(InMesh);
+        if (boneY >= 1.0e8f)
+            return bHasBounds ? aabbMin : 0.0f;
+        if (!bHasBounds)
+            return boneY;
+        // Loose AABB (cape, hair) hangs below the soles — plant on bones.
+        constexpr float kLooseBoundsSlack = 0.08f;
+        if (aabbMin < boneY - kLooseBoundsSlack)
+            return boneY;
+        return aabbMin;
+    }
+
+    float ALeonTournamentCharacter::SkinnedFeetY(const USkeletalMesh& InMesh, const std::vector<glm::mat4>& InPalette) {
+        const float vertY = FootWeightedVertexMinY(InMesh, &InPalette);
+        if (vertY < 1.0e8f)
+            return vertY;
+        return BindPoseFeetY(InMesh);
+    }
+
+    void ALeonTournamentCharacter::PlantMeshFeetOnCapsule() {
+        if (!GetMesh())
+            return;
+        if (!bCachedBindPoseFeetY) {
+            if (auto skm = GetMesh()->GetSkeletalMesh()) {
+                CachedBindPoseFeetY = BindPoseFeetY(*skm);
+                bCachedBindPoseFeetY = true;
+            } else {
+                CachedBindPoseFeetY = 0.0f;
+            }
+        }
+        const float scale = GetMesh()->GetRelativeScale3D().y;
+        GetMesh()->SetRelativeLocation(glm::vec3(0.0f, -GetCapsuleHalfHeight() - CachedBindPoseFeetY * scale, 0.0f));
+    }
+
+    void ALeonTournamentCharacter::SetMenuShowcase(bool bEnabled) {
+        bMenuShowcase = bEnabled;
+        if (!bEnabled)
+            return;
+        if (HasComponent<FCameraComponent>())
+            GetComponent<FCameraComponent>().bPrimary = false;
+        if (auto move = GetCharacterMovement()) {
+            move->StopMovementImmediately();
+            move->SetMovementMode(EMovementMode::None);
+        }
+        SetThirdPerson(true);
+        UpdatePresentationVisibility();
+    }
+
+    bool ALeonTournamentCharacter::ShouldSpawnWeapon() const {
+        return !bMenuShowcase;
+    }
+
     void ALeonTournamentCharacter::ApplyCharacterSkin(ELeonTournamentCharacterSkin InSkin) {
         CharacterSkin = LeonTournamentClampCharacterSkin(InSkin);
         if (!GetMesh())
@@ -68,21 +203,21 @@ namespace Leon {
 
         // Normalize bind-pose height so every skin stands at the same design height.
         float uniformScale = 1.0f;
-        float feetY = 0.0f;
         const float targetH = LeonTournamentCharacterTargetHeightMeters(InSkin);
-        if (auto skm = GetMesh()->GetSkeletalMesh()) {
+        auto skm = GetMesh()->GetSkeletalMesh();
+        if (skm) {
             const float meshH = skm->GetBoundsMax().y - skm->GetBoundsMin().y;
-            feetY = skm->GetBoundsMin().y;
             if (targetH > 1e-3f && meshH > 1e-3f)
                 uniformScale = targetH / meshH;
         }
         GetMesh()->SetRelativeScale3D(glm::vec3(uniformScale));
-        // Capsule bottom is -halfHeight; plant bind-pose feet on that plane (small sink covers loose bounds).
-        constexpr float kFootPlantBias = 0.035f;
-        GetMesh()->SetRelativeLocation(
-            glm::vec3(0.0f, -GetCapsuleHalfHeight() - feetY * uniformScale - kFootPlantBias, 0.0f));
-        // Death ragdoll temporarily disabled (mesh scale / writeback bugs). Clear any leftover asset.
-        GetMesh()->SetPhysicsAsset(nullptr);
+        CachedBindPoseFeetY = skm ? BindPoseFeetY(*skm) : 0.0f;
+        bCachedBindPoseFeetY = true;
+        PlantMeshFeetOnCapsule();
+        if (skm && skm->GetSkeleton())
+            GetMesh()->SetPhysicsAsset(UPhysicsAsset::CreateHumanoidFromSkeleton(*skm->GetSkeleton()));
+        else
+            GetMesh()->SetPhysicsAsset(nullptr);
     }
 
     void ALeonTournamentCharacter::BeginPlay() {
@@ -390,6 +525,10 @@ namespace Leon {
         if (!HasComponent<FSkinnedMeshRenderState>())
             return;
         auto& skel = GetComponent<FSkinnedMeshRenderState>();
+        if (bMenuShowcase) {
+            skel.bDrawOutline = false;
+            return;
+        }
         // Local first-person body is hidden; no silhouette on self.
         if (IsLocallyControlled() && !IsThirdPerson()) {
             skel.bDrawOutline = false;
@@ -417,17 +556,19 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::BeginDeathRagdoll() {
-        // Ragdoll temporarily disabled (mesh scale / writeback bugs). Death uses montage only.
+        EnableRagdoll(PendingDeathImpulse);
     }
 
-    void ALeonTournamentCharacter::StopDeathRagdoll() { StopRagdoll(); }
+    void ALeonTournamentCharacter::StopDeathRagdoll() {
+        StopRagdoll();
+    }
 
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
         bDeadFrozen = true;
-        // Flow: death presentation (ragdoll OFF for now)
+        // Flow: death presentation
         // 1. Always third-person + free look orbit (control yaw does not spin the corpse)
         // 2. Pull spring arm out for a readable spectator view
-        // 3. Stop movement; play death montage (no physics ragdoll)
+        // 3. Stop movement; ragdoll if PhysicsAsset is valid, otherwise death montage
         // 4. Authority notifies GameMode for scoring / respawn
         bDeathForcedThirdPerson = !IsThirdPerson();
         SetThirdPerson(true);
@@ -449,9 +590,9 @@ namespace Leon {
             Weapon->SetFireHeld(false);
         if (auto mesh = GetMesh())
             mesh->SetComponentTickEnabled(true);
-        if (AnimInst)
-            AnimInst->PlayDeathMontage();
         BeginDeathRagdoll();
+        if (AnimInst && !(GetMesh() && GetMesh()->IsRagdoll()))
+            AnimInst->PlayDeathMontage();
         UpdatePresentationVisibility();
         if (IsLocallyControlled()) {
             if (auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(GetController()))

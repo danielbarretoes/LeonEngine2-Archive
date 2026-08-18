@@ -5,6 +5,7 @@
 #include "Engine/ECollisionChannel.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FFrameProfiler.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -164,6 +165,8 @@ namespace Leon {
     }
 
     FNavPath UNavigationSystem::FindPath(const glm::vec3& InStart, const glm::vec3& InGoal) const {
+        FFrameProfiler::FScope nav(&FFrameProfiler::Working().NavigationMs);
+        ++FFrameProfiler::Working().PathRequests;
         FNavPath path;
         if (!bBuilt) {
             ++PathsFailed;

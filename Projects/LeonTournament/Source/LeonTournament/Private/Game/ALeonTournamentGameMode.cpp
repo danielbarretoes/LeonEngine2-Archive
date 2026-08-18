@@ -24,9 +24,13 @@
 #include "Core/FFrameProfiler.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Gameplay/APlayerController.hpp"
+#include "Gameplay/APlayerCameraManager.hpp"
 #include "Lightmass/FLightmass.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "Renderer/FMaterial.hpp"
+#include "Renderer/FPerspectiveCamera.hpp"
+#include "UMG/FUILayout.hpp"
 #include "Core/FWorldUnits.hpp"
 
 #include <algorithm>
@@ -228,6 +232,7 @@ namespace Leon {
             gs->SetTeam1Kills(0);
             gs->SetTeam2Kills(0);
         }
+        EnsureMenuShowcase();
     }
 
     void ALeonTournamentGameMode::EnterLobby() {
@@ -243,6 +248,7 @@ namespace Leon {
                 SyncLocalPlayerCharacterSkin(ps);
             }
         }
+        EnsureMenuShowcase();
         if (ShouldFillBotsOnEnterLobby())
             SyncLobbyBots();
         RefreshTeamCounts();
@@ -876,6 +882,104 @@ namespace Leon {
         ValidateSpawnedCharacter(*pawn, team);
     }
 
+    void ALeonTournamentGameMode::PlaceMenuShowcase(ALeonTournamentCharacter& InCharacter) {
+        InCharacter.SetMenuShowcase(true);
+        ELeonTournamentCharacterSkin skin = ELeonTournamentCharacterSkin::YBot;
+        if (auto* gi = GetLeonTournamentGameInstance())
+            skin = gi->GetSelectedCharacterSkin();
+        InCharacter.ApplyCharacterSkin(skin);
+        RefreshMenuShowcasePlacement();
+    }
+
+    void ALeonTournamentGameMode::RefreshMenuShowcasePlacement() {
+        if (!ShowcaseCharacter || ShowcaseCharacter->IsPendingKill())
+            return;
+
+        float vpW = FUILayout::kDesignWidth;
+        float vpH = FUILayout::kDesignHeight;
+        if (FApplication::HasInstance()) {
+            const auto& window = FApplication::Get().GetWindow();
+            if (window.GetWidth() > 0 && window.GetHeight() > 0) {
+                vpW = static_cast<float>(window.GetWidth());
+                vpH = static_cast<float>(window.GetHeight());
+            }
+        }
+
+        FPerspectiveCamera cam(45.0f, std::max(vpW, 1.0f) / std::max(vpH, 1.0f), 0.1f, 1000.0f);
+        cam.SetPosition(kLeonTournamentMenuCameraPosition);
+        cam.SetRotation(kLeonTournamentMenuCameraPitchDeg, kLeonTournamentMenuCameraYawDeg);
+        cam.SetViewportSize(static_cast<uint32_t>(std::max(vpW, 1.0f)), static_cast<uint32_t>(std::max(vpH, 1.0f)));
+        if (World) {
+            if (auto* pc = World->GetFirstPlayerController()) {
+                if (auto* mgr = pc->GetPlayerCameraManager())
+                    mgr->GetCamera() = cam;
+            }
+        }
+
+        const bool bLobby = GetGameState() && GetGameState()->GetMatchState() == ELeonTournamentMatchState::Lobby;
+        const float panelPx = LeonTournamentMenuPanelWidthPx(vpW, bLobby);
+        const glm::vec3 loc = LeonTournamentMenuShowcaseLocation(
+            cam.GetPosition(), cam.GetForwardDirection(), cam.GetRightDirection(), cam.GetFOV(), cam.GetAspectRatio(),
+            ShowcaseCharacter->GetCapsuleHalfHeight(), vpW, panelPx);
+        ShowcaseCharacter->SetActorLocation(loc);
+        ShowcaseCharacter->SetFloorZ(0.0f);
+        ShowcaseCharacter->SetControlYaw(90.0f);
+        ShowcaseCharacter->SetControlPitch(0.0f);
+        ShowcaseCharacter->ApplyYawOnlyActorRotation();
+        if (ShowcaseFloor && !ShowcaseFloor->IsPendingKill())
+            ShowcaseFloor->SetActorLocation({loc.x, -0.05f, loc.z});
+    }
+
+    void ALeonTournamentGameMode::EnsureMenuShowcase() {
+        // Flow: menu / lobby character preview
+        // 1. Drive the unpossessed PlayerCameraManager to the mid-torso menu view.
+        // 2. Stand the pawn on the floor in the frustum gap right of the UI panel.
+        // 3. Apply the GameInstance skin; cycling calls NotifySelectedCharacterChanged.
+        if (!World)
+            return;
+        if (!ShowcaseFloor || ShowcaseFloor->IsPendingKill()) {
+            ShowcaseFloor = World->FindActorByName(kLeonTournamentMenuShowcaseFloorName);
+            if (!ShowcaseFloor) {
+                ShowcaseFloor = FLeonTournamentArenaBuilder::SpawnBox(World, kLeonTournamentMenuShowcaseFloorName,
+                                                                      {0.0f, -0.05f, 7.2f}, {10.0f, 0.1f, 10.0f},
+                                                                      ELeonTournamentArenaSurface::Floor);
+            }
+        }
+        if (!ShowcaseCharacter || ShowcaseCharacter->IsPendingKill()) {
+            ShowcaseCharacter =
+                dynamic_cast<ALeonTournamentCharacter*>(World->FindActorByName(kLeonTournamentMenuShowcaseActorName));
+            if (!ShowcaseCharacter)
+                ShowcaseCharacter = World->SpawnActor<ALeonTournamentCharacter>(kLeonTournamentMenuShowcaseActorName);
+        }
+        if (ShowcaseCharacter)
+            PlaceMenuShowcase(*ShowcaseCharacter);
+    }
+
+    void ALeonTournamentGameMode::DestroyMenuShowcase() {
+        if (World) {
+            if (ShowcaseCharacter && !ShowcaseCharacter->IsPendingKill())
+                World->DestroyActor(ShowcaseCharacter);
+            else if (AActor* leftover = World->FindActorByName(kLeonTournamentMenuShowcaseActorName))
+                World->DestroyActor(leftover);
+            if (ShowcaseFloor && !ShowcaseFloor->IsPendingKill())
+                World->DestroyActor(ShowcaseFloor);
+            else if (AActor* leftover = World->FindActorByName(kLeonTournamentMenuShowcaseFloorName))
+                World->DestroyActor(leftover);
+        }
+        ShowcaseCharacter = nullptr;
+        ShowcaseFloor = nullptr;
+    }
+
+    void ALeonTournamentGameMode::NotifySelectedCharacterChanged() {
+        if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
+            if (auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(pc->GetPlayerState()))
+                SyncLocalPlayerCharacterSkin(ps);
+        }
+        auto* gi = GetLeonTournamentGameInstance();
+        if (ShowcaseCharacter && !ShowcaseCharacter->IsPendingKill() && gi)
+            ShowcaseCharacter->ApplyCharacterSkin(gi->GetSelectedCharacterSkin());
+    }
+
     void ALeonTournamentGameMode::ApplyCameraPreference(ALeonTournamentCharacter* InCharacter) {
         if (!InCharacter)
             return;
@@ -892,6 +996,7 @@ namespace Leon {
     void ALeonTournamentGameMode::OpenAnimLab() {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
+        DestroyMenuShowcase();
         SetTravelGameModeClass("ALeonTournamentAnimLabGameMode");
         if (World)
             UGameplayStatics::OpenLevel(World, "/Game/Maps/AnimLab");
@@ -900,6 +1005,7 @@ namespace Leon {
     void ALeonTournamentGameMode::OpenNightArena() {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
+        DestroyMenuShowcase();
         SetTravelGameModeClass("ALeonTournamentGameMode");
         if (World)
             UGameplayStatics::OpenLevel(World, "/Game/Maps/TournamentArenaNight");
@@ -912,6 +1018,7 @@ namespace Leon {
             StartMatch();
             return;
         }
+        DestroyMenuShowcase();
         SetTravelGameModeClass("ALeonTournamentGameMode");
         if (World)
             UGameplayStatics::OpenLevel(World, LeonTournamentPlayableMapPath(InMap));
@@ -928,6 +1035,7 @@ namespace Leon {
         if (gs && (gs->GetMatchState() == ELeonTournamentMatchState::Starting ||
                    gs->GetMatchState() == ELeonTournamentMatchState::Playing))
             return;
+        DestroyMenuShowcase();
 
         if (IsAuthoredPlayableMap() || WorldHasImportedStaticMeshes(World)) {
             // Authored maps (Night/Orbital): keep baked lights/geometry; only seed gameplay overlay
@@ -1170,6 +1278,11 @@ namespace Leon {
         auto* gi = GetLeonTournamentGameInstance();
         if (!gi || !gi->IsAutoOfflineMatch() || bAutoPlayFinished)
             return;
+        if (!bAutoPlayCollectorReady) {
+            FFrameStatsCollector::Reset();
+            FFrameStatsCollector::MarkMemoryBegin();
+            bAutoPlayCollectorReady = true;
+        }
         auto* gs = GetGameState();
         if (!gs)
             return;
@@ -1230,7 +1343,12 @@ namespace Leon {
         }
 
         const auto& timing = FFrameProfiler::Last();
-        const float avgMs = AutoPlaySamples > 0 ? AutoPlayMsSum / static_cast<float>(AutoPlaySamples) : timing.FrameMs;
+        FFrameStatsCollector::MarkMemoryEnd();
+        const FFrameCaptureSummary capture = FFrameStatsCollector::Compute(3.0f);
+        const float avgMs =
+            capture.SampleCount > 0
+                ? capture.Frame.Average
+                : (AutoPlaySamples > 0 ? AutoPlayMsSum / static_cast<float>(AutoPlaySamples) : timing.FrameMs);
         const float avgFps = avgMs > 0.01f ? 1000.0f / avgMs : 0.0f;
 
         int32_t bots = 0, moving = 0, combat = 0, reloading = 0, dead = 0, searching = 0;
@@ -1300,9 +1418,38 @@ namespace Leon {
                 << " reloading=" << reloading << " dead=" << dead << "\n";
             out << "avg_frame_ms=" << avgMs << "\n";
             out << "avg_fps=" << avgFps << "\n";
-            out << "min_frame_ms=" << (AutoPlaySamples > 0 ? AutoPlayMsMin : timing.FrameMs) << "\n";
-            out << "max_frame_ms=" << AutoPlayMsMax << "\n";
-            out << "samples=" << AutoPlaySamples << "\n";
+            out << "min_frame_ms=" << (capture.SampleCount > 0 ? capture.Frame.Min : timing.FrameMs) << "\n";
+            out << "max_frame_ms=" << (capture.SampleCount > 0 ? capture.Frame.Max : AutoPlayMsMax) << "\n";
+            out << "median_frame_ms=" << capture.Frame.Median << "\n";
+            out << "p1_frame_ms=" << capture.Frame.P1 << "\n";
+            out << "p5_frame_ms=" << capture.Frame.P5 << "\n";
+            out << "p95_frame_ms=" << capture.Frame.P95 << "\n";
+            out << "p99_frame_ms=" << capture.Frame.P99 << "\n";
+            out << "samples=" << capture.SampleCount << "\n";
+            out << "spikes=" << capture.SpikeCount << "\n";
+            out << "bound_class=" << FFrameStatsCollector::BoundClassName(capture.BoundClass) << "\n";
+            out << "avg_cpu_work_ms=" << capture.AvgCPUWorkMs << "\n";
+            out << "avg_gpu_ms=" << capture.AvgGPUMs << "\n";
+            out << "avg_present_ms=" << capture.AvgPresentMs << "\n";
+            out << "avg_game_ms=" << capture.Game.Average << "\n";
+            out << "avg_render_ms=" << capture.Render.Average << "\n";
+            out << "avg_shadow_ms=" << capture.Shadow.Average << "\n";
+            out << "avg_opaque_ms=" << capture.Opaque.Average << "\n";
+            out << "avg_planar_ms=" << capture.Planar.Average << "\n";
+            out << "avg_postprocess_ms=" << capture.PostProcess.Average << "\n";
+            out << "avg_anim_ms=" << capture.Animation.Average << "\n";
+            out << "avg_characters_ms=" << capture.Characters.Average << "\n";
+            out << "avg_overlaps_ms=" << capture.Overlaps.Average << "\n";
+            out << "avg_controllers_ms=" << capture.Controllers.Average << "\n";
+            out << "avg_ai_ms=" << capture.AI.Average << "\n";
+            out << "avg_nav_ms=" << capture.Navigation.Average << "\n";
+            out << "avg_physics_ms=" << capture.Physics.Average << "\n";
+            out << "avg_ui_ms=" << capture.UI.Average << "\n";
+            out << "avg_tick_actors=" << capture.AvgTickActors << "\n";
+            out << "avg_tick_components=" << capture.AvgTickComponents << "\n";
+            out << "avg_actors=" << capture.AvgActors << "\n";
+            out << "avg_shadow_draws=" << capture.AvgShadowDraws << "\n";
+            out << "avg_path_requests=" << capture.AvgPathRequests << "\n";
             out << "last_game_ms=" << timing.GameMs << "\n";
             out << "last_render_ms=" << timing.RenderMs << "\n";
             out << "last_shadow_ms=" << timing.ShadowMs << "\n";
@@ -1314,6 +1461,8 @@ namespace Leon {
             out << "shadow_draw_calls=" << timing.ShadowDrawCalls << "\n";
             out << "particles=" << timing.ParticleCount << "\n";
             out << "visible_actors=" << timing.VisibleActors << "\n";
+            out << "\n";
+            out << FFrameStatsCollector::FormatReport(capture);
         }
         LE_CORE_INFO("AutoPlay report written to {}  avg={:.1f} ms ({:.0f} FPS)", path, avgMs, avgFps);
         if (FApplication::HasInstance())
@@ -1321,6 +1470,7 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::EndPlay() {
+        DestroyMenuShowcase();
         DamageLog.clear();
         RespawnTimerHandles.clear();
         if (World) {
@@ -1343,6 +1493,11 @@ namespace Leon {
             return;
         TickAutoPlay(DeltaSeconds);
         TickMatch(DeltaSeconds);
+        if (auto* gs = GetGameState()) {
+            if (gs->GetMatchState() == ELeonTournamentMatchState::MainMenu ||
+                gs->GetMatchState() == ELeonTournamentMatchState::Lobby)
+                RefreshMenuShowcasePlacement();
+        }
     }
 
     std::vector<ALeonTournamentPlayerState*> ALeonTournamentGameMode::GetSortedScoreboard() const {

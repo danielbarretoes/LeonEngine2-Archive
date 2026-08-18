@@ -358,20 +358,19 @@ namespace Leon {
         // PASS 1: Cascaded Shadow Pass
         // ------------------------------------------------------------------
         const uint32_t drawsBeforeShadow = FRenderer::GetStats().DrawCalls;
-        if (bHasDirLight) {
-            FFrameProfiler::FScope shadow(&FFrameProfiler::Working().ShadowMs);
-            RenderCascadedShadowPass(InCamera, &dirLightComp, mainCamData);
-        }
-        if (bHasSpotLight) {
-            FFrameProfiler::FScope shadow(&FFrameProfiler::Working().ShadowMs);
-            RenderSpotShadowPass(&shadowedSpotComp, shadowedSpotPos, mainCamData);
+        if ((bHasDirLight && ShadowSettings.CascadeCount > 0) || bHasSpotLight) {
+            FGpuCpuScope shadow(&FFrameProfiler::Working().ShadowMs, EGPUTimerSlot::Shadow);
+            if (bHasDirLight && ShadowSettings.CascadeCount > 0)
+                RenderCascadedShadowPass(InCamera, &dirLightComp, mainCamData);
+            if (bHasSpotLight)
+                RenderSpotShadowPass(&shadowedSpotComp, shadowedSpotPos, mainCamData);
         }
         mainCamData.ShadowSettings =
             glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), shadowedSpotIndex, 0, DebugMode);
         FFrameProfiler::Working().ShadowDrawCalls = FRenderer::GetStats().DrawCalls - drawsBeforeShadow;
 
         {
-            FFrameProfiler::FScope planar(&FFrameProfiler::Working().TransparentMs);
+            FGpuCpuScope planar(&FFrameProfiler::Working().PlanarMs, EGPUTimerSlot::Planar);
             RenderPlanarReflectionPass(InCamera, bHasSkybox ? &skybox : nullptr, bHasDirLight, dirLightComp.Light);
         }
 
@@ -397,18 +396,18 @@ namespace Leon {
         }
 
         {
-            FFrameProfiler::FScope opaque(&FFrameProfiler::Working().OpaqueMs);
+            FGpuCpuScope opaque(&FFrameProfiler::Working().OpaqueMs, EGPUTimerSlot::Opaque);
             RenderOpaqueGeometryPass(InCamera, bHasDirLight, bHasSpotLight);
         }
 
         if (bHasSkybox) {
-            FFrameProfiler::FScope sky(&FFrameProfiler::Working().SkyMs);
+            FGpuCpuScope sky(&FFrameProfiler::Working().SkyMs, EGPUTimerSlot::Sky);
             FRenderCommand::SetBlendState(false);
             RenderSkyboxPass(InCamera, &skybox, bHasDirLight, dirLightComp.Light);
         }
 
         {
-            FFrameProfiler::FScope trans(&FFrameProfiler::Working().TransparentMs);
+            FGpuCpuScope trans(&FFrameProfiler::Working().TransparentMs, EGPUTimerSlot::Transparent);
             RenderTransparentGeometryPass(bHasDirLight, bHasSpotLight);
         }
 
@@ -426,7 +425,7 @@ namespace Leon {
         FTextRenderer::EndScene();
 
         {
-            FFrameProfiler::FScope particles(&FFrameProfiler::Working().TransparentMs);
+            FGpuCpuScope particles(&FFrameProfiler::Working().ParticlesMs, EGPUTimerSlot::Particles);
             FParticleRenderer::Render(World, InCamera);
         }
 
@@ -455,13 +454,19 @@ namespace Leon {
             HDRSceneFramebuffer->Unbind();
 
         {
-            FFrameProfiler::FScope pp(&FFrameProfiler::Working().PostProcessMs);
+            FGpuCpuScope pp(&FFrameProfiler::Working().PostProcessMs, EGPUTimerSlot::PostProcess);
             RenderPostProcessPass(skybox.Exposure, PreviousFBO, vpWidth, vpHeight, InCamera);
         }
 
         const auto& stats = FRenderer::GetStats();
         FFrameProfiler::Working().VisibleActors = static_cast<int32_t>(stats.MeshesDrawn);
         FFrameProfiler::Working().CulledActors = static_cast<int32_t>(stats.MeshesCulled);
+        FFrameProfiler::Working().DrawCalls = stats.DrawCalls;
+        FFrameProfiler::Working().TriangleCount = stats.TriangleCount;
+        FFrameProfiler::Working().ShaderChanges = stats.ShaderChanges;
+        FFrameProfiler::Working().TextureBinds = stats.TextureBinds;
+        FFrameProfiler::Working().VAOBinds = stats.VAOBinds;
+        FFrameProfiler::Working().FBOSwitches = stats.FBOSwitches;
     }
 
 } // namespace Leon

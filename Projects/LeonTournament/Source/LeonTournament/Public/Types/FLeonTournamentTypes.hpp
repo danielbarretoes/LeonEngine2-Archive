@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <glm/glm.hpp>
@@ -58,6 +60,80 @@ namespace Leon {
         const uint8_t count = static_cast<uint8_t>(ELeonTournamentPlayableMap::Count);
         const uint8_t cur = static_cast<uint8_t>(InMap);
         return static_cast<ELeonTournamentPlayableMap>((cur + count - 1) % count);
+    }
+
+    enum class ELeonTournamentGameModeId : uint8_t { TeamDeathmatch = 0, Count = 1 };
+
+    inline const char* LeonTournamentGameModeName(ELeonTournamentGameModeId /*InMode*/) {
+        return "TDM";
+    }
+
+    inline ELeonTournamentGameModeId LeonTournamentClampGameModeId(ELeonTournamentGameModeId InMode) {
+        const uint8_t count = static_cast<uint8_t>(ELeonTournamentGameModeId::Count);
+        uint8_t v = static_cast<uint8_t>(InMode);
+        if (v >= count)
+            v = 0;
+        return static_cast<ELeonTournamentGameModeId>(v);
+    }
+
+    inline ELeonTournamentGameModeId LeonTournamentNextGameModeId(ELeonTournamentGameModeId InMode) {
+        const uint8_t next = static_cast<uint8_t>((static_cast<uint8_t>(InMode) + 1) %
+                                                  static_cast<uint8_t>(ELeonTournamentGameModeId::Count));
+        return static_cast<ELeonTournamentGameModeId>(next);
+    }
+
+    inline ELeonTournamentGameModeId LeonTournamentPrevGameModeId(ELeonTournamentGameModeId InMode) {
+        const uint8_t count = static_cast<uint8_t>(ELeonTournamentGameModeId::Count);
+        const uint8_t cur = static_cast<uint8_t>(InMode);
+        return static_cast<ELeonTournamentGameModeId>((cur + count - 1) % count);
+    }
+
+    inline constexpr char kLeonTournamentMenuShowcaseActorName[] = "MenuShowcase";
+    inline constexpr char kLeonTournamentMenuShowcaseFloorName[] = "MenuShowcaseFloor";
+    inline constexpr float kLeonTournamentMenuPanelDesignWidth = 420.0f;
+    inline constexpr float kLeonTournamentLobbyPanelDesignWidth = 520.0f;
+    /** Fallback view is 3.5 m / -10° (above a standing pawn). Menu looks at mid-torso instead. */
+    inline constexpr glm::vec3 kLeonTournamentMenuCameraPosition{0.0f, 1.4f, 10.5f};
+    inline constexpr float kLeonTournamentMenuCameraPitchDeg = -8.0f;
+    inline constexpr float kLeonTournamentMenuCameraYawDeg = -90.0f;
+    inline constexpr float kLeonTournamentMenuStandDistance = 3.5f;
+
+    inline float LeonTournamentMenuPanelWidthPx(float InViewportW, bool bLobby) {
+        const float design = bLobby ? kLeonTournamentLobbyPanelDesignWidth : kLeonTournamentMenuPanelDesignWidth;
+        return std::min(design, InViewportW * 0.62f);
+    }
+
+    /**
+     * Stand location for the menu/lobby preview pawn: on the floor, in front of the
+     * fallback camera, and inside the frustum to the right of the left UI panel.
+     */
+    inline glm::vec3 LeonTournamentMenuShowcaseLocation(const glm::vec3& InCamPos, const glm::vec3& InCamForward,
+                                                        const glm::vec3& InCamRight, float InFovDegrees, float InAspect,
+                                                        float InCapsuleHalfHeight, float InViewportWidth,
+                                                        float InPanelWidthPx) {
+        const float aspect = std::max(InAspect, 1e-4f);
+        const float tanHalfV = std::tan(InFovDegrees * 0.00872664626f);
+        const float tanHalfH = tanHalfV * aspect;
+
+        glm::vec3 planarFwd(InCamForward.x, 0.0f, InCamForward.z);
+        const float fwdLen = glm::length(planarFwd);
+        planarFwd = fwdLen > 1e-4f ? planarFwd / fwdLen : glm::vec3(0.0f, 0.0f, -1.0f);
+        glm::vec3 planarRight(InCamRight.x, 0.0f, InCamRight.z);
+        const float rightLen = glm::length(planarRight);
+        planarRight = rightLen > 1e-4f ? planarRight / rightLen : glm::vec3(1.0f, 0.0f, 0.0f);
+
+        glm::vec3 stand(InCamPos.x, InCapsuleHalfHeight, InCamPos.z);
+        stand += planarFwd * kLeonTournamentMenuStandDistance;
+
+        const glm::vec3 toStand = stand - InCamPos;
+        const float viewZ = std::max(glm::dot(toStand, InCamForward), 1.25f);
+        const float halfW = tanHalfH * viewZ;
+        const float panelFrac = std::clamp(InPanelWidthPx / std::max(InViewportWidth, 1.0f), 0.0f, 0.62f);
+        const float u = glm::mix(panelFrac, 1.0f, 0.55f);
+        const float ndcX = std::clamp(u * 2.0f - 1.0f, -0.72f, 0.72f);
+        stand += planarRight * (ndcX * halfW);
+        stand.y = InCapsuleHalfHeight;
+        return stand;
     }
 
     /** Selectable pawn mesh; each skin keeps its own .lskeleton. Mixamo anims link by bone name. */

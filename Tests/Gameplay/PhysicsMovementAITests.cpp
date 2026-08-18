@@ -17,6 +17,9 @@
 #include "Assets/UPhysicsAsset.hpp"
 #include "Physics/IPhysicsScene.hpp"
 
+#include <fstream>
+#include <filesystem>
+
 TEST_SUITE("Physics / Collision") {
     TEST_CASE("UBoxComponent blocks Visibility traces") {
         auto world = Leon::UWorld::Create("PhysBox");
@@ -286,7 +289,9 @@ TEST_SUITE("AI BehaviorTree / Blackboard") {
         ai->GetBlackboardComponent()->SetValueAsBool("Go", true);
         ai->GetBrainComponent()->Tick(0.1f);
     }
+}
 
+TEST_SUITE("PhysicsAsset / Ragdoll") {
     TEST_CASE("UPhysicsAsset roundtrip") {
         Leon::UPhysicsAsset asset("PA");
         Leon::FPhysicsAssetBody body;
@@ -294,8 +299,33 @@ TEST_SUITE("AI BehaviorTree / Blackboard") {
         body.Shape = Leon::EPhysicsAssetBodyShape::Capsule;
         body.Radius = 0.08f;
         body.CapsuleHalfHeight = 0.2f;
+        body.Mass = 6.5f;
         asset.AddBody(body);
+        Leon::FPhysicsAssetConstraint link;
+        link.BoneA = "hips";
+        link.BoneB = "spine";
+        link.Type = Leon::EPhysicsConstraintType::SwingTwist;
+        link.Swing1LimitRadians = 0.4f;
+        asset.AddConstraint(link);
         CHECK(asset.GetBodies().size() == 1);
+
+        const auto path = (std::filesystem::temp_directory_path() / "leon_physics_asset_v3.lphy").string();
+        REQUIRE(asset.SaveToFile(path));
+        std::ifstream in(path, std::ios::binary);
+        REQUIRE(in);
+        uint32_t magic = 0;
+        in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
+        CHECK(magic == Leon::UPhysicsAsset::Magic);
+        in.close();
+
+        Leon::UPhysicsAsset loaded("Loaded");
+        REQUIRE(loaded.LoadFromFile(path));
+        REQUIRE(loaded.GetBodies().size() == 1);
+        CHECK(loaded.GetBodies()[0].BoneName == "spine");
+        CHECK(loaded.GetBodies()[0].Mass == doctest::Approx(6.5f));
+        REQUIRE(loaded.GetConstraints().size() == 1);
+        CHECK(loaded.GetConstraints()[0].Type == Leon::EPhysicsConstraintType::SwingTwist);
+        CHECK(loaded.GetConstraints()[0].Swing1LimitRadians == doctest::Approx(0.4f));
     }
 
     TEST_CASE("EnableRagdoll falls back to capsule without PhysicsAsset") {
@@ -311,5 +341,19 @@ TEST_SUITE("AI BehaviorTree / Blackboard") {
         ch->StopRagdoll();
         CHECK_FALSE(ch->IsRagdoll());
         CHECK_FALSE(ch->GetCapsuleComponent()->IsSimulatingPhysics());
+    }
+
+    TEST_CASE("RecoverFromRagdoll restores Walking") {
+        auto world = Leon::UWorld::Create("RecoverWorld");
+        world->InitWorld();
+        auto* ch = world->SpawnActor<Leon::ACharacter>("Hero");
+        REQUIRE(ch);
+        world->BeginPlay();
+        ch->EnableRagdoll({0.0f, 40.0f, 0.0f});
+        CHECK(ch->IsRagdoll());
+        ch->RecoverFromRagdoll();
+        CHECK_FALSE(ch->IsRagdoll());
+        REQUIRE(ch->GetCharacterMovement());
+        CHECK(ch->GetCharacterMovement()->GetMovementMode() == Leon::EMovementMode::Walking);
     }
 }

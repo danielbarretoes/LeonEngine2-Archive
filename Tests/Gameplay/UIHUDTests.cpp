@@ -391,6 +391,29 @@ Actors:
             CHECK(bar->GetSize().y == doctest::Approx(40.0f));
         }
 
+        TEST_CASE("LeftStretch rail keeps width and fills parent height") {
+            auto canvas = std::make_shared<UCanvasPanel>("Menu");
+            auto panel = std::make_shared<UImage>("Rail");
+            canvas->AddChild(panel, FAnchors::LeftStretch(), FUILayout::BoxLeftStretch(0.0f, 420.0f));
+            canvas->PerformLayout({1280.0f, 720.0f});
+            CHECK(panel->GetSize().x == doctest::Approx(420.0f));
+            CHECK(panel->GetSize().y == doctest::Approx(720.0f));
+            canvas->PerformLayout({800.0f, 600.0f});
+            CHECK(panel->GetSize().x == doctest::Approx(420.0f));
+            CHECK(panel->GetSize().y == doctest::Approx(600.0f));
+        }
+
+        TEST_CASE("BottomRight picker stays inside a short viewport") {
+            auto canvas = std::make_shared<UCanvasPanel>("Menu");
+            auto btn = std::make_shared<UWidget>("Next");
+            btn->SetSize({56.0f, 52.0f});
+            canvas->AddChild(btn, FAnchors::BottomRight(), FUILayout::BoxBR(48.0f, 48.0f, 56.0f, 52.0f));
+            canvas->PerformLayout({800.0f, 600.0f});
+            CHECK(btn->GetPosition().x + btn->GetSize().x <= 800.0f + 1e-3f);
+            CHECK(btn->GetPosition().y + btn->GetSize().y <= 600.0f + 1e-3f);
+            CHECK(btn->GetPosition().y >= 0.0f);
+        }
+
         TEST_CASE("UProgressBar clamps percent") {
             UProgressBar bar("HP");
             bar.SetPercent(1.5f);

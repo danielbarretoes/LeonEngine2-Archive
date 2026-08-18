@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
@@ -246,7 +247,7 @@ namespace Leon {
             SetupPlayerInputComponent(DeltaSeconds);
         if (ShouldApplyControlYawToActor())
             ApplyYawOnlyActorRotation();
-        if (CharacterMovement)
+        if (CharacterMovement && !bIsRagdoll)
             CharacterMovement->PerformMovement(DeltaSeconds);
         UpdatePhysicsVolume();
         UpdateAnimFromMovement(DeltaSeconds);
@@ -594,19 +595,18 @@ namespace Leon {
     void ACharacter::EnableRagdoll(const glm::vec3& InImpulse) {
         if (bIsRagdoll)
             return;
-        if (CharacterMovement)
+        if (CharacterMovement) {
             CharacterMovement->StopMovementImmediately();
+            CharacterMovement->SetMovementMode(EMovementMode::None);
+        }
         if (Mesh && Mesh->TryEnableRagdoll(InImpulse)) {
             bIsRagdoll = true;
             bMeshRagdoll = true;
-            // Capsule stays kinematic so CharacterMovement stays off; mesh bones drive the corpse.
             if (CapsuleComponent)
                 CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             return;
         }
         if (CapsuleComponent) {
-            // Recreate as a Dynamic body so Mass / gravity / damping from EnableRagdoll stick
-            // (CreateRigidBody copies Info once; mutating component fields alone was a no-op).
             CapsuleComponent->SetMass(70.0f);
             CapsuleComponent->SetLinearDamping(0.55f);
             CapsuleComponent->SetEnableGravity(true);
@@ -614,10 +614,8 @@ namespace Leon {
             CapsuleComponent->RecreatePhysicsBody();
             CapsuleComponent->SyncPhysicsTransform();
             CapsuleComponent->AddImpulse(InImpulse);
-            if (auto* body = CapsuleComponent->GetPhysicsBody()) {
-                // Tip the corpse so the frozen mesh reads as a fall, not a standing statue.
+            if (auto* body = CapsuleComponent->GetPhysicsBody())
                 body->SetAngularVelocity({1.8f, 0.0f, 0.6f});
-            }
         }
         bIsRagdoll = true;
         bMeshRagdoll = false;
@@ -638,8 +636,36 @@ namespace Leon {
             if (auto* body = CapsuleComponent->GetPhysicsBody())
                 body->SetLinearVelocity(glm::vec3(0.0f));
         }
+        if (CharacterMovement)
+            CharacterMovement->SetMovementMode(EMovementMode::Walking);
         bIsRagdoll = false;
         bMeshRagdoll = false;
+    }
+
+    void ACharacter::RecoverFromRagdoll() {
+        if (!bIsRagdoll)
+            return;
+        glm::vec3 root = GetActorLocation();
+        glm::quat rootRot(1.0f, 0.0f, 0.0f, 0.0f);
+        if (Mesh && Mesh->IsRagdoll())
+            Mesh->GetRagdollRootTransform(root, rootRot);
+
+        float floorY = FloorZ;
+        if (World) {
+            const glm::vec3 start = root + glm::vec3(0.0f, 0.5f, 0.0f);
+            const glm::vec3 end = root - glm::vec3(0.0f, 200.0f, 0.0f);
+            FHitResult hit;
+            if (World->LineTraceSingleByChannel(start, end, ECollisionChannel::WorldStatic, this, hit) &&
+                hit.bBlockingHit)
+                floorY = hit.Location.y;
+        }
+        const glm::vec3 euler = glm::degrees(glm::eulerAngles(rootRot));
+        SetControlYaw(euler.y);
+        ApplyYawOnlyActorRotation();
+        SetActorLocation({root.x, floorY + GetCapsuleHalfHeight(), root.z});
+        StopRagdoll();
+        if (CharacterMovement)
+            CharacterMovement->SetMovementMode(EMovementMode::Walking);
     }
 
     void ACharacter::Landed(const FHitResult& InHit) {

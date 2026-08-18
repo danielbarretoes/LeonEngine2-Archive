@@ -205,6 +205,24 @@ namespace Leon {
             CHECK_FALSE(spawned->GetHealthComponent()->IsDead());
         }
 
+        TEST_CASE("main menu spawns an unpossessed showcase character") {
+            FMatchWorld f;
+            CHECK(f.GS->GetMatchState() == ELeonTournamentMatchState::MainMenu);
+            auto* showcase =
+                dynamic_cast<ALeonTournamentCharacter*>(f.World->FindActorByName(kLeonTournamentMenuShowcaseActorName));
+            REQUIRE(showcase);
+            CHECK(showcase->GetController() == nullptr);
+            CHECK(showcase->IsMenuShowcase());
+            CHECK_FALSE(showcase->ShouldSpawnWeapon());
+            if (auto* pc = f.World->GetFirstPlayerController()) {
+                REQUIRE(pc->GetPlayerCameraManager());
+                CHECK(pc->GetPlayerCameraManager()->GetCamera().GetPosition().y ==
+                      doctest::Approx(kLeonTournamentMenuCameraPosition.y).epsilon(1e-3f));
+            }
+            f.GM->StartMatch();
+            CHECK(f.World->FindActorByName(kLeonTournamentMenuShowcaseActorName) == nullptr);
+        }
+
         TEST_CASE("sixty second death soak keeps pawn and controller counts stable") {
             FMatchWorld f;
             FLeonTournamentMatchConfig cfg;
@@ -230,7 +248,8 @@ namespace Leon {
                     sinceKill = 0.0f;
                     for (const auto& actor : f.World->GetAllActors()) {
                         auto* ch = dynamic_cast<ALeonTournamentCharacter*>(actor.get());
-                        if (!ch || ch->IsPendingKill() || !ch->GetHealthComponent() || ch->GetHealthComponent()->IsDead())
+                        if (!ch || ch->IsPendingKill() || !ch->GetHealthComponent() ||
+                            ch->GetHealthComponent()->IsDead())
                             continue;
                         ch->GetHealthComponent()->ApplyDamage(500.0f);
                     }

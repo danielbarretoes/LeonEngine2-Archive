@@ -1,8 +1,10 @@
 #include "Physics/FSimplePhysicsScene.hpp"
 #include "Physics/FCollisionQuery.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/ENetTypes.hpp"
 #include "Gameplay/AActor.hpp"
-#include "Gameplay/ACharacter.hpp"
+#include "Gameplay/APawn.hpp"
+#include "Gameplay/APickup.hpp"
 #include "Gameplay/UActorComponent.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 
@@ -16,8 +18,6 @@ namespace Leon {
     void FSimplePhysicsBody::SetTransform(const glm::vec3& InLocation, const glm::quat& InRotation) {
         Location = InLocation;
         Rotation = InRotation;
-        // Kinematic sync is component → body. Writing the actor here teleports pawns
-        // to the capsule centre (relative offset) and pins them inside the floor.
     }
 
     void FSimplePhysicsBody::GetTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const {
@@ -30,6 +30,12 @@ namespace Leon {
     }
     void FSimplePhysicsBody::AddImpulse(const glm::vec3& InImpulse) {
         PendingImpulse += InImpulse;
+    }
+    void FSimplePhysicsBody::AddTorque(const glm::vec3& InTorque) {
+        PendingTorque += InTorque;
+    }
+    void FSimplePhysicsBody::AddAngularImpulse(const glm::vec3& InImpulse) {
+        PendingAngularImpulse += InImpulse;
     }
     void FSimplePhysicsBody::SetLinearVelocity(const glm::vec3& InVelocity) {
         LinearVelocity = InVelocity;
@@ -48,6 +54,36 @@ namespace Leon {
     }
     void FSimplePhysicsBody::SetSimulatePhysics(bool bSimulate) {
         bSimulating = bSimulate;
+        Info.bSimulatePhysics = bSimulate;
+        if (bSimulate)
+            Info.Motion = EPhysicsMotionType::Dynamic;
+    }
+    void FSimplePhysicsBody::SetMass(float InMass) {
+        Info.Mass = std::max(InMass, 0.001f);
+    }
+    float FSimplePhysicsBody::GetMass() const {
+        return Info.Mass;
+    }
+    void FSimplePhysicsBody::SetEnableGravity(bool bEnable) {
+        Info.bEnableGravity = bEnable;
+    }
+    void FSimplePhysicsBody::SetLinearDamping(float InDamping) {
+        Info.LinearDamping = InDamping;
+    }
+    void FSimplePhysicsBody::SetAngularDamping(float InDamping) {
+        Info.AngularDamping = InDamping;
+    }
+    void FSimplePhysicsBody::SetFriction(float InFriction) {
+        Info.Friction = InFriction;
+    }
+    void FSimplePhysicsBody::SetRestitution(float InRestitution) {
+        Info.Restitution = InRestitution;
+    }
+    void FSimplePhysicsBody::SetCollisionEnabled(ECollisionEnabled InEnabled) {
+        Info.CollisionEnabled = InEnabled;
+    }
+    void FSimplePhysicsBody::SetCollisionResponses(const FCollisionResponseContainer& InResponses) {
+        Info.Responses = InResponses;
     }
     AActor* FSimplePhysicsBody::GetActor() const {
         return Info.Actor;
@@ -61,16 +97,58 @@ namespace Leon {
     ECollisionResponse FSimplePhysicsBody::GetResponseToChannel(ECollisionChannel InChannel) const {
         return Info.Responses.Get(InChannel);
     }
+    ECollisionEnabled FSimplePhysicsBody::GetCollisionEnabled() const {
+        return Info.CollisionEnabled;
+    }
+
+    void FSimplePhysicsScene::RebuildStaticColliderCache() const {
+        CachedStaticColliders.clear();
+        CachedActorCount = World ? World->GetAllActors().size() : 0;
+        if (!World) {
+            bStaticCacheValid = true;
+            return;
+        }
+        for (const auto& actorRef : World->GetAllActors()) {
+            AActor* actor = actorRef.get();
+            if (!actor || actor->IsPendingKill())
+                continue;
+            if (dynamic_cast<APawn*>(actor) || dynamic_cast<APickup*>(actor))
+                continue;
+            GatherActorColliders(*actor, CachedStaticColliders);
+        }
+        bStaticCacheValid = true;
+    }
 
     void FSimplePhysicsScene::CollectColliders(AActor* InIgnore, std::vector<FColliderDesc>& Out) const {
-        if (World)
-            GatherWorldColliders(*World, InIgnore, Out);
+        Out.clear();
+        const size_t actorCount = World ? World->GetAllActors().size() : 0;
+        if (!bStaticCacheValid || actorCount != CachedActorCount)
+            RebuildStaticColliderCache();
+        Out.reserve(CachedStaticColliders.size() + 16);
+        for (const auto& c : CachedStaticColliders) {
+            if (InIgnore && c.Actor == InIgnore)
+                continue;
+            Out.push_back(c);
+        }
+        if (World) {
+            for (const auto& actorRef : World->GetAllActors()) {
+                AActor* actor = actorRef.get();
+                if (!actor || actor == InIgnore || actor->IsPendingKill())
+                    continue;
+                if (!dynamic_cast<APawn*>(actor) && !dynamic_cast<APickup*>(actor))
+                    continue;
+                GatherActorColliders(*actor, Out);
+            }
+        }
         for (const auto& body : Bodies) {
             if (!body)
                 continue;
             if (InIgnore && body->Info.Actor == InIgnore)
                 continue;
             if (body->Info.Actor)
+                continue;
+            if (body->Info.CollisionEnabled == ECollisionEnabled::NoCollision ||
+                body->Info.CollisionEnabled == ECollisionEnabled::PhysicsOnly)
                 continue;
             FColliderDesc d;
             d.Actor = body->Info.Actor;
@@ -83,29 +161,34 @@ namespace Leon {
             d.CapsuleHalfHeight = body->Info.CapsuleHalfHeight;
             d.ObjectType = body->Info.ObjectType;
             d.Responses = body->Info.Responses;
-            d.CollisionEnabled = ECollisionEnabled::QueryAndPhysics;
+            d.CollisionEnabled = body->Info.CollisionEnabled;
             Out.push_back(d);
         }
     }
 
-    void FSimplePhysicsScene::Tick(float InDeltaSeconds) {
+    void FSimplePhysicsScene::Integrate(float InDeltaSeconds) {
         const glm::vec3 gravity(0.0f, -22.0f, 0.0f);
         for (auto& body : Bodies) {
             if (!body || !body->bSimulating)
                 continue;
-            // Simulated proxies receive pose from net snapshots. Do not integrate or write actors.
             if (body->Info.Actor && body->Info.Actor->GetLocalRole() == ENetRole::SimulatedProxy)
                 continue;
             if (body->Info.bEnableGravity)
                 body->LinearVelocity += gravity * InDeltaSeconds;
-            body->LinearVelocity += body->PendingForce * InDeltaSeconds / std::max(body->Info.Mass, 0.001f);
-            body->LinearVelocity += body->PendingImpulse / std::max(body->Info.Mass, 0.001f);
+            const float mass = std::max(body->Info.Mass, 0.001f);
+            body->LinearVelocity += body->PendingForce * InDeltaSeconds / mass;
+            body->LinearVelocity += body->PendingImpulse / mass;
             body->PendingForce = glm::vec3(0.0f);
             body->PendingImpulse = glm::vec3(0.0f);
             body->LinearVelocity *= std::max(0.0f, 1.0f - body->Info.LinearDamping * InDeltaSeconds);
-            // Cap runaway velocities — simple dynamics have no world collision on XZ.
+
+            body->AngularVelocity += body->PendingTorque * InDeltaSeconds / mass;
+            body->AngularVelocity += body->PendingAngularImpulse / mass;
+            body->PendingTorque = glm::vec3(0.0f);
+            body->PendingAngularImpulse = glm::vec3(0.0f);
+
             const float speed = glm::length(body->LinearVelocity);
-            constexpr float kMaxSimSpeed = 14.0f;
+            constexpr float kMaxSimSpeed = 40.0f;
             if (speed > kMaxSimSpeed)
                 body->LinearVelocity *= kMaxSimSpeed / speed;
             body->Location += body->LinearVelocity * InDeltaSeconds;
@@ -114,49 +197,7 @@ namespace Leon {
             if (angSpeed > 1e-4f) {
                 const glm::vec3 axis = body->AngularVelocity / angSpeed;
                 body->Rotation = glm::normalize(glm::angleAxis(angSpeed * InDeltaSeconds, axis) * body->Rotation);
-                body->AngularVelocity *= std::max(0.0f, 1.0f - 1.2f * InDeltaSeconds);
-            }
-
-            AActor* actorOwner = body->Info.Actor;
-            if (!actorOwner) {
-                if (auto* comp = dynamic_cast<UActorComponent*>(body->Info.Component))
-                    actorOwner = comp->GetOwner();
-            }
-
-            if (body->Info.Actor) {
-                glm::vec3 actorLoc = body->Location;
-                glm::vec3 relative(0.0f);
-                if (auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component))
-                    relative = prim->GetRelativeLocation();
-                actorLoc -= relative;
-                // Simple dynamics have no world collision; keep ragdolls on the character floor.
-                if (auto* character = dynamic_cast<ACharacter*>(body->Info.Actor)) {
-                    const float minActorY = character->GetFloorZ() + character->GetCapsuleHalfHeight();
-                    if (actorLoc.y < minActorY) {
-                        actorLoc.y = minActorY;
-                        body->Location = actorLoc + relative;
-                        body->LinearVelocity.y = std::max(0.0f, body->LinearVelocity.y);
-                        body->LinearVelocity.x *= 0.35f;
-                        body->LinearVelocity.z *= 0.35f;
-                        body->AngularVelocity *= 0.55f;
-                    }
-                    // Soft arena clamp so dead bodies do not leave the playable volume.
-                    constexpr float kArenaHalf = 35.0f;
-                    actorLoc.x = std::clamp(actorLoc.x, -kArenaHalf, kArenaHalf);
-                    actorLoc.z = std::clamp(actorLoc.z, -kArenaHalf, kArenaHalf);
-                    body->Location = actorLoc + relative;
-                }
-                body->Info.Actor->SetActorLocation(actorLoc);
-                body->Info.Actor->SetActorRotation(glm::degrees(glm::eulerAngles(body->Rotation)));
-            } else if (auto* character = dynamic_cast<ACharacter*>(actorOwner)) {
-                // Mesh ragdoll bone bodies: clamp to floor without moving the standing capsule actor.
-                const float minBoneY = character->GetFloorZ() + 0.08f;
-                if (body->Location.y < minBoneY) {
-                    body->Location.y = minBoneY;
-                    body->LinearVelocity.y = std::max(0.0f, body->LinearVelocity.y);
-                    body->LinearVelocity.x *= 0.45f;
-                    body->LinearVelocity.z *= 0.45f;
-                }
+                body->AngularVelocity *= std::max(0.0f, 1.0f - body->Info.AngularDamping * InDeltaSeconds);
             }
         }
 
@@ -179,14 +220,66 @@ namespace Leon {
         }
     }
 
+    void FSimplePhysicsScene::Tick(float InDeltaSeconds) {
+        const float clamped = std::min(std::max(InDeltaSeconds, 0.0f), kPhysicsMaxFrameDeltaSeconds);
+        PhysicsAccumulator += clamped;
+        int32_t steps = 0;
+        while (PhysicsAccumulator >= kPhysicsFixedDeltaSeconds && steps < kPhysicsMaxSubsteps) {
+            Integrate(kPhysicsFixedDeltaSeconds);
+            PhysicsAccumulator -= kPhysicsFixedDeltaSeconds;
+            ++steps;
+        }
+        if (steps >= kPhysicsMaxSubsteps)
+            PhysicsAccumulator = 0.0f;
+    }
+
+    void FSimplePhysicsScene::SyncKinematicTransforms() {
+        for (auto& body : Bodies) {
+            if (!body || body->bSimulating)
+                continue;
+            auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component);
+            if (!prim)
+                continue;
+            if (prim->GetOwner() && prim->GetOwner()->GetLocalRole() == ENetRole::SimulatedProxy)
+                continue;
+            const glm::vec3 rot = prim->GetComponentRotation();
+            body->SetTransform(prim->GetComponentLocation(), glm::quat(glm::radians(rot)));
+        }
+    }
+
+    void FSimplePhysicsScene::SyncDynamicTransforms() {
+        for (auto& body : Bodies) {
+            if (!body || !body->bSimulating || !body->Info.Actor)
+                continue;
+            if (body->Info.Actor->GetLocalRole() == ENetRole::SimulatedProxy)
+                continue;
+            glm::vec3 actorLoc = body->Location;
+            glm::vec3 relative(0.0f);
+            if (auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component))
+                relative = prim->GetRelativeLocation();
+            actorLoc -= relative;
+            body->Info.Actor->SetActorLocation(actorLoc);
+            body->Info.Actor->SetActorRotation(glm::degrees(glm::eulerAngles(body->Rotation)));
+        }
+    }
+
+    int32_t FSimplePhysicsScene::GetRigidBodyCount() const {
+        return static_cast<int32_t>(Bodies.size());
+    }
+
     IPhysicsBody* FSimplePhysicsScene::CreateRigidBody(const FPhysicsBodyCreateInfo& InInfo) {
         auto body = std::make_unique<FSimplePhysicsBody>();
         body->Info = InInfo;
+        if (InInfo.PhysicalMaterial) {
+            body->Info.Friction = InInfo.PhysicalMaterial->Friction;
+            body->Info.Restitution = InInfo.PhysicalMaterial->Restitution;
+        }
         body->Location = InInfo.Location;
         body->Rotation = InInfo.Rotation;
         body->bSimulating = InInfo.bSimulatePhysics && InInfo.Motion == EPhysicsMotionType::Dynamic;
         IPhysicsBody* raw = body.get();
         Bodies.push_back(std::move(body));
+        bStaticCacheValid = false;
         return raw;
     }
 
@@ -200,6 +293,7 @@ namespace Leon {
             std::remove_if(Bodies.begin(), Bodies.end(),
                            [InBody](const std::unique_ptr<FSimplePhysicsBody>& b) { return b.get() == InBody; }),
             Bodies.end());
+        bStaticCacheValid = false;
     }
 
     IPhysicsConstraint* FSimplePhysicsScene::CreateConstraint(const FPhysicsConstraintCreateInfo& InInfo) {
@@ -256,6 +350,7 @@ namespace Leon {
             if (!RaycastCollider(c, InStart, dir, len, hit))
                 continue;
             hit.Channel = InChannel;
+            hit.Time = hit.Distance / len;
             OutHits.push_back(hit);
         }
         std::sort(OutHits.begin(), OutHits.end(),
@@ -280,6 +375,7 @@ namespace Leon {
         OutHits.clear();
         std::vector<FColliderDesc> colliders;
         CollectColliders(InIgnore, colliders);
+        const float len = glm::length(InEnd - InStart);
         for (const auto& c : colliders) {
             if (!ColliderRespondsToChannel(c, InChannel))
                 continue;
@@ -287,6 +383,8 @@ namespace Leon {
             if (!SweepSphereCollider(c, InStart, InEnd, InRadius, hit))
                 continue;
             hit.Channel = InChannel;
+            if (len > 1e-8f)
+                hit.Time = hit.Distance / len;
             OutHits.push_back(hit);
         }
         std::sort(OutHits.begin(), OutHits.end(),

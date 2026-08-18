@@ -83,7 +83,7 @@ namespace Leon {
         glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
         if (flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
             glEnable(GL_DEBUG_OUTPUT);
-            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            // Async: SYNCHRONOUS stalls the CPU on every GL call that emits a message.
             glDebugMessageCallback(OpenGLDebugCallback, nullptr);
             glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
             LE_CORE_INFO("  [GL] Debug context active — glDebugMessageCallback registered.");

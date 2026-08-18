@@ -17,22 +17,36 @@ namespace Leon {
         glm::vec3 AngularVelocity{0.0f};
         glm::vec3 PendingForce{0.0f};
         glm::vec3 PendingImpulse{0.0f};
+        glm::vec3 PendingTorque{0.0f};
+        glm::vec3 PendingAngularImpulse{0.0f};
         bool bSimulating = false;
 
         void SetTransform(const glm::vec3& InLocation, const glm::quat& InRotation) override;
         void GetTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const override;
         void AddForce(const glm::vec3& InForce) override;
         void AddImpulse(const glm::vec3& InImpulse) override;
+        void AddTorque(const glm::vec3& InTorque) override;
+        void AddAngularImpulse(const glm::vec3& InImpulse) override;
         void SetLinearVelocity(const glm::vec3& InVelocity) override;
         void SetAngularVelocity(const glm::vec3& InVelocity) override;
         glm::vec3 GetLinearVelocity() const override;
         glm::vec3 GetAngularVelocity() const override;
         bool IsSimulating() const override;
         void SetSimulatePhysics(bool bSimulate) override;
+        void SetMass(float InMass) override;
+        float GetMass() const override;
+        void SetEnableGravity(bool bEnable) override;
+        void SetLinearDamping(float InDamping) override;
+        void SetAngularDamping(float InDamping) override;
+        void SetFriction(float InFriction) override;
+        void SetRestitution(float InRestitution) override;
+        void SetCollisionEnabled(ECollisionEnabled InEnabled) override;
+        void SetCollisionResponses(const FCollisionResponseContainer& InResponses) override;
         AActor* GetActor() const override;
         UActorComponent* GetComponent() const override;
         ECollisionChannel GetObjectType() const override;
         ECollisionResponse GetResponseToChannel(ECollisionChannel InChannel) const override;
+        ECollisionEnabled GetCollisionEnabled() const override;
     };
 
     class FSimplePhysicsConstraint final : public IPhysicsConstraint {
@@ -43,8 +57,7 @@ namespace Leon {
     };
 
     /**
-     * Engine fallback / canonical geometric scene. The Jolt plugin replaces this factory
-     * when registered; gameplay only talks to IPhysicsScene.
+     * Engine fallback geometric scene used when the Jolt plugin is not registered.
      */
     class FSimplePhysicsScene : public IPhysicsScene {
     public:
@@ -52,6 +65,10 @@ namespace Leon {
         UWorld* GetWorld() const { return World; }
 
         void Tick(float InDeltaSeconds) override;
+        void SyncKinematicTransforms() override;
+        void SyncDynamicTransforms() override;
+        int32_t GetRigidBodyCount() const override;
+
         IPhysicsBody* CreateRigidBody(const FPhysicsBodyCreateInfo& InInfo) override;
         void DestroyRigidBody(IPhysicsBody* InBody) override;
         IPhysicsConstraint* CreateConstraint(const FPhysicsConstraintCreateInfo& InInfo) override;
@@ -74,10 +91,16 @@ namespace Leon {
 
     private:
         void CollectColliders(AActor* InIgnore, std::vector<FColliderDesc>& Out) const;
+        void RebuildStaticColliderCache() const;
+        void Integrate(float InDeltaSeconds);
 
         UWorld* World = nullptr;
         std::vector<std::unique_ptr<FSimplePhysicsBody>> Bodies;
         std::vector<std::unique_ptr<FSimplePhysicsConstraint>> Constraints;
+        mutable std::vector<FColliderDesc> CachedStaticColliders;
+        mutable size_t CachedActorCount = 0;
+        mutable bool bStaticCacheValid = false;
+        float PhysicsAccumulator = 0.0f;
     };
 
 } // namespace Leon
