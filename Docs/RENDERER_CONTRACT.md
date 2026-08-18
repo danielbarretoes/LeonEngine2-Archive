@@ -35,7 +35,7 @@ One static-mesh layout: `FCanonicalMeshVertex` (68 bytes, 17 tightly packed floa
 
 Bitangent is not stored. Reconstruct `B = cross(N, T) * w`. Invariant: `T × B ≈ N` when `w = +1`. Mirrored UVs use `w = −1`. Negative scale also flips `w` in the vertex shader via `determinant(u_NormalMatrix)`.
 
-On-disk `.lmesh` version **3** matches this layout. Versions 1 and 2 are converted at load (no dual runtime path).
+On-disk `.lmesh` version **4** matches this layout (unique-UV1 flag). Versions 1–3 are converted at load (no dual runtime path).
 
 ## Color management
 
@@ -107,10 +107,10 @@ When a lightmap is bound, diffuse IBL is replaced by the lightmap; specular IBL 
 - `NumIndirectBounces == 0` disables GI (direct + environment miss still apply).
 - GI estimator: cosine hemisphere sampling, `E += π * Lo_hit`, throughput `albedo` per extra bounce. Environment miss on later bounces adds `throughput * L_env`.
 - Receptor **emissive is runtime-only**. Other surfaces contribute emissive through GI `Li`.
-- Bake AO is **not** multiplied into `E`. Artistic AO is the material AO map at runtime.
+- Bake AO **is multiplied into stored `E`** when `bAmbientOcclusion` is true (`FLightBaker`). Material AO remains a runtime artistic term and is **not** applied to baked Lambert.
 - Spotlight angular factor is the same Hermite smoothstep as `PBR_Lit.glsl` (`FLightAttenuation.hpp`).
 
-`.llightmap` version **2**. Cache key includes baker algorithm version `4`, geometry, transforms, lights, skybox/HDR, materials, UV0 albedo samples, resolution, bounces, samples, AO settings.
+`.llightmap` version **2**. Cache key includes baker algorithm version `5`, geometry, transforms, lights, skybox/HDR **file content** hash, materials, resolution, bounces, samples, AO settings. At play, `FLightmass::RefreshRuntimeLightmapTrust` skips sampling if `LightmapBakeHash` is missing or stale.
 
 ### Mobility
 
@@ -131,7 +131,8 @@ One scene exposure (`FSkyboxComponent::Exposure` → post-process `u_Exposure`).
 ## Transparency
 
 1. Opaque and masked: depth test and write on.
-2. Transparent (`EAlphaMode::Blend`): sorted back-to-front, depth test on, depth write off.
+2. Skybox (`z = w`, LessEqual) after opaques so the far plane is filled.
+3. Transparent (`EAlphaMode::Blend`): sorted back-to-front, depth test on, depth write off.
 
 ## Negative scale
 
@@ -170,9 +171,9 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 | Asset | Version / key |
 | :--- | :--- |
 | `.libl` | v6, HDR hash, sizes, sample counts |
-| BRDF LUT | `LEONBRDF` v1 |
-| `.llightmap` | v2 + bake input hash |
-| `.lmesh` | v3 (v1/v2 migrated on load) |
+| BRDF LUT | `LEONBRDF` v2 |
+| `.llightmap` | v2 + bake input hash (algorithm **5**) |
+| `.lmesh` | v4 (v1–v3 migrated on load) |
 
 ## Debug views (`u_DebugMode`)
 
@@ -191,8 +192,11 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 | 21 | Bitangent |
 | 22 | UV0 |
 | 24 | Shadow factor |
+| 26 | Spot shadow factor |
+| 31 | Baked lighting only |
 | 32 | Lightmap irradiance |
 | 33 | UV1 |
+| 34 | Lo + baked (no IBL) |
 | 35 | IBL diffuse (`albedo/π * E`) |
 | 37 | HDR before tone map |
 | 38 | Direct diffuse |

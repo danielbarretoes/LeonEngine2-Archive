@@ -43,7 +43,7 @@ Al ser invariante respecto al entorno y la escena, se precocina una única vez y
 
 ## 3. Formato del Asset IBL Derivado (`.libl`)
 
-Ubicación: `Projects/Sandbox/Content/Assets/Hdr/Cache/<HDR_Stem>.libl`  
+Ubicación: `<HDR_dir>/Cache/IBL/<HDR_Stem>.libl`  
 Tamaño Total: $\approx 1.88\text{ MB}$.
 
 ### Estructura de Cabecera Binaria (`FIBLCacheHeader`, 64 bytes)

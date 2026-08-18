@@ -90,7 +90,7 @@ namespace Leon {
 
         /**
          * @brief Execute all render passes for this frame.
-         * Order: Shadow CSM → Spot Shadow → Planar Reflection → Geometry → Skybox → PostProcess
+         * Order: CSM → Spot Shadow → Planar → Opaque → Skybox → Transparent → PostProcess
          */
         void Render(const FPerspectiveCamera& InCamera);
         void RenderScene(const FPerspectiveCamera& InCamera) { Render(InCamera); }
@@ -163,8 +163,8 @@ namespace Leon {
 
         void BindPlanarReflectionUniforms(FShader& InShader, bool bEnabled);
 
-        void RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
-                                uint32_t InVpWidth, uint32_t InVpHeight);
+        void RenderOpaqueGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight);
+        void RenderTransparentGeometryPass(bool bHasDirLight, bool bHasSpotLight);
 
         void RenderSkyboxPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox, bool bHasDirLight,
                               const FDirectionalLight& InDirLight);

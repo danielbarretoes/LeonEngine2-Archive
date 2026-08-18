@@ -3,7 +3,7 @@
 #include "Core/FTimestep.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Gameplay/ACharacter.hpp"
-#include "Gameplay/UActorComponent.hpp"
+#include "Gameplay/USceneComponent.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "Renderer/FFrustumCull.hpp"
 #include "UMG/UImage.hpp"
@@ -61,6 +61,25 @@ namespace Leon {
             CHECK(character->GetActorLocation().y ==
                   doctest::Approx(character->GetFloorZ() + character->GetCapsuleHalfHeight()).epsilon(0.05f));
             CHECK(mesh->GetComponentLocation().y == doctest::Approx(character->GetFloorZ()).epsilon(0.05f));
+        }
+
+        TEST_CASE("USceneComponent attach yaw matches GLM Ry") {
+            auto world = UWorld::Create("YawWorld");
+            auto* actor = world->SpawnActor<AActor>("YawActor");
+            actor->SetActorLocation({0.0f, 0.0f, 0.0f});
+            actor->SetActorRotation({0.0f, 90.0f, 0.0f});
+            auto parent = actor->AddActorComponent<USceneComponent>("Parent");
+            auto child = actor->AddActorComponent<USceneComponent>("Child");
+            REQUIRE(parent);
+            REQUIRE(child);
+            child->SetRelativeLocation({1.0f, 0.0f, 0.0f});
+            child->SetupAttachment(parent.get());
+            glm::vec3 loc = child->GetComponentLocation();
+            glm::vec3 expected = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0, 1, 0)) *
+                                           glm::vec4(1, 0, 0, 1));
+            CHECK(loc.x == doctest::Approx(expected.x).epsilon(1e-4f));
+            CHECK(loc.y == doctest::Approx(expected.y).epsilon(1e-4f));
+            CHECK(loc.z == doctest::Approx(expected.z).epsilon(1e-4f));
         }
 
         TEST_CASE("UActorComponent lifecycle with ExecuteBeginPlay/Tick/EndPlay") {

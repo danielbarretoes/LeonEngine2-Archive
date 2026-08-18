@@ -74,11 +74,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mesh import honors `bGenerateTangents` (Lengyel from UV0).
 - GI bounce albedo samples the albedo map at UV0 instead of a whole-texture average.
 - Directional/spot shadow tests use the rasterized face normal (not the normal map), tan(θ) slope bias, per-tap receiver-plane PCF, UV normal offset off the caster silhouette, `GL_NEAREST` comparison, and caster polygon offset.
+- Skybox draws after opaque geometry and before transparents so glass is not overwritten by the far-plane sky.
+- Default PBR material instance is cached (`UAssetManager::GetDefaultMaterialInstance`) instead of allocating every draw.
+- Post-process, world text, and particles restore cull/blend after they run.
+- Procedural cube UV1 uses a 2×3 atlas; cylinder caps get unique UV1 islands.
+- Untagged albedo imports as sRGB; `.ltex` mip box-filter averages in linear for sRGB maps.
+- Material importer roughness/AO texture slots match shader units 4/3.
+- Skinned normals use the inverse-transpose of the skin matrix.
+- Spot shadows use `ShadowedSpotIndex`; inner/outer cone cosines are ordered.
+- Stale lightmaps are skipped at play (`FLightmass::RefreshRuntimeLightmapTrust`).
+- `USceneComponent` attach yaw matches GLM `Ry`.
 
 #### Changed
 - IBL disk cache is `.libl` **v6** (Karis cubemap `saTexel`). v5 files are ignored and rebuilt on first load.
 - BRDF LUT disk header is `LEONBRDF` **v2** (24 bytes, stores sample count).
-- Lightmass bake-input hash algorithm version is **4** (includes skybox / HDR). Existing `.llightmap` files must be rebaked.
+- Lightmass bake-input hash algorithm version is **5** (mesh/material/HDR **content** hash). Existing `.llightmap` files must be rebaked.
+
+#### Added
+- Anisotropic filtering (up to 16×) on mipped 2D color/data textures.
+- Sandbox diagnostic map `/Game/Maps/RendererLab` (roughness/metal spheres, chrome, cube, glass).
 - Missing lightmap UV1 is persisted to `.lmesh` **before** the bake-input hash, so validation is not stale after the first bake.
 
 ### Renderer correctness (canonical pipeline)

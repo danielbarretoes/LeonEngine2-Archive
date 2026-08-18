@@ -15,9 +15,9 @@ The shadow pipeline consists of:
   - `Hard`: Single tap hardware comparison.
   - `PCF 3x3`: 9-tap uniform filter grid.
   - `PCF 5x5`: 25-tap uniform filter grid.
-  - `Poisson Disk`: 16-tap Vogel spiral with per-pixel interleaved gradient noise jitter rotation.
+  - `Poisson Disk`: 16 fixed LearnOpenGL offsets rotated by interleaved gradient noise (not a generated Vogel spiral).
 - **Smooth Cascade Blending**: Linear interpolation across cascade transition boundaries (`u_ShadowParams.w`).
-- **Far Shadow Distance Soft Fadeout**: Exponential decay to 0.0 at far cascade distance.
+- **Far Shadow Distance Soft Fadeout**: Linear fade over 15 m past the last cascade split (`mix(shadow, 0, clamp((d − split.w) / 15, 0, 1))`).
 - **Alpha Masked Caster Support**: Cutoff discard for masked materials (`u_AlphaMode == 1`).
 - **Spotlight shadows**: one shadowed spot (`ShadowedSpotIndex`), resolution `SpotResolution`.
 - **Forensic Debug Visualization Modes**: shadow factor, cascade index, cascade depth slices, spot shadow factor.
@@ -64,20 +64,7 @@ Vertical receivers under a near-vertical light occupy ~1 shadow texel (the caste
 At grazing incidence the receiver is faded with \(\mathrm{smoothstep}(0, 0.22, \mathbf{N}_{\mathrm{face}}\cdot\mathbf{L})\). Defaults: `ConstantBias=0.001`, `SlopeBias=0.0035`, `NormalBias=0.04`.
 
 ### 2.4 Poisson Disk Filtering & Interleaved Gradient Noise
-The 16 Poisson taps follow the Vogel distribution:
-$$\theta_i = i \cdot \Phi, \quad r_i = \sqrt{\frac{i + 0.5}{16}}, \quad \Phi \approx 2.399963229728653 \text{ rad}$$
-Each pixel rotates the sampling disc by an angle derived from Jimenez's Interleaved Gradient Noise (IGN):
-$$\text{IGN}(\mathbf{x}) = \text{fract}(52.9829189 \cdot \text{fract}(0.06711056 x + 0.00583715 y))$$
-$$\mathbf{R} = \begin{bmatrix} \cos(2\pi \cdot \text{IGN}) & -\sin(2\pi \cdot \text{IGN}) \\ \sin(2\pi \cdot \text{IGN}) & \cos(2\pi \cdot \text{IGN}) \end{bmatrix}$$
-$$\mathbf{p}_i = \mathbf{p}_{\text{uv}} + \mathbf{R} \cdot \mathbf{d}_i \cdot \text{diskRadius} \cdot \text{texelSize}$$
-
-### 2.5 Screen-Space Contact Shadows
-For fine contact geometry (e.g. crevices, small bevels):
-$$\mathbf{x}(t) = \mathbf{x}_{\text{start}} + t \cdot (\mathbf{x}_{\text{end}} - \mathbf{x}_{\text{start}}), \quad t \in [0, 1]$$
-At each ray step $k \in \{0, \dots, M-1\}$, the scene depth $z_{\text{scene}} = \text{texture}(u_{\text{DepthMap}}, \mathbf{x}_k.\text{xy})$ is queried:
-$$\text{if } (z_{\text{ray}} > z_{\text{scene}} \text{ and } z_{\text{ray}} - z_{\text{scene}} < \text{thickness}) \implies \text{occluded}$$
-Integrated multiplicatively with shadow map factor:
-$$S_{\text{total}} = 1.0 - (1.0 - S_{\text{CSM}}) \cdot S_{\text{Contact}}$$
+The 16 taps are a **fixed offset table** (LearnOpenGL Poisson disk), rotated per pixel with Jimenez interleaved gradient noise — not a generated Vogel spiral.
 
 ---
 
@@ -88,7 +75,7 @@ $$S_{\text{total}} = 1.0 - (1.0 - S_{\text{CSM}}) \cdot S_{\text{Contact}}$$
 | **0** | Composite Shading | Full PBR shading with shadows, IBL, bloom, tone mapping |
 | **24** | Direct Shadow Factor | Direct shadow illumination ($1.0 = \text{lit}, 0.0 = \text{occluded}$) |
 | **25** | Cascade Slice False-Color | Partition visualization: Cascade 0 (Red), 1 (Green), 2 (Blue), 3 (Yellow) |
-| **26** | Contact Shadow Factor | Screen-space ray-marched occlusion factor |
+| **26** | Spot Shadow Factor | Shadowed-spot occlusion (`1` = lit) |
 | **27** | Cascade 0 Depth Map | Depth buffer visualization of cascade 0 |
 | **28** | Cascade 1 Depth Map | Depth buffer visualization of cascade 1 |
 | **29** | Cascade 2 Depth Map | Depth buffer visualization of cascade 2 |

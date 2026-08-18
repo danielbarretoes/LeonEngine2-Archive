@@ -4,6 +4,11 @@
 // -----------------------------------------------------------------------------
 // Poisson Disk Offsets (16 Samples - Vogel spiral distribution)
 // -----------------------------------------------------------------------------
+vec3 SafeNormalize3(vec3 v, vec3 fallback) {
+    float len2 = dot(v, v);
+    return len2 > 1e-8 ? v * inversesqrt(len2) : fallback;
+}
+
 const vec2 POISSON_DISK[16] = vec2[](
     vec2(-0.94201624, -0.39906216),
     vec2( 0.94558609, -0.76890725),

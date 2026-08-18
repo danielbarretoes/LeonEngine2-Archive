@@ -251,4 +251,16 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         glm::vec3 n = glm::normalize(nmat * glm::vec3(1, 0, 0));
         CHECK(n.x == doctest::Approx(-1.0f).epsilon(1e-5f));
     }
+
+    TEST_CASE("PackLightmapCell cube faces do not overlap") {
+        glm::vec2 c0 = Leon::PackLightmapCell({0.5f, 0.5f}, 0, 0, 3, 2);
+        glm::vec2 c5 = Leon::PackLightmapCell({0.5f, 0.5f}, 2, 1, 3, 2);
+        CHECK(c0.x < 0.34f);
+        CHECK(c5.x > 0.66f);
+        CHECK(c0.y < 0.5f);
+        CHECK(c5.y > 0.5f);
+        glm::vec2 a = Leon::PackLightmapCell({1.0f, 1.0f}, 0, 0, 3, 2);
+        glm::vec2 b = Leon::PackLightmapCell({0.0f, 0.0f}, 1, 0, 3, 2);
+        CHECK(a.x < b.x);
+    }
 }

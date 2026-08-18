@@ -24,6 +24,7 @@ namespace Leon {
     std::unordered_map<std::string, TRef<FMaterial>> UAssetManager::MaterialCache;
     std::unordered_map<std::string, TRef<FMaterialInstance>> UAssetManager::MaterialInstanceCache;
     TRef<FMaterial> UAssetManager::DefaultMaterial = nullptr;
+    TRef<FMaterialInstance> UAssetManager::DefaultMaterialInstance = nullptr;
     TRef<FTexture2D> UAssetManager::DefaultWhiteTexture = nullptr;
     TRef<FTexture2D> UAssetManager::DefaultBlackTexture = nullptr;
     TRef<FTexture2D> UAssetManager::DefaultFlatNormalTexture = nullptr;
@@ -486,6 +487,12 @@ namespace Leon {
         return DefaultMaterial;
     }
 
+    TRef<FMaterialInstance> UAssetManager::GetDefaultMaterialInstance() {
+        if (!DefaultMaterialInstance)
+            DefaultMaterialInstance = GetDefaultMaterial()->CreateInstance("M_DefaultPBR_Inst");
+        return DefaultMaterialInstance;
+    }
+
     TRef<FMaterialInstance> UAssetManager::CreateMaterialInstance(const std::string& InMaterialPath) {
         TRef<FMaterial> parentMat = GetMaterial(InMaterialPath);
         if (!parentMat)
@@ -511,6 +518,7 @@ namespace Leon {
         MaterialCache.clear();
         MaterialInstanceCache.clear();
         DefaultMaterial = nullptr;
+        DefaultMaterialInstance = nullptr;
         DefaultWhiteTexture = nullptr;
         DefaultBlackTexture = nullptr;
         DefaultFlatNormalTexture = nullptr;

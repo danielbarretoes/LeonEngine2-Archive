@@ -1,9 +1,17 @@
 #include "ASandboxGameMode.hpp"
 #include "ASandboxDemoPickup.hpp"
+#include "Core/FApplication.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
+#include "Assets/UAssetManager.hpp"
+#include "Gameplay/AActor.hpp"
+#include "Renderer/FMaterial.hpp"
+#include "Renderer/FMaterialInstance.hpp"
+#include "Renderer/FMeshPrimitives.hpp"
 #include "Renderer/FWorldRenderer.hpp"
+
+#include <string>
 
 namespace Leon {
 
@@ -25,6 +33,10 @@ namespace Leon {
 
         bool IsNightMap() {
             return CurrentMapContains("NightLevel");
+        }
+
+        bool IsRendererLabMap() {
+            return CurrentMapContains("RendererLab");
         }
 
         void EnableFloorPlanarOnActor(AActor* InActor) {
@@ -70,6 +82,8 @@ namespace Leon {
             SpawnShowcaseDemos();
         else if (IsNightMap())
             SpawnNightDemos();
+        else if (IsRendererLabMap())
+            SpawnRendererLab();
     }
 
     void ASandboxGameMode::SetupPlanarReflections() {
@@ -96,6 +110,68 @@ namespace Leon {
         // Baked asphalt is too rough for planar; runtime override keeps the lightmap hash intact.
         if (AActor* ground = World->FindActorByName("Ground"))
             EnableFloorPlanarOnActor(ground);
+    }
+
+    void ASandboxGameMode::SpawnRendererLab() {
+        if (!World || !FApplication::HasInstance())
+            return;
+
+        auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto parent = UAssetManager::GetDefaultMaterial();
+        if (!shader || !parent)
+            return;
+
+        auto spawnMesh = [&](const std::string& InName, const TRef<FVertexArray>& InVA, const glm::vec3& InLoc,
+                             const TRef<FMaterialInstance>& InMat, const std::string& InMeshType) {
+            AActor* actor = World->SpawnActor<AActor>(InName);
+            if (!actor || !InVA || !InMat)
+                return;
+            actor->SetActorLocation(InLoc);
+            auto& mesh = actor->AddComponent<FMeshComponent>(InVA, shader);
+            mesh.MeshType = InMeshType;
+            mesh.Mobility = EComponentMobility::Movable;
+            mesh.bCastShadows = true;
+            mesh.bReceiveShadows = true;
+            actor->AddComponent<FMaterialComponent>(InMat);
+        };
+
+        const float roughnesses[] = {0.04f, 0.2f, 0.5f, 1.0f};
+        for (int i = 0; i < 4; ++i) {
+            auto mat = parent->CreateInstance("LabDielectric" + std::to_string(i));
+            mat->SetAlbedoColor({0.7f, 0.7f, 0.72f});
+            mat->SetMetallic(0.0f);
+            mat->SetRoughness(roughnesses[i]);
+            spawnMesh("LabDielectric" + std::to_string(i), FMeshPrimitives::CreateSphere(0.35f, 24, 16),
+                      {-4.5f + static_cast<float>(i) * 1.1f, 0.45f, 0.0f}, mat, "Sphere");
+        }
+        for (int i = 0; i < 4; ++i) {
+            auto mat = parent->CreateInstance("LabMetal" + std::to_string(i));
+            mat->SetAlbedoColor({0.95f, 0.78f, 0.42f});
+            mat->SetMetallic(1.0f);
+            mat->SetRoughness(roughnesses[i]);
+            spawnMesh("LabMetal" + std::to_string(i), FMeshPrimitives::CreateSphere(0.35f, 24, 16),
+                      {-4.5f + static_cast<float>(i) * 1.1f, 0.45f, 1.4f}, mat, "Sphere");
+        }
+
+        if (auto chrome = UAssetManager::GetMaterialInstance("/Game/Materials/M_ChromeMirror.lmat")) {
+            spawnMesh("LabChrome", FMeshPrimitives::CreateSphere(0.4f, 28, 18), {0.8f, 0.5f, -1.4f}, chrome, "Sphere");
+        }
+
+        auto nrmMat = parent->CreateInstance("LabNormalSphere");
+        nrmMat->SetAlbedoColor({0.55f, 0.55f, 0.58f});
+        nrmMat->SetMetallic(0.0f);
+        nrmMat->SetRoughness(0.45f);
+        if (auto nrm = UAssetManager::GetTexture2D("/Game/Textures/T_Brick_Normal.ltex"))
+            nrmMat->SetTexture(1, nrm);
+        spawnMesh("LabNormalSphere", FMeshPrimitives::CreateSphere(0.4f, 24, 16), {2.2f, 0.5f, -1.4f}, nrmMat,
+                  "Sphere");
+
+        spawnMesh("LabUvCube", FMeshPrimitives::CreateCube(1.0f), {-2.2f, 0.5f, -1.4f}, parent->CreateInstance("LabCube"),
+                  "Cube");
+
+        if (auto glass = UAssetManager::GetMaterialInstance("/Game/Materials/M_GlassTransparent.lmat")) {
+            spawnMesh("LabGlass", FMeshPrimitives::CreateQuad(1.6f, 1.8f), {4.0f, 1.0f, -0.5f}, glass, "Quad");
+        }
     }
 
 } // namespace Leon

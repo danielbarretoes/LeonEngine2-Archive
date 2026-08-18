@@ -12,7 +12,7 @@ namespace Leon {
             const float rad = glm::radians(InYawDegrees);
             const float c = std::cos(rad);
             const float s = std::sin(rad);
-            return {InOffset.x * c - InOffset.z * s, InOffset.y, InOffset.x * s + InOffset.z * c};
+            return {InOffset.x * c + InOffset.z * s, InOffset.y, -InOffset.x * s + InOffset.z * c};
         }
     } // namespace
 

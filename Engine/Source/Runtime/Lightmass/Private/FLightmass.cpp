@@ -65,13 +65,8 @@ namespace {
         Hash = HashString(Hash, FAssetPath::Normalize(resolved));
         std::error_code ec;
         if (fs::exists(resolved, ec)) {
-            auto sz = fs::file_size(resolved, ec);
-            auto mt = fs::last_write_time(resolved, ec);
-            if (!ec) {
-                Hash = HashBytes(Hash, &sz, sizeof(sz));
-                auto ticks = mt.time_since_epoch().count();
-                Hash = HashBytes(Hash, &ticks, sizeof(ticks));
-            }
+            uint64_t content = ComputeFileHash64(resolved);
+            Hash = HashBytes(Hash, &content, sizeof(content));
         }
         return Hash;
     }
@@ -560,7 +555,7 @@ namespace {
 
     uint64_t FLightmass::ComputeBakeInputHash(const UWorld& InWorld, const FLightmassSettings& InSettings) {
         uint64_t hash = 14695981039346656037ull;
-        constexpr uint32_t kBakerAlgorithmVersion = 4;
+        constexpr uint32_t kBakerAlgorithmVersion = 5;
         hash = HashBytes(hash, &kBakerAlgorithmVersion, sizeof(kBakerAlgorithmVersion));
 
         hash = HashBytes(hash, &InSettings.LightmapResolution, sizeof(InSettings.LightmapResolution));
@@ -668,6 +663,24 @@ namespace {
         }
 
         return hash;
+    }
+
+    void FLightmass::RefreshRuntimeLightmapTrust(UWorld& InWorld) {
+        InWorld.SetLightmapsTrusted(true);
+        FWorldSettingsComponent* ws = FindWorldSettings(InWorld);
+        if (!ws || !ws->bStaticLighting)
+            return;
+
+        FLightmassSettings settings;
+        ApplyLightingBuildQuality(ws->LightingBuildQuality, settings);
+        std::string unusedPath;
+        ApplyWorldSettings(*ws, settings, unusedPath);
+        const uint64_t current = ComputeBakeInputHash(InWorld, settings);
+        if (ws->LightmapBakeHash == 0 || current != ws->LightmapBakeHash) {
+            LE_CORE_ERROR("FLightmass: LightmapBakeHash stale (stored={0:x} current={1:x}) — skipping lightmaps",
+                          ws->LightmapBakeHash, current);
+            InWorld.SetLightmapsTrusted(false);
+        }
     }
 
     bool FLightmass::ValidateMap(const std::string& InMapPath, std::string& OutMessage) {

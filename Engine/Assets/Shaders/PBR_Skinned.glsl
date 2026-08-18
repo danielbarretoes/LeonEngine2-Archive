@@ -47,7 +47,9 @@ mat4 SkinMatrix() {
 void main() {
     mat4 skin = SkinMatrix();
     vec4 skinnedPos = skin * vec4(aPos, 1.0);
-    mat3 skinN = mat3(skin);
+    mat3 skin3 = mat3(skin);
+    float sdet = determinant(skin3);
+    mat3 skinN = abs(sdet) < 1e-12 ? mat3(1.0) : transpose(inverse(skin3));
     vec3 skinnedN = skinN * aNormal;
     vec3 skinnedT = skinN * aTangent.xyz;
 
@@ -207,12 +209,12 @@ void main() {
     vec3 albedo = u_AlbedoColor * ((u_UseAlbedoMap == 1) ? albedoSample.rgb : vec3(1.0));
 
     // 3. Tangent Space Gram-Schmidt Orthogonalization & Normal Mapping
-    vec3 geoN = normalize(v_Normal);
+    vec3 geoN = SafeNormalize3(v_Normal, vec3(0.0, 1.0, 0.0));
     vec3 N = geoN;
-    vec3 T = normalize(v_TBN[0]);
-    T = normalize(T - N * dot(N, T));
-    vec3 B = normalize(v_TBN[1]);
-    B = normalize(B - N * dot(N, B) - T * dot(T, B));
+    vec3 T = SafeNormalize3(v_TBN[0], vec3(1.0, 0.0, 0.0));
+    T = SafeNormalize3(T - N * dot(N, T), vec3(1.0, 0.0, 0.0));
+    vec3 B = SafeNormalize3(v_TBN[1], vec3(0.0, 0.0, 1.0));
+    B = SafeNormalize3(B - N * dot(N, B) - T * dot(T, B), cross(N, T));
     mat3 TBN = mat3(T, B, N);
 
     if (u_UseNormalMap == 1) {

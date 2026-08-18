@@ -32,6 +32,15 @@ TEST_SUITE("Cache - Invalidation & FNV-1a 64-bit Content Hashing") {
         CHECK(hashB != 0);
         CHECK(hashA1 != hashB); // Invalidation verified (avalanche effect)
 
+        {
+            std::ofstream out(testFilePath, std::ios::binary);
+            std::string sameLen = "AutumnField1k_HDR_Test_Data_123456789";
+            sameLen.back() = 'X';
+            out.write(sameLen.data(), static_cast<std::streamsize>(sameLen.size()));
+        }
+        uint64_t hashSameLen = Leon::ComputeFileHash64(testFilePath);
+        CHECK(hashSameLen != hashA1);
+
         // 3. Header Version Check Invalidation
         Leon::FIBLCacheHeader headerV3;
         headerV3.Version = 3;

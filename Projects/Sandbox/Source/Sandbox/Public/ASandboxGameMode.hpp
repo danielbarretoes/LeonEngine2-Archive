@@ -19,6 +19,7 @@ namespace Leon {
         void SetupPlanarReflections();
         void SpawnShowcaseDemos();
         void SpawnNightDemos();
+        void SpawnRendererLab();
     };
 
 } // namespace Leon

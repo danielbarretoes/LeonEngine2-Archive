@@ -32,9 +32,11 @@ namespace Leon {
         }
 
         void PushQuad(std::vector<float>& Out, const glm::vec3 InP[4], const glm::vec2 InUV[4], const glm::vec3& InN,
-                      const glm::vec3& InT, const glm::vec3& InB) {
+                      const glm::vec3& InT, const glm::vec3& InB, int InLightmapFace = -1) {
             for (int i = 0; i < 4; ++i) {
                 glm::vec2 lm = InUV[i] * 0.96f + glm::vec2(0.02f);
+                if (InLightmapFace >= 0)
+                    lm = PackLightmapCell(InUV[i], InLightmapFace % 3, InLightmapFace / 3, 3, 2);
                 AppendCanonicalVertex(Out, InP[i], InN, InUV[i], InT, InB, glm::vec3(1.0f), lm);
             }
         }
@@ -51,32 +53,32 @@ namespace Leon {
         // Front (+Z): T×B = N
         {
             glm::vec3 p[4] = {{-h, -h, h}, {h, -h, h}, {h, h, h}, {-h, h, h}};
-            PushQuad(vertices, p, uv, {0, 0, 1}, {1, 0, 0}, {0, 1, 0});
+            PushQuad(vertices, p, uv, {0, 0, 1}, {1, 0, 0}, {0, 1, 0}, 0);
         }
         // Back (-Z)
         {
             glm::vec3 p[4] = {{h, -h, -h}, {-h, -h, -h}, {-h, h, -h}, {h, h, -h}};
-            PushQuad(vertices, p, uv, {0, 0, -1}, {-1, 0, 0}, {0, 1, 0});
+            PushQuad(vertices, p, uv, {0, 0, -1}, {-1, 0, 0}, {0, 1, 0}, 1);
         }
         // Top (+Y)
         {
             glm::vec3 p[4] = {{-h, h, h}, {h, h, h}, {h, h, -h}, {-h, h, -h}};
-            PushQuad(vertices, p, uv, {0, 1, 0}, {1, 0, 0}, {0, 0, -1});
+            PushQuad(vertices, p, uv, {0, 1, 0}, {1, 0, 0}, {0, 0, -1}, 2);
         }
         // Bottom (-Y)
         {
             glm::vec3 p[4] = {{-h, -h, -h}, {h, -h, -h}, {h, -h, h}, {-h, -h, h}};
-            PushQuad(vertices, p, uv, {0, -1, 0}, {1, 0, 0}, {0, 0, 1});
+            PushQuad(vertices, p, uv, {0, -1, 0}, {1, 0, 0}, {0, 0, 1}, 3);
         }
         // Left (-X)
         {
             glm::vec3 p[4] = {{-h, -h, -h}, {-h, -h, h}, {-h, h, h}, {-h, h, -h}};
-            PushQuad(vertices, p, uv, {-1, 0, 0}, {0, 0, 1}, {0, 1, 0});
+            PushQuad(vertices, p, uv, {-1, 0, 0}, {0, 0, 1}, {0, 1, 0}, 4);
         }
         // Right (+X)
         {
             glm::vec3 p[4] = {{h, -h, h}, {h, -h, -h}, {h, h, -h}, {h, h, h}};
-            PushQuad(vertices, p, uv, {1, 0, 0}, {0, 0, -1}, {0, 1, 0});
+            PushQuad(vertices, p, uv, {1, 0, 0}, {0, 0, -1}, {0, 1, 0}, 5);
         }
 
         std::vector<uint32_t> indices = {0,  1,  2,  2,  3,  0,  4,  5,  6,  6,  7,  4,  8,  9,  10, 10, 11, 8,
@@ -222,9 +224,11 @@ namespace Leon {
             glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
 
             AppendCanonicalVertex(vertices, glm::vec3(InBottomRadius * cosTheta, -h, InBottomRadius * sinTheta), normal,
-                                  glm::vec2(u, 0.0f), tangent, bitangent);
+                                  glm::vec2(u, 0.0f), tangent, bitangent, glm::vec3(1.0f),
+                                  PackLightmapCell(glm::vec2(u, 0.0f), 0, 0, 1, 2));
             AppendCanonicalVertex(vertices, glm::vec3(InTopRadius * cosTheta, h, InTopRadius * sinTheta), normal,
-                                  glm::vec2(u, 1.0f), tangent, bitangent);
+                                  glm::vec2(u, 1.0f), tangent, bitangent, glm::vec3(1.0f),
+                                  PackLightmapCell(glm::vec2(u, 1.0f), 0, 0, 1, 2));
         }
 
         for (unsigned int x = 0; x < InSegments; ++x) {
@@ -245,7 +249,8 @@ namespace Leon {
             glm::vec3 n(0.0f, 1.0f, 0.0f);
             glm::vec3 t(1.0f, 0.0f, 0.0f);
             glm::vec3 b(0.0f, 0.0f, -1.0f);
-            AppendCanonicalVertex(vertices, glm::vec3(0.0f, h, 0.0f), n, glm::vec2(0.5f, 0.5f), t, b);
+            AppendCanonicalVertex(vertices, glm::vec3(0.0f, h, 0.0f), n, glm::vec2(0.5f, 0.5f), t, b, glm::vec3(1.0f),
+                                  PackLightmapCell(glm::vec2(0.5f, 0.5f), 0, 1, 2, 2));
 
             uint32_t ringStart = static_cast<uint32_t>(vertices.size() / kCanonicalVertexFloats);
             for (unsigned int x = 0; x <= InSegments; ++x) {
@@ -254,7 +259,9 @@ namespace Leon {
                 float cosTheta = std::cos(theta);
                 float sinTheta = std::sin(theta);
                 AppendCanonicalVertex(vertices, glm::vec3(InTopRadius * cosTheta, h, InTopRadius * sinTheta), n,
-                                      glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), t, b);
+                                      glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), t, b, glm::vec3(1.0f),
+                                      PackLightmapCell(glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), 0, 1,
+                                                       2, 2));
             }
 
             for (unsigned int x = 0; x < InSegments; ++x) {
@@ -269,7 +276,8 @@ namespace Leon {
             glm::vec3 n(0.0f, -1.0f, 0.0f);
             glm::vec3 t(1.0f, 0.0f, 0.0f);
             glm::vec3 b(0.0f, 0.0f, 1.0f);
-            AppendCanonicalVertex(vertices, glm::vec3(0.0f, -h, 0.0f), n, glm::vec2(0.5f, 0.5f), t, b);
+            AppendCanonicalVertex(vertices, glm::vec3(0.0f, -h, 0.0f), n, glm::vec2(0.5f, 0.5f), t, b, glm::vec3(1.0f),
+                                  PackLightmapCell(glm::vec2(0.5f, 0.5f), 1, 1, 2, 2));
 
             uint32_t ringStart = static_cast<uint32_t>(vertices.size() / kCanonicalVertexFloats);
             for (unsigned int x = 0; x <= InSegments; ++x) {
@@ -278,7 +286,9 @@ namespace Leon {
                 float cosTheta = std::cos(theta);
                 float sinTheta = std::sin(theta);
                 AppendCanonicalVertex(vertices, glm::vec3(InBottomRadius * cosTheta, -h, InBottomRadius * sinTheta), n,
-                                      glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), t, b);
+                                      glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), t, b, glm::vec3(1.0f),
+                                      PackLightmapCell(glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), 1, 1,
+                                                       2, 2));
             }
 
             for (unsigned int x = 0; x < InSegments; ++x) {

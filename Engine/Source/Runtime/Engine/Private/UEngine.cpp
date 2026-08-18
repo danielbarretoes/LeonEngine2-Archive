@@ -25,6 +25,7 @@
 #include "Audio/FAudioDevice.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/FMapSerializer.hpp"
+#include "Lightmass/FLightmass.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -186,6 +187,7 @@ namespace Leon {
 
         LE_CORE_INFO("UEngine: Loaded map '{0}' ({1}) with {2} actors", InVirtualMapPath, physicalMapPath,
                      InWorld->GetAllActors().size());
+        FLightmass::RefreshRuntimeLightmapTrust(*InWorld);
         return true;
     }
 

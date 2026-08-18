@@ -143,6 +143,7 @@ namespace Leon {
         NavigationSystem.reset();
         TimerManager.Clear();
         bIsTicking = false;
+        bLightmapsTrusted = true;
     }
 
     UNavigationSystem* UWorld::GetNavigationSystem() {

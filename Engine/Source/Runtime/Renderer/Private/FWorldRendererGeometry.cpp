@@ -37,6 +37,10 @@
 
 namespace Leon {
 
+    namespace {
+        std::vector<FTransparentDraw> GPendingTransparents;
+    }
+
     void FWorldRenderer::BindPlanarReflectionUniforms(FShader& InShader, bool bEnabled) {
         if (bEnabled && PlanarReflectionFramebuffer) {
             PlanarReflectionFramebuffer->BindTexture(0, 5);
@@ -62,15 +66,12 @@ namespace Leon {
     }
 
     // =========================================================================
-    // PASS 4: Geometry Pass
-    // Audit fix ALTO-01: shadow maps + IBL bound ONCE before the loop, not per-object
-    // Audit fix MEDIO-05: normal matrix calculated CPU-side, uploaded as u_NormalMatrix
+    // PASS 4: Opaque geometry (transparents are flushed after the skybox)
     // =========================================================================
-    void FWorldRenderer::RenderGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight, bool bHasSpotLight,
-                                            uint32_t InVpWidth, uint32_t InVpHeight) {
-        (void)InVpWidth;
-        (void)InVpHeight;
+    void FWorldRenderer::RenderOpaqueGeometryPass(const FPerspectiveCamera& InCamera, bool bHasDirLight,
+                                                  bool bHasSpotLight) {
         auto& reg = World->GetRegistry();
+        GPendingTransparents.clear();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
         // Bind shadow depth maps to slots 10-11
@@ -95,7 +96,6 @@ namespace Leon {
 
         auto meshView = reg.view<FTransformComponent, FMeshComponent>();
         const FFrustumPlanes camFrustum = ExtractFrustumPlanes(InCamera.GetViewProjectionMatrix());
-        std::vector<FTransparentDraw> transparents;
         glm::vec3 camPos = InCamera.GetPosition();
 
         for (auto entity : meshView) {
@@ -111,13 +111,13 @@ namespace Leon {
                 matInst = reg.get<FMaterialComponent>(entity).MaterialInstance;
             }
             if (!matInst) {
-                matInst = UAssetManager::GetDefaultMaterial()->CreateInstance();
+                matInst = UAssetManager::GetDefaultMaterialInstance();
             }
 
             glm::mat4 model = transform.GetTransform();
             TRef<FTexture2D> lightmapTex;
-            bool bUseLM = mesh.Mobility == EComponentMobility::Static && mesh.LightmapIndex >= 0 &&
-                          !mesh.LightmapAssetPath.empty();
+            bool bUseLM = World->AreLightmapsTrusted() && mesh.Mobility == EComponentMobility::Static &&
+                          mesh.LightmapIndex >= 0 && !mesh.LightmapAssetPath.empty();
             if (bUseLM) {
                 auto lm = UAssetManager::GetLightmap(mesh.LightmapAssetPath);
                 if (lm)
@@ -138,7 +138,7 @@ namespace Leon {
                 draw.LightmapScale = mesh.LightmapScale;
                 draw.LightmapBias = mesh.LightmapBias;
                 draw.Lightmap = lightmapTex;
-                transparents.push_back(std::move(draw));
+                GPendingTransparents.push_back(std::move(draw));
                 continue;
             }
 
@@ -197,7 +197,8 @@ namespace Leon {
                 glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
 
                 TRef<FTexture2D> lightmapTex;
-                bool bUseLM = staticMeshComp.Mobility == EComponentMobility::Static &&
+                bool bUseLM = World->AreLightmapsTrusted() &&
+                              staticMeshComp.Mobility == EComponentMobility::Static &&
                               staticMeshComp.LightmapIndex >= 0 && !staticMeshComp.LightmapAssetPath.empty();
                 if (bUseLM) {
                     auto lm = UAssetManager::GetLightmap(staticMeshComp.LightmapAssetPath);
@@ -221,7 +222,7 @@ namespace Leon {
                     draw.LightmapScale = staticMeshComp.LightmapScale;
                     draw.LightmapBias = staticMeshComp.LightmapBias;
                     draw.Lightmap = lightmapTex;
-                    transparents.push_back(std::move(draw));
+                    GPendingTransparents.push_back(std::move(draw));
                     continue;
                 }
 
@@ -284,7 +285,7 @@ namespace Leon {
                     draw.bOffset = true;
                     draw.bReceiveShadows = skel.bReceiveShadows;
                     draw.BonePalette = &skel.BonePalette;
-                    transparents.push_back(std::move(draw));
+                    GPendingTransparents.push_back(std::move(draw));
                     continue;
                 }
                 bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
@@ -337,9 +338,37 @@ namespace Leon {
             FRenderCommand::SetCulling(true, ECullMode::Back);
         }
 
-        std::sort(transparents.begin(), transparents.end(),
+        FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        FRenderCommand::SetClipDistance(false);
+    }
+
+    void FWorldRenderer::RenderTransparentGeometryPass(bool bHasDirLight, bool bHasSpotLight) {
+        if (GPendingTransparents.empty())
+            return;
+
+        if (CascadeShadowFramebuffer)
+            CascadeShadowFramebuffer->BindDepthTexture(10);
+        if (SpotShadowFramebuffer)
+            SpotShadowFramebuffer->BindDepthTexture(11);
+
+        bool bShadowsAvailable = bHasDirLight && CascadeShadowFramebuffer;
+        bool bSpotShadowAvailable = bHasSpotLight && SpotShadowFramebuffer;
+        bool bIBLAvailable = bUseIBL && IBLEnvironment.BRDFLUT;
+        if (bIBLAvailable) {
+            if (IBLEnvironment.BRDFLUT)
+                IBLEnvironment.BRDFLUT->Bind(6);
+            if (IBLEnvironment.IrradianceMap)
+                IBLEnvironment.IrradianceMap->Bind(7);
+            if (IBLEnvironment.PrefilterMap)
+                IBLEnvironment.PrefilterMap->Bind(8);
+        }
+
+        std::sort(GPendingTransparents.begin(), GPendingTransparents.end(),
                   [](const FTransparentDraw& a, const FTransparentDraw& b) { return a.DistanceSq > b.DistanceSq; });
-        for (const auto& draw : transparents) {
+        for (const auto& draw : GPendingTransparents) {
             if (!draw.Shader || !draw.VA || !draw.Mat)
                 continue;
             if (draw.BonePalette)
@@ -366,9 +395,10 @@ namespace Leon {
                 FRenderCommand::DrawIndexed(draw.VA);
         }
 
-        // Restore pass-level default rasterizer state
+        GPendingTransparents.clear();
         FRenderCommand::SetCulling(true, ECullMode::Back);
         FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
         FRenderCommand::SetClipDistance(false);

@@ -186,7 +186,7 @@ namespace Leon {
         if (roughTex.empty())
             roughTex = FindMatchingTexture(InExtracted.Name, "_r", "roughness", InAvailableTextureVirtualPaths);
         if (!roughTex.empty()) {
-            material->SetTexturePath(3, roughTex);
+            material->SetTexturePath(4, roughTex);
         }
 
         // 5. Resolve AO Map
@@ -196,7 +196,7 @@ namespace Leon {
         if (aoTex.empty())
             aoTex = FindMatchingTexture(InExtracted.Name, "_ao", "ambient", InAvailableTextureVirtualPaths);
         if (!aoTex.empty()) {
-            material->SetTexturePath(4, aoTex);
+            material->SetTexturePath(3, aoTex);
         }
 
         // 6. Resolve Emissive Map

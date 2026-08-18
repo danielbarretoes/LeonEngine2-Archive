@@ -256,6 +256,9 @@ namespace Leon {
         // State Restoration
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
     }
 
 } // namespace Leon

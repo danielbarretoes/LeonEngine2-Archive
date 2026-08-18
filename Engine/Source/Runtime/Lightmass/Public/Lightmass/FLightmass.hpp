@@ -79,6 +79,9 @@ namespace Leon {
          * LightmapScale/Bias/Index/Asset stamped by a previous bake).
          */
         static uint64_t ComputeBakeInputHash(const UWorld& InWorld, const FLightmassSettings& InSettings);
+
+        /** Compare stored LightmapBakeHash to the current world. Disables sampling when stale. */
+        static void RefreshRuntimeLightmapTrust(UWorld& InWorld);
     };
 
 } // namespace Leon

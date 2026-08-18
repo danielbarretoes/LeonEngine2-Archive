@@ -253,9 +253,10 @@ namespace Leon {
         }
 
         bool bHasSpotLight = false;
-        FSpotLightComponent firstSpotComp;
-        glm::vec3 firstSpotPos{0.0f};
+        FSpotLightComponent shadowedSpotComp;
+        glm::vec3 shadowedSpotPos{0.0f};
         std::vector<FSpotLight> spotLights;
+        std::vector<FSpotLightComponent> spotComps;
         {
             auto view = reg.view<FSpotLightComponent>();
             for (auto entity : view) {
@@ -264,14 +265,17 @@ namespace Leon {
                     FSpotLight sl = comp.Light;
                     if (reg.all_of<FTransformComponent>(entity))
                         sl.Position = reg.get<FTransformComponent>(entity).Translation;
-                    if (!bHasSpotLight) {
-                        firstSpotComp = comp;
-                        firstSpotPos = sl.Position;
-                        bHasSpotLight = true;
-                    }
+                    spotComps.push_back(comp);
                     spotLights.push_back(sl);
+                    bHasSpotLight = true;
                 }
             }
+        }
+        int shadowedSpotIndex = 0;
+        if (bHasSpotLight) {
+            shadowedSpotIndex = std::clamp(ShadowSettings.ShadowedSpotIndex, 0, static_cast<int>(spotLights.size()) - 1);
+            shadowedSpotComp = spotComps[static_cast<size_t>(shadowedSpotIndex)];
+            shadowedSpotPos = spotLights[static_cast<size_t>(shadowedSpotIndex)].Position;
         }
 
         FSkyboxComponent skybox;
@@ -312,11 +316,17 @@ namespace Leon {
         }
 
         for (size_t i = 0; i < spotLights.size(); ++i) {
+            float innerDeg = spotLights[i].CutOff;
+            float outerDeg = spotLights[i].OuterCutOff;
+            if (innerDeg > outerDeg)
+                std::swap(innerDeg, outerDeg);
+            if (outerDeg - innerDeg < 0.25f)
+                outerDeg = innerDeg + 0.25f;
             lightingData.SpotLights[i].Position = glm::vec4(spotLights[i].Position, 1.0f);
             lightingData.SpotLights[i].Direction =
-                glm::vec4(glm::normalize(spotLights[i].Direction), std::cos(glm::radians(spotLights[i].CutOff)));
+                glm::vec4(glm::normalize(spotLights[i].Direction), std::cos(glm::radians(innerDeg)));
             lightingData.SpotLights[i].Color =
-                glm::vec4(spotLights[i].Color, std::cos(glm::radians(spotLights[i].OuterCutOff)));
+                glm::vec4(spotLights[i].Color, std::cos(glm::radians(outerDeg)));
             lightingData.SpotLights[i].Params = glm::vec4(spotLights[i].Radius, spotLights[i].Intensity, 0.0f, 0.0f);
         }
 
@@ -347,8 +357,10 @@ namespace Leon {
         }
         if (bHasSpotLight) {
             FFrameProfiler::FScope shadow(&FFrameProfiler::Working().ShadowMs);
-            RenderSpotShadowPass(&firstSpotComp, firstSpotPos, mainCamData);
+            RenderSpotShadowPass(&shadowedSpotComp, shadowedSpotPos, mainCamData);
         }
+        mainCamData.ShadowSettings =
+            glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), shadowedSpotIndex, 0, DebugMode);
         FFrameProfiler::Working().ShadowDrawCalls = FRenderer::GetStats().DrawCalls - drawsBeforeShadow;
 
         {
@@ -379,12 +391,21 @@ namespace Leon {
 
         {
             FFrameProfiler::FScope opaque(&FFrameProfiler::Working().OpaqueMs);
-            RenderGeometryPass(InCamera, bHasDirLight, bHasSpotLight, vpWidth, vpHeight);
+            RenderOpaqueGeometryPass(InCamera, bHasDirLight, bHasSpotLight);
         }
 
         if (bHasSkybox) {
             FFrameProfiler::FScope sky(&FFrameProfiler::Working().SkyMs);
+            FRenderCommand::SetCulling(true, ECullMode::Back);
+            FRenderCommand::SetBlendState(false);
+            FRenderCommand::SetDepthMask(true);
+            FRenderCommand::SetDepthFunc(EDepthFunc::Less);
             RenderSkyboxPass(InCamera, &skybox, bHasDirLight, dirLightComp.Light);
+        }
+
+        {
+            FFrameProfiler::FScope trans(&FFrameProfiler::Working().TransparentMs);
+            RenderTransparentGeometryPass(bHasDirLight, bHasSpotLight);
         }
 
         // 3D World Text

@@ -4,6 +4,7 @@
 #include "Renderer/FRenderingMath.hpp"
 
 #include <glm/glm.hpp>
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -56,6 +57,17 @@ namespace Leon {
         glm::vec3 n = SafeNormalize(InNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::vec3 t = SafeNormalize(glm::vec3(InTangent), glm::vec3(1.0f, 0.0f, 0.0f));
         return glm::cross(n, t) * InTangent.w;
+    }
+
+    inline glm::vec2 PackLightmapCell(const glm::vec2& InUV, int InCol, int InRow, int InCols, int InRows,
+                                      float InPad = 0.04f) {
+        float cols = static_cast<float>(std::max(InCols, 1));
+        float rows = static_cast<float>(std::max(InRows, 1));
+        float u = glm::clamp(InUV.x, 0.0f, 1.0f);
+        float v = glm::clamp(InUV.y, 0.0f, 1.0f);
+        float inner = 1.0f - 2.0f * InPad;
+        return {(static_cast<float>(InCol) + InPad + u * inner) / cols,
+                (static_cast<float>(InRow) + InPad + v * inner) / rows};
     }
 
     inline void AppendCanonicalVertex(std::vector<float>& Out, const glm::vec3& InP, const glm::vec3& InN,

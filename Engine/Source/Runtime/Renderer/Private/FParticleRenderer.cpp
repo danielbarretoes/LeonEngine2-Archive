@@ -108,7 +108,9 @@ namespace Leon {
         FRenderCommand::DrawArrays(VertexArray, static_cast<unsigned int>(verts.size()));
 
         FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
         FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
     }
 
 } // namespace Leon

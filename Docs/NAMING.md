@@ -44,6 +44,7 @@ These exist in the tree and must not be mass-renamed without a dedicated sweep. 
 | Aggregation headers `Components.hpp`, `*Types.hpp`, `*Widgets.hpp` | Intentional bundles; tests skip the file=primary-type check |
 | `BIT`, `EVENT_CLASS_TYPE`, `EVENT_CLASS_CATEGORY` | Event-system macros kept beside `LE_*` |
 | Headers whose stem is a family (`FApplicationEvent.hpp`, `FBuffer.hpp`, `EMobility.hpp`) | Historical grouping; do not add new mismatches |
+| `FWorldRendererGeometry.cpp`, `FWorldRendererLighting.cpp`, `FWorldRendererPostProcess.cpp`, `FWorldRendererInternals.hpp` | Split compilation units of `FWorldRenderer`; do not invent a second renderer type |
 
 ---
 

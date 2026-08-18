@@ -1,6 +1,7 @@
 #include "Assets/FTextureImporter.hpp"
 #include "Assets/FAssetPath.hpp"
 #include "Core/FLog.hpp"
+#include "Renderer/FColorSpace.hpp"
 
 #include <stb_image.h>
 #include <algorithm>
@@ -132,7 +133,7 @@ namespace Leon {
             settings.ColorSpace = ETextureColorSpace::sRGB;
         } else {
             settings.Semantic = ETextureSemantic::Generic;
-            settings.ColorSpace = ETextureColorSpace::Linear;
+            settings.ColorSpace = ETextureColorSpace::sRGB;
         }
 
         return settings;
@@ -179,7 +180,8 @@ namespace Leon {
 
         // Generate Mipmap Pyramid
         if (InSettings.bGenerateMipmaps) {
-            GenerateMipmaps(uWidth, uHeight, level0, OutData.Mips);
+            GenerateMipmaps(uWidth, uHeight, level0, OutData.Mips,
+                            InSettings.ColorSpace == ETextureColorSpace::sRGB);
         } else {
             OutData.Mips.clear();
             FTextureMipData mip0;
@@ -204,13 +206,12 @@ namespace Leon {
     }
 
     void FTextureImporter::GenerateMipmaps(uint32_t InWidth, uint32_t InHeight, const std::vector<uint8_t>& InLevel0,
-                                           std::vector<FTextureMipData>& OutMips) {
+                                           std::vector<FTextureMipData>& OutMips, bool InbSRGB) {
         OutMips.clear();
 
         uint32_t numLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(InWidth, InHeight)))) + 1;
         OutMips.reserve(numLevels);
 
-        // Mip 0
         FTextureMipData mip0;
         mip0.Level = 0;
         mip0.Width = InWidth;
@@ -220,6 +221,20 @@ namespace Leon {
 
         uint32_t curW = InWidth;
         uint32_t curH = InHeight;
+
+        auto decode = [InbSRGB](uint8_t InByte, uint32_t InChannel) {
+            float x = static_cast<float>(InByte) / 255.0f;
+            if (InbSRGB && InChannel < 3)
+                return SRGBToLinear(x);
+            return x;
+        };
+        auto encode = [InbSRGB](float InLinear, uint32_t InChannel) {
+            float x = InLinear;
+            if (InbSRGB && InChannel < 3)
+                x = LinearToSRGB(InLinear);
+            x = std::clamp(x, 0.0f, 1.0f);
+            return static_cast<uint8_t>(x * 255.0f + 0.5f);
+        };
 
         for (uint32_t level = 1; level < numLevels; ++level) {
             uint32_t nextW = std::max(1u, curW / 2);
@@ -241,13 +256,11 @@ namespace Leon {
                     uint32_t srcY1 = std::min(srcY0 + 1, curH - 1);
 
                     for (uint32_t c = 0; c < 4; ++c) {
-                        uint32_t p00 = prevPixels[(srcY0 * curW + srcX0) * 4 + c];
-                        uint32_t p10 = prevPixels[(srcY0 * curW + srcX1) * 4 + c];
-                        uint32_t p01 = prevPixels[(srcY1 * curW + srcX0) * 4 + c];
-                        uint32_t p11 = prevPixels[(srcY1 * curW + srcX1) * 4 + c];
-
-                        uint32_t avg = (p00 + p10 + p01 + p11 + 2) / 4;
-                        nextMip.Pixels[(y * nextW + x) * 4 + c] = static_cast<uint8_t>(avg);
+                        float p00 = decode(prevPixels[(srcY0 * curW + srcX0) * 4 + c], c);
+                        float p10 = decode(prevPixels[(srcY0 * curW + srcX1) * 4 + c], c);
+                        float p01 = decode(prevPixels[(srcY1 * curW + srcX0) * 4 + c], c);
+                        float p11 = decode(prevPixels[(srcY1 * curW + srcX1) * 4 + c], c);
+                        nextMip.Pixels[(y * nextW + x) * 4 + c] = encode((p00 + p10 + p01 + p11) * 0.25f, c);
                     }
                 }
             }

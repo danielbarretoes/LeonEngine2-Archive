@@ -468,7 +468,7 @@ namespace Leon {
                 matInst = reg.get<FMaterialComponent>(entity).MaterialInstance;
             }
             if (!matInst) {
-                matInst = UAssetManager::GetDefaultMaterial()->CreateInstance();
+                matInst = UAssetManager::GetDefaultMaterialInstance();
             }
 
             glm::mat4 model = transform.GetTransform();

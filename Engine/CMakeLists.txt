@@ -169,6 +169,8 @@ target_include_directories(LeonEngineCore
         "${LEON_RUNTIME_ROOT}/AI/Public"
         "${LEON_RUNTIME_ROOT}/Audio/Public"
         "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
+    PRIVATE
+        "${LEON_RUNTIME_ROOT}/Lightmass/Public"
 )
 
 target_compile_features(LeonEngineCore PUBLIC cxx_std_20)

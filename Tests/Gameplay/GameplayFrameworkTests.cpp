@@ -653,6 +653,14 @@ Actors:
             CHECK(b->GetParent().get() == parent.get());
         }
 
+        TEST_CASE("33. default material instance is cached") {
+            auto a = UAssetManager::GetDefaultMaterialInstance();
+            auto b = UAssetManager::GetDefaultMaterialInstance();
+            REQUIRE(a);
+            REQUIRE(b);
+            CHECK(a.get() == b.get());
+        }
+
     } // TEST_SUITE
 
 } // namespace Leon

@@ -78,7 +78,8 @@ LeonEngine2/
 │       ├── Gameplay/Public/Gameplay/     # AActor, APawn, UGameplayStatics, …
 │       ├── AI/Public/AI/                 # Behavior trees, blackboard, perception
 │       ├── Audio/Public/Audio/           # FAudioDevice, USoundWave
-│       └── Physics/Public/Physics/       # IPhysicsScene, traces
+│       ├── Physics/Public/Physics/       # IPhysicsScene, traces
+│       └── Lightmass/Public/Lightmass/   # FLightmass, FLightBaker (offline bake)
 ├── Plugins/RHI/OpenGL/                    # FOpenGL* backend
 ├── Plugins/Physics/Jolt/                  # FJoltPhysicsDriver
 ├── Plugins/Networking/ENet/               # FENetTransport
@@ -259,18 +260,20 @@ The Material System decouples shader logic and asset properties into a shared, r
 ```
 
 * **`FPipelineState`**: Encapsulates `CullMode`, `bDepthTest`, `bDepthWrite`, `DepthFunc`, `bBlend`, `SrcBlend`, and `DstBlend`.
-* **Serialization**: Material assets are stored as human-readable `.lmat` YAML files and loaded via `FAssetManager`.
+* **Serialization**: Material assets are stored as human-readable `.lmat` YAML files and loaded via `UAssetManager`.
 
 ---
 
-## 6. Image-Based Lighting & Binary Cache Subsystem (`IBLGenerator.cpp`)
+## 6. Image-Based Lighting & Binary Cache Subsystem (`FIBLGenerator.cpp`)
 
-Provides physical Cook-Torrance ambient lighting using the Split-Sum approximation:
+Split-sum IBL. Canonical math: [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md). Cache format: [IBL_CACHE_DESIGN.md](IBL_CACHE_DESIGN.md).
 
-1. **2D BRDF LUT**: Pre-baked $256 \times 256$ `RG16F` lookup table loaded in **$1.4\text{ ms}$**.
-2. **Diffuse Irradiance Cubemap (v4)**: Convolved using Quasi-Monte Carlo Hammersley cosine-weighted hemisphere sampling ($N=512$) with source-HDR solid angle Mip-filtering ($\text{lod} = 5.50$).
-3. **Specular Prefiltered Cubemap (v4)**: 5 mip levels ($128 \to 8$) using importance-sampled GGX with Karis solid angle filtering against the original $1024 \times 512$ HDR image.
-4. **Binary Disk Cache (`.libl` v4)**: Serialized with a 64-byte header and 64-bit FNV-1a content hash, enabling instantaneous startup (**$\approx 11\text{ ms}$**).
+1. **2D BRDF LUT**: $256 \times 256$ `RG16F`, texel centers `(x+0.5)/size`, IBL Smith $k = \alpha/2$, 512-sample `IntegrateBRDF`. Disk header `LEONBRDF` **v2**.
+2. **Diffuse irradiance cubemap**: Cosine-weighted Hammersley ($N=512$), $E = \pi \cdot \mathrm{mean}(L_i)$. Karis `saTexel` $= 4\pi / (6 \cdot \mathrm{size}^2)$ against the **environment cube**, not the equirect.
+3. **Specular prefilter**: 5 mips ($128 \to 8$), GGX importance sampling + Karis solid-angle LOD.
+4. **Binary cache (`.libl` v6)**: `FIBLCacheHeader` + FNV-1a **content** hash of the HDR. Exposure and `EnvironmentIntensity` are **not** baked. Atmosphere-only (no HDR file) does not hit this cache path.
+
+Runtime: `diffuseIBL = E * albedo / π`, `specularIBL = Li_prefilter * (F_rough * A + B)`. Planar Li, if weighted, replaces `Li_prefilter` then uses the same BRDF factor.
 
 ---
 
@@ -278,19 +281,30 @@ Provides physical Cook-Torrance ambient lighting using the Split-Sum approximati
 
 Runtime path: `UEngine` → viewport layer → `UWorld::OnRender` → `FWorldRenderer::Render`.
 
-Static lighting (offline): `LeonAssetTool bake_lightmaps` → `FLightmass` → `.llightmap`. Runtime sampling is documented in [STATIC_LIGHTING.md](STATIC_LIGHTING.md).
+Implementation is split across `FWorldRenderer.cpp` (frame + FBOs), `FWorldRendererLighting.cpp` (CSM / spot / planar / sky / IBL), `FWorldRendererGeometry.cpp` (opaque / skinned outline / transparent), `FWorldRendererPostProcess.cpp`.
+
+Static lighting (offline): `LeonAssetTool bake_lightmaps` → `FLightmass` / `FLightBaker` → `.llightmap`. Runtime sampling: [STATIC_LIGHTING.md](STATIC_LIGHTING.md). **Source of truth for bake AO:** `FLightBaker` *can* scale stored irradiance `E` when `bAmbientOcclusion` is true (default). [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md) currently contradicts that — prefer the baker and STATIC_LIGHTING.
 
 ```text
-PASS 1: Cascaded Shadow Pass (CSM)
-PASS 2: Spot Shadow Pass
-PASS 3: Planar Reflection Pass
-PASS 4: Main Geometry Pass (HDR RGBA16F) + CPU frustum cull
-PASS 5: Atmospheric Skybox Pass
-PASS 6: 3D In-World Text Pass
-PASS 7: Post-Process (Bloom + Tone Map + FXAA + Gamma)
+Gather lights (skip ELightMobility::Static) → Lighting UBO
+UpdateIBL
+PASS 1: Cascaded Shadow (4-slice DEPTH32F array, front-face cull)
+PASS 2: Spot shadow (one 2D DEPTH32F map — `ShadowedSpotIndex` in the runtime spot list)
+PASS 3: Planar reflection (mirrored camera, RGBA16F, shadows disabled, clip plane)
+PASS 4: Opaque HDR geometry RGBA16F — CPU AABB frustum cull
+         opaque → skinned inverted-hull outline
+PASS 5: Skybox (z = w, depth LessEqual)
+PASS 6: Transparent Blend (back-to-front, depth write off) → 3D world text + particles
+        optional gameplay debug (depth test on, depth write off)
+PASS 7: Bloom → exposure → tone map (ACES default) → IEC sRGB → FXAA
+Restore PreviousFBO
 ```
 
-**Planar pass (PASS 3):** mirrored-camera capture into HDR FBOs, not cubemap probes. Floor FBO is always filled when a plane is registered; an optional wall FBO fills only when the camera faces that plane. Games currently register the floor (`n = +Y`, `d = 0`). Materials with `UsePlanarReflection` sample the capture on surfaces near the plane; chrome spheres and other curved metals stay on cubemap IBL. Contract: [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md#planar-reflections).
+**Coordinates (implemented):** right-handed, +Y up, camera forward −Z (default yaw −90°), OpenGL clip $z \in [-1,1]$, front face CCW, `M = T * R * S`, GPU column-major no-transpose. Not reversed-Z. Near 0.1 / far 1000.
+
+**Planar pass:** not cubemap probes. Floor FBO fills when a plane is registered; optional wall FBO when the camera faces a non-horizontal plane. Games currently register the floor (`n = +Y`, `d = 0`). Contract: [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md#planar-reflections).
+
+**Lighting equation (lit):** `hdr = ambient + Lo_direct + baked + emissive`. With a static lightmap, diffuse IBL is replaced by `kD * albedo/π * E`; specular IBL remains. Dynamic lights with `Mobility != Static` still add `Lo_direct`. Material AO multiplies indirect specular (and full ambient when no lightmap), not baked `E` and not direct `Lo`.
 
 ---
 

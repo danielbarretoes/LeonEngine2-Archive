@@ -29,6 +29,8 @@ TEST_SUITE("Texture Importer & .ltex Binary Format Tests") {
         CHECK(FTextureImportSettings::DetectFromFileName("T_Iron_rough.png").ColorSpace == ETextureColorSpace::Linear);
         CHECK(FTextureImportSettings::DetectFromFileName("T_Steel_metal.png").ColorSpace == ETextureColorSpace::Linear);
         CHECK(FTextureImportSettings::DetectFromFileName("T_Wall_ao.png").ColorSpace == ETextureColorSpace::Linear);
+        CHECK(FTextureImportSettings::DetectFromFileName("brick.png").ColorSpace == ETextureColorSpace::sRGB);
+        CHECK(FTextureImportSettings::DetectFromFileName("T_Photo.jpg").ColorSpace == ETextureColorSpace::sRGB);
     }
 
     TEST_CASE("TextureImporter - Gloss to Roughness Inversion (R = 255 - G)") {

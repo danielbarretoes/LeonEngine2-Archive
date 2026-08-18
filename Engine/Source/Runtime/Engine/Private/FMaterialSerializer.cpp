@@ -124,11 +124,11 @@ namespace Leon {
             ss << "  MetallicMap: \"" << metallicPath << "\"\n";
 
         std::string roughnessPath =
-            InMaterial.GetRoughnessMap() ? InMaterial.GetRoughnessMap()->GetPath() : InMaterial.GetTexturePath(3);
+            InMaterial.GetRoughnessMap() ? InMaterial.GetRoughnessMap()->GetPath() : InMaterial.GetTexturePath(4);
         if (!roughnessPath.empty())
             ss << "  RoughnessMap: \"" << roughnessPath << "\"\n";
 
-        std::string aoPath = InMaterial.GetAOMap() ? InMaterial.GetAOMap()->GetPath() : InMaterial.GetTexturePath(4);
+        std::string aoPath = InMaterial.GetAOMap() ? InMaterial.GetAOMap()->GetPath() : InMaterial.GetTexturePath(3);
         if (!aoPath.empty())
             ss << "  AOMap: \"" << aoPath << "\"\n";
 

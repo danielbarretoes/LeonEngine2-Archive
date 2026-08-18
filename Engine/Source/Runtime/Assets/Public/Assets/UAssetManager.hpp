@@ -85,6 +85,8 @@ namespace Leon {
         static bool HasMaterialInstance(const std::string& InPath);
 
         static TRef<FMaterial> GetDefaultMaterial();
+        /** Shared fallback instance. Do not mutate from the renderer. */
+        static TRef<FMaterialInstance> GetDefaultMaterialInstance();
         static TRef<FMaterialInstance> CreateMaterialInstance(const std::string& InMaterialPath);
         static TRef<FMaterialInstance> CreateMaterialInstance(const TRef<FMaterial>& InParent);
 
@@ -108,6 +110,7 @@ namespace Leon {
         static std::unordered_map<std::string, TRef<FMaterial>> MaterialCache;
         static std::unordered_map<std::string, TRef<FMaterialInstance>> MaterialInstanceCache;
         static TRef<FMaterial> DefaultMaterial;
+        static TRef<FMaterialInstance> DefaultMaterialInstance;
         static TRef<FTexture2D> DefaultWhiteTexture;
         static TRef<FTexture2D> DefaultBlackTexture;
         static TRef<FTexture2D> DefaultFlatNormalTexture;

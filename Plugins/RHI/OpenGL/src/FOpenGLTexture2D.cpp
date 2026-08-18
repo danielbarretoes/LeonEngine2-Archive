@@ -11,6 +11,14 @@
 
 namespace Leon {
 
+    namespace {
+        void ApplyAnisotropicFilter(GLuint InTexture) {
+            GLfloat maxAniso = 1.0f;
+            glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
+            glTextureParameterf(InTexture, GL_TEXTURE_MAX_ANISOTROPY, std::min(16.0f, std::max(1.0f, maxAniso)));
+        }
+    }
+
     static uint32_t CalculateMipLevels(uint32_t InWidth, uint32_t InHeight) {
         return static_cast<uint32_t>(std::floor(std::log2(std::max(InWidth, InHeight)))) + 1;
     }
@@ -106,6 +114,8 @@ namespace Leon {
             GLenum wrap = (nativeData.Header.WrapMode == 1) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_S, wrap);
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, wrap);
+            if (mipLevels > 1)
+                ApplyAnisotropicFilter(RendererID);
 
             for (const auto& mip : nativeData.Mips) {
                 if (!mip.Pixels.empty()) {
@@ -237,6 +247,7 @@ namespace Leon {
         glTextureParameteri(RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTextureParameteri(RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        ApplyAnisotropicFilter(RendererID);
 
         if (bpp != 4)
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);

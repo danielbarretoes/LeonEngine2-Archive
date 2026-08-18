@@ -121,6 +121,9 @@ namespace Leon {
         void OnRender(const FPerspectiveCamera& InCamera);
         FWorldRenderer* GetWorldRenderer();
 
+        bool AreLightmapsTrusted() const { return bLightmapsTrusted; }
+        void SetLightmapsTrusted(bool bTrusted) { bLightmapsTrusted = bTrusted; }
+
         /** Project INI renderer defaults applied when the world renderer is first created. */
         void SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
                                         uint32_t InCascadeCount = 0, float InShadowDistance = 0.0f,
@@ -182,6 +185,7 @@ namespace Leon {
         bool bBegunPlay = false;
         bool bDeferSpawnedActorBeginPlay = false;
         bool bIsTicking = false;
+        bool bLightmapsTrusted = true;
 
         bool bHasPendingRendererDefaults = false;
         uint32_t PendingShadowMapResolution = 2048;

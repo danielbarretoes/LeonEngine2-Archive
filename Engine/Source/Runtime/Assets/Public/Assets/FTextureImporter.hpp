@@ -55,7 +55,7 @@ namespace Leon {
 
     struct FTextureImportSettings {
         ETextureSemantic Semantic = ETextureSemantic::Generic;
-        ETextureColorSpace ColorSpace = ETextureColorSpace::Linear;
+        ETextureColorSpace ColorSpace = ETextureColorSpace::sRGB;
         bool bGenerateMipmaps = true;
         bool bInvertGlossToRoughness = false;
         bool bFlipVertically = false;
@@ -75,9 +75,10 @@ namespace Leon {
         static bool ImportToFile(const std::string& InSourcePath, const std::string& InDestinationLTexPath,
                                  const FTextureImportSettings& InSettings);
 
-        /** Generate software box-filtered mipmap pyramid from level 0 RGBA8 pixels */
+        /** Generate software box-filtered mipmap pyramid from level 0 RGBA8 pixels.
+         *  When InbSRGB is true, average in linear light then re-encode IEC sRGB. */
         static void GenerateMipmaps(uint32_t InWidth, uint32_t InHeight, const std::vector<uint8_t>& InLevel0,
-                                    std::vector<FTextureMipData>& OutMips);
+                                    std::vector<FTextureMipData>& OutMips, bool InbSRGB = false);
 
         /** Convert glossiness values to roughness in-place (Roughness = 255 - Gloss) */
         static void ConvertGlossToRoughness(std::vector<uint8_t>& InOutPixels, uint32_t InChannels);

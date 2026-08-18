@@ -116,6 +116,8 @@ namespace Leon {
         FRenderCommand::DrawArrays(VertexArray, static_cast<unsigned int>(Vertices.size()));
 
         Vertices.clear();
+        FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetBlendFunc(EBlendFactor::SrcAlpha, EBlendFactor::OneMinusSrcAlpha);
     }
 
     glm::vec2 FTextRenderer::MeasureString(const std::string& InText, float InSize) {
