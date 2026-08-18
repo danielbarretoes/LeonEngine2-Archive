@@ -10,6 +10,16 @@
 
 namespace Leon {
 
+    UIpNetDriver::FCreateNetTransport UIpNetDriver::TransportFactory;
+
+    void UIpNetDriver::SetTransportFactory(FCreateNetTransport InFactory) { TransportFactory = std::move(InFactory); }
+
+    std::unique_ptr<INetTransport> UIpNetDriver::CreateTransport() {
+        if (!TransportFactory)
+            return nullptr;
+        return TransportFactory();
+    }
+
     UIpNetDriver::UIpNetDriver() = default;
 
     UIpNetDriver::~UIpNetDriver() { Close(); }

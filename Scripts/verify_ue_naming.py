@@ -23,7 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCAN_ROOTS = ("Engine", "Plugins", "Projects", "Tests", "Tools")
 SKIP_DIR_NAMES = {".git", "build", "ThirdParty", "Content", "Intermediate", "Cache"}
 
-# Unprefixed aliases that must not remain after the UE naming sweep
+# Legacy unprefixed aliases that must not remain after the UE naming sweep
 RE_USING_ALIAS = re.compile(
     r"^\s*using\s+(?:Application|ApplicationProps|Window|WindowProps|Layer|LayerStack|Log|LogLevel|"
     r"Timestep|Input|ConfigFile|Event|EventType|EventCategory|EventDispatcher|"
@@ -38,6 +38,9 @@ RE_USING_ALIAS = re.compile(
     r"OpenGLUniformBuffer|OpenGLRenderDriver)\s*=",
     re.MULTILINE,
 )
+# Docs/NAMING.md §1: using-aliases must be U/A/F/I/E/T prefixed (Ref/Scope are documented exceptions)
+RE_USING_ANY = re.compile(r"^\s*using\s+([A-Za-z_]\w*)\s*=", re.MULTILINE)
+ALLOWED_UNPREFIXED_ALIASES = {"Ref", "Scope"}
 RE_SCENE = re.compile(r"\b(FSceneRenderer|GetSceneRenderer|class SceneRenderer)\b")
 RE_MEMBER_M = re.compile(r"\bm_[A-Za-z]\w*")
 RE_MEMBER_S = re.compile(r"\bs_[A-Za-z]\w*")
@@ -112,6 +115,13 @@ def main() -> int:
             violations.append(f"{rel}: read error {exc}")
             continue
         for m in RE_USING_ALIAS.finditer(text):
+            violations.append(f"{rel}: unprefixed using-alias `{m.group(0).strip()}`")
+        for m in RE_USING_ANY.finditer(text):
+            name = m.group(1)
+            if name in ALLOWED_UNPREFIXED_ALIASES:
+                continue
+            if name and name[0] in "UAFITE" and (len(name) == 1 or name[1].isupper() or name[1].isdigit()):
+                continue
             violations.append(f"{rel}: unprefixed using-alias `{m.group(0).strip()}`")
         for m in RE_SCENE.finditer(text):
             violations.append(f"{rel}: legacy Scene API `{m.group(1)}`")

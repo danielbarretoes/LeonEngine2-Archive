@@ -120,6 +120,10 @@ Engine mappings are generic (`MoveForward`, `Look`, `Jump`, `Sprint`). Fire / Re
 
 `UInventoryComponent` stores `AActor*` by slot id (`GiveItem` / `RemoveItem` / `GetActive` / `Cycle`). `AWeaponBase` owns magazine, fire cooldown, and a stub `ServerFire`; traces, VFX, and match rules stay in the game.
 
+`UGameInstance::StartListenServer` / `ConnectToHost` / `ShutdownNetDriver` own IP session setup. Transport is injected with `UIpNetDriver::SetTransportFactory` (ENet lives in the plugin). `UWorld::GetTimerManager()` is the engine countdown list; match FSM stays on the GameMode.
+
+`ACharacter` consumes `CrouchBit` (capsule half-height, crouched walk speed, `FlagCrouched`). `USkeletalMeshComponent::GetBoneLocation` / `GetSocketLocation` expose the evaluated pose. `ACharacter::EnableRagdoll` prefers a `UPhysicsAsset` on the mesh and falls back to capsule simulation.
+
 `FProceduralPrimitiveSpawner::SpawnStaticBox` creates a WorldStatic collision box; game builders add materials/meshes.
 
 ## Animation flow
@@ -156,7 +160,7 @@ Engine: `FParticleEmitterSettings`, `UParticleComponent`, `FParticleRenderer`. D
 
 ## UMG
 
-Engine: `UWidget` tree, `FUIRenderer`, `FUILayout` (boxes / MeasurePadded / Place*), `UProgressBar`, `UHorizontalBox`, `UVerticalBox`. Product GI/GM accessors stay in the game (`FLeonTournamentUILayout`).
+Engine: `UWidget` tree, `FUIRenderer`, `FUILayout` (boxes / MeasurePadded / Place*), `UProgressBar`, `UHorizontalBox`, `UVerticalBox`, `USlider`, `UCheckBox`, `UWidgetSwitcher`, `UScrollBox`. Product GI/GM accessors stay in the game (`FLeonTournamentUILayout`).
 
 ## Physics / traces
 
@@ -174,7 +178,7 @@ SimulatedProxy
   → no PerformMovement, no dynamics write-back, no Jolt System::Update on Client worlds
 ```
 
-Gameplay pose is owned by CharacterMovement (pawns) and SimplePhysics write-back (simulating bodies) on authority. The Jolt plugin ticks the native world on authority only; it does not currently map Jolt body poses onto actors. Ragdoll on SimulatedProxy is visual/net pose, not local dynamics.
+Gameplay pose is owned by CharacterMovement (pawns) and SimplePhysics write-back (simulating bodies) on authority. The Jolt plugin ticks the native world on authority only; it does not currently map Jolt body poses onto actors. `ACharacter::EnableRagdoll` uses `UPhysicsAsset` bodies + distance constraints when assigned, otherwise the capsule. Ragdoll on SimulatedProxy is visual/net pose, not local dynamics.
 
 ## Asset flow
 

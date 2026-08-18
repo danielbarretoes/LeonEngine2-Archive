@@ -36,12 +36,12 @@ namespace Leon {
 
     private:
         // CPU State Cache to prevent redundant OpenGL driver state switches
-        bool DepthTestEnabled = false;
-        bool DepthMaskEnabled = true;
+        bool bDepthTestEnabled = false;
+        bool bDepthMaskEnabled = true;
         EDepthFunc DepthFunc = EDepthFunc::Less;
-        bool CullEnabled = false;
+        bool bCullEnabled = false;
         ECullMode CullMode = ECullMode::Back;
-        bool BlendEnabled = false;
+        bool bBlendEnabled = false;
         EBlendFactor SrcBlend = EBlendFactor::SrcAlpha;
         EBlendFactor DstBlend = EBlendFactor::OneMinusSrcAlpha;
         uint32_t CurrentFBO = 0;

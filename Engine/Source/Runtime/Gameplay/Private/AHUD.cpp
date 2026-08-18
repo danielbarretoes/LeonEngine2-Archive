@@ -117,4 +117,14 @@ namespace Leon {
         return false;
     }
 
+    bool AHUD::OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos) {
+        for (auto it = ViewportWidgets.rbegin(); it != ViewportWidgets.rend(); ++it) {
+            if (*it && (*it)->IsHitTestable()) {
+                if ((*it)->OnMouseWheel(InWheelDelta, InMousePos))
+                    return true;
+            }
+        }
+        return false;
+    }
+
 } // namespace Leon

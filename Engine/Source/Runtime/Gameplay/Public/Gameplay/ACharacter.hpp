@@ -74,6 +74,18 @@ namespace Leon {
         virtual void Landed(const FHitResult& InHit);
         virtual void OnMovementModeChanged(EMovementMode InPrevMode, EMovementMode InNewMode);
 
+        virtual void Crouch();
+        virtual void UnCrouch();
+        bool IsCrouched() const { return bIsCrouched; }
+        float GetCrouchedEyeHeight() const { return CrouchedEyeHeight; }
+        void SetCrouchedEyeHeight(float InHeight) { CrouchedEyeHeight = InHeight; }
+        float GetCrouchedHalfHeight() const { return CrouchedHalfHeight; }
+        void SetCrouchedHalfHeight(float InHalfHeight) { CrouchedHalfHeight = InHalfHeight; }
+
+        virtual void EnableRagdoll(const glm::vec3& InImpulse);
+        virtual void StopRagdoll();
+        bool IsRagdoll() const { return bIsRagdoll; }
+
         bool IsFalling() const;
         bool IsMovingOnGround() const;
         float GetVerticalVelocity() const;
@@ -85,7 +97,7 @@ namespace Leon {
         void GetCapsuleAABB(glm::vec3& OutMin, glm::vec3& OutMax) const;
         /** Full capsule height (diameter along up axis). */
         /** Full capsule height (diameter along up axis). Tuned near human mesh (~1.8 m for EyeHeight 1.7). */
-        float GetCapsuleHeight() const { return EyeHeight + 0.1f; }
+        float GetCapsuleHeight() const { return bIsCrouched ? CrouchedHalfHeight * 2.0f : EyeHeight + 0.1f; }
         void SnapToFloorPublic() { SnapToFloor(); }
 
         /** World-space eye / first-person view location (Unreal GetPawnViewLocation lite). */
@@ -125,8 +137,8 @@ namespace Leon {
     protected:
         /** When false, look still drives the camera but does not yaw the pawn (death free-cam). */
         virtual bool ShouldApplyControlYawToActor() const { return true; }
-        /** Remote control-move apply (listen-server). Death freeze overrides this. */
-        virtual bool CanApplyControlMove() const { return true; }
+        /** Remote control-move apply (listen-server). Death freeze / ragdoll override this. */
+        virtual bool CanApplyControlMove() const { return !bIsRagdoll; }
 
         FControlInput BuildLocalControlInput() const;
         void ApplyControlSchema(const FControlInput& InInput);
@@ -152,9 +164,14 @@ namespace Leon {
         float FloorZ = 0.0f;
         float CapsuleRadius = 0.4f;
         float EyeHeight = 1.7f;
+        float CrouchedEyeHeight = 1.0f;
+        float CrouchedHalfHeight = 0.6f;
         bool bThirdPerson = false;
         bool bMeshHiddenInGame = false;
         bool bJumpWasDown = false;
+        bool bIsCrouched = false;
+        bool bIsRagdoll = false;
+        bool bMeshRagdoll = false;
         bool bHasPendingControlInput = false;
         FControlInput PendingControlInput;
 

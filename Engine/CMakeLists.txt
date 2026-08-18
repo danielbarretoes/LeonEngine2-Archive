@@ -71,6 +71,10 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/UMG/Private/UProgressBar.cpp
     Source/Runtime/UMG/Private/UHorizontalBox.cpp
     Source/Runtime/UMG/Private/UVerticalBox.cpp
+    Source/Runtime/UMG/Private/USlider.cpp
+    Source/Runtime/UMG/Private/UCheckBox.cpp
+    Source/Runtime/UMG/Private/UWidgetSwitcher.cpp
+    Source/Runtime/UMG/Private/UScrollBox.cpp
     # Audio
     Source/Runtime/Audio/Private/FAudioDevice.cpp
     Source/Runtime/Audio/Private/USoundWave.cpp
@@ -80,6 +84,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Engine/Private/UEngineTravel.cpp
     Source/Runtime/Engine/Private/UWorld.cpp
     Source/Runtime/Engine/Private/UGameInstance.cpp
+    Source/Runtime/Engine/Private/FTimerManager.cpp
     Source/Runtime/Engine/Private/FMapSerializer.cpp
     Source/Runtime/Engine/Private/FMapSerializerDeserialize.cpp
     Source/Runtime/Engine/Private/FMaterialSerializer.cpp

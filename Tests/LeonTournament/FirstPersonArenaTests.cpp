@@ -305,12 +305,12 @@ namespace Leon {
     TEST_SUITE("Match2v2Rules") {
         TEST_CASE("offline fill is 2 per team") {
             FMatchWorld f;
-            CHECK(f.GM->GetMatchConfig().MaxPlayers == 4);
-            CHECK(f.GM->GetMatchConfig().MaxTeamSize == 2);
+            CHECK(f.GM->GetMatchConfig().MaxPlayers == 12);
+            CHECK(f.GM->GetMatchConfig().MaxTeamSize == 6);
             CHECK(f.GM->GetMatchConfig().ScoreLimit == 25);
             f.GM->EnterLobby();
-            CHECK(f.GM->CountTeam(ELeonTournamentTeam::Team1) == 2);
-            CHECK(f.GM->CountTeam(ELeonTournamentTeam::Team2) == 2);
+            CHECK(f.GM->CountBotsOnTeam(ELeonTournamentTeam::Team1) == 2);
+            CHECK(f.GM->CountBotsOnTeam(ELeonTournamentTeam::Team2) == 2);
         }
 
         TEST_CASE("score limit 25 ends the match") {

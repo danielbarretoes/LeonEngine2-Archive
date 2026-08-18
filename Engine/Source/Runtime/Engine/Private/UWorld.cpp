@@ -141,6 +141,7 @@ namespace Leon {
         NetDriver = nullptr;
         PhysicsScene.reset();
         NavigationSystem.reset();
+        TimerManager.Clear();
         bIsTicking = false;
     }
 
@@ -195,6 +196,8 @@ namespace Leon {
             NetDriver->ConsumeIncomingInput();
             NetDriver->ConsumeIncomingRPCs();
         }
+
+        TimerManager.Tick(deltaSeconds);
 
         if (bBegunPlay) {
             auto tickOnce = [&](AActor* actor) {

@@ -6,13 +6,14 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 
 | Type | Owns | Must not own |
 | :--- | :--- | :--- |
-| `UGameInstance` | Application/session lifetime, travel URL, net mode, project services that survive map changes | Match score, kills, current pawn, match timer, combat state |
+| `UGameInstance` | Application/session lifetime, travel URL, net mode, listen/join via injected `INetTransport`, project services that survive map changes | Match score, kills, current pawn, match timer, combat state |
 | `AGameModeBase` | Authority rules, login, `RestartPlayer`, spawn/respawn, default class selection, match start/end | HUD widgets, camera, input, animation, replicated per-player stats |
 | `AGameStateBase` | Replicated world/match facts (phase, timer, team scores, winner) | Input, camera, weapon impl, local UI, spawn algorithms |
 | `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement | Movement, mesh, weapons |
 | `APlayerController` | Input, possession, camera, local HUD interaction, commands to authority | Health, score, weapon implementation, match rules |
-| `APawn` / `ACharacter` | Capsule, movement, mesh, jump/fall/land, camera attach, `FControlInput` serialize | Rifle/ammo, TDM, team assignment, kill scoring |
+| `APawn` / `ACharacter` | Capsule, movement, mesh, jump/crouch/fall/land, camera attach, `FControlInput` serialize, ragdoll helper | Rifle/ammo, TDM, team assignment, kill scoring |
 | `FControlInput` | Analog move, look, Jump/Crouch/Sprint bits | Fire, reload, weapon cycle, teams |
+| `FTimerManager` | World one-shot / looping delegates | Match FSM, kill scoring |
 | `UFootstepComponent` | Grounded cadence SFX from a game-supplied path | Product audio asset names hardcoded |
 | `UInventoryComponent` | Actor slot bag (`GiveItem` / `RemoveItem` / `Cycle`) | Weapon traces, ammo refill rules, teams |
 | `AWeaponBase` | Owner pawn, magazine, fire cooldown, reload timer | TDM, presets, VFX, damage traces |
@@ -74,7 +75,7 @@ Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`
 
 | Engine base | Project class | Role |
 | :--- | :--- | :--- |
-| `UGameInstance` | `ULeonTournamentGameInstance` | Session mode, LAN host/join, auto-offline match CLI |
+| `UGameInstance` | `ULeonTournamentGameInstance` | Session mode, LAN host/join wrappers, auto-offline match CLI |
 | `AGameModeBase` | `ALeonTournamentGameMode` | TDM rules, team assign, spawn, kill limit, duration |
 | `AGameStateBase` | `ALeonTournamentGameState` | TeamScores, MatchState, MatchTime, Winner |
 | `APlayerState` | `ALeonTournamentPlayerState` | Team, kills, deaths |

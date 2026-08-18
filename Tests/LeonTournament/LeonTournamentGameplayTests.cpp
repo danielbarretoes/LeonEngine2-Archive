@@ -97,9 +97,9 @@ namespace Leon {
             FMatchWorld f;
             REQUIRE(f.GS);
             f.GM->EnterLobby();
-            CHECK(f.GM->CountTeam(ELeonTournamentTeam::Team1) <= 2);
-            CHECK(f.GM->CountTeam(ELeonTournamentTeam::Team2) <= 2);
-            CHECK(f.GM->CountTeam(ELeonTournamentTeam::Team1) + f.GM->CountTeam(ELeonTournamentTeam::Team2) == 4);
+            CHECK(f.GM->CountBotsOnTeam(ELeonTournamentTeam::Team1) == 2);
+            CHECK(f.GM->CountBotsOnTeam(ELeonTournamentTeam::Team2) == 2);
+            CHECK(f.GM->CountTeam(ELeonTournamentTeam::Team1) + f.GM->CountTeam(ELeonTournamentTeam::Team2) >= 4);
 
             f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
             auto* a = f.World->SpawnActor<ALeonTournamentCharacter>("A");

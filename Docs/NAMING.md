@@ -33,6 +33,18 @@ Official naming, directory layout, and coding standards for **LeonEngine2**, ali
 
 **File name = primary type:** `UWorld.hpp` / `UWorld.cpp`, `FWorldRenderer.hpp`, `IRenderAPI.hpp`.
 
+### Allowed exceptions
+
+These exist in the tree and must not be mass-renamed without a dedicated sweep. `Scripts/verify_ue_naming.py` allowlists the unprefixed aliases.
+
+| Exception | Why |
+| :--- | :--- |
+| `template <typename T> using Ref = TRef<T>` and `Scope = TScope<T>` plus `CreateRef` / `CreateScope` in `Core/Base.hpp` | Dual convenience aliases used throughout the engine; canonical names remain `TRef` / `TScope` / `MakeRef` / `MakeScope` |
+| `Tick(float DeltaSeconds)` on actors and components | Matches Unreal’s override signature; new non-override parameters still use `In*` |
+| Aggregation headers `Components.hpp`, `*Types.hpp`, `*Widgets.hpp` | Intentional bundles; tests skip the file=primary-type check |
+| `BIT`, `EVENT_CLASS_TYPE`, `EVENT_CLASS_CATEGORY` | Event-system macros kept beside `LE_*` |
+| Headers whose stem is a family (`FApplicationEvent.hpp`, `FBuffer.hpp`, `EMobility.hpp`) | Historical grouping; do not add new mismatches |
+
 ---
 
 ## 2. Runtime Module Layout (Unreal-style)
@@ -56,9 +68,19 @@ Engine/
         ├── RHI/Private/
         ├── Assets/Public/Assets/
         ├── Assets/Private/
+        ├── AI/Public/AI/               # UBehaviorTree, UBlackboard*, UAIPerceptionComponent
+        ├── AI/Private/
+        ├── Audio/Public/Audio/         # FAudioDevice, USoundWave, UAudioComponent
+        ├── Audio/Private/
+        ├── Physics/Public/Physics/     # IPhysicsScene, FHitResult, FSimplePhysicsScene
+        ├── Physics/Private/
         ├── Lightmass/Public/Lightmass/  # FLightmass, FLightBaker, FLightmapBuilder
         └── Lightmass/Private/
 ```
+
+Plugins (not Runtime modules): `Plugins/RHI/OpenGL` (`FOpenGL*`), `Plugins/Physics/Jolt` (`FJolt*`), `Plugins/Networking/ENet` (`FENetTransport`).
+
+`AAIController` lives under **Gameplay** (it is an `A*` actor). Behavior tree / perception types live under **AI**.
 
 Module folder names are **short** (`Core`, `Engine`, …) — no `Leon` prefix on modules.
 CMake exposes aliases `Leon::Core`, `Leon::Engine`, … for linking.

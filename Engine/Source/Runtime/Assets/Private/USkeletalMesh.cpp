@@ -44,6 +44,14 @@ namespace Leon {
         }
     }
 
+    const FSkeletalMeshSocket* USkeletalMesh::FindSocket(const std::string& InName) const {
+        for (const auto& socket : Sockets) {
+            if (socket.SocketName == InName)
+                return &socket;
+        }
+        return nullptr;
+    }
+
     TRef<FMaterialInstance>
     ResolveSkeletalSubmeshMaterial(USkeletalMesh& InMesh, const FSkeletalSubmesh& InSubmesh,
                                    const std::vector<TRef<FMaterialInstance>>& InMaterialOverrides) {

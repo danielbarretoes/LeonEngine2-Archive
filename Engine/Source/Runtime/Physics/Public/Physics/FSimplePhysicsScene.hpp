@@ -35,6 +35,13 @@ namespace Leon {
         ECollisionResponse GetResponseToChannel(ECollisionChannel InChannel) const override;
     };
 
+    class FSimplePhysicsConstraint final : public IPhysicsConstraint {
+    public:
+        FSimplePhysicsBody* BodyA = nullptr;
+        FSimplePhysicsBody* BodyB = nullptr;
+        float RestLength = 0.0f;
+    };
+
     /**
      * Engine fallback / canonical geometric scene. The Jolt plugin replaces this factory
      * when registered; gameplay only talks to IPhysicsScene.
@@ -47,6 +54,8 @@ namespace Leon {
         void Tick(float InDeltaSeconds) override;
         IPhysicsBody* CreateRigidBody(const FPhysicsBodyCreateInfo& InInfo) override;
         void DestroyRigidBody(IPhysicsBody* InBody) override;
+        IPhysicsConstraint* CreateConstraint(const FPhysicsConstraintCreateInfo& InInfo) override;
+        void DestroyConstraint(IPhysicsConstraint* InConstraint) override;
 
         bool LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
                                       AActor* InIgnore, FHitResult& OutHit) const override;
@@ -68,6 +77,7 @@ namespace Leon {
 
         UWorld* World = nullptr;
         std::vector<std::unique_ptr<FSimplePhysicsBody>> Bodies;
+        std::vector<std::unique_ptr<FSimplePhysicsConstraint>> Constraints;
     };
 
 } // namespace Leon

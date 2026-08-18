@@ -5,6 +5,7 @@
 #include "Assets/FAnimTypes.hpp"
 #include "Assets/USkeleton.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/FSkeletalMeshSocket.hpp"
 #include "Renderer/FVertexLayout.hpp"
 #include "RHI/FVertexArray.hpp"
 
@@ -36,6 +37,10 @@ namespace Leon {
 
         TRef<USkeleton> GetSkeleton() const { return Skeleton; }
         void SetSkeleton(const TRef<USkeleton>& InSkeleton);
+
+        void AddSocket(const FSkeletalMeshSocket& InSocket) { Sockets.push_back(InSocket); }
+        const std::vector<FSkeletalMeshSocket>& GetSockets() const { return Sockets; }
+        const FSkeletalMeshSocket* FindSocket(const std::string& InName) const;
 
         /**
          * Optional per-mesh inverse-bind matrices (same length as skeleton bones).
@@ -96,6 +101,7 @@ namespace Leon {
 
         TRef<USkeleton> Skeleton;
         std::vector<glm::mat4> InverseBindPoses;
+        std::vector<FSkeletalMeshSocket> Sockets;
         std::vector<FSkinnedMeshVertex> Vertices;
         std::vector<uint32_t> Indices;
         std::vector<FSkeletalSubmesh> Submeshes;

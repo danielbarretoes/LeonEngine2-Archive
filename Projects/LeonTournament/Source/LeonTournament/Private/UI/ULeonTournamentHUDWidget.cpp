@@ -28,73 +28,72 @@
 namespace Leon {
 
     namespace {
-        using Layout = FLeonTournamentUILayout;
-        ULeonTournamentGameInstance* GI() { return Layout::GI(); }
-        bool GamepadEdge(int InButton, bool& InOutWasDown) { return Layout::GamepadEdge(InButton, InOutWasDown); }
-        ALeonTournamentGameMode* GM(APlayerController* InPC) { return Layout::GM(InPC); }
-        ALeonTournamentGameState* GS(APlayerController* InPC) { return Layout::GS(InPC); }
-        bool IsClientWorld(APlayerController* InPC) { return Layout::IsClientWorld(InPC); }
-        constexpr float kFsCaption = Layout::kFsCaption;
-        constexpr float kFsBody = Layout::kFsBody;
-        constexpr float kFsLabel = Layout::kFsLabel;
-        constexpr float kFsButton = Layout::kFsButton;
-        constexpr float kFsSub = Layout::kFsSub;
-        constexpr float kFsTitle = Layout::kFsTitle;
-        constexpr float kFsHero = Layout::kFsHero;
-        constexpr float kFsScore = Layout::kFsScore;
-        constexpr float kFsTimer = Layout::kFsTimer;
-        constexpr float kFsVital = Layout::kFsVital;
-        constexpr float kFsBanner = Layout::kFsBanner;
+        ULeonTournamentGameInstance* GI() { return FLeonTournamentUILayout::GI(); }
+        bool GamepadEdge(int InButton, bool& InOutWasDown) { return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown); }
+        ALeonTournamentGameMode* GM(APlayerController* InPC) { return FLeonTournamentUILayout::GM(InPC); }
+        ALeonTournamentGameState* GS(APlayerController* InPC) { return FLeonTournamentUILayout::GS(InPC); }
+        bool IsClientWorld(APlayerController* InPC) { return FLeonTournamentUILayout::IsClientWorld(InPC); }
+        constexpr float kFsCaption = FLeonTournamentUILayout::kFsCaption;
+        constexpr float kFsBody = FLeonTournamentUILayout::kFsBody;
+        constexpr float kFsLabel = FLeonTournamentUILayout::kFsLabel;
+        constexpr float kFsButton = FLeonTournamentUILayout::kFsButton;
+        constexpr float kFsSub = FLeonTournamentUILayout::kFsSub;
+        constexpr float kFsTitle = FLeonTournamentUILayout::kFsTitle;
+        constexpr float kFsHero = FLeonTournamentUILayout::kFsHero;
+        constexpr float kFsScore = FLeonTournamentUILayout::kFsScore;
+        constexpr float kFsTimer = FLeonTournamentUILayout::kFsTimer;
+        constexpr float kFsVital = FLeonTournamentUILayout::kFsVital;
+        constexpr float kFsBanner = FLeonTournamentUILayout::kFsBanner;
 
-        FMargin BoxTL(float InX, float InY, float InW, float InH) { return Layout::BoxTL(InX, InY, InW, InH); }
+        FMargin BoxTL(float InX, float InY, float InW, float InH) { return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH); }
         FMargin BoxBL(float InX, float InBottom, float InW, float InH) {
-            return Layout::BoxBL(InX, InBottom, InW, InH);
+            return FLeonTournamentUILayout::BoxBL(InX, InBottom, InW, InH);
         }
         FMargin BoxBR(float InRight, float InBottom, float InW, float InH) {
-            return Layout::BoxBR(InRight, InBottom, InW, InH);
+            return FLeonTournamentUILayout::BoxBR(InRight, InBottom, InW, InH);
         }
         FMargin BoxTC(float InTop, float InW, float InH, float InOx = 0.0f) {
-            return Layout::BoxTC(InTop, InW, InH, InOx);
+            return FLeonTournamentUILayout::BoxTC(InTop, InW, InH, InOx);
         }
         FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f) {
-            return Layout::BoxBC(InBottom, InW, InH, InOx);
+            return FLeonTournamentUILayout::BoxBC(InBottom, InW, InH, InOx);
         }
-        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return Layout::BoxC(InOx, InOy, InW, InH); }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
         glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f, float InPadY = 6.0f) {
-            return Layout::MeasurePadded(InText, InScale, InPadX, InPadY);
+            return FLeonTournamentUILayout::MeasurePadded(InText, InScale, InPadX, InPadY);
         }
         TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = kFsButton,
                                  float InMinW = 200.0f, float InMinH = 0.0f) {
-            return Layout::MakeButton(InName, InLabel, InFont, InMinW, InMinH);
+            return FLeonTournamentUILayout::MakeButton(InName, InLabel, InFont, InMinW, InMinH);
         }
         void PlaceButtonTL(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InX, float InY) {
-            Layout::PlaceButtonTL(InRoot, InBtn, InX, InY);
+            FLeonTournamentUILayout::PlaceButtonTL(InRoot, InBtn, InX, InY);
         }
         void PlaceButtonC(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InOx, float InOy) {
-            Layout::PlaceButtonC(InRoot, InBtn, InOx, InOy);
+            FLeonTournamentUILayout::PlaceButtonC(InRoot, InBtn, InOx, InOy);
         }
         void PlaceTextTL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InY,
                          float InMinW = 0.0f, float InMinH = 0.0f) {
-            Layout::PlaceTextTL(InRoot, InText, InX, InY, InMinW, InMinH);
+            FLeonTournamentUILayout::PlaceTextTL(InRoot, InText, InX, InY, InMinW, InMinH);
         }
         void PlaceTextTC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InTop, float InMinW = 0.0f,
                          float InOx = 0.0f) {
-            Layout::PlaceTextTC(InRoot, InText, InTop, InMinW, InOx);
+            FLeonTournamentUILayout::PlaceTextTC(InRoot, InText, InTop, InMinW, InOx);
         }
         void PlaceTextBL(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InX, float InBottom,
                          float InMinW = 0.0f) {
-            Layout::PlaceTextBL(InRoot, InText, InX, InBottom, InMinW);
+            FLeonTournamentUILayout::PlaceTextBL(InRoot, InText, InX, InBottom, InMinW);
         }
         void PlaceTextBR(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InRight, float InBottom,
                          float InMinW = 0.0f) {
-            Layout::PlaceTextBR(InRoot, InText, InRight, InBottom, InMinW);
+            FLeonTournamentUILayout::PlaceTextBR(InRoot, InText, InRight, InBottom, InMinW);
         }
         void PlaceTextBC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InBottom, float InMinW = 0.0f) {
-            Layout::PlaceTextBC(InRoot, InText, InBottom, InMinW);
+            FLeonTournamentUILayout::PlaceTextBC(InRoot, InText, InBottom, InMinW);
         }
         void PlaceTextC(UCanvasPanel& InRoot, const TRef<UTextBlock>& InText, float InOx, float InOy,
                         float InMinW = 0.0f, float InMinH = 0.0f) {
-            Layout::PlaceTextC(InRoot, InText, InOx, InOy, InMinW, InMinH);
+            FLeonTournamentUILayout::PlaceTextC(InRoot, InText, InOx, InOy, InMinW, InMinH);
         }
     } // namespace
 
@@ -215,7 +214,7 @@ namespace Leon {
         HealthBar = std::make_shared<UProgressBar>("HPBar");
         HealthBar->SetSize({240.0f, barH});
         HealthBar->SetFillColor({0.35f, 0.90f, 0.45f, 0.95f});
-        Layout::PlaceWidgetBL(*Root, HealthBar, 44.0f, bottomPad + 8.0f);
+        FLeonTournamentUILayout::PlaceWidgetBL(*Root, HealthBar, 44.0f, bottomPad + 8.0f);
 
         AmmoLabel = std::make_shared<UTextBlock>("AmmoLabel");
         AmmoLabel->SetText("AMMO");
@@ -234,7 +233,7 @@ namespace Leon {
         AmmoBar = std::make_shared<UProgressBar>("AmmoBar");
         AmmoBar->SetSize({240.0f, barH});
         AmmoBar->SetFillColor({0.75f, 0.82f, 1.0f, 0.95f});
-        Layout::PlaceWidgetBR(*Root, AmmoBar, 44.0f, bottomPad + 8.0f);
+        FLeonTournamentUILayout::PlaceWidgetBR(*Root, AmmoBar, 44.0f, bottomPad + 8.0f);
 
         WeaponSlotsText = std::make_shared<UTextBlock>("WeaponSlots");
         WeaponSlotsText->SetText("[1]  2  3  4  5  6");

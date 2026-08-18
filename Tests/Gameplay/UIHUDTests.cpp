@@ -17,6 +17,10 @@
 #include "UMG/UProgressBar.hpp"
 #include "UMG/UHorizontalBox.hpp"
 #include "UMG/UVerticalBox.hpp"
+#include "UMG/USlider.hpp"
+#include "UMG/UCheckBox.hpp"
+#include "UMG/UWidgetSwitcher.hpp"
+#include "UMG/UScrollBox.hpp"
 #include "Engine/FMapSerializer.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -403,6 +407,42 @@ Actors:
             CHECK(d->GetPosition().y == doctest::Approx(14.0f));
             CHECK(v->GetSize().x == doctest::Approx(30.0f));
             CHECK(v->GetSize().y == doctest::Approx(19.0f));
+        }
+
+        TEST_CASE("USlider UCheckBox UWidgetSwitcher UScrollBox") {
+            auto slider = std::make_shared<USlider>("S");
+            slider->SetSize({100.0f, 20.0f});
+            slider->SetValue(0.25f);
+            CHECK(slider->GetValue() == doctest::Approx(0.25f));
+            float last = -1.0f;
+            slider->OnValueChanged = [&](float InValue) { last = InValue; };
+            FGeometry geom;
+            geom.Size = {100.0f, 20.0f};
+            geom.AbsolutePosition = {0.0f, 0.0f};
+            slider->Paint(geom);
+            CHECK(slider->OnMouseButtonDown(0, {50.0f, 10.0f}));
+            CHECK(last == doctest::Approx(0.5f));
+
+            auto box = std::make_shared<UCheckBox>("C");
+            CHECK_FALSE(box->IsChecked());
+            box->Paint(geom);
+            CHECK(box->OnMouseButtonDown(0, {5.0f, 5.0f}));
+            CHECK(box->IsChecked());
+
+            auto sw = std::make_shared<UWidgetSwitcher>("SW");
+            auto a = std::make_shared<UWidget>("A");
+            auto b = std::make_shared<UWidget>("B");
+            sw->AddChild(a);
+            sw->AddChild(b);
+            CHECK(sw->GetActiveWidget() == a.get());
+            sw->SetActiveWidgetIndex(1);
+            CHECK(sw->GetActiveWidget() == b.get());
+
+            auto scroll = std::make_shared<UScrollBox>("SB");
+            scroll->SetSize({100.0f, 40.0f});
+            scroll->SetContentHeight(200.0f);
+            CHECK(scroll->OnMouseWheel(-1.0f, {10.0f, 10.0f}));
+            CHECK(scroll->GetScrollOffset() > 0.0f);
         }
     }
 

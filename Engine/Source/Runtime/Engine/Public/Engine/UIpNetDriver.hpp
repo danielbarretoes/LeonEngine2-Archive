@@ -4,6 +4,7 @@
 #include "Engine/INetTransport.hpp"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -18,8 +19,13 @@ namespace Leon {
     public:
         static constexpr uint16_t DefaultPort = 7777;
 
+        using FCreateNetTransport = std::function<std::unique_ptr<INetTransport>()>;
+
         UIpNetDriver();
         ~UIpNetDriver() override;
+
+        static void SetTransportFactory(FCreateNetTransport InFactory);
+        static std::unique_ptr<INetTransport> CreateTransport();
 
         void SetTransport(std::unique_ptr<INetTransport> InTransport);
         INetTransport* GetTransport() const { return Transport.get(); }
@@ -39,6 +45,7 @@ namespace Leon {
         std::unordered_map<int32_t, size_t> ConnectionIndexById;
         uint16_t Port = DefaultPort;
         bool bListening = false;
+        static FCreateNetTransport TransportFactory;
     };
 
 } // namespace Leon

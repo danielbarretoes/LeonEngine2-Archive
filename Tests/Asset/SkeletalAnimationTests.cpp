@@ -6,8 +6,7 @@
 #include "Assets/USkeleton.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Gameplay/ACharacter.hpp"
-#include "Gameplay/FAnimStateMachine.hpp"
-#include "Gameplay/UAnimInstance.hpp"
+#include "Gameplay/USkeletalMeshComponent.hpp"
 #include "Engine/UWorld.hpp"
 #include "Engine/Components.hpp"
 
@@ -277,5 +276,27 @@ TEST_SUITE("Skeletal Animation") {
         character->UpdateAnimInstance(*anim);
         CHECK(anim->GetFloat("Speed") >= 0.0f);
         CHECK_FALSE(anim->GetBool("bIsDead"));
+    }
+
+    TEST_CASE("GetBoneLocation and GetSocketLocation") {
+        auto world = UWorld::Create("SocketWorld");
+        auto* character = world->SpawnActor<ACharacter>("Hero");
+        REQUIRE(character);
+        auto mesh = character->GetMesh();
+        REQUIRE(mesh);
+        auto skel = MakeTwoBoneSkeleton();
+        auto skm = USkeletalMesh::Create("TwoBoneMesh");
+        skm->SetSkeleton(skel);
+        mesh->SetSkeletalMesh(skm);
+        FSkeletalMeshSocket socket;
+        socket.SocketName = "muzzle";
+        socket.BoneName = "spine";
+        socket.RelativeLocation = glm::vec3(0.0f, 0.25f, 0.0f);
+        mesh->AddSocket(socket);
+        glm::vec3 boneLoc{0.0f};
+        glm::vec3 socketLoc{0.0f};
+        REQUIRE(mesh->GetBoneLocation("spine", boneLoc));
+        REQUIRE(mesh->GetSocketLocation("muzzle", socketLoc));
+        CHECK(socketLoc.y == doctest::Approx(boneLoc.y + 0.25f).epsilon(0.15f));
     }
 }

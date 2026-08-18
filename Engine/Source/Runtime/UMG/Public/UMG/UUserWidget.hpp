@@ -34,6 +34,7 @@ namespace Leon {
         bool OnMouseMove(const glm::vec2& InMousePos) override;
         bool OnMouseButtonDown(int InButton, const glm::vec2& InMousePos) override;
         bool OnMouseButtonUp(int InButton, const glm::vec2& InMousePos) override;
+        bool OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos) override;
 
         int32_t GetZOrder() const { return ZOrder; }
 

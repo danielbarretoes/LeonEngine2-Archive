@@ -303,6 +303,11 @@ namespace Leon {
     }
 
     glm::vec3 ALeonTournamentCharacter::GetMuzzleSocketLocation() const {
+        if (auto mesh = GetMesh()) {
+            glm::vec3 loc{0.0f};
+            if (mesh->FindSocket("muzzle") && mesh->GetSocketLocation("muzzle", loc))
+                return loc;
+        }
         if (IsThirdPerson())
             return GetActorLocation();
         const glm::vec3 look = GetControlLookDirection();
@@ -416,19 +421,6 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::BeginDeathRagdoll() {
-        auto cap = GetCapsuleComponent();
-        if (!cap)
-            return;
-        // Sync kinematic pose into the body before enabling dynamics.
-        cap->SyncPhysicsTransform();
-        cap->SetMass(70.0f);
-        cap->SetLinearDamping(1.15f);
-        if (auto* body = dynamic_cast<FSimplePhysicsBody*>(cap->GetPhysicsBody())) {
-            body->Info.Mass = 70.0f;
-            body->Info.LinearDamping = 1.15f;
-            body->Info.bEnableGravity = true;
-        }
-        cap->SetSimulatePhysics(true);
         glm::vec3 impulse = PendingDeathImpulse;
         if (glm::length(impulse) < 1.0f) {
             impulse = GetControlLookDirection() * -80.0f;
@@ -437,17 +429,10 @@ namespace Leon {
             impulse *= 70.0f;
             impulse.y = std::max(impulse.y, 160.0f);
         }
-        cap->AddImpulse(impulse);
+        EnableRagdoll(impulse);
     }
 
-    void ALeonTournamentCharacter::StopDeathRagdoll() {
-        if (auto cap = GetCapsuleComponent()) {
-            cap->SetSimulatePhysics(false);
-            cap->SetLinearDamping(0.01f);
-            if (auto* body = cap->GetPhysicsBody())
-                body->SetLinearVelocity(glm::vec3(0.0f));
-        }
-    }
+    void ALeonTournamentCharacter::StopDeathRagdoll() { StopRagdoll(); }
 
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
         bDeadFrozen = true;

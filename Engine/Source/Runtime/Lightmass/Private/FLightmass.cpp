@@ -187,11 +187,11 @@ namespace {
     void AppendBox(FLightBakerScene& Scene, uint32_t ChartIndex, const glm::mat4& M, float Size,
                    const FBakeMaterialSample& Mat, bool bCastShadow) {
         float h = Size * 0.5f;
-        struct Face {
+        struct FLightmassFace {
             glm::vec3 P[4];
             glm::vec3 N;
         };
-        Face faces[6] = {
+        FLightmassFace faces[6] = {
             { { glm::vec3(-h, -h, h), glm::vec3(h, -h, h), glm::vec3(h, h, h), glm::vec3(-h, h, h) },
               glm::vec3(0, 0, 1) },
             { { glm::vec3(h, -h, -h), glm::vec3(-h, -h, -h), glm::vec3(-h, h, -h), glm::vec3(h, h, -h) },

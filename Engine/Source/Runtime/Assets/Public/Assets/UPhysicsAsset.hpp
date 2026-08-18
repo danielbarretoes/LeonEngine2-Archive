@@ -21,8 +21,14 @@ namespace Leon {
         float CapsuleHalfHeight = 0.16f;
     };
 
+    struct FPhysicsAssetConstraint {
+        std::string BoneA;
+        std::string BoneB;
+        float RestLength = 0.0f;
+    };
+
     /**
-     * Collision bodies associated with skeleton bones. Data model for ragdoll; no solver yet.
+     * Collision bodies associated with skeleton bones. Data model for ragdoll.
      */
     class UPhysicsAsset : public UObject {
     public:
@@ -31,14 +37,18 @@ namespace Leon {
         void AddBody(const FPhysicsAssetBody& InBody) { Bodies.push_back(InBody); }
         const std::vector<FPhysicsAssetBody>& GetBodies() const { return Bodies; }
 
+        void AddConstraint(const FPhysicsAssetConstraint& InConstraint) { Constraints.push_back(InConstraint); }
+        const std::vector<FPhysicsAssetConstraint>& GetConstraints() const { return Constraints; }
+
         bool SaveToFile(const std::string& InPath) const;
         bool LoadFromFile(const std::string& InPath);
 
-        static constexpr uint32_t Magic = 0x48535950; // 'PHYH' packed differently
-        static constexpr uint32_t Version = 1;
+        static constexpr uint32_t Magic = 0x48535950;
+        static constexpr uint32_t Version = 2;
 
     private:
         std::vector<FPhysicsAssetBody> Bodies;
+        std::vector<FPhysicsAssetConstraint> Constraints;
     };
 
 } // namespace Leon

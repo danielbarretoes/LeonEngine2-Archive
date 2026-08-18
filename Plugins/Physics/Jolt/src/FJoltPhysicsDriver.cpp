@@ -36,14 +36,14 @@ namespace Leon {
         static constexpr uint NUM_LAYERS(2);
     } // namespace BroadPhaseLayers
 
-    class BPLayerInterfaceImpl final : public BroadPhaseLayerInterface {
+    class FJoltBPLayerInterface final : public BroadPhaseLayerInterface {
     public:
-        BPLayerInterfaceImpl() {
-            mObjectToBroadPhase[Layers::NON_MOVING] = BroadPhaseLayers::NON_MOVING;
-            mObjectToBroadPhase[Layers::MOVING] = BroadPhaseLayers::MOVING;
+        FJoltBPLayerInterface() {
+            ObjectToBroadPhase[Layers::NON_MOVING] = BroadPhaseLayers::NON_MOVING;
+            ObjectToBroadPhase[Layers::MOVING] = BroadPhaseLayers::MOVING;
         }
             uint GetNumBroadPhaseLayers() const override { return BroadPhaseLayers::NUM_LAYERS; }
-            BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer inLayer) const override { return mObjectToBroadPhase[inLayer]; }
+            BroadPhaseLayer GetBroadPhaseLayer(ObjectLayer inLayer) const override { return ObjectToBroadPhase[inLayer]; }
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
             const char* GetBroadPhaseLayerName(BroadPhaseLayer inLayer) const override {
                 return (inLayer == BroadPhaseLayers::NON_MOVING) ? "NON_MOVING" : "MOVING";
@@ -51,10 +51,10 @@ namespace Leon {
 #endif
 
     private:
-        BroadPhaseLayer mObjectToBroadPhase[Layers::NUM_LAYERS];
+        BroadPhaseLayer ObjectToBroadPhase[Layers::NUM_LAYERS];
     };
 
-    class ObjectVsBroadPhaseLayerFilterImpl : public ObjectVsBroadPhaseLayerFilter {
+    class FJoltObjectVsBroadPhaseLayerFilter : public ObjectVsBroadPhaseLayerFilter {
     public:
         bool ShouldCollide(ObjectLayer inLayer1, BroadPhaseLayer inLayer2) const override {
             switch (inLayer1) {
@@ -68,7 +68,7 @@ namespace Leon {
         }
     };
 
-    class ObjectLayerPairFilterImpl : public ObjectLayerPairFilter {
+    class FJoltObjectLayerPairFilter : public ObjectLayerPairFilter {
     public:
         bool ShouldCollide(ObjectLayer inObject1, ObjectLayer inObject2) const override {
             switch (inObject1) {
@@ -94,19 +94,19 @@ namespace Leon {
     class FJoltPhysicsScene final : public FSimplePhysicsScene {
     public:
         FJoltPhysicsScene() {
-            if (!sFactory) {
+            if (!bTypesRegistered) {
                 RegisterDefaultAllocator();
                 Trace = JoltTrace;
                 Factory::sInstance = new Factory();
                 RegisterTypes();
-                sFactory = true;
+                bTypesRegistered = true;
             }
             Temp = std::make_unique<TempAllocatorImpl>(8 * 1024 * 1024);
             Jobs = std::make_unique<JobSystemThreadPool>(cMaxPhysicsJobs, cMaxPhysicsBarriers,
                                                          std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1));
-            BPLayers = std::make_unique<BPLayerInterfaceImpl>();
-            ObjVsBP = std::make_unique<ObjectVsBroadPhaseLayerFilterImpl>();
-            ObjVsObj = std::make_unique<ObjectLayerPairFilterImpl>();
+            BPLayers = std::make_unique<FJoltBPLayerInterface>();
+            ObjVsBP = std::make_unique<FJoltObjectVsBroadPhaseLayerFilter>();
+            ObjVsObj = std::make_unique<FJoltObjectLayerPairFilter>();
             System = std::make_unique<PhysicsSystem>();
             System->Init(1024, 0, 1024, 1024, *BPLayers, *ObjVsBP, *ObjVsObj);
             System->SetGravity(Vec3(0, -22.0f, 0));
@@ -158,12 +158,12 @@ namespace Leon {
         }
 
     private:
-        static inline bool sFactory = false;
+        static inline bool bTypesRegistered = false;
         std::unique_ptr<TempAllocatorImpl> Temp;
         std::unique_ptr<JobSystemThreadPool> Jobs;
-        std::unique_ptr<BPLayerInterfaceImpl> BPLayers;
-        std::unique_ptr<ObjectVsBroadPhaseLayerFilterImpl> ObjVsBP;
-        std::unique_ptr<ObjectLayerPairFilterImpl> ObjVsObj;
+        std::unique_ptr<FJoltBPLayerInterface> BPLayers;
+        std::unique_ptr<FJoltObjectVsBroadPhaseLayerFilter> ObjVsBP;
+        std::unique_ptr<FJoltObjectLayerPairFilter> ObjVsObj;
         std::unique_ptr<PhysicsSystem> System;
     };
 

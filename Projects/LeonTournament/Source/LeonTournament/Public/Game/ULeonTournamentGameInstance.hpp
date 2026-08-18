@@ -60,7 +60,6 @@ namespace Leon {
         int32_t DesiredBotsTeam2 = 2;
         std::string JoinAddress = "127.0.0.1";
         uint16_t LanPort = UIpNetDriver::DefaultPort;
-        TRef<UIpNetDriver> SessionNetDriver;
         bool bAutoOfflineMatch = false;
         float AutoMatchSeconds = 65.0f;
         std::string AutoReportPath;

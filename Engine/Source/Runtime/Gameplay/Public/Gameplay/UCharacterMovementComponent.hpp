@@ -39,6 +39,8 @@ namespace Leon {
 
         float GetMaxWalkSpeed() const { return MaxWalkSpeed; }
         void SetMaxWalkSpeed(float InSpeed) { MaxWalkSpeed = InSpeed; }
+        float GetMaxWalkSpeedCrouched() const { return MaxWalkSpeedCrouched; }
+        void SetMaxWalkSpeedCrouched(float InSpeed) { MaxWalkSpeedCrouched = InSpeed; }
         float GetJumpZVelocity() const { return JumpZVelocity; }
         void SetJumpZVelocity(float InZ) { JumpZVelocity = InZ; }
         float GetGravityScale() const { return GravityScale; }
@@ -78,6 +80,7 @@ namespace Leon {
         glm::vec3 Acceleration{0.0f};
         glm::vec3 PendingInputVector{0.0f};
         float MaxWalkSpeed = 7.5f;
+        float MaxWalkSpeedCrouched = 3.5f;
         float MaxAcceleration = 28.0f;
         float BrakingDecelerationWalking = 24.0f;
         float GroundFriction = 8.0f;

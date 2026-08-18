@@ -101,4 +101,12 @@ namespace Leon {
         return false;
     }
 
+    bool UUserWidget::OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos) {
+        if (!IsVisible())
+            return false;
+        if (RootWidget && RootWidget->IsHitTestable())
+            return RootWidget->OnMouseWheel(InWheelDelta, InMousePos);
+        return false;
+    }
+
 } // namespace Leon

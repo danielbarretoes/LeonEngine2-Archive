@@ -13,11 +13,14 @@
 #include "ALeonTournamentDummy.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ULeonTournamentGameInstance.hpp"
+#include "Engine/UIpNetDriver.hpp"
 #include "FOpenGLRenderDriver.hpp"
 #include "FJoltPhysicsDriver.hpp"
+#include "FENetTransport.hpp"
 
 #include <cstdlib>
 #include <filesystem>
+#include <memory>
 #include <string>
 
 namespace {
@@ -67,6 +70,7 @@ namespace {
 int main(int argc, char** argv) {
     Leon::FOpenGLRenderDriver::Register();
     Leon::FJoltPhysicsDriver::Register();
+    Leon::UIpNetDriver::SetTransportFactory([]() { return std::make_unique<Leon::FENetTransport>(); });
 
     auto& registry = Leon::UClassRegistry::Get();
     registry.RegisterClass<Leon::ALeonTournamentGameMode>("ALeonTournamentGameMode");

@@ -6,6 +6,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <cstdint>
 #include <functional>
 #include <vector>
 
@@ -56,6 +57,20 @@ namespace Leon {
         virtual ECollisionResponse GetResponseToChannel(ECollisionChannel InChannel) const = 0;
     };
 
+    class IPhysicsConstraint {
+    public:
+        virtual ~IPhysicsConstraint() = default;
+    };
+
+    enum class EPhysicsConstraintType : uint8_t { Distance = 0, Fixed = 1, Hinge = 2 };
+
+    struct FPhysicsConstraintCreateInfo {
+        IPhysicsBody* BodyA = nullptr;
+        IPhysicsBody* BodyB = nullptr;
+        EPhysicsConstraintType Type = EPhysicsConstraintType::Distance;
+        float RestLength = 0.0f;
+    };
+
     class IPhysicsScene {
     public:
         virtual ~IPhysicsScene() = default;
@@ -64,6 +79,8 @@ namespace Leon {
 
         virtual IPhysicsBody* CreateRigidBody(const FPhysicsBodyCreateInfo& InInfo) = 0;
         virtual void DestroyRigidBody(IPhysicsBody* InBody) = 0;
+        virtual IPhysicsConstraint* CreateConstraint(const FPhysicsConstraintCreateInfo& InInfo) = 0;
+        virtual void DestroyConstraint(IPhysicsConstraint* InConstraint) = 0;
 
         virtual bool LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
                                               ECollisionChannel InChannel, AActor* InIgnore,

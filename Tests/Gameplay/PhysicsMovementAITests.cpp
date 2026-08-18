@@ -297,4 +297,19 @@ TEST_SUITE("AI BehaviorTree / Blackboard") {
         asset.AddBody(body);
         CHECK(asset.GetBodies().size() == 1);
     }
+
+    TEST_CASE("EnableRagdoll falls back to capsule without PhysicsAsset") {
+        auto world = Leon::UWorld::Create("RagdollWorld");
+        world->InitWorld();
+        auto* ch = world->SpawnActor<Leon::ACharacter>("Hero");
+        REQUIRE(ch);
+        world->BeginPlay();
+        ch->EnableRagdoll({0.0f, 80.0f, 0.0f});
+        CHECK(ch->IsRagdoll());
+        REQUIRE(ch->GetCapsuleComponent());
+        CHECK(ch->GetCapsuleComponent()->IsSimulatingPhysics());
+        ch->StopRagdoll();
+        CHECK_FALSE(ch->IsRagdoll());
+        CHECK_FALSE(ch->GetCapsuleComponent()->IsSimulatingPhysics());
+    }
 }

@@ -6,6 +6,7 @@
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerState.hpp"
 #include "ALeonTournamentGameState.hpp"
+#include "Engine/FTimerManager.hpp"
 
 #include <unordered_map>
 #include <vector>
@@ -97,7 +98,8 @@ namespace Leon {
         std::vector<glm::vec3> Team1Spawns;
         std::vector<glm::vec3> Team2Spawns;
         std::unordered_map<ALeonTournamentCharacter*, std::vector<FLeonTournamentDamageCredit>> DamageLog;
-        std::unordered_map<AController*, float> RespawnTimers;
+        std::unordered_map<AController*, FTimerHandle> RespawnTimerHandles;
+        FTimerHandle CountdownHandle;
         int32_t NextBotId = 0;
         mutable int32_t NextTeam1Spawn = 0;
         mutable int32_t NextTeam2Spawn = 0;

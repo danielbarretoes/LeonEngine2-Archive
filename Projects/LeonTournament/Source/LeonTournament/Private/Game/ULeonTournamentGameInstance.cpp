@@ -47,52 +47,19 @@ namespace Leon {
     }
 
     bool ULeonTournamentGameInstance::HostLan(UWorld* InWorld) {
-        // Flow: host LAN session
-        // 1. Remember session mode on the GameInstance (survives UI, not match scores).
-        // 2. Bind ENet transport and attach the driver to the current world.
         SessionMode = ELeonTournamentSessionMode::LanHost;
-        SetNetMode(ENetMode::ListenServer);
-        if (!SessionNetDriver)
-            SessionNetDriver = CreateRef<UIpNetDriver>();
-        if (!SessionNetDriver->GetTransport())
-            SessionNetDriver->SetTransport(std::make_unique<FENetTransport>());
-        if (!SessionNetDriver->Listen(LanPort))
-            return false;
-        if (InWorld) {
-            InWorld->SetNetMode(ENetMode::ListenServer);
-            InWorld->SetNetDriver(SessionNetDriver.get());
-            SessionNetDriver->SetWorld(InWorld);
-        }
-        return true;
+        return StartListenServer(InWorld, LanPort);
     }
 
     bool ULeonTournamentGameInstance::JoinLan(UWorld* InWorld, const std::string& InAddress) {
         SessionMode = ELeonTournamentSessionMode::LanClient;
         JoinAddress = InAddress.empty() ? JoinAddress : InAddress;
-        SetNetMode(ENetMode::Client);
-        if (!SessionNetDriver)
-            SessionNetDriver = CreateRef<UIpNetDriver>();
-        if (!SessionNetDriver->GetTransport())
-            SessionNetDriver->SetTransport(std::make_unique<FENetTransport>());
-        if (!SessionNetDriver->Connect(JoinAddress, LanPort))
-            return false;
-        if (InWorld) {
-            InWorld->SetNetMode(ENetMode::Client);
-            InWorld->SetNetDriver(SessionNetDriver.get());
-            SessionNetDriver->SetWorld(InWorld);
-            // Clients must not keep a local GameMode as match authority.
-            InWorld->SetGameMode(nullptr);
-        }
-        return true;
+        return ConnectToHost(InWorld, JoinAddress, LanPort);
     }
 
     void ULeonTournamentGameInstance::ShutdownSession() {
-        if (SessionNetDriver) {
-            SessionNetDriver->Close();
-            SessionNetDriver.reset();
-        }
+        ShutdownNetDriver();
         SessionMode = ELeonTournamentSessionMode::Offline;
-        SetNetMode(ENetMode::Standalone);
     }
 
     void ULeonTournamentGameInstance::ConfigureAutoOfflineMatch(float InSeconds, const std::string& InReportPath) {

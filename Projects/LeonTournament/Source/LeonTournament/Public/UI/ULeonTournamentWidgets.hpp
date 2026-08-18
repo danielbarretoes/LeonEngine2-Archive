@@ -7,6 +7,10 @@
 #include "UMG/UImage.hpp"
 #include "UMG/UProgressBar.hpp"
 #include "UMG/UEditableText.hpp"
+#include "UMG/USlider.hpp"
+#include "UMG/UCheckBox.hpp"
+#include "UMG/UWidgetSwitcher.hpp"
+#include "UMG/UScrollBox.hpp"
 #include "FLeonTournamentTypes.hpp"
 
 #include <array>
@@ -30,6 +34,7 @@ namespace Leon {
         void OnPrevCharacter();
         void OnNextCharacter();
         TRef<UCanvasPanel> Root;
+        TRef<UWidgetSwitcher> SessionSwitcher;
         TRef<UEditableText> AddressField;
         TRef<UTextBlock> CharacterLabel;
         bool bPadAWasDown = false;
@@ -55,11 +60,13 @@ namespace Leon {
         void OnAdjustBotsTeam2(int InDelta);
         void RefreshBotLabels();
         TRef<UCanvasPanel> Root;
+        TRef<UScrollBox> RosterScroll;
         TRef<UTextBlock> RosterText;
         TRef<UTextBlock> CharacterLabel;
         TRef<UTextBlock> TitleText;
         TRef<UTextBlock> BotsTeam1Label;
         TRef<UTextBlock> BotsTeam2Label;
+        TRef<USlider> BotsTeam1Slider;
         TRef<UTextBlock> CapacityHint;
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;

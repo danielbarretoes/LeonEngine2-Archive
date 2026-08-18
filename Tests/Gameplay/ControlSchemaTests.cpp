@@ -42,6 +42,33 @@ TEST_SUITE("FControlInput") {
     }
 }
 
+TEST_SUITE("ACharacter crouch") {
+
+    TEST_CASE("CrouchBit shrinks capsule and sets anim flag") {
+        auto world = Leon::UWorld::Create("CrouchWorld");
+        auto* ch = world->SpawnActor<Leon::ACharacter>("Hero");
+        REQUIRE(ch);
+        const float standing = ch->GetCapsuleHalfHeight();
+        Leon::FControlInput in;
+        in.SetAction(Leon::FControlInput::CrouchBit, true);
+        std::vector<uint8_t> bytes;
+        in.Serialize(bytes);
+        ch->ApplyControlInput(bytes.data(), bytes.size());
+        ch->Tick(0.016f);
+        CHECK(ch->IsCrouched());
+        CHECK(ch->GetCapsuleHalfHeight() < standing);
+        CHECK(ch->GetAnimRepState().IsCrouched());
+
+        in.SetAction(Leon::FControlInput::CrouchBit, false);
+        bytes.clear();
+        in.Serialize(bytes);
+        ch->ApplyControlInput(bytes.data(), bytes.size());
+        ch->Tick(0.016f);
+        CHECK_FALSE(ch->IsCrouched());
+        CHECK(ch->GetCapsuleHalfHeight() == doctest::Approx(standing));
+    }
+}
+
 TEST_SUITE("ACharacter control schema") {
 
     TEST_CASE("ApplyControlInput sets look") {

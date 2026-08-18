@@ -75,8 +75,13 @@ LeonEngine2/
 │       ├── Renderer/Public/Renderer/     # FWorldRenderer, FMaterial, IBL, post
 │       ├── UMG/Public/UMG/               # UWidget hierarchy, FUIRenderer
 │       ├── Engine/Public/Engine/         # UEngine, UWorld, serializers
-│       └── Gameplay/Public/Gameplay/     # AActor, APawn, UGameplayStatics, …
+│       ├── Gameplay/Public/Gameplay/     # AActor, APawn, UGameplayStatics, …
+│       ├── AI/Public/AI/                 # Behavior trees, blackboard, perception
+│       ├── Audio/Public/Audio/           # FAudioDevice, USoundWave
+│       └── Physics/Public/Physics/       # IPhysicsScene, traces
 ├── Plugins/RHI/OpenGL/                    # FOpenGL* backend
+├── Plugins/Physics/Jolt/                  # FJoltPhysicsDriver
+├── Plugins/Networking/ENet/               # FENetTransport
 ├── Projects/Sandbox/
 ├── Tests/
 └── ThirdParty/

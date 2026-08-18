@@ -168,6 +168,8 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::ApplyMatchCapacityFromLobby() {
+        if (!GetLeonTournamentGameInstance())
+            return;
         Config.MaxPlayers = 12;
         Config.MaxTeamSize = 6;
     }
@@ -799,6 +801,25 @@ namespace Leon {
         StartingRemaining = Config.StartCountdownSeconds;
         if (gs)
             gs->SetCountdownRemaining(StartingRemaining);
+        if (World)
+            World->GetTimerManager().ClearTimer(CountdownHandle);
+        if (Config.StartCountdownSeconds <= 0.0f) {
+            if (gs) {
+                gs->SetMatchState(ELeonTournamentMatchState::Playing);
+                gs->SetCountdownRemaining(0.0f);
+            }
+            StartingRemaining = 0.0f;
+        } else if (World) {
+            World->GetTimerManager().SetTimer(
+                CountdownHandle,
+                [this]() {
+                    if (auto* match = GetGameState()) {
+                        match->SetMatchState(ELeonTournamentMatchState::Playing);
+                        match->SetCountdownRemaining(0.0f);
+                    }
+                },
+                Config.StartCountdownSeconds, false);
+        }
         PossessHumanPawns();
 
         if (World) {
@@ -809,7 +830,7 @@ namespace Leon {
         }
         RefreshTeamCounts();
         DamageLog.clear();
-        RespawnTimers.clear();
+        RespawnTimerHandles.clear();
     }
 
     void ALeonTournamentGameMode::EndMatch(ELeonTournamentMatchWinner InWinner) {
@@ -883,8 +904,20 @@ namespace Leon {
                 credit.Attacker->AddAssist();
         }
         credits.clear();
-        if (AController* ctrl = InVictim.GetController())
-            RespawnTimers[ctrl] = Config.RespawnDelaySeconds;
+        if (World) {
+            if (AController* ctrl = InVictim.GetController()) {
+                FTimerHandle handle;
+                World->GetTimerManager().SetTimer(
+                    handle,
+                    [this, ctrl]() {
+                        if (ctrl && !ctrl->IsPendingKill())
+                            RestartPlayer(ctrl);
+                        RespawnTimerHandles.erase(ctrl);
+                    },
+                    Config.RespawnDelaySeconds, false);
+                RespawnTimerHandles[ctrl] = handle;
+            }
+        }
 
         if (gs) {
             if (gs->GetTeam1Kills() >= Config.ScoreLimit)
@@ -898,7 +931,13 @@ namespace Leon {
         AController* ctrl = InCharacter.GetController();
         if (!ctrl)
             return;
-        RespawnTimers.erase(ctrl);
+        if (World) {
+            auto it = RespawnTimerHandles.find(ctrl);
+            if (it != RespawnTimerHandles.end()) {
+                World->GetTimerManager().ClearTimer(it->second);
+                RespawnTimerHandles.erase(it);
+            }
+        }
         RestartPlayer(ctrl);
     }
 
@@ -907,14 +946,15 @@ namespace Leon {
         if (!gs)
             return;
         if (gs->GetMatchState() == ELeonTournamentMatchState::Starting) {
-            StartingRemaining -= DeltaSeconds;
-            if (StartingRemaining <= 0.0f) {
-                gs->SetMatchState(ELeonTournamentMatchState::Playing);
-                gs->SetCountdownRemaining(0.0f);
-            } else {
-                gs->SetCountdownRemaining(StartingRemaining);
-            }
-            return;
+            if (World && World->GetTimerManager().IsTimerActive(CountdownHandle))
+                StartingRemaining = std::max(0.0f, World->GetTimerManager().GetTimerRemaining(CountdownHandle));
+            else
+                StartingRemaining = 0.0f;
+            gs->SetCountdownRemaining(StartingRemaining);
+            if (StartingRemaining > 0.0f)
+                return;
+            gs->SetMatchState(ELeonTournamentMatchState::Playing);
+            gs->SetCountdownRemaining(0.0f);
         }
         if (gs->GetMatchState() != ELeonTournamentMatchState::Playing)
             return;
@@ -929,17 +969,6 @@ namespace Leon {
                 else
                     EndMatch(ELeonTournamentMatchWinner::Draw);
             }
-        }
-
-        std::vector<AController*> ready;
-        for (auto& [ctrl, t] : RespawnTimers) {
-            t -= DeltaSeconds;
-            if (t <= 0.0f && ctrl && !ctrl->IsPendingKill())
-                ready.push_back(ctrl);
-        }
-        for (auto* ctrl : ready) {
-            RespawnTimers.erase(ctrl);
-            RestartPlayer(ctrl);
         }
     }
 
@@ -1099,7 +1128,7 @@ namespace Leon {
 
     void ALeonTournamentGameMode::EndPlay() {
         DamageLog.clear();
-        RespawnTimers.clear();
+        RespawnTimerHandles.clear();
         if (!bAutoPlayFinished) {
             auto* gi = GetLeonTournamentGameInstance();
             if (gi && gi->IsAutoOfflineMatch())

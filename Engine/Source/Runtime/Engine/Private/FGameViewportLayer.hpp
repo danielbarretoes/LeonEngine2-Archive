@@ -111,6 +111,10 @@ namespace Leon {
             dispatcher.Dispatch<FMouseButtonReleasedEvent>(
                 [this](FMouseButtonReleasedEvent& e) { return HandleUIMouseButton(e.GetMouseButton(), false); });
 
+            dispatcher.Dispatch<FMouseScrolledEvent>([this](FMouseScrolledEvent& e) {
+                return HandleUIMouseWheel(e.GetYOffset());
+            });
+
             dispatcher.Dispatch<FKeyPressedEvent>([this](FKeyPressedEvent& e) {
                 if (e.IsRepeat() || !World)
                     return false;
@@ -270,6 +274,19 @@ namespace Leon {
                 return hud->OnMouseButtonDown(InButton, pos);
             }
             return hud->OnMouseButtonUp(InButton, pos);
+        }
+
+        bool HandleUIMouseWheel(float InWheelDelta) {
+            if (!World)
+                return false;
+            APlayerController* pc = World->GetFirstPlayerController();
+            if (!pc || !pc->IsUIInputAllowed())
+                return false;
+            AHUD* hud = pc->GetHUD();
+            if (!hud)
+                return false;
+            auto [mx, my] = FInput::GetMousePosition();
+            return hud->OnMouseWheel(InWheelDelta, {mx, my});
         }
 
         void DrawLightGizmos(const FPerspectiveCamera& InCamera) {

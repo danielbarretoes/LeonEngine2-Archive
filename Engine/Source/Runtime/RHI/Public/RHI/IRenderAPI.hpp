@@ -38,8 +38,6 @@ namespace Leon {
 
     class IRenderAPI {
     public:
-        using API = ERenderAPI;
-
         virtual ~IRenderAPI() = default;
 
         virtual void Init() = 0;

@@ -36,6 +36,7 @@ namespace Leon {
         bool OnMouseMove(const glm::vec2& InMousePos);
         bool OnMouseButtonDown(int InButton, const glm::vec2& InMousePos);
         bool OnMouseButtonUp(int InButton, const glm::vec2& InMousePos);
+        bool OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos);
 
     protected:
         APlayerController* PlayerController = nullptr;

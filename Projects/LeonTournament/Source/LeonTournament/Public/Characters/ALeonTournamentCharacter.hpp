@@ -77,7 +77,7 @@ namespace Leon {
 
     protected:
         bool ShouldApplyControlYawToActor() const override { return !bDeadFrozen; }
-        bool CanApplyControlMove() const override { return !bDeadFrozen; }
+        bool CanApplyControlMove() const override { return !bDeadFrozen && ACharacter::CanApplyControlMove(); }
 
     private:
         void EnsureWeapon();

@@ -37,7 +37,8 @@ namespace Leon {
 
     glm::vec3 ACharacter::GetPawnViewLocation() const {
         const float halfH = GetCapsuleHalfHeight();
-        return GetActorLocation() + glm::vec3(0.0f, EyeHeight - halfH, 0.0f);
+        const float eye = bIsCrouched ? CrouchedEyeHeight : EyeHeight;
+        return GetActorLocation() + glm::vec3(0.0f, eye - halfH, 0.0f);
     }
 
     void ACharacter::GetViewPoint(glm::vec3& OutLocation, glm::vec3& OutForward) const {
@@ -67,6 +68,21 @@ namespace Leon {
         remaining.y = 0.0f;
         glm::vec3 applied(0.0f);
         glm::vec3 pos = GetActorLocation();
+        const float bottomOffset = -(GetCapsuleHalfHeight() - CapsuleRadius);
+
+        auto sweepCapsule = [&](const glm::vec3& InStart, const glm::vec3& InEnd, std::vector<FHitResult>& OutHits) {
+            OutHits.clear();
+            const glm::vec3 offsets[2] = {{0.0f, 0.0f, 0.0f}, {0.0f, bottomOffset, 0.0f}};
+            for (const glm::vec3& off : offsets) {
+                std::vector<FHitResult> slice;
+                World->SweepMultiByChannel(InStart + off, InEnd + off, CapsuleRadius, ECollisionChannel::WorldStatic,
+                                           this, slice);
+                OutHits.insert(OutHits.end(), slice.begin(), slice.end());
+            }
+            std::sort(OutHits.begin(), OutHits.end(),
+                      [](const FHitResult& a, const FHitResult& b) { return a.Distance < b.Distance; });
+            return static_cast<int32_t>(OutHits.size());
+        };
 
         for (int iter = 0; iter < 3; ++iter) {
             const float remainLen = glm::length(remaining);
@@ -75,7 +91,7 @@ namespace Leon {
 
             std::vector<FHitResult> hits;
             const glm::vec3 end = pos + remaining;
-            if (World->SweepMultiByChannel(pos, end, CapsuleRadius, ECollisionChannel::WorldStatic, this, hits) <= 0) {
+            if (sweepCapsule(pos, end, hits) <= 0) {
                 applied += remaining;
                 pos += remaining;
                 remaining = glm::vec3(0.0f);
@@ -397,6 +413,9 @@ namespace Leon {
         AnimRepState.Speed = 0.0f;
         AnimRepState.Direction = 0.0f;
         AnimRepState.SetFlag(FAnimRepState::FlagInAir, false);
+        StopRagdoll();
+        if (bIsCrouched)
+            UnCrouch();
         UpdateMeshVisibility();
     }
 
@@ -476,7 +495,9 @@ namespace Leon {
         glm::vec3 right(-forward.z, 0.0f, forward.x);
         glm::vec3 wish = forward * PendingControlInput.MoveY + right * PendingControlInput.MoveX;
         float speed = GetMoveSpeed();
-        if (PendingControlInput.HasAction(FControlInput::SprintBit))
+        if (bIsCrouched && CharacterMovement)
+            speed = CharacterMovement->GetMaxWalkSpeedCrouched();
+        else if (PendingControlInput.HasAction(FControlInput::SprintBit))
             speed *= SprintMultiplier;
         if (glm::length(wish) > 1e-4f && CharacterMovement)
             CharacterMovement->AddInputVector(glm::normalize(wish) * speed);
@@ -487,6 +508,12 @@ namespace Leon {
         if (!bJump && bJumpWasDown)
             StopJumping();
         bJumpWasDown = bJump;
+
+        const bool bCrouchHeld = PendingControlInput.HasAction(FControlInput::CrouchBit);
+        if (bCrouchHeld)
+            Crouch();
+        else
+            UnCrouch();
     }
 
     void ACharacter::UpdateCameraFromView() {
@@ -515,7 +542,7 @@ namespace Leon {
         AnimRepState.Direction = direction;
         AnimRepState.AimPitch = GetControlPitch();
         AnimRepState.SetFlag(FAnimRepState::FlagInAir, IsFalling());
-        AnimRepState.SetFlag(FAnimRepState::FlagCrouched, false);
+        AnimRepState.SetFlag(FAnimRepState::FlagCrouched, bIsCrouched);
     }
 
     void ACharacter::Jump() {
@@ -531,7 +558,74 @@ namespace Leon {
     }
 
     bool ACharacter::CanJump() const {
-        return CharacterMovement && CharacterMovement->CanJump();
+        return CharacterMovement && CharacterMovement->CanJump() && !bIsCrouched && !bIsRagdoll;
+    }
+
+    void ACharacter::Crouch() {
+        if (bIsCrouched || bIsRagdoll)
+            return;
+        const float oldHalf = GetCapsuleHalfHeight();
+        bIsCrouched = true;
+        const float newHalf = GetCapsuleHalfHeight();
+        auto& transform = GetTransform();
+        transform.Translation.y += (newHalf - oldHalf);
+        if (CapsuleComponent)
+            CapsuleComponent->SetCapsuleSize(CapsuleRadius, newHalf);
+    }
+
+    void ACharacter::UnCrouch() {
+        if (!bIsCrouched || bIsRagdoll)
+            return;
+        const float crouchedHalf = GetCapsuleHalfHeight();
+        const float standingHalf = (EyeHeight + 0.1f) * 0.5f;
+        glm::vec3 standingCenter = GetActorLocation();
+        standingCenter.y += (standingHalf - crouchedHalf);
+        if (World &&
+            World->OverlapAnyTestByChannel(standingCenter, glm::vec3(CapsuleRadius, standingHalf, CapsuleRadius),
+                                           ECollisionChannel::WorldStatic, this))
+            return;
+        bIsCrouched = false;
+        auto& transform = GetTransform();
+        transform.Translation.y += (standingHalf - crouchedHalf);
+        if (CapsuleComponent)
+            CapsuleComponent->SetCapsuleSize(CapsuleRadius, standingHalf);
+    }
+
+    void ACharacter::EnableRagdoll(const glm::vec3& InImpulse) {
+        if (bIsRagdoll)
+            return;
+        if (CharacterMovement)
+            CharacterMovement->StopMovementImmediately();
+        if (Mesh && Mesh->TryEnableRagdoll(InImpulse)) {
+            bIsRagdoll = true;
+            bMeshRagdoll = true;
+            return;
+        }
+        if (CapsuleComponent) {
+            CapsuleComponent->SyncPhysicsTransform();
+            CapsuleComponent->SetMass(70.0f);
+            CapsuleComponent->SetLinearDamping(1.15f);
+            CapsuleComponent->SetEnableGravity(true);
+            CapsuleComponent->SetSimulatePhysics(true);
+            CapsuleComponent->AddImpulse(InImpulse);
+        }
+        bIsRagdoll = true;
+        bMeshRagdoll = false;
+    }
+
+    void ACharacter::StopRagdoll() {
+        if (!bIsRagdoll)
+            return;
+        if (bMeshRagdoll && Mesh)
+            Mesh->StopRagdoll();
+        if (CapsuleComponent) {
+            CapsuleComponent->SetSimulatePhysics(false);
+            CapsuleComponent->SetLinearDamping(0.01f);
+            if (auto* body = CapsuleComponent->GetPhysicsBody())
+                body->SetLinearVelocity(glm::vec3(0.0f));
+        }
+        bIsRagdoll = false;
+        bMeshRagdoll = false;
     }
 
     void ACharacter::Landed(const FHitResult& InHit) {

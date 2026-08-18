@@ -97,4 +97,16 @@ namespace Leon {
         return false;
     }
 
+    bool UPanelWidget::OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos) {
+        if (!IsVisible())
+            return false;
+        for (auto it = Children.rbegin(); it != Children.rend(); ++it) {
+            if (*it && (*it)->IsHitTestable()) {
+                if ((*it)->OnMouseWheel(InWheelDelta, InMousePos))
+                    return true;
+            }
+        }
+        return false;
+    }
+
 } // namespace Leon

@@ -7,6 +7,7 @@
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/ENetTypes.hpp"
+#include "Engine/FTimerManager.hpp"
 #include "Physics/FHitResult.hpp"
 #include "Physics/IPhysicsScene.hpp"
 
@@ -112,6 +113,9 @@ namespace Leon {
         void SetNetDriver(UNetDriver* InDriver) { NetDriver = InDriver; }
         UNetDriver* GetNetDriver() const { return NetDriver; }
 
+        FTimerManager& GetTimerManager() { return TimerManager; }
+        const FTimerManager& GetTimerManager() const { return TimerManager; }
+
         // --- Rendering ---
         void OnRender(const FPerspectiveCamera& InCamera);
         FWorldRenderer* GetWorldRenderer();
@@ -164,6 +168,7 @@ namespace Leon {
         AGameStateBase* GameState = nullptr;
         ENetMode NetMode = ENetMode::Standalone;
         UNetDriver* NetDriver = nullptr;
+        FTimerManager TimerManager;
         TRef<IPhysicsScene> PhysicsScene;
         TScope<UNavigationSystem> NavigationSystem;
 

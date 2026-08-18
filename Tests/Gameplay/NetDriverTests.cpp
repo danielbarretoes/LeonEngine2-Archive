@@ -2,12 +2,17 @@
 
 #include "Core/FTimestep.hpp"
 #include "Engine/ULoopbackNetDriver.hpp"
+#include "Engine/UIpNetDriver.hpp"
+#include "Engine/UGameInstance.hpp"
+#include "Engine/INetTransport.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AGameModeBase.hpp"
 #include "Gameplay/AGameStateBase.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerState.hpp"
+
+#include <memory>
 
 namespace Leon {
 
@@ -230,6 +235,75 @@ namespace Leon {
 
             CHECK(clientWorld->FindActorByGuid(nearGuid) != nullptr);
             CHECK(clientWorld->FindActorByGuid(farGuid) == nullptr);
+        }
+    }
+
+    TEST_SUITE("UGameInstance session and FTimerManager") {
+
+        class FTestNetTransport final : public INetTransport {
+        public:
+            bool Listen(uint16_t) override {
+                bOpen = true;
+                bServer = true;
+                return true;
+            }
+            bool Connect(const std::string&, uint16_t) override {
+                bOpen = true;
+                bServer = false;
+                return true;
+            }
+            void Close() override { bOpen = false; }
+            void Poll() override {}
+            bool Send(int32_t, const uint8_t*, size_t, bool) override { return true; }
+            bool SendToAll(const uint8_t*, size_t, bool) override { return true; }
+            int32_t ConsumeAcceptedConnection() override { return -1; }
+            std::vector<FIncomingNetPacket> TakeIncoming() override { return {}; }
+            int32_t GetConnectionCount() const override { return 0; }
+            bool IsServer() const override { return bServer; }
+            bool IsOpen() const override { return bOpen; }
+
+        private:
+            bool bOpen = false;
+            bool bServer = false;
+        };
+
+        TEST_CASE("StartListenServer and ConnectToHost attach a driver") {
+            UIpNetDriver::SetTransportFactory([]() { return std::make_unique<FTestNetTransport>(); });
+            auto gi = MakeRef<UGameInstance>("GI");
+            auto world = UWorld::Create("ListenWorld");
+            CHECK(gi->StartListenServer(world.get(), 7777));
+            CHECK(world->GetNetMode() == ENetMode::ListenServer);
+            CHECK(world->GetNetDriver() != nullptr);
+            gi->ShutdownNetDriver();
+            CHECK(world->GetNetMode() == ENetMode::Standalone);
+
+            auto client = UWorld::Create("JoinWorld");
+            CHECK(gi->ConnectToHost(client.get(), "127.0.0.1", 7777));
+            CHECK(client->GetNetMode() == ENetMode::Client);
+            gi->ShutdownNetDriver();
+            UIpNetDriver::SetTransportFactory({});
+        }
+
+        TEST_CASE("FTimerManager one-shot loop and clear") {
+            auto world = UWorld::Create("TimerWorld");
+            int fires = 0;
+            FTimerHandle handle;
+            world->GetTimerManager().SetTimer(handle, [&]() { ++fires; }, 0.5f, false);
+            world->Tick(FTimestep(0.4f));
+            CHECK(fires == 0);
+            world->Tick(FTimestep(0.2f));
+            CHECK(fires == 1);
+            CHECK_FALSE(world->GetTimerManager().IsTimerActive(handle));
+
+            FTimerHandle loop;
+            world->GetTimerManager().SetTimer(loop, [&]() { ++fires; }, 0.25f, true);
+            world->Tick(FTimestep(0.3f));
+            world->Tick(FTimestep(0.3f));
+            CHECK(fires >= 3);
+            world->GetTimerManager().ClearTimer(loop);
+            const int afterClear = fires;
+            world->Tick(FTimestep(0.5f));
+            CHECK(fires == afterClear);
         }
     }
 

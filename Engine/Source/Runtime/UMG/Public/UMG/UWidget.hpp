@@ -81,6 +81,11 @@ namespace Leon {
             (void)InMousePos;
             return false;
         }
+        virtual bool OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos) {
+            (void)InWheelDelta;
+            (void)InMousePos;
+            return false;
+        }
 
         virtual bool HitTest(const glm::vec2& InPoint) const;
 

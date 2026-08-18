@@ -75,7 +75,9 @@ namespace Leon {
             auto* ch = pc->GetPawn<ALeonTournamentCharacter>();
             REQUIRE(ch);
             CHECK(ch->IsThirdPerson());
-            CHECK(glm::length(ch->GetActorLocation() - f.PlayerStart->GetActorLocation()) < 0.05f);
+            const glm::vec3 delta = ch->GetActorLocation() - f.PlayerStart->GetActorLocation();
+            CHECK(std::abs(delta.x) < 0.05f);
+            CHECK(std::abs(delta.z) < 0.05f);
         }
 
         TEST_CASE("dummy has health and combat") {

@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UInventoryComponent` (slot bag: `GiveItem` / `RemoveItem` / `GetActive` / `Cycle`) and `AWeaponBase` (owner pawn, magazine, fire stub). LeonTournament characters store the arsenal on the Engine inventory; weapon traces/presets stay on `ALeonTournamentWeapon`.
 - `FControlInput` control blob (analog move, look, Jump/Crouch/Sprint bits) on `ACharacter`. LeonTournament maps held fire to `CustomBit0`; reload stays ServerRPC.
 - `FProceduralPrimitiveSpawner::SpawnStaticBox` and `UFootstepComponent` (game supplies the sound path).
+- `UGameInstance::StartListenServer` / `ConnectToHost` / `ShutdownNetDriver` with injected `INetTransport` (`UIpNetDriver::SetTransportFactory`). LeonTournament `HostLan` / `JoinLan` are thin wrappers.
+- `FTimerManager` / `FTimerHandle` on `UWorld`. LeonTournament match countdown and respawn use `SetTimer`.
+- `ACharacter` crouch from `FControlInput::CrouchBit` (capsule, eye height, `FlagCrouched`, crouched walk speed).
+- `USkeletalMeshComponent::GetBoneLocation` / `GetSocketLocation` and optional `FSkeletalMeshSocket`.
+- UMG `USlider`, `UCheckBox`, `UWidgetSwitcher`, `UScrollBox`.
+- `ACharacter::EnableRagdoll` from `UPhysicsAsset` bodies + distance constraints, with capsule fallback.
 
 ### Renderer math contract (CPU / GPU / baker)
 

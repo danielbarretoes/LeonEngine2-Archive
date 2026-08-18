@@ -130,6 +130,24 @@ namespace Leon {
                 body->Info.Actor->SetActorLocation(actorLoc);
             }
         }
+
+        for (int iter = 0; iter < 3; ++iter) {
+            for (auto& constraint : Constraints) {
+                if (!constraint || !constraint->BodyA || !constraint->BodyB)
+                    continue;
+                glm::vec3 delta = constraint->BodyB->Location - constraint->BodyA->Location;
+                float dist = glm::length(delta);
+                if (dist < 1e-5f)
+                    continue;
+                glm::vec3 dir = delta / dist;
+                float error = dist - constraint->RestLength;
+                glm::vec3 corr = dir * (error * 0.5f);
+                if (constraint->BodyA->bSimulating)
+                    constraint->BodyA->Location += corr;
+                if (constraint->BodyB->bSimulating)
+                    constraint->BodyB->Location -= corr;
+            }
+        }
     }
 
     IPhysicsBody* FSimplePhysicsScene::CreateRigidBody(const FPhysicsBodyCreateInfo& InInfo) {
@@ -144,10 +162,40 @@ namespace Leon {
     }
 
     void FSimplePhysicsScene::DestroyRigidBody(IPhysicsBody* InBody) {
+        Constraints.erase(std::remove_if(Constraints.begin(), Constraints.end(),
+                                         [InBody](const std::unique_ptr<FSimplePhysicsConstraint>& c) {
+                                             return c && (c->BodyA == InBody || c->BodyB == InBody);
+                                         }),
+                          Constraints.end());
         Bodies.erase(
             std::remove_if(Bodies.begin(), Bodies.end(),
                            [InBody](const std::unique_ptr<FSimplePhysicsBody>& b) { return b.get() == InBody; }),
             Bodies.end());
+    }
+
+    IPhysicsConstraint* FSimplePhysicsScene::CreateConstraint(const FPhysicsConstraintCreateInfo& InInfo) {
+        auto* a = dynamic_cast<FSimplePhysicsBody*>(InInfo.BodyA);
+        auto* b = dynamic_cast<FSimplePhysicsBody*>(InInfo.BodyB);
+        if (!a || !b || a == b)
+            return nullptr;
+        auto constraint = std::make_unique<FSimplePhysicsConstraint>();
+        constraint->BodyA = a;
+        constraint->BodyB = b;
+        float rest = InInfo.RestLength;
+        if (rest <= 0.0f)
+            rest = glm::length(b->Location - a->Location);
+        constraint->RestLength = rest;
+        IPhysicsConstraint* raw = constraint.get();
+        Constraints.push_back(std::move(constraint));
+        return raw;
+    }
+
+    void FSimplePhysicsScene::DestroyConstraint(IPhysicsConstraint* InConstraint) {
+        Constraints.erase(std::remove_if(Constraints.begin(), Constraints.end(),
+                                         [InConstraint](const std::unique_ptr<FSimplePhysicsConstraint>& c) {
+                                             return c.get() == InConstraint;
+                                         }),
+                          Constraints.end());
     }
 
     bool FSimplePhysicsScene::LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,

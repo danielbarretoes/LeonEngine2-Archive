@@ -7,16 +7,16 @@ namespace Leon {
 
     void FOpenGLRenderAPI::Init() {
         glEnable(GL_DEPTH_TEST);
-        DepthTestEnabled = true;
+        bDepthTestEnabled = true;
 
         glDepthFunc(GL_LESS);
         DepthFunc = EDepthFunc::Less;
 
         glDepthMask(GL_TRUE);
-        DepthMaskEnabled = true;
+        bDepthMaskEnabled = true;
 
         glDisable(GL_BLEND);
-        BlendEnabled = false;
+        bBlendEnabled = false;
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         SrcBlend = EBlendFactor::SrcAlpha;
         DstBlend = EBlendFactor::OneMinusSrcAlpha;
@@ -24,7 +24,7 @@ namespace Leon {
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
-        CullEnabled = true;
+        bCullEnabled = true;
         CullMode = ECullMode::Back;
 
         // Enable seamless cubemap filtering for artifacts-free IBL filtering
@@ -52,7 +52,7 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthTesting(bool InEnabled) {
-        DepthTestEnabled = InEnabled;
+        bDepthTestEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_DEPTH_TEST);
         else
@@ -60,7 +60,7 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetDepthMask(bool InEnabled) {
-        DepthMaskEnabled = InEnabled;
+        bDepthMaskEnabled = InEnabled;
         glDepthMask(InEnabled ? GL_TRUE : GL_FALSE);
     }
 
@@ -84,7 +84,7 @@ namespace Leon {
 
     void FOpenGLRenderAPI::SetCulling(bool InEnabled, ECullMode InMode) {
         bool bEffectiveEnable = InEnabled && (InMode != ECullMode::None);
-        CullEnabled = bEffectiveEnable;
+        bCullEnabled = bEffectiveEnable;
         if (bEffectiveEnable)
             glEnable(GL_CULL_FACE);
         else
@@ -113,7 +113,7 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetBlendState(bool InEnabled) {
-        BlendEnabled = InEnabled;
+        bBlendEnabled = InEnabled;
         if (InEnabled)
             glEnable(GL_BLEND);
         else
