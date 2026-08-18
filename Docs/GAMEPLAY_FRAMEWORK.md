@@ -77,13 +77,13 @@ Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`
 | `APlayerController` | `ALeonTournamentPlayerController` | Look/fire commands, local HUD |
 | `ACharacter` | `ALeonTournamentCharacter` | First-person shooter pawn |
 | `UAnimInstance` | `ULeonTournamentAnimInstance` | Reads locomotion; no TDM rules |
-| `AAIController` | `ALeonTournamentBotController` | TDM enemy selection + BT asset |
+| `AAIController` | `ALeonTournamentBotController` | TDM enemy filter + BT asset; sight via Engine `UAIPerceptionComponent` |
 | `AHUD` | `ALeonTournamentHUD` | Crosshair, scores, hit marker |
 | — | `ALeonTournamentWeapon` | Arsenal, ammo, traces → damage |
 | — | `FLeonTournamentArenaBuilder` | Shared procedural arena/lab box spawn |
 | — | `FLeonTournamentDamageRules` | Friendly-fire / self-damage checks |
 | — | `FLeonTournamentWeaponVfx` | Muzzle/tracer/flame particle helpers |
-| — | `FLeonTournamentUILayout` | Measured UMG layout helpers (Inter 48px) |
+| — | `FLeonTournamentUILayout` | Product GI/GM accessors wrapping Engine `FUILayout` |
 
 `UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and traces live on `ALeonTournamentWeapon`.
 

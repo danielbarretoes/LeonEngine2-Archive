@@ -48,8 +48,6 @@ namespace Leon {
         std::vector<glm::vec3> Waypoints;
         std::vector<glm::vec3> CoverPoints;
         FLeonTournamentBotPersonality Personality;
-        glm::vec3 LastKnownLocation{0.0f};
-        float LastKnownAge = 0.0f;
         float AcquireTime = 0.0f;
         float StrafeTimer = 0.0f;
         float StrafeSign = 1.0f;

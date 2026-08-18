@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Framed net RPCs (`ENetRPCKind`, `UNetConnection` IncomingRPC/OutgoingRPC, `AActor::CallServerRPC` / `CallClientRPC` / `CallMulticastRPC`) over loopback and IP demux; LeonTournament reload uses ServerRPC (fire-held stays on control bits).
 - Net actor spawn/destroy in snapshots plus relevancy lite (`bReplicates`, `bAlwaysRelevant`, `NetCullDistanceSquared`); `AProjectile` replicates by default.
 - `UCharacterMovementComponent::ResolvePenetration` (WorldStatic SAT MTD). SimulatedProxy pawns skip movement and physics write-back; Jolt `System::Update` runs on authority worlds only.
+- Engine `FUILayout` (measured canvas helpers), `UProgressBar`, and lite `UHorizontalBox` / `UVerticalBox`. LeonTournament HUD health/ammo use ProgressBar; product GI/GM accessors stay on `FLeonTournamentUILayout`.
+- `UAIPerceptionComponent` / `FAISightConfig` (radius, half-FOV, LOS trace) on `AAIController`. LeonTournament bots delegate sight and last-known memory; team filters stay in the project.
 
 ### Renderer math contract (CPU / GPU / baker)
 

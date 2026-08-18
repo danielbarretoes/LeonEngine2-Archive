@@ -4,7 +4,10 @@
 #include "AI/UBehaviorTreeComponent.hpp"
 #include "AI/UBlackboardComponent.hpp"
 #include "AI/UPathFollowingComponent.hpp"
+#include "AI/UAIPerceptionComponent.hpp"
 #include "AI/FNavTypes.hpp"
+
+#include <vector>
 
 namespace Leon {
 
@@ -26,6 +29,11 @@ namespace Leon {
         TRef<UBehaviorTreeComponent> GetBrainComponent() const { return Brain; }
         TRef<UBlackboardComponent> GetBlackboardComponent() const { return Blackboard; }
         TRef<UPathFollowingComponent> GetPathFollowingComponent() const { return PathFollowing; }
+        TRef<UAIPerceptionComponent> GetPerceptionComponent() const { return Perception; }
+
+        void SetSightConfig(const FAISightConfig& InConfig);
+        const std::vector<AActor*>& GetPerceivedActors() const;
+        bool HasLineOfSightTo(AActor& InTarget) const;
 
         void UseBlackboard(const TRef<UBlackboardData>& InAsset);
 
@@ -40,6 +48,7 @@ namespace Leon {
         TRef<UBehaviorTreeComponent> Brain;
         TRef<UBlackboardComponent> Blackboard;
         TRef<UPathFollowingComponent> PathFollowing;
+        TRef<UAIPerceptionComponent> Perception;
         glm::vec3 LastPathedGoal{0.0f};
         bool bHasPathedGoal = false;
     };

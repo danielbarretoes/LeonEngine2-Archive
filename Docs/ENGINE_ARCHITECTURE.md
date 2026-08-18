@@ -16,7 +16,7 @@ LeonEngine2/
 │   ├── RHI/           IGraphicsContext, IRenderAPI, FShader, FTexture
 │   ├── Physics/       IPhysicsScene (Jolt behind a plugin)
 │   ├── Lightmass/     static lighting bake types
-│   └── UMG/           UWidget hierarchy, FUIRenderer
+│   └── UMG/           UWidget hierarchy, FUIRenderer, FUILayout
 ├── Plugins/           OpenGL RHI, Jolt, ENet
 ├── Projects/          Sandbox (sample), LeonTournament (product)
 └── Tests/             Engine suite + per-project suites
@@ -136,9 +136,15 @@ AAIController decision
 
 AI must not teleport the pawn to the destination. BehaviorTree / Blackboard **framework** is engine; TDM keys and combat trees are project assets / project controllers.
 
+`UAIPerceptionComponent` (on `AAIController`) handles sight radius, peripheral FOV, and visibility traces. Affiliation filters and combat blackboard keys (`HasAmmo`, `IsLowHealth`, …) stay in the game.
+
 ## Particles
 
 Engine: `FParticleEmitterSettings`, `UParticleComponent`, `FParticleRenderer`. Defaults are neutral (white). Muzzle / tracer / impact colors and spawn sites belong to the game.
+
+## UMG
+
+Engine: `UWidget` tree, `FUIRenderer`, `FUILayout` (boxes / MeasurePadded / Place*), `UProgressBar`, `UHorizontalBox`, `UVerticalBox`. Product GI/GM accessors stay in the game (`FLeonTournamentUILayout`).
 
 ## Physics / traces
 

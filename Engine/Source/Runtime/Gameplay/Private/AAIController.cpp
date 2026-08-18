@@ -19,12 +19,16 @@ namespace Leon {
             Brain = AddActorComponent<UBehaviorTreeComponent>("Brain");
         if (!PathFollowing)
             PathFollowing = AddActorComponent<UPathFollowingComponent>("PathFollowing");
+        if (!Perception)
+            Perception = AddActorComponent<UAIPerceptionComponent>("Perception");
         if (Brain) {
             Brain->SetBlackboard(Blackboard);
             Brain->SetComponentTickEnabled(false);
         }
         if (PathFollowing)
             PathFollowing->SetComponentTickEnabled(false);
+        if (Perception)
+            Perception->SetBlackboard(Blackboard.get());
     }
 
     void AAIController::UseBlackboard(const TRef<UBlackboardData>& InAsset) {
@@ -33,6 +37,8 @@ namespace Leon {
         Blackboard->InitializeFrom(InAsset);
         if (Brain)
             Brain->SetBlackboard(Blackboard);
+        if (Perception)
+            Perception->SetBlackboard(Blackboard.get());
     }
 
     bool AAIController::RunBehaviorTree(const TRef<UBehaviorTree>& InTree) {
@@ -44,6 +50,21 @@ namespace Leon {
         Brain->SetComponentTickEnabled(false);
         Brain->StartTree(InTree);
         return true;
+    }
+
+    void AAIController::SetSightConfig(const FAISightConfig& InConfig) {
+        if (!Perception)
+            Perception = AddActorComponent<UAIPerceptionComponent>("Perception");
+        Perception->SetSightConfig(InConfig);
+    }
+
+    const std::vector<AActor*>& AAIController::GetPerceivedActors() const {
+        static const std::vector<AActor*> kEmpty;
+        return Perception ? Perception->GetPerceivedActors() : kEmpty;
+    }
+
+    bool AAIController::HasLineOfSightTo(AActor& InTarget) const {
+        return Perception && Perception->HasLineOfSight(InTarget);
     }
 
     void AAIController::MoveToLocation(const glm::vec3& InDest, float InAcceptanceRadius) {

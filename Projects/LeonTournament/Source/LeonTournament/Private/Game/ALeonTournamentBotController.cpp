@@ -11,6 +11,7 @@
 #include "Gameplay/UCharacterMovementComponent.hpp"
 #include "AI/UBehaviorTree.hpp"
 #include "AI/UPathFollowingComponent.hpp"
+#include "AI/UAIPerceptionComponent.hpp"
 #include "Core/FWorldUnits.hpp"
 #include "Core/FInput.hpp"
 
@@ -22,9 +23,6 @@
 namespace Leon {
 
     namespace {
-        constexpr float kDetectionRadius = 42.0f;
-        constexpr float kAwarenessRadius = 20.0f;
-        constexpr float kFovDegrees = 120.0f;
         constexpr float kLastKnownMemory = 4.0f;
         constexpr float kMinRange = 7.0f;
         constexpr float kMaxRange = 30.0f;
@@ -61,19 +59,9 @@ namespace Leon {
     }
 
     bool ALeonTournamentBotController::HasLineOfSight(ALeonTournamentCharacter& InTarget) const {
-        auto* self = GetPawn<ALeonTournamentCharacter>();
-        if (!self || !World)
-            return false;
-        glm::vec3 origin = self->GetActorLocation();
-        origin.y += 0.25f;
-        glm::vec3 chest = InTarget.GetActorLocation();
-        glm::vec3 to = chest - origin;
-        if (glm::length(to) < 0.15f)
-            return true;
-        FHitResult hit;
-        if (!World->LineTraceSingleByChannel(origin, chest, ECollisionChannel::Visibility, self, hit))
-            return true;
-        return hit.Actor == &InTarget;
+        if (Perception)
+            return Perception->HasLineOfSight(InTarget);
+        return HasLineOfSightTo(InTarget);
     }
 
     void ALeonTournamentBotController::AssignPersonality() {
@@ -111,14 +99,14 @@ namespace Leon {
         Blackboard->SetValueAsObject("TargetActor", attacker);
         Blackboard->SetValueAsBool("HasTarget", true);
         Blackboard->SetValueAsVector("LastKnownTargetLocation", attacker->GetActorLocation());
-        LastKnownLocation = attacker->GetActorLocation();
-        LastKnownAge = 0.0f;
+        if (Perception)
+            Perception->RememberActor(attacker);
         AcquireTime = 0.0f;
     }
 
     void ALeonTournamentBotController::NotifyRespawned() {
-        LastKnownLocation = glm::vec3(0.0f);
-        LastKnownAge = kLastKnownMemory;
+        if (Perception)
+            Perception->ForgetLastKnown();
         AcquireTime = 0.0f;
         StrafeTimer = 0.0f;
         LookAroundTimer = 0.0f;
@@ -276,63 +264,8 @@ namespace Leon {
                           self->GetHealthComponent()->GetHealth() < self->GetHealthComponent()->GetMaxHealth() * 0.35f;
         board->SetValueAsBool("IsLowHealth", bLow);
 
-        ALeonTournamentCharacter* best = GetCurrentTarget();
-        if (best && (best->IsPendingKill() || (best->GetHealthComponent() && best->GetHealthComponent()->IsDead())))
-            best = nullptr;
-
-        float bestScore = -1e9f;
-        const glm::vec3 origin = self->GetActorLocation();
-        const glm::vec3 forward = self->GetControlLookDirection();
-        ALeonTournamentCharacter* prev = best;
-
-        for (const auto& actor : World->GetAllActors()) {
-            auto* other = dynamic_cast<ALeonTournamentCharacter*>(actor.get());
-            if (!other || other == self || other->IsPendingKill())
-                continue;
-            if (other->GetHealthComponent() && other->GetHealthComponent()->IsDead())
-                continue;
-            if (self->GetTeam() != ELeonTournamentTeam::None && other->GetTeam() == self->GetTeam())
-                continue;
-            glm::vec3 to = other->GetActorLocation() - origin;
-            const float dist = glm::length(to);
-            if (dist > kDetectionRadius)
-                continue;
-            glm::vec3 planar = to;
-            planar.y = 0.0f;
-            const float ang = AngleDegrees(glm::vec3(forward.x, 0.0f, forward.z), planar);
-            const bool bInFov = ang <= kFovDegrees * 0.5f || dist <= kAwarenessRadius;
-            if (!bInFov)
-                continue;
-            const bool bLos = HasLineOfSight(*other);
-            float score = (1.0f - dist / kDetectionRadius) * 40.0f + (1.0f - ang / 90.0f) * 20.0f;
-            if (bLos)
-                score += 100.0f;
-            if (other == prev)
-                score += 25.0f;
-            if (score > bestScore) {
-                bestScore = score;
-                best = other;
-            }
-        }
-
-        board->SetValueAsObject("TargetActor", best);
-        board->SetValueAsBool("HasTarget", best != nullptr);
-        if (best) {
-            board->SetValueAsVector("TargetLocation", best->GetActorLocation());
-            const bool bLos = HasLineOfSight(*best);
-            board->SetValueAsBool("HasLineOfSight", bLos);
-            board->SetValueAsFloat("DistanceToTarget", PlanarDistance(origin, best->GetActorLocation()));
-            if (bLos) {
-                LastKnownLocation = best->GetActorLocation();
-                LastKnownAge = 0.0f;
-                board->SetValueAsVector("LastKnownTargetLocation", LastKnownLocation);
-            }
-        } else {
-            board->SetValueAsBool("HasLineOfSight", false);
-            board->SetValueAsFloat("DistanceToTarget", 0.0f);
-        }
-        board->SetValueAsBool("HasLastKnown",
-                              LastKnownAge < kLastKnownMemory && glm::length(LastKnownLocation) > 0.01f);
+        if (Perception)
+            Perception->UpdatePerception();
     }
 
     void ALeonTournamentBotController::BuildBehaviorTree() {
@@ -485,7 +418,8 @@ namespace Leon {
             TickAim(dt, dest + glm::vec3(std::sin(LookAroundTimer * 2.0f) * 2.0f, 0.0f,
                                          std::cos(LookAroundTimer * 1.7f) * 2.0f));
             if (PlanarDistance(pawn->GetActorLocation(), dest) < 1.2f && LookAroundTimer > 1.6f) {
-                LastKnownAge = kLastKnownMemory;
+                if (Perception)
+                    Perception->ForgetLastKnown();
                 board->SetValueAsBool("HasLastKnown", false);
                 return EBTNodeResult::Succeeded;
             }
@@ -533,6 +467,24 @@ namespace Leon {
 
     void ALeonTournamentBotController::PostInitializeComponents() {
         AAIController::PostInitializeComponents();
+        if (Perception) {
+            FAISightConfig sight;
+            sight.SightRadius = 42.0f;
+            sight.PeripheralVisionAngleDegrees = 60.0f;
+            sight.CloseAwarenessRadius = 20.0f;
+            sight.MemoryMaxAge = kLastKnownMemory;
+            Perception->SetSightConfig(sight);
+            Perception->SetBlackboard(Blackboard.get());
+            Perception->SetSensePredicate([this](AActor* actor) {
+                auto* other = dynamic_cast<ALeonTournamentCharacter*>(actor);
+                auto* self = GetPawn<ALeonTournamentCharacter>();
+                if (!other || !self)
+                    return false;
+                if (self->GetTeam() != ELeonTournamentTeam::None && other->GetTeam() == self->GetTeam())
+                    return false;
+                return true;
+            });
+        }
         BuildBehaviorTree();
         RunBehaviorTree(Tree);
     }
@@ -587,11 +539,11 @@ namespace Leon {
             PathFollowingStatusName(GetMoveStatus()),
             glm::length(pawn->GetCharacterMovement() ? pawn->GetCharacterMovement()->GetVelocity() : glm::vec3(0.0f)));
         PrintString(label, 0.18f, glm::vec4(1.0f, 0.92f, 0.35f, 1.0f), 4000 + id);
-        FDebugRenderer::DrawDebugSphere(from, kDetectionRadius, glm::vec4(0.2f, 0.6f, 1.0f, 0.15f), 20);
+        const float radius = Perception ? Perception->GetSightConfig().SightRadius : 42.0f;
+        FDebugRenderer::DrawDebugSphere(from, radius, glm::vec4(0.2f, 0.6f, 1.0f, 0.15f), 20);
     }
 
     void ALeonTournamentBotController::Tick(float DeltaSeconds) {
-        LastKnownAge += DeltaSeconds;
         AAIController::Tick(DeltaSeconds);
         auto* pawn = GetPawn<ALeonTournamentCharacter>();
         if (!pawn)

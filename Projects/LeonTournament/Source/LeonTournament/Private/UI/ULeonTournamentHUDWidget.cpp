@@ -16,6 +16,7 @@
 #include "Core/FInput.hpp"
 #include "Core/FInputSettings.hpp"
 #include "UMG/FUIRenderer.hpp"
+#include "UMG/UProgressBar.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 
 #include <algorithm>
@@ -114,8 +115,9 @@ namespace Leon {
 
         const float vitalH = MeasurePadded("999", kFsVital).y;
         const float labelH = MeasurePadded("HEALTH", kFsCaption).y;
+        const float barH = 10.0f;
         const float bottomPad = 18.0f;
-        const float bottomBarH = labelH + vitalH + 28.0f;
+        const float bottomBarH = labelH + vitalH + barH + 36.0f;
         const float bottomBarW = 320.0f;
 
         BottomBarL = std::make_shared<UImage>("BottomBarL");
@@ -202,27 +204,37 @@ namespace Leon {
         HealthLabel->SetText("HEALTH");
         HealthLabel->SetFontScale(kFsCaption);
         HealthLabel->SetColor({0.55f, 0.95f, 0.65f, 0.85f});
-        PlaceTextBL(*Root, HealthLabel, 44.0f, bottomPad + vitalH + 8.0f, 120.0f);
+        PlaceTextBL(*Root, HealthLabel, 44.0f, bottomPad + vitalH + barH + 14.0f, 120.0f);
 
         HealthText = std::make_shared<UTextBlock>("HP");
         HealthText->SetText("100");
         HealthText->SetFontScale(kFsVital);
         HealthText->SetColor({0.45f, 1.0f, 0.55f, 1.0f});
-        PlaceTextBL(*Root, HealthText, 44.0f, bottomPad + 10.0f, 160.0f);
+        PlaceTextBL(*Root, HealthText, 44.0f, bottomPad + barH + 12.0f, 160.0f);
+
+        HealthBar = std::make_shared<UProgressBar>("HPBar");
+        HealthBar->SetSize({240.0f, barH});
+        HealthBar->SetFillColor({0.35f, 0.90f, 0.45f, 0.95f});
+        Layout::PlaceWidgetBL(*Root, HealthBar, 44.0f, bottomPad + 8.0f);
 
         AmmoLabel = std::make_shared<UTextBlock>("AmmoLabel");
         AmmoLabel->SetText("AMMO");
         AmmoLabel->SetFontScale(kFsCaption);
         AmmoLabel->SetColor({0.85f, 0.88f, 0.95f, 0.85f});
         AmmoLabel->SetJustification(ETextAlignment::Right);
-        PlaceTextBR(*Root, AmmoLabel, 44.0f, bottomPad + vitalH + 8.0f, 160.0f);
+        PlaceTextBR(*Root, AmmoLabel, 44.0f, bottomPad + vitalH + barH + 14.0f, 160.0f);
 
         AmmoText = std::make_shared<UTextBlock>("Ammo");
         AmmoText->SetText("30 / 30");
         AmmoText->SetFontScale(kFsScore);
         AmmoText->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
         AmmoText->SetJustification(ETextAlignment::Right);
-        PlaceTextBR(*Root, AmmoText, 44.0f, bottomPad + 10.0f, 200.0f);
+        PlaceTextBR(*Root, AmmoText, 44.0f, bottomPad + barH + 12.0f, 200.0f);
+
+        AmmoBar = std::make_shared<UProgressBar>("AmmoBar");
+        AmmoBar->SetSize({240.0f, barH});
+        AmmoBar->SetFillColor({0.75f, 0.82f, 1.0f, 0.95f});
+        Layout::PlaceWidgetBR(*Root, AmmoBar, 44.0f, bottomPad + 8.0f);
 
         WeaponSlotsText = std::make_shared<UTextBlock>("WeaponSlots");
         WeaponSlotsText->SetText("[1]  2  3  4  5  6");
@@ -330,6 +342,13 @@ namespace Leon {
             } else {
                 HealthText->SetColor({0.85f, 0.45f, 0.4f, 1.0f});
             }
+            if (HealthBar) {
+                float hpPct = 0.0f;
+                if (health && !health->IsDead() && !bDead && health->GetMaxHealth() > 0.0f)
+                    hpPct = health->GetHealth() / health->GetMaxHealth();
+                HealthBar->SetPercent(hpPct);
+                HealthBar->SetFillColor(HealthText->GetColor());
+            }
         }
         if (AmmoText) {
             if (bLab && ch && !ch->GetWeapon()) {
@@ -341,6 +360,15 @@ namespace Leon {
             } else {
                 AmmoText->SetText(std::to_string(ch->GetWeapon()->GetCurrentAmmo()) + " / " +
                                   std::to_string(ch->GetWeapon()->GetMagazineSize()));
+            }
+            if (AmmoBar) {
+                float ammoPct = 0.0f;
+                if (ch && ch->GetWeapon() && !bDead) {
+                    const int mag = ch->GetWeapon()->GetMagazineSize();
+                    if (mag > 0)
+                        ammoPct = static_cast<float>(ch->GetWeapon()->GetCurrentAmmo()) / static_cast<float>(mag);
+                }
+                AmmoBar->SetPercent(ammoPct);
             }
         }
         if (AmmoLabel) {

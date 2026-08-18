@@ -13,6 +13,10 @@
 #include "UMG/UTextBlock.hpp"
 #include "UMG/UUserWidget.hpp"
 #include "UMG/UWidget.hpp"
+#include "UMG/FUILayout.hpp"
+#include "UMG/UProgressBar.hpp"
+#include "UMG/UHorizontalBox.hpp"
+#include "UMG/UVerticalBox.hpp"
 #include "Engine/FMapSerializer.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -346,6 +350,59 @@ Actors:
             CHECK(panel->GetPosition().y == doctest::Approx(540.0f - HalfH));
             CHECK(panel->GetSize().x == doctest::Approx(420.0f));
             CHECK(panel->GetSize().y == doctest::Approx(180.0f));
+        }
+
+        TEST_CASE("FUILayout MeasurePadded and PlaceText do not require GL") {
+            auto canvas = std::make_shared<UCanvasPanel>("LayoutRoot");
+            canvas->SetSize({1280.0f, 720.0f});
+            const glm::vec2 padded = FUILayout::MeasurePadded("HP", FUILayout::kFsBody);
+            CHECK(padded.y > 0.0f);
+
+            auto text = std::make_shared<UTextBlock>("Label");
+            text->SetText("Hello");
+            text->SetFontScale(FUILayout::kFsBody);
+            FUILayout::PlaceTextTL(*canvas, text, 16.0f, 12.0f);
+            CHECK(canvas->GetChildrenCount() == 1);
+            CHECK(canvas->GetSlots().size() == 1);
+        }
+
+        TEST_CASE("UProgressBar clamps percent") {
+            UProgressBar bar("HP");
+            bar.SetPercent(1.5f);
+            CHECK(bar.GetPercent() == doctest::Approx(1.0f));
+            bar.SetPercent(-0.2f);
+            CHECK(bar.GetPercent() == doctest::Approx(0.0f));
+            bar.SetPercent(0.4f);
+            CHECK(bar.GetPercent() == doctest::Approx(0.4f));
+        }
+
+        TEST_CASE("UHorizontalBox and UVerticalBox stack child sizes") {
+            auto h = std::make_shared<UHorizontalBox>("H");
+            auto a = std::make_shared<UWidget>("A");
+            auto b = std::make_shared<UWidget>("B");
+            a->SetSize({40.0f, 10.0f});
+            b->SetSize({20.0f, 16.0f});
+            h->SetSlotPadding(4.0f);
+            h->AddChild(a);
+            h->AddChild(b);
+            h->PerformLayout();
+            CHECK(a->GetPosition().x == doctest::Approx(0.0f));
+            CHECK(b->GetPosition().x == doctest::Approx(44.0f));
+            CHECK(h->GetSize().x == doctest::Approx(64.0f));
+            CHECK(h->GetSize().y == doctest::Approx(16.0f));
+
+            auto v = std::make_shared<UVerticalBox>("V");
+            auto c = std::make_shared<UWidget>("C");
+            auto d = std::make_shared<UWidget>("D");
+            c->SetSize({8.0f, 12.0f});
+            d->SetSize({30.0f, 5.0f});
+            v->SetSlotPadding(2.0f);
+            v->AddChild(c);
+            v->AddChild(d);
+            v->PerformLayout();
+            CHECK(d->GetPosition().y == doctest::Approx(14.0f));
+            CHECK(v->GetSize().x == doctest::Approx(30.0f));
+            CHECK(v->GetSize().y == doctest::Approx(19.0f));
         }
     }
 

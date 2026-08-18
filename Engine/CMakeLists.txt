@@ -67,6 +67,10 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/UMG/Private/UUserWidget.cpp
     Source/Runtime/UMG/Private/UImage.cpp
     Source/Runtime/UMG/Private/FUIRenderer.cpp
+    Source/Runtime/UMG/Private/FUILayout.cpp
+    Source/Runtime/UMG/Private/UProgressBar.cpp
+    Source/Runtime/UMG/Private/UHorizontalBox.cpp
+    Source/Runtime/UMG/Private/UVerticalBox.cpp
     # Audio
     Source/Runtime/Audio/Private/FAudioDevice.cpp
     Source/Runtime/Audio/Private/USoundWave.cpp
@@ -129,6 +133,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/AI/Private/UBehaviorTreeComponent.cpp
     Source/Runtime/AI/Private/UNavigationSystem.cpp
     Source/Runtime/AI/Private/UPathFollowingComponent.cpp
+    Source/Runtime/AI/Private/UAIPerceptionComponent.cpp
     Source/Runtime/Assets/Private/UPhysicsAsset.cpp
 )
 

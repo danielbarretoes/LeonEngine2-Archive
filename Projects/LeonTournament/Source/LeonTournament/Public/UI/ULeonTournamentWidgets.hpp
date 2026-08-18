@@ -5,6 +5,7 @@
 #include "UMG/UTextBlock.hpp"
 #include "UMG/UCanvasPanel.hpp"
 #include "UMG/UImage.hpp"
+#include "UMG/UProgressBar.hpp"
 #include "UMG/UEditableText.hpp"
 #include "FLeonTournamentTypes.hpp"
 
@@ -94,8 +95,10 @@ namespace Leon {
         TRef<UTextBlock> TimerText;
         TRef<UTextBlock> HealthLabel;
         TRef<UTextBlock> HealthText;
+        TRef<UProgressBar> HealthBar;
         TRef<UTextBlock> AmmoLabel;
         TRef<UTextBlock> AmmoText;
+        TRef<UProgressBar> AmmoBar;
         TRef<UTextBlock> WeaponSlotsText;
         TRef<UTextBlock> StatusText;
         TRef<UTextBlock> CrosshairText;

@@ -62,6 +62,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Gameplay/HealthComponentTests.cpp
     Gameplay/OverlapAndDamageTests.cpp
     Gameplay/PhysicsMovementAITests.cpp
+    Gameplay/AIPerceptionTests.cpp
     Gameplay/AudioDeviceTests.cpp
     Lightmass/StaticLightingTests.cpp
     Renderer/ViewportResizeTests.cpp

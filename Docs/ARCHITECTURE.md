@@ -347,8 +347,12 @@ UObject
   │     ├── UUserWidget          (AddToViewport / RemoveFromParent)
   │     ├── UButton              (OnClicked, hover/pressed/disabled)
   │     ├── UTextBlock           (SetText / color / scale / alignment)
+  │     ├── UImage
+  │     ├── UProgressBar         (percent fill)
   │     └── UPanelWidget
-  │           └── UCanvasPanel   (absolute layout + optional background)
+  │           ├── UCanvasPanel   (anchors + offsets; FUILayout helpers)
+  │           ├── UHorizontalBox
+  │           └── UVerticalBox
   └── AActor
         └── AHUD                 (owned by APlayerController)
 ```
