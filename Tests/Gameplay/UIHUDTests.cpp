@@ -10,6 +10,7 @@
 #include "Gameplay/UClassRegistry.hpp"
 #include "UMG/UButton.hpp"
 #include "UMG/UCanvasPanel.hpp"
+#include "UMG/UImage.hpp"
 #include "UMG/UTextBlock.hpp"
 #include "UMG/UUserWidget.hpp"
 #include "UMG/UWidget.hpp"
@@ -368,6 +369,26 @@ Actors:
             FUILayout::PlaceTextTL(*canvas, text, 16.0f, 12.0f);
             CHECK(canvas->GetChildrenCount() == 1);
             CHECK(canvas->GetSlots().size() == 1);
+        }
+
+        TEST_CASE("LayoutScale follows the 1280x720 design") {
+            CHECK(FUILayout::LayoutScale(1280.0f, 720.0f) == doctest::Approx(1.0f));
+            CHECK(FUILayout::LayoutScale(1920.0f, 1080.0f) == doctest::Approx(1.5f));
+            CHECK(FUILayout::LayoutScale(2560.0f, 1080.0f) == doctest::Approx(1.5f));
+            CHECK(FUILayout::LayoutScale(800.0f, 600.0f) == doctest::Approx(0.7f));
+        }
+
+        TEST_CASE("TopStretch bar fills parent width after resize") {
+            auto canvas = std::make_shared<UCanvasPanel>("Hud");
+            canvas->SetSize({1280.0f, 720.0f});
+            auto bar = std::make_shared<UImage>("TopBar");
+            canvas->AddChild(bar, FAnchors::TopStretch(), FUILayout::BoxTopStretch(0.0f, 40.0f));
+            canvas->PerformLayout({1280.0f, 720.0f});
+            CHECK(bar->GetSize().x == doctest::Approx(1280.0f));
+            CHECK(bar->GetSize().y == doctest::Approx(40.0f));
+            canvas->PerformLayout({1920.0f, 1080.0f});
+            CHECK(bar->GetSize().x == doctest::Approx(1920.0f));
+            CHECK(bar->GetSize().y == doctest::Approx(40.0f));
         }
 
         TEST_CASE("UProgressBar clamps percent") {

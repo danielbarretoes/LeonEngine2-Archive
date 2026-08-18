@@ -31,11 +31,21 @@
 namespace Leon {
 
     namespace {
-        ULeonTournamentGameInstance* GI() { return FLeonTournamentUILayout::GI(); }
-        bool GamepadEdge(int InButton, bool& InOutWasDown) { return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown); }
-        ALeonTournamentGameMode* GM(APlayerController* InPC) { return FLeonTournamentUILayout::GM(InPC); }
-        ALeonTournamentGameState* GS(APlayerController* InPC) { return FLeonTournamentUILayout::GS(InPC); }
-        bool IsClientWorld(APlayerController* InPC) { return FLeonTournamentUILayout::IsClientWorld(InPC); }
+        ULeonTournamentGameInstance* GI() {
+            return FLeonTournamentUILayout::GI();
+        }
+        bool GamepadEdge(int InButton, bool& InOutWasDown) {
+            return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown);
+        }
+        ALeonTournamentGameMode* GM(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GM(InPC);
+        }
+        ALeonTournamentGameState* GS(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GS(InPC);
+        }
+        bool IsClientWorld(APlayerController* InPC) {
+            return FLeonTournamentUILayout::IsClientWorld(InPC);
+        }
         constexpr float kFsCaption = FLeonTournamentUILayout::kFsCaption;
         constexpr float kFsBody = FLeonTournamentUILayout::kFsBody;
         constexpr float kFsLabel = FLeonTournamentUILayout::kFsLabel;
@@ -48,7 +58,9 @@ namespace Leon {
         constexpr float kFsVital = FLeonTournamentUILayout::kFsVital;
         constexpr float kFsBanner = FLeonTournamentUILayout::kFsBanner;
 
-        FMargin BoxTL(float InX, float InY, float InW, float InH) { return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH); }
+        FMargin BoxTL(float InX, float InY, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH);
+        }
         FMargin BoxBL(float InX, float InBottom, float InW, float InH) {
             return FLeonTournamentUILayout::BoxBL(InX, InBottom, InW, InH);
         }
@@ -61,7 +73,9 @@ namespace Leon {
         FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f) {
             return FLeonTournamentUILayout::BoxBC(InBottom, InW, InH, InOx);
         }
-        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH);
+        }
         glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f, float InPadY = 6.0f) {
             return FLeonTournamentUILayout::MeasurePadded(InText, InScale, InPadX, InPadY);
         }
@@ -166,16 +180,14 @@ namespace Leon {
                 if (count != gi->GetDesiredBotsTeam1()) {
                     gi->SetDesiredBotsTeam1(count);
                     RefreshBotLabels();
-                    if (auto* gs = GS(OwningPlayer);
-                        gs && gs->GetMatchState() == ELeonTournamentMatchState::Lobby) {
+                    if (auto* gs = GS(OwningPlayer); gs && gs->GetMatchState() == ELeonTournamentMatchState::Lobby) {
                         if (auto* gm = GM(OwningPlayer))
                             gm->SyncLobbyBots();
                     }
                 }
             }
         };
-        Root->AddChild(BotsTeam1Slider, FAnchors::TopLeft(),
-                       BoxTL(leftX + 430.0f, y + 12.0f, 220.0f, 22.0f));
+        Root->AddChild(BotsTeam1Slider, FAnchors::TopLeft(), BoxTL(leftX + 430.0f, y + 12.0f, 220.0f, 22.0f));
         y += t1Minus->GetSize().y + 10.0f;
 
         auto t2Minus = MakeButton("T2BotsMinus", "-", kFsLabel, 52.0f, 48.0f);
@@ -223,14 +235,40 @@ namespace Leon {
         CharacterLabel->SetText("PATRICK");
         const float nameW = 220.0f;
         const float nameH = MeasurePadded("PATRICK", kFsSub).y;
-        Root->AddChild(CharacterLabel, FAnchors::TopLeft(),
-                       BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f,
-                             nameW, nameH));
+        Root->AddChild(
+            CharacterLabel, FAnchors::TopLeft(),
+            BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f, nameW, nameH));
         RefreshCharacterLabel();
 
         auto nextChar = MakeButton("LobbyNextChar", ">", kFsSub, 56.0f, 52.0f);
         nextChar->OnClicked.AddLambda([this]() { OnNextCharacter(); });
         PlaceButtonTL(*Root, nextChar, charX + prevChar->GetSize().x + 12.0f + nameW + 12.0f, charY);
+        charY += prevChar->GetSize().y + 14.0f;
+
+        auto mapTitle = std::make_shared<UTextBlock>("LobbyMapTitle");
+        mapTitle->SetText("MAP");
+        mapTitle->SetFontScale(kFsCaption);
+        mapTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        PlaceTextTL(*Root, mapTitle, charX, charY);
+        charY += MeasurePadded(mapTitle->GetText(), mapTitle->GetFontScale()).y + 8.0f;
+
+        auto prevMap = MakeButton("LobbyPrevMap", "<", kFsSub, 56.0f, 52.0f);
+        prevMap->OnClicked.AddLambda([this]() { OnPrevMap(); });
+        PlaceButtonTL(*Root, prevMap, charX, charY);
+
+        MapLabel = std::make_shared<UTextBlock>("LobbyMapName");
+        MapLabel->SetFontScale(kFsSub);
+        MapLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        MapLabel->SetJustification(ETextAlignment::Center);
+        MapLabel->SetText("ARENA");
+        Root->AddChild(
+            MapLabel, FAnchors::TopLeft(),
+            BoxTL(charX + prevMap->GetSize().x + 12.0f, charY + (prevMap->GetSize().y - nameH) * 0.5f, nameW, nameH));
+        RefreshMapLabel();
+
+        auto nextMap = MakeButton("LobbyNextMap", ">", kFsSub, 56.0f, 52.0f);
+        nextMap->OnClicked.AddLambda([this]() { OnNextMap(); });
+        PlaceButtonTL(*Root, nextMap, charX + prevMap->GetSize().x + 12.0f + nameW + 12.0f, charY);
 
         auto start = MakeButton("Start", "START MATCH", kFsButton, 240.0f);
         start->OnClicked.AddLambda([this]() { OnStart(); });
@@ -267,8 +305,7 @@ namespace Leon {
             gi->AdjustDesiredBotsTeam1(InDelta);
         RefreshBotLabels();
         // Only spawn bots while the lobby is active â€” never during MainMenu widget construct.
-        if (auto* gs = GS(OwningPlayer);
-            gs && gs->GetMatchState() == ELeonTournamentMatchState::Lobby) {
+        if (auto* gs = GS(OwningPlayer); gs && gs->GetMatchState() == ELeonTournamentMatchState::Lobby) {
             if (auto* gm = GM(OwningPlayer))
                 gm->SyncLobbyBots();
         }
@@ -279,8 +316,7 @@ namespace Leon {
         if (auto* gi = GI())
             gi->AdjustDesiredBotsTeam2(InDelta);
         RefreshBotLabels();
-        if (auto* gs = GS(OwningPlayer);
-            gs && gs->GetMatchState() == ELeonTournamentMatchState::Lobby) {
+        if (auto* gs = GS(OwningPlayer); gs && gs->GetMatchState() == ELeonTournamentMatchState::Lobby) {
             if (auto* gm = GM(OwningPlayer))
                 gm->SyncLobbyBots();
         }
@@ -308,9 +344,32 @@ namespace Leon {
         RefreshCharacterLabel();
     }
 
+    void ULeonTournamentLobbyWidget::RefreshMapLabel() {
+        if (!MapLabel)
+            return;
+        auto* gi = GI();
+        const auto map = gi ? gi->GetSelectedPlayableMap() : ELeonTournamentPlayableMap::Arena;
+        MapLabel->SetText(LeonTournamentPlayableMapName(map));
+    }
+
+    void ULeonTournamentLobbyWidget::OnPrevMap() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.45f);
+        if (auto* gi = GI())
+            gi->CycleSelectedPlayableMap(-1);
+        RefreshMapLabel();
+    }
+
+    void ULeonTournamentLobbyWidget::OnNextMap() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.45f);
+        if (auto* gi = GI())
+            gi->CycleSelectedPlayableMap(1);
+        RefreshMapLabel();
+    }
+
     void ULeonTournamentLobbyWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
         RefreshCharacterLabel();
+        RefreshMapLabel();
         if (GamepadEdge(GamepadButton::A, bPadAWasDown) || GamepadEdge(GamepadButton::Start, bPadStartWasDown))
             OnStart();
         if (GamepadEdge(GamepadButton::B, bPadBWasDown))
@@ -354,8 +413,14 @@ namespace Leon {
         UWorld* world = OwningPlayer ? OwningPlayer->GetWorld() : nullptr;
         if (world && world->GetNetMode() == ENetMode::Client)
             return;
-        if (auto* gm = GM(OwningPlayer))
-            gm->RequestStartMatch();
+        if (auto* gm = GM(OwningPlayer)) {
+            auto* gi = GI();
+            const auto map = gi ? gi->GetSelectedPlayableMap() : ELeonTournamentPlayableMap::Arena;
+            if (map == ELeonTournamentPlayableMap::Arena)
+                gm->RequestStartMatch();
+            else
+                gm->OpenPlayableMap(map);
+        }
     }
 
     void ULeonTournamentLobbyWidget::OnBack() {
@@ -364,6 +429,5 @@ namespace Leon {
         if (auto* gm = GM(OwningPlayer))
             gm->ReturnToMenu();
     }
-
 
 } // namespace Leon

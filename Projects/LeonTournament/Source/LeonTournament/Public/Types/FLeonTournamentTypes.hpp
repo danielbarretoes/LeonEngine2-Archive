@@ -14,6 +14,52 @@ namespace Leon {
 
     enum class ELeonTournamentSessionMode : uint8_t { Offline = 0, LanHost = 1, LanClient = 2 };
 
+    enum class ELeonTournamentPlayableMap : uint8_t { Arena = 0, NightArena = 1, OrbitalPrism = 2, Count = 3 };
+
+    inline const char* LeonTournamentPlayableMapName(ELeonTournamentPlayableMap InMap) {
+        switch (InMap) {
+        case ELeonTournamentPlayableMap::NightArena:
+            return "NIGHT ARENA";
+        case ELeonTournamentPlayableMap::OrbitalPrism:
+            return "ORBITAL PRISM";
+        case ELeonTournamentPlayableMap::Arena:
+        default:
+            return "ARENA";
+        }
+    }
+
+    inline const char* LeonTournamentPlayableMapPath(ELeonTournamentPlayableMap InMap) {
+        switch (InMap) {
+        case ELeonTournamentPlayableMap::NightArena:
+            return "/Game/Maps/TournamentArenaNight";
+        case ELeonTournamentPlayableMap::OrbitalPrism:
+            return "/Game/Maps/OrbitalPrism";
+        case ELeonTournamentPlayableMap::Arena:
+        default:
+            return "/Game/Maps/MainMenu";
+        }
+    }
+
+    inline ELeonTournamentPlayableMap LeonTournamentClampPlayableMap(ELeonTournamentPlayableMap InMap) {
+        const uint8_t count = static_cast<uint8_t>(ELeonTournamentPlayableMap::Count);
+        uint8_t v = static_cast<uint8_t>(InMap);
+        if (v >= count)
+            v = 0;
+        return static_cast<ELeonTournamentPlayableMap>(v);
+    }
+
+    inline ELeonTournamentPlayableMap LeonTournamentNextPlayableMap(ELeonTournamentPlayableMap InMap) {
+        const uint8_t next = static_cast<uint8_t>((static_cast<uint8_t>(InMap) + 1) %
+                                                  static_cast<uint8_t>(ELeonTournamentPlayableMap::Count));
+        return static_cast<ELeonTournamentPlayableMap>(next);
+    }
+
+    inline ELeonTournamentPlayableMap LeonTournamentPrevPlayableMap(ELeonTournamentPlayableMap InMap) {
+        const uint8_t count = static_cast<uint8_t>(ELeonTournamentPlayableMap::Count);
+        const uint8_t cur = static_cast<uint8_t>(InMap);
+        return static_cast<ELeonTournamentPlayableMap>((cur + count - 1) % count);
+    }
+
     /** Selectable pawn mesh; each skin keeps its own .lskeleton. Mixamo anims link by bone name. */
     enum class ELeonTournamentCharacterSkin : uint8_t { YBot = 0, Patrick = 1, Trump = 2, Count = 3 };
 

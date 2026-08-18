@@ -2,6 +2,10 @@
 #include "Renderer/FMeshPrimitives.hpp"
 #include "RHI/FRenderCommand.hpp"
 #include <algorithm>
+#include <cmath>
+#include <string>
+#include <glm/gtc/type_ptr.hpp>
+#include <random>
 
 namespace Leon {
 
@@ -11,19 +15,29 @@ namespace Leon {
         if (bInitialized)
             return;
 
-        // 1. Shaders
         BloomBrightPassShader = FShader::Create("Engine/Assets/Shaders/BloomBrightPass.glsl");
         BloomDownsampleShader = FShader::Create("Engine/Assets/Shaders/BloomDownsample.glsl");
         BloomUpsampleShader = FShader::Create("Engine/Assets/Shaders/BloomUpsample.glsl");
         ToneMappingShader = FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
         FXAAShader = FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
+        SSAOShader = FShader::Create("Engine/Assets/Shaders/SSAO.glsl");
+        SSAOBlurShader = FShader::Create("Engine/Assets/Shaders/SSAOBlur.glsl");
+        SSAOCompositeShader = FShader::Create("Engine/Assets/Shaders/SSAOComposite.glsl");
 
-        // 2. Fullscreen Quad Mesh
+        std::mt19937 rng(0x5353414F);
+        std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+        std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+        for (int i = 0; i < 16; ++i) {
+            glm::vec3 sample(dist(rng), dist(rng), dist01(rng));
+            sample = glm::normalize(sample);
+            sample *= dist01(rng);
+            float scale = static_cast<float>(i) / 16.0f;
+            scale = 0.1f + scale * scale * 0.9f;
+            SSAOKernel[i] = sample * scale;
+        }
+
         FullscreenQuadVA = FMeshPrimitives::CreateQuad(2.0f, 2.0f);
-
-        // 3. Allocate Framebuffers
         InvalidateFramebuffers(Width, Height);
-
         bInitialized = true;
     }
 
@@ -69,6 +83,21 @@ namespace Leon {
         ldrSpec.Height = InHeight;
         ldrSpec.Attachments = {EFramebufferTextureFormat::RGBA8};
         ToneMappedFBO = FFramebuffer::Create(ldrSpec);
+
+        const uint32_t halfW = std::max(InWidth / 2, 1u);
+        const uint32_t halfH = std::max(InHeight / 2, 1u);
+        FFramebufferSpecification ssaoSpec;
+        ssaoSpec.Width = halfW;
+        ssaoSpec.Height = halfH;
+        ssaoSpec.Attachments = {EFramebufferTextureFormat::RGBA8};
+        SSAOFBO = FFramebuffer::Create(ssaoSpec);
+        SSAOBlurFBO = FFramebuffer::Create(ssaoSpec);
+
+        FFramebufferSpecification ssaoColorSpec;
+        ssaoColorSpec.Width = InWidth;
+        ssaoColorSpec.Height = InHeight;
+        ssaoColorSpec.Attachments = {EFramebufferTextureFormat::RGBA16F};
+        SSAOCompositeFBO = FFramebuffer::Create(ssaoColorSpec);
     }
 
     void FPostProcessPipeline::RenderBloom(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene,
@@ -76,8 +105,7 @@ namespace Leon {
         if (!InHDRScene || BloomDownsampleFBOs.empty())
             return;
 
-        const uint32_t mipCount =
-            std::min(static_cast<uint32_t>(BloomDownsampleFBOs.size()), InSettings.BloomMipCount);
+        const uint32_t mipCount = std::min(static_cast<uint32_t>(BloomDownsampleFBOs.size()), InSettings.BloomMipCount);
         if (mipCount < 2)
             return;
 
@@ -179,8 +207,81 @@ namespace Leon {
         }
     }
 
+    TRef<FFramebuffer> FPostProcessPipeline::RenderSSAO(const FPostProcessSettings& InSettings,
+                                                        TRef<FFramebuffer> InHDRScene,
+                                                        const FPostProcessFrameContext& InFrame) {
+        if (!InHDRScene || InHDRScene->GetDepthAttachmentRendererID() == 0 || !SSAOShader || !SSAOFBO || !SSAOBlurFBO ||
+            !SSAOCompositeFBO || !SSAOCompositeShader || !FullscreenQuadVA)
+            return InHDRScene;
+
+        const uint32_t halfW = SSAOFBO->GetSpecification().Width;
+        const uint32_t halfH = SSAOFBO->GetSpecification().Height;
+
+        FRenderCommand::SetDepthTesting(false);
+        FRenderCommand::SetDepthMask(false);
+        FRenderCommand::SetCulling(false);
+        FRenderCommand::SetBlendState(false);
+
+        SSAOFBO->Bind();
+        FRenderCommand::SetViewport(0, 0, halfW, halfH);
+        FRenderCommand::SetClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        FRenderCommand::Clear();
+        SSAOShader->Bind();
+        InHDRScene->BindDepthTexture(0);
+        SSAOShader->SetInt("u_DepthTexture", 0);
+        SSAOShader->SetMat4("u_Projection", glm::value_ptr(InFrame.Projection));
+        SSAOShader->SetMat4("u_InverseProjection", glm::value_ptr(InFrame.InverseProjection));
+        SSAOShader->SetFloat("u_Radius", InSettings.SSAORadius);
+        SSAOShader->SetFloat("u_Bias", InSettings.SSAOBias);
+        int kernelSize = std::clamp(InSettings.SSAOKernelSize, 1, 16);
+        SSAOShader->SetInt("u_KernelSize", kernelSize);
+        for (int i = 0; i < 16; ++i)
+            SSAOShader->SetFloat3("u_Samples[" + std::to_string(i) + "]", SSAOKernel[i].x, SSAOKernel[i].y,
+                                  SSAOKernel[i].z);
+        FullscreenQuadVA->Bind();
+        FRenderCommand::DrawIndexed(FullscreenQuadVA);
+        SSAOFBO->Unbind();
+
+        auto blurPass = [&](TRef<FFramebuffer> InSrc, TRef<FFramebuffer> InDst, int InHorizontal) {
+            InDst->Bind();
+            FRenderCommand::SetViewport(0, 0, halfW, halfH);
+            FRenderCommand::Clear();
+            SSAOBlurShader->Bind();
+            InSrc->BindTexture(0, 0);
+            InHDRScene->BindDepthTexture(1);
+            SSAOBlurShader->SetInt("u_SSAOTexture", 0);
+            SSAOBlurShader->SetInt("u_DepthTexture", 1);
+            SSAOBlurShader->SetFloat2("u_TexelSize", 1.0f / static_cast<float>(halfW),
+                                      1.0f / static_cast<float>(halfH));
+            SSAOBlurShader->SetInt("u_Horizontal", InHorizontal);
+            FullscreenQuadVA->Bind();
+            FRenderCommand::DrawIndexed(FullscreenQuadVA);
+            InDst->Unbind();
+        };
+        blurPass(SSAOFBO, SSAOBlurFBO, 1);
+        blurPass(SSAOBlurFBO, SSAOFBO, 0);
+
+        SSAOCompositeFBO->Bind();
+        FRenderCommand::SetViewport(0, 0, SSAOCompositeFBO->GetSpecification().Width,
+                                    SSAOCompositeFBO->GetSpecification().Height);
+        FRenderCommand::SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        FRenderCommand::Clear();
+        SSAOCompositeShader->Bind();
+        InHDRScene->BindTexture(0, 0);
+        SSAOFBO->BindTexture(0, 1);
+        SSAOCompositeShader->SetInt("u_HDRSceneTexture", 0);
+        SSAOCompositeShader->SetInt("u_SSAOTexture", 1);
+        SSAOCompositeShader->SetFloat("u_Intensity", InSettings.SSAOIntensity);
+        SSAOCompositeShader->SetInt("u_DebugAO", InSettings.DebugMode == 5 ? 1 : 0);
+        FullscreenQuadVA->Bind();
+        FRenderCommand::DrawIndexed(FullscreenQuadVA);
+        SSAOCompositeFBO->Unbind();
+        return SSAOCompositeFBO;
+    }
+
     void FPostProcessPipeline::Render(const FPostProcessSettings& InSettings, TRef<FFramebuffer> InHDRScene,
-                                      uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight) {
+                                      uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight,
+                                      const FPostProcessFrameContext* InFrame) {
         if (!bInitialized) {
             Init();
         }
@@ -198,12 +299,16 @@ namespace Leon {
         FRenderCommand::SetCulling(false);
         FRenderCommand::SetBlendState(false);
 
-        // ---------------------------------------------------------------------
-        // PASS 1: Bloom Extraction and Pyramid (if enabled)
-        // ---------------------------------------------------------------------
-        bool bRunBloom = InSettings.bEnabled && InSettings.bBloomEnabled && (InSettings.DebugMode != 1);
+        TRef<FFramebuffer> scene = InHDRScene;
+        const bool bRunSSAO =
+            InSettings.bEnabled && InSettings.bSSAOEnabled && InFrame && InFrame->bValid && InSettings.DebugMode != 1;
+        if (bRunSSAO)
+            scene = RenderSSAO(InSettings, InHDRScene, *InFrame);
+
+        bool bRunBloom = InSettings.bEnabled && InSettings.bBloomEnabled && (InSettings.DebugMode != 1) &&
+                         (InSettings.DebugMode != 5);
         if (bRunBloom) {
-            RenderBloom(InSettings, InHDRScene, InVpWidth, InVpHeight);
+            RenderBloom(InSettings, scene, InVpWidth, InVpHeight);
         }
 
         // ---------------------------------------------------------------------
@@ -215,7 +320,7 @@ namespace Leon {
         FRenderCommand::Clear();
 
         ToneMappingShader->Bind();
-        InHDRScene->BindTexture(0, 0);
+        scene->BindTexture(0, 0);
         ToneMappingShader->SetInt("u_HDRSceneTexture", 0);
 
         if (bRunBloom && !BloomUpsampleFBOs.empty() && BloomUpsampleFBOs[0]) {
@@ -246,9 +351,9 @@ namespace Leon {
         ToneMappedFBO->BindTexture(0, 0);
         FXAAShader->SetInt("u_LDRTexture", 0);
         FXAAShader->SetFloat2("u_InverseScreenSize", 1.0f / static_cast<float>(InVpWidth),
-                                1.0f / static_cast<float>(InVpHeight));
+                              1.0f / static_cast<float>(InVpHeight));
         FXAAShader->SetInt("u_FXAAEnabled",
-                             (InSettings.bEnabled && InSettings.bFXAAEnabled && InSettings.DebugMode != 4) ? 1 : 0);
+                           (InSettings.bEnabled && InSettings.bFXAAEnabled && InSettings.DebugMode != 4) ? 1 : 0);
 
         FullscreenQuadVA->Bind();
         FRenderCommand::DrawIndexed(FullscreenQuadVA);

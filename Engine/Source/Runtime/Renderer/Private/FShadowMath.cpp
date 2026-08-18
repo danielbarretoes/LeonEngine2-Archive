@@ -166,6 +166,26 @@ namespace Leon {
             }
         }
 
+        void CascadeSliceDepthRange(uint32_t InIndex, const std::vector<float>& InSplits, float InBlendWidth,
+                                    float InMinBlendMeters, float& OutNear, float& OutFar) {
+            if (InSplits.size() < 2) {
+                OutNear = 0.1f;
+                OutFar = 100.0f;
+                return;
+            }
+            const uint32_t last = static_cast<uint32_t>(InSplits.size() - 1);
+            const uint32_t index = std::min(InIndex, last - 1);
+            OutNear = InSplits[index];
+            OutFar = InSplits[index + 1];
+            const float sliceLen = std::max(OutFar - OutNear, 0.001f);
+            float overlap = std::max(sliceLen * std::clamp(InBlendWidth, 0.0f, 0.5f), InMinBlendMeters);
+            overlap = std::min(overlap, sliceLen * 0.90f);
+            if (index > 0)
+                OutNear = std::max(InSplits[0], OutNear - overlap);
+            if (index + 1 < last)
+                OutFar = std::min(InSplits[last], OutFar + overlap);
+        }
+
     } // namespace ShadowMath
 
 } // namespace Leon

@@ -1,6 +1,8 @@
 #include "Assets/UPhysicsAsset.hpp"
+#include "Assets/USkeleton.hpp"
 
 #include <fstream>
+#include <unordered_set>
 
 namespace Leon {
 
@@ -22,9 +24,59 @@ namespace Leon {
                 In.read(OutStr.data(), static_cast<std::streamsize>(len));
             return static_cast<bool>(In);
         }
+
+        bool AddCapsuleBody(UPhysicsAsset& OutAsset, const USkeleton& InSkeleton, const char* InToken, float InRadius,
+                            float InHalfHeight, std::unordered_set<int32_t>& InUsedBones) {
+            const int32_t idx = InSkeleton.FindFirstBoneContaining(InToken);
+            if (idx < 0 || InUsedBones.count(idx) != 0)
+                return false;
+            const auto& bones = InSkeleton.GetBones();
+            if (idx >= static_cast<int32_t>(bones.size()))
+                return false;
+            FPhysicsAssetBody body;
+            body.BoneName = bones[static_cast<size_t>(idx)].Name;
+            body.Shape = EPhysicsAssetBodyShape::Capsule;
+            body.Radius = InRadius;
+            body.CapsuleHalfHeight = InHalfHeight;
+            OutAsset.AddBody(body);
+            InUsedBones.insert(idx);
+            return true;
+        }
     } // namespace
 
     UPhysicsAsset::UPhysicsAsset(const std::string& InName) : UObject(InName) {}
+
+    TRef<UPhysicsAsset> UPhysicsAsset::CreateHumanoidFromSkeleton(const USkeleton& InSkeleton) {
+        auto asset = MakeRef<UPhysicsAsset>("HumanoidRagdoll");
+        std::unordered_set<int32_t> used;
+
+        // Prefer Mixamo / UE tokens; skip duplicates when a token matches an already-added bone.
+        AddCapsuleBody(*asset, InSkeleton, "hips", 0.12f, 0.14f, used);
+        if (asset->GetBodies().empty())
+            AddCapsuleBody(*asset, InSkeleton, "pelvis", 0.12f, 0.14f, used);
+
+        AddCapsuleBody(*asset, InSkeleton, "spine", 0.11f, 0.16f, used);
+        AddCapsuleBody(*asset, InSkeleton, "neck", 0.06f, 0.08f, used);
+        AddCapsuleBody(*asset, InSkeleton, "head", 0.10f, 0.10f, used);
+
+        AddCapsuleBody(*asset, InSkeleton, "leftarm", 0.06f, 0.14f, used);
+        AddCapsuleBody(*asset, InSkeleton, "leftforearm", 0.05f, 0.14f, used);
+        AddCapsuleBody(*asset, InSkeleton, "rightarm", 0.06f, 0.14f, used);
+        AddCapsuleBody(*asset, InSkeleton, "rightforearm", 0.05f, 0.14f, used);
+
+        if (!AddCapsuleBody(*asset, InSkeleton, "leftupleg", 0.08f, 0.18f, used))
+            AddCapsuleBody(*asset, InSkeleton, "leftthigh", 0.08f, 0.18f, used);
+        AddCapsuleBody(*asset, InSkeleton, "leftleg", 0.07f, 0.18f, used);
+
+        if (!AddCapsuleBody(*asset, InSkeleton, "rightupleg", 0.08f, 0.18f, used))
+            AddCapsuleBody(*asset, InSkeleton, "rightthigh", 0.08f, 0.18f, used);
+        AddCapsuleBody(*asset, InSkeleton, "rightleg", 0.07f, 0.18f, used);
+
+        // Need at least hips + one other body for a readable flop; otherwise caller falls back to capsule.
+        if (asset->GetBodies().size() < 2)
+            return nullptr;
+        return asset;
+    }
 
     bool UPhysicsAsset::SaveToFile(const std::string& InPath) const {
         std::ofstream out(InPath, std::ios::binary);

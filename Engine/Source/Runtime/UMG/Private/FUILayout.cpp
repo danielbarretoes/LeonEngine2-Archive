@@ -20,6 +20,9 @@ namespace Leon {
     FMargin FUILayout::BoxC(float InOx, float InOy, float InW, float InH) {
         return FMargin(InOx - InW * 0.5f, InOy - InH * 0.5f, -(InOx + InW * 0.5f), -(InOy + InH * 0.5f));
     }
+    FMargin FUILayout::BoxTopStretch(float InTop, float InH, float InLeft, float InRight) {
+        return FMargin(InLeft, InTop, InRight, -(InTop + InH));
+    }
 
     glm::vec2 FUILayout::MeasurePadded(const std::string& InText, float InScale, float InPadX, float InPadY) {
         const glm::vec2 m = FUIRenderer::MeasureString(InText, InScale);

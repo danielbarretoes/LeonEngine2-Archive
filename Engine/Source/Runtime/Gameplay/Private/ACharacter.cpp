@@ -599,15 +599,25 @@ namespace Leon {
         if (Mesh && Mesh->TryEnableRagdoll(InImpulse)) {
             bIsRagdoll = true;
             bMeshRagdoll = true;
+            // Capsule stays kinematic so CharacterMovement stays off; mesh bones drive the corpse.
+            if (CapsuleComponent)
+                CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             return;
         }
         if (CapsuleComponent) {
-            CapsuleComponent->SyncPhysicsTransform();
+            // Recreate as a Dynamic body so Mass / gravity / damping from EnableRagdoll stick
+            // (CreateRigidBody copies Info once; mutating component fields alone was a no-op).
             CapsuleComponent->SetMass(70.0f);
-            CapsuleComponent->SetLinearDamping(1.15f);
+            CapsuleComponent->SetLinearDamping(0.55f);
             CapsuleComponent->SetEnableGravity(true);
             CapsuleComponent->SetSimulatePhysics(true);
+            CapsuleComponent->RecreatePhysicsBody();
+            CapsuleComponent->SyncPhysicsTransform();
             CapsuleComponent->AddImpulse(InImpulse);
+            if (auto* body = CapsuleComponent->GetPhysicsBody()) {
+                // Tip the corpse so the frozen mesh reads as a fall, not a standing statue.
+                body->SetAngularVelocity({1.8f, 0.0f, 0.6f});
+            }
         }
         bIsRagdoll = true;
         bMeshRagdoll = false;
@@ -619,8 +629,12 @@ namespace Leon {
         if (bMeshRagdoll && Mesh)
             Mesh->StopRagdoll();
         if (CapsuleComponent) {
+            CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            CapsuleComponent->SetCollisionProfileName("Pawn");
             CapsuleComponent->SetSimulatePhysics(false);
             CapsuleComponent->SetLinearDamping(0.01f);
+            CapsuleComponent->RecreatePhysicsBody();
+            CapsuleComponent->SyncPhysicsTransform();
             if (auto* body = CapsuleComponent->GetPhysicsBody())
                 body->SetLinearVelocity(glm::vec3(0.0f));
         }

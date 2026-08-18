@@ -38,13 +38,19 @@
 namespace Leon {
 
     FWorldRenderer::FWorldRenderer(UWorld* InWorld) : World(InWorld) {
-        if (InWorld && InWorld->HasPendingRendererDefaults()) {
-            ShadowSettings.CascadeResolution = InWorld->GetPendingShadowMapResolution();
-            ShadowSettings.CascadeCount = InWorld->GetPendingCascadeCount();
-            ShadowSettings.ShadowDistance = InWorld->GetPendingShadowDistance();
-            bEnablePlanarReflection = InWorld->GetPendingPlanarReflectionEnabled();
-            PlanarQuality = InWorld->GetPendingPlanarReflectionQuality();
-            PlanarResolutionScale = InWorld->GetPendingPlanarReflectionResolutionScale();
+        if (InWorld) {
+            if (InWorld->HasPendingRendererDefaults()) {
+                ShadowSettings.CascadeResolution = InWorld->GetPendingShadowMapResolution();
+                ShadowSettings.CascadeCount = InWorld->GetPendingCascadeCount();
+                ShadowSettings.ShadowDistance = InWorld->GetPendingShadowDistance();
+                bEnablePlanarReflection = InWorld->GetPendingPlanarReflectionEnabled();
+                PlanarQuality = InWorld->GetPendingPlanarReflectionQuality();
+                PlanarResolutionScale = InWorld->GetPendingPlanarReflectionResolutionScale();
+            }
+            PostProcessSettings.bSSAOEnabled = InWorld->GetPendingSSAOEnabled();
+            PostProcessSettings.SSAORadius = InWorld->GetPendingSSAORadius();
+            PostProcessSettings.SSAOIntensity = InWorld->GetPendingSSAOIntensity();
+            PostProcessSettings.SSAOBias = InWorld->GetPendingSSAOBias();
         }
 
         // -----------------------------------------------------------------------
@@ -88,6 +94,7 @@ namespace Leon {
         CameraUBO = FUniformBuffer::Create(sizeof(FCameraBufferData), 0);
         LightingUBO = FUniformBuffer::Create(sizeof(FLightingBufferData), 1);
         BonePaletteUBO = FUniformBuffer::Create(static_cast<unsigned int>(sizeof(glm::mat4) * kMaxBones), 2);
+        InstanceUBO = FUniformBuffer::Create(static_cast<unsigned int>(sizeof(glm::mat4) * kMaxOpaqueInstances), 3);
 
         // -----------------------------------------------------------------------
         // 4. Pipeline shaders and geometry
@@ -396,10 +403,7 @@ namespace Leon {
 
         if (bHasSkybox) {
             FFrameProfiler::FScope sky(&FFrameProfiler::Working().SkyMs);
-            FRenderCommand::SetCulling(true, ECullMode::Back);
             FRenderCommand::SetBlendState(false);
-            FRenderCommand::SetDepthMask(true);
-            FRenderCommand::SetDepthFunc(EDepthFunc::Less);
             RenderSkyboxPass(InCamera, &skybox, bHasDirLight, dirLightComp.Light);
         }
 
@@ -452,7 +456,7 @@ namespace Leon {
 
         {
             FFrameProfiler::FScope pp(&FFrameProfiler::Working().PostProcessMs);
-            RenderPostProcessPass(skybox.Exposure, PreviousFBO, vpWidth, vpHeight);
+            RenderPostProcessPass(skybox.Exposure, PreviousFBO, vpWidth, vpHeight, InCamera);
         }
 
         const auto& stats = FRenderer::GetStats();

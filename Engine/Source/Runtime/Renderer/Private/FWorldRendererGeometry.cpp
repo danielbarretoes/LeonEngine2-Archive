@@ -39,6 +39,9 @@ namespace Leon {
 
     namespace {
         std::vector<FTransparentDraw> GPendingTransparents;
+        std::vector<FOpaqueDraw> GPendingOpaques;
+
+        void SubmitOpaqueDraw(FOpaqueDraw InDraw) { GPendingOpaques.push_back(std::move(InDraw)); }
     }
 
     void FWorldRenderer::BindPlanarReflectionUniforms(FShader& InShader, bool bEnabled) {
@@ -72,6 +75,7 @@ namespace Leon {
                                                   bool bHasSpotLight) {
         auto& reg = World->GetRegistry();
         GPendingTransparents.clear();
+        GPendingOpaques.clear();
 
         // --- Bind per-frame textures ONCE (shadow maps + IBL) ---
         // Bind shadow depth maps to slots 10-11
@@ -103,7 +107,8 @@ namespace Leon {
             if (!mesh.VertexArray || !mesh.Shader || !mesh.bVisible)
                 continue;
 
-            if (IsProceduralMeshCulled(transform, mesh, camFrustum))
+            glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsProceduralMeshCulled(model, mesh, camFrustum))
                 continue;
 
             TRef<FMaterialInstance> matInst = nullptr;
@@ -114,7 +119,6 @@ namespace Leon {
                 matInst = UAssetManager::GetDefaultMaterialInstance();
             }
 
-            glm::mat4 model = transform.GetTransform();
             TRef<FTexture2D> lightmapTex;
             bool bUseLM = World->AreLightmapsTrusted() && mesh.Mobility == EComponentMobility::Static &&
                           mesh.LightmapIndex >= 0 && !mesh.LightmapAssetPath.empty();
@@ -142,24 +146,18 @@ namespace Leon {
                 continue;
             }
 
-            mesh.Shader->Bind();
-            mesh.Shader->SetInt("u_EnableClipPlane", 0);
-            mesh.Shader->SetInt("u_UseShadows", (bShadowsAvailable && mesh.bReceiveShadows) ? 1 : 0);
-            mesh.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && mesh.bReceiveShadows) ? 1 : 0);
-
-            bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
-            BindPlanarReflectionUniforms(*mesh.Shader, bApplyPlanarReflection);
-
-            ApplyMeshRasterState(*matInst, model, false);
-            matInst->Bind(mesh.Shader);
-            BindLightmapUniforms(*mesh.Shader, bUseLM, false, mesh.LightmapScale, mesh.LightmapBias, lightmapTex);
-            mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
-            mesh.Shader->SetInt("u_DebugMode", DebugMode);
-            mesh.Shader->SetMat4("u_Model", glm::value_ptr(model));
-            glm::mat3 normalMatrix = SafeNormalMatrix(model);
-            mesh.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
-            mesh.VertexArray->Bind();
-            FRenderCommand::DrawIndexed(mesh.VertexArray);
+            FOpaqueDraw draw;
+            draw.Shader = mesh.Shader;
+            draw.VA = mesh.VertexArray;
+            draw.Mat = matInst;
+            draw.Model = model;
+            draw.bReceiveShadows = mesh.bReceiveShadows;
+            draw.bUseLightmap = bUseLM;
+            draw.bPlanar = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
+            draw.LightmapScale = mesh.LightmapScale;
+            draw.LightmapBias = mesh.LightmapBias;
+            draw.Lightmap = lightmapTex;
+            SubmitOpaqueDraw(std::move(draw));
         }
 
         // Static Mesh Component Rendering
@@ -168,7 +166,8 @@ namespace Leon {
             auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
             if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray())
                 continue;
-            if (IsStaticMeshCulled(transform, staticMeshComp, camFrustum))
+            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsStaticMeshCulled(world, staticMeshComp, camFrustum))
                 continue;
 
             TRef<FShader> activeShader = staticMeshComp.Shader
@@ -177,24 +176,15 @@ namespace Leon {
             if (!activeShader)
                 continue;
 
-            activeShader->Bind();
-            activeShader->SetInt("u_UseShadows", (bShadowsAvailable && staticMeshComp.bReceiveShadows) ? 1 : 0);
-            activeShader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && staticMeshComp.bReceiveShadows) ? 1 : 0);
-            activeShader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
-            activeShader->SetInt("u_DebugMode", DebugMode);
-
-            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
-
             const auto& submeshes = staticMeshComp.StaticMesh->GetSubmeshes();
             for (const auto& submesh : submeshes) {
                 if (submesh.IndexCount == 0)
                     continue;
 
-                // Resolve Material for this submesh
                 TRef<FMaterialInstance> matInst =
                     ResolveStaticSubmeshMaterial(*staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
 
-                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                glm::mat4 model = world * submesh.LocalTransform;
 
                 TRef<FTexture2D> lightmapTex;
                 bool bUseLM = World->AreLightmapsTrusted() &&
@@ -226,21 +216,21 @@ namespace Leon {
                     continue;
                 }
 
-                bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
-                BindPlanarReflectionUniforms(*activeShader, bApplyPlanarReflection);
-
-                ApplyMeshRasterState(*matInst, model, false);
-                matInst->Bind(activeShader);
-                BindLightmapUniforms(*activeShader, bUseLM, false, staticMeshComp.LightmapScale,
-                                     staticMeshComp.LightmapBias, lightmapTex);
-
-                activeShader->SetInt("u_EnableClipPlane", 0);
-                activeShader->SetMat4("u_Model", glm::value_ptr(model));
-                glm::mat3 normalMatrix = SafeNormalMatrix(model);
-                activeShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
-
-                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
-                                                  submesh.IndexOffset);
+                FOpaqueDraw draw;
+                draw.Shader = activeShader;
+                draw.VA = staticMeshComp.StaticMesh->GetVertexArray();
+                draw.Mat = matInst;
+                draw.Model = model;
+                draw.IndexCount = submesh.IndexCount;
+                draw.IndexOffset = submesh.IndexOffset;
+                draw.bOffset = true;
+                draw.bReceiveShadows = staticMeshComp.bReceiveShadows;
+                draw.bUseLightmap = bUseLM;
+                draw.bPlanar = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
+                draw.LightmapScale = staticMeshComp.LightmapScale;
+                draw.LightmapBias = staticMeshComp.LightmapBias;
+                draw.Lightmap = lightmapTex;
+                SubmitOpaqueDraw(std::move(draw));
             }
         }
 
@@ -251,27 +241,21 @@ namespace Leon {
                 continue;
             if (!skel.bVisible)
                 continue;
-            if (IsSkeletalMeshCulled(transform, skel, camFrustum))
+            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsSkeletalMeshCulled(world, skel, camFrustum))
                 continue;
 
             TRef<FShader> activeShader =
                 skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Skinned.glsl");
             if (!activeShader)
                 continue;
-            UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
-            activeShader->Bind();
-            activeShader->SetInt("u_UseShadows", (bShadowsAvailable && skel.bReceiveShadows) ? 1 : 0);
-            activeShader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && skel.bReceiveShadows) ? 1 : 0);
-            activeShader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
-            activeShader->SetInt("u_DebugMode", DebugMode);
-            skel.SkeletalMesh->GetVertexArray()->Bind();
 
             for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
                 if (submesh.IndexCount == 0)
                     continue;
                 TRef<FMaterialInstance> matInst =
                     ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
-                glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                glm::mat4 model = SkeletalModelMatrix(world, skel, submesh.LocalTransform);
                 if (matInst->GetAlphaMode() == EAlphaMode::Blend) {
                     FTransparentDraw draw;
                     draw.Shader = activeShader;
@@ -288,19 +272,127 @@ namespace Leon {
                     GPendingTransparents.push_back(std::move(draw));
                     continue;
                 }
-                bool bApplyPlanarReflection = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
-                BindPlanarReflectionUniforms(*activeShader, bApplyPlanarReflection);
-                ApplyMeshRasterState(*matInst, model, false);
-                matInst->Bind(activeShader);
-                BindLightmapUniforms(*activeShader, false, false, glm::vec2(1.0f), glm::vec2(0.0f), nullptr);
-                activeShader->SetInt("u_EnableClipPlane", 0);
-                activeShader->SetMat4("u_Model", glm::value_ptr(model));
-                glm::mat3 normalMatrix = SafeNormalMatrix(model);
-                activeShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
-                FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
-                                                  submesh.IndexOffset);
+                FOpaqueDraw draw;
+                draw.Shader = activeShader;
+                draw.VA = skel.SkeletalMesh->GetVertexArray();
+                draw.Mat = matInst;
+                draw.Model = model;
+                draw.IndexCount = submesh.IndexCount;
+                draw.IndexOffset = submesh.IndexOffset;
+                draw.bOffset = true;
+                draw.bReceiveShadows = skel.bReceiveShadows;
+                draw.bPlanar = matInst->GetUsePlanarReflection() && PlanarReflectionFramebuffer;
+                draw.bSkinned = true;
+                draw.BonePalette = &skel.BonePalette;
+                SubmitOpaqueDraw(std::move(draw));
             }
         }
+
+        std::sort(GPendingOpaques.begin(), GPendingOpaques.end(), [](const FOpaqueDraw& a, const FOpaqueDraw& b) {
+            if (a.bSkinned != b.bSkinned)
+                return a.bSkinned < b.bSkinned;
+            if (a.Shader != b.Shader)
+                return a.Shader.get() < b.Shader.get();
+            if (a.VA != b.VA)
+                return a.VA.get() < b.VA.get();
+            if (a.Mat != b.Mat)
+                return a.Mat.get() < b.Mat.get();
+            if (a.IndexOffset != b.IndexOffset)
+                return a.IndexOffset < b.IndexOffset;
+            return a.IndexCount < b.IndexCount;
+        });
+
+        FShader* lastShader = nullptr;
+        FMaterialInstance* lastMat = nullptr;
+        FVertexArray* lastVA = nullptr;
+        const std::vector<glm::mat4>* lastBones = nullptr;
+        bool bLastShadows = false;
+        bool bLastSpotShadows = false;
+        bool bLastPlanar = false;
+        alignas(16) glm::mat4 instanceMats[kMaxOpaqueInstances];
+
+        auto bindPassGlobals = [&](FOpaqueDraw& draw) {
+            bool bShaderChanged = draw.Shader.get() != lastShader;
+            if (bShaderChanged) {
+                draw.Shader->Bind();
+                lastShader = draw.Shader.get();
+                lastMat = nullptr;
+                lastBones = nullptr;
+                draw.Shader->SetInt("u_EnableClipPlane", 0);
+                draw.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
+                draw.Shader->SetInt("u_DebugMode", DebugMode);
+            }
+            bool bWantShadows = bShadowsAvailable && draw.bReceiveShadows;
+            bool bWantSpot = bSpotShadowAvailable && draw.bReceiveShadows;
+            if (bShaderChanged || bWantShadows != bLastShadows) {
+                draw.Shader->SetInt("u_UseShadows", bWantShadows ? 1 : 0);
+                bLastShadows = bWantShadows;
+            }
+            if (bShaderChanged || bWantSpot != bLastSpotShadows) {
+                draw.Shader->SetInt("u_UseSpotShadows", bWantSpot ? 1 : 0);
+                bLastSpotShadows = bWantSpot;
+            }
+            if (bShaderChanged || draw.bPlanar != bLastPlanar) {
+                BindPlanarReflectionUniforms(*draw.Shader, draw.bPlanar);
+                bLastPlanar = draw.bPlanar;
+            }
+            if (draw.BonePalette && draw.BonePalette != lastBones) {
+                UploadBonePalette(BonePaletteUBO.get(), *draw.BonePalette);
+                lastBones = draw.BonePalette;
+            }
+            if (draw.Mat.get() != lastMat) {
+                draw.Mat->Bind(draw.Shader);
+                lastMat = draw.Mat.get();
+            }
+            BindLightmapUniforms(*draw.Shader, draw.bUseLightmap, draw.bLightmapUseTexCoord, draw.LightmapScale,
+                                 draw.LightmapBias, draw.Lightmap);
+            if (draw.VA.get() != lastVA) {
+                draw.VA->Bind();
+                lastVA = draw.VA.get();
+            }
+        };
+
+        for (size_t i = 0; i < GPendingOpaques.size();) {
+            FOpaqueDraw& first = GPendingOpaques[i];
+            if (!first.Shader || !first.VA || !first.Mat) {
+                ++i;
+                continue;
+            }
+
+            size_t batchEnd = i + 1;
+            if (!first.bSkinned) {
+                while (batchEnd < GPendingOpaques.size() && (batchEnd - i) < kMaxOpaqueInstances &&
+                       OpaqueDrawsBatchable(first, GPendingOpaques[batchEnd]))
+                    ++batchEnd;
+            }
+            const uint32_t instanceCount = static_cast<uint32_t>(batchEnd - i);
+            bindPassGlobals(first);
+            ApplyMeshRasterState(*first.Mat, first.Model, false);
+
+            if (instanceCount == 1) {
+                first.Shader->SetInt("u_UseInstancing", 0);
+                first.Shader->SetMat4("u_Model", glm::value_ptr(first.Model));
+                glm::mat3 normalMatrix = SafeNormalMatrix(first.Model);
+                first.Shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
+                if (first.bOffset)
+                    FRenderCommand::DrawIndexedOffset(first.VA, first.IndexCount, first.IndexOffset);
+                else
+                    FRenderCommand::DrawIndexed(first.VA);
+            } else {
+                for (uint32_t n = 0; n < instanceCount; ++n)
+                    instanceMats[n] = GPendingOpaques[i + n].Model;
+                if (InstanceUBO)
+                    InstanceUBO->SetData(instanceMats, static_cast<unsigned int>(sizeof(glm::mat4) * instanceCount), 0);
+                first.Shader->SetInt("u_UseInstancing", 1);
+                if (first.bOffset)
+                    FRenderCommand::DrawIndexedOffsetInstanced(first.VA, first.IndexCount, first.IndexOffset,
+                                                               instanceCount);
+                else
+                    FRenderCommand::DrawIndexedInstanced(first.VA, 0, instanceCount);
+            }
+            i = batchEnd;
+        }
+        GPendingOpaques.clear();
 
         // Friend/foe silhouette: inverted-hull (expand along normals, cull front faces).
         if (TRef<FShader> outlineShader = UAssetManager::GetShader("Engine/Assets/Shaders/Outline_Skinned.glsl")) {
@@ -314,7 +406,8 @@ namespace Leon {
                     continue;
                 if (!skel.bVisible)
                     continue;
-                if (IsSkeletalMeshCulled(transform, skel, camFrustum))
+                glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+                if (IsSkeletalMeshCulled(world, skel, camFrustum))
                     continue;
                 UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
                 outlineShader->Bind();
@@ -325,7 +418,7 @@ namespace Leon {
                 for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
                     if (submesh.IndexCount == 0)
                         continue;
-                    glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                    glm::mat4 model = SkeletalModelMatrix(world, skel, submesh.LocalTransform);
                     outlineShader->SetMat4("u_Model", glm::value_ptr(model));
                     glm::mat3 normalMatrix = SafeNormalMatrix(model);
                     outlineShader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
@@ -375,6 +468,7 @@ namespace Leon {
                 UploadBonePalette(BonePaletteUBO.get(), *draw.BonePalette);
             draw.Shader->Bind();
             draw.Shader->SetInt("u_EnableClipPlane", 0);
+            draw.Shader->SetInt("u_UseInstancing", 0);
             draw.Shader->SetInt("u_UseShadows", (bShadowsAvailable && draw.bReceiveShadows) ? 1 : 0);
             draw.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && draw.bReceiveShadows) ? 1 : 0);
             draw.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);

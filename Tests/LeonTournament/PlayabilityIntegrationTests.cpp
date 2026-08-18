@@ -19,6 +19,7 @@
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ALeonTournamentWeapon.hpp"
+#include "FLeonTournamentArenaBuilder.hpp"
 #include "ULeonTournamentWidgets.hpp"
 #include "FENetTransport.hpp"
 #include "Lightmass/FLightBuildSettings.hpp"
@@ -470,6 +471,33 @@ namespace Leon {
             REQUIRE(env->HasComponent<FSkyboxComponent>());
             CHECK(env->GetComponent<FSkyboxComponent>().bUseHDREnvironmentMap);
             CHECK(env->GetComponent<FSkyboxComponent>().HDREnvironmentMapPath.find(".lhdr") != std::string::npos);
+        }
+
+        TEST_CASE("playable lighting is directional only and idempotent") {
+            FMatchWorld f;
+            FLeonTournamentArenaBuilder::SpawnPointLight(f.World.get(), "PL_Junk", {0.0f, 4.0f, 0.0f}, {1.0f, 1.0f, 1.0f},
+                                                         8.0f, 12.0f);
+            FLeonTournamentArenaBuilder::SpawnSpotLight(f.World.get(), "Spot_Junk", {0.0f, 6.0f, 0.0f},
+                                                        {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, 10.0f, 16.0f, 15.0f,
+                                                        25.0f);
+            f.World->SpawnActor<AActor>("Ceiling");
+            f.GM->EnsurePlayableLighting();
+            f.GM->EnsurePlayableLighting();
+            int points = 0, spots = 0, dirs = 0;
+            for (const auto& actor : f.World->GetAllActors()) {
+                if (!actor)
+                    continue;
+                if (actor->HasComponent<FPointLightComponent>())
+                    ++points;
+                if (actor->HasComponent<FSpotLightComponent>())
+                    ++spots;
+                if (actor->HasComponent<FDirectionalLightComponent>())
+                    ++dirs;
+            }
+            CHECK(points == 0);
+            CHECK(spots == 0);
+            CHECK(dirs >= 1);
+            CHECK(f.World->FindActorByName("Ceiling") == nullptr);
         }
     }
 

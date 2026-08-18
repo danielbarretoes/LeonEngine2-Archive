@@ -223,11 +223,19 @@ namespace Leon {
         return shader;
     }
 
+    namespace {
+        GLuint GBoundProgram = 0;
+    }
+
     void FOpenGLShader::Bind() const {
+        if (GBoundProgram == RendererID)
+            return;
+        GBoundProgram = RendererID;
         glUseProgram(RendererID);
     }
 
     void FOpenGLShader::Unbind() const {
+        GBoundProgram = 0;
         glUseProgram(0);
     }
 

@@ -94,23 +94,7 @@ namespace Leon {
             return;
         }
         if (bSimulatingRagdoll) {
-            const glm::mat4 meshWorld = GetComponentWorldMatrix();
-            const glm::mat4 invMesh = glm::inverse(meshWorld);
-            for (size_t i = 0; i < RagdollBodies.size() && i < RagdollBoneNames.size(); ++i) {
-                if (!RagdollBodies[i] || !SkeletalMesh || !SkeletalMesh->GetSkeleton())
-                    continue;
-                const int32_t bone = SkeletalMesh->GetSkeleton()->FindBoneIndex(RagdollBoneNames[i]);
-                if (bone < 0)
-                    continue;
-                EnsureComponentSpace();
-                if (bone >= static_cast<int32_t>(ComponentSpaceTransforms.size()))
-                    continue;
-                glm::vec3 loc;
-                glm::quat rot;
-                RagdollBodies[i]->GetTransform(loc, rot);
-                glm::mat4 boneWorld = glm::translate(glm::mat4(1.0f), loc) * glm::toMat4(glm::normalize(rot));
-                ComponentSpaceTransforms[static_cast<size_t>(bone)] = invMesh * boneWorld;
-            }
+            ApplyRagdollPoseFromBodies();
             if (SkeletalMesh && SkeletalMesh->GetSkeleton()) {
                 if (SkeletalMesh->HasMeshBindPoses())
                     FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms,
@@ -121,6 +105,13 @@ namespace Leon {
             }
             PushToRenderComponent();
             return;
+        }
+        // Capsule ragdoll fallback: keep the last evaluated pose; do not keep driving montages/locomotion.
+        if (AActor* owner = GetOwner()) {
+            if (auto* character = dynamic_cast<ACharacter*>(owner); character && character->IsRagdoll()) {
+                PushToRenderComponent();
+                return;
+            }
         }
         if (!SkeletalMesh || !SkeletalMesh->GetSkeleton())
             return;
@@ -257,11 +248,17 @@ namespace Leon {
         };
 
         for (const FPhysicsAssetBody& desc : PhysicsAsset->GetBodies()) {
-            glm::mat4 boneWorld;
-            if (!GetBoneMatrix(desc.BoneName, boneWorld)) {
+            const int32_t boneIdx = SkeletalMesh && SkeletalMesh->GetSkeleton()
+                                        ? SkeletalMesh->GetSkeleton()->FindBoneIndex(desc.BoneName)
+                                        : -1;
+            if (boneIdx < 0 || boneIdx >= static_cast<int32_t>(ComponentSpaceTransforms.size())) {
                 cleanup();
                 return false;
             }
+            glm::vec3 worldPos;
+            glm::quat worldRot;
+            ComponentToPhysicsWorld(GetComponentWorldMatrix(), ComponentSpaceTransforms[static_cast<size_t>(boneIdx)],
+                                    worldPos, worldRot);
             FPhysicsBodyCreateInfo info;
             info.Motion = EPhysicsMotionType::Dynamic;
             info.bSimulatePhysics = true;
@@ -269,8 +266,10 @@ namespace Leon {
             info.ObjectType = ECollisionChannel::Pawn;
             info.Mass = 8.0f;
             info.LinearDamping = 0.4f;
-            info.Location = glm::vec3(boneWorld[3]) + desc.Offset;
+            info.Location = worldPos + desc.Offset;
+            info.Rotation = worldRot;
             info.Component = this;
+            // Leave Actor null so SimplePhysics does not teleport the standing capsule per bone.
             if (desc.Shape == EPhysicsAssetBodyShape::Sphere) {
                 info.Shape = EPhysicsShapeType::Sphere;
                 info.SphereRadius = desc.Radius;
@@ -337,6 +336,7 @@ namespace Leon {
             RagdollConstraints.push_back(constraint);
         }
 
+        CaptureRagdollRestLocals();
         if (!RagdollBodies.empty())
             RagdollBodies.front()->AddImpulse(InImpulse);
         bSimulatingRagdoll = true;
@@ -360,7 +360,104 @@ namespace Leon {
         RagdollConstraints.clear();
         RagdollBodies.clear();
         RagdollBoneNames.clear();
+        RagdollLocalFromParent.clear();
+        RagdollBoneIsSimulated.clear();
         bSimulatingRagdoll = false;
+    }
+
+    glm::quat USkeletalMeshComponent::NormalizedMat3Quat(const glm::mat4& InM) {
+        glm::vec3 x = glm::vec3(InM[0]);
+        glm::vec3 y = glm::vec3(InM[1]);
+        glm::vec3 z = glm::vec3(InM[2]);
+        const float lx = glm::length(x);
+        const float ly = glm::length(y);
+        const float lz = glm::length(z);
+        if (lx > 1e-8f)
+            x /= lx;
+        if (ly > 1e-8f)
+            y /= ly;
+        if (lz > 1e-8f)
+            z /= lz;
+        return glm::normalize(glm::quat_cast(glm::mat3(x, y, z)));
+    }
+
+    void USkeletalMeshComponent::ComponentToPhysicsWorld(const glm::mat4& InMeshWorld, const glm::mat4& InComponent,
+                                                         glm::vec3& OutWorldPos, glm::quat& OutWorldRot) {
+        OutWorldPos = glm::vec3(InMeshWorld * glm::vec4(glm::vec3(InComponent[3]), 1.0f));
+        const glm::quat meshRot = NormalizedMat3Quat(InMeshWorld);
+        const glm::quat boneRot = NormalizedMat3Quat(InComponent);
+        OutWorldRot = glm::normalize(meshRot * boneRot);
+    }
+
+    void USkeletalMeshComponent::PhysicsWorldToComponent(const glm::mat4& InMeshWorld, const glm::vec3& InWorldPos,
+                                                         const glm::quat& InWorldRot, glm::mat4& OutComponent) {
+        // Do NOT use inv(meshWorld)*T*R when the mesh has non-1 scale — that scales the bone basis and
+        // explodes skinning (instant giant corpse). Split translation (full inverse) and rotation (unscaled).
+        const glm::mat4 invMesh = glm::inverse(InMeshWorld);
+        const glm::vec3 compPos = glm::vec3(invMesh * glm::vec4(InWorldPos, 1.0f));
+        const glm::quat meshRot = NormalizedMat3Quat(InMeshWorld);
+        const glm::quat compRot = glm::normalize(glm::inverse(meshRot) * glm::normalize(InWorldRot));
+        OutComponent = glm::translate(glm::mat4(1.0f), compPos) * glm::toMat4(compRot);
+    }
+
+    void USkeletalMeshComponent::CaptureRagdollRestLocals() {
+        RagdollLocalFromParent.clear();
+        RagdollBoneIsSimulated.clear();
+        if (!SkeletalMesh || !SkeletalMesh->GetSkeleton())
+            return;
+        EnsureComponentSpace();
+        const auto& bones = SkeletalMesh->GetSkeleton()->GetBones();
+        RagdollLocalFromParent.resize(bones.size(), glm::mat4(1.0f));
+        RagdollBoneIsSimulated.assign(bones.size(), 0);
+        for (size_t i = 0; i < bones.size() && i < ComponentSpaceTransforms.size(); ++i) {
+            const int32_t parent = bones[i].ParentIndex;
+            if (parent < 0 || parent >= static_cast<int32_t>(ComponentSpaceTransforms.size()))
+                RagdollLocalFromParent[i] = ComponentSpaceTransforms[i];
+            else
+                RagdollLocalFromParent[i] =
+                    glm::inverse(ComponentSpaceTransforms[static_cast<size_t>(parent)]) * ComponentSpaceTransforms[i];
+        }
+        for (const std::string& name : RagdollBoneNames) {
+            const int32_t idx = SkeletalMesh->GetSkeleton()->FindBoneIndex(name);
+            if (idx >= 0 && idx < static_cast<int32_t>(RagdollBoneIsSimulated.size()))
+                RagdollBoneIsSimulated[static_cast<size_t>(idx)] = 1;
+        }
+    }
+
+    void USkeletalMeshComponent::ApplyRagdollPoseFromBodies() {
+        if (!SkeletalMesh || !SkeletalMesh->GetSkeleton())
+            return;
+        EnsureComponentSpace();
+        const auto& bones = SkeletalMesh->GetSkeleton()->GetBones();
+        if (ComponentSpaceTransforms.size() < bones.size())
+            ComponentSpaceTransforms.resize(bones.size(), glm::mat4(1.0f));
+
+        const glm::mat4 meshWorld = GetComponentWorldMatrix();
+        for (size_t i = 0; i < RagdollBodies.size() && i < RagdollBoneNames.size(); ++i) {
+            if (!RagdollBodies[i])
+                continue;
+            const int32_t bone = SkeletalMesh->GetSkeleton()->FindBoneIndex(RagdollBoneNames[i]);
+            if (bone < 0 || bone >= static_cast<int32_t>(ComponentSpaceTransforms.size()))
+                continue;
+            glm::vec3 loc;
+            glm::quat rot;
+            RagdollBodies[i]->GetTransform(loc, rot);
+            PhysicsWorldToComponent(meshWorld, loc, rot, ComponentSpaceTransforms[static_cast<size_t>(bone)]);
+        }
+
+        // Non-simulated bones keep the death pose relative to their (possibly simulated) parent.
+        if (RagdollLocalFromParent.size() == bones.size()) {
+            for (size_t i = 0; i < bones.size(); ++i) {
+                if (i < RagdollBoneIsSimulated.size() && RagdollBoneIsSimulated[i])
+                    continue;
+                const int32_t parent = bones[i].ParentIndex;
+                if (parent < 0 || parent >= static_cast<int32_t>(ComponentSpaceTransforms.size()))
+                    ComponentSpaceTransforms[i] = RagdollLocalFromParent[i];
+                else
+                    ComponentSpaceTransforms[i] =
+                        ComponentSpaceTransforms[static_cast<size_t>(parent)] * RagdollLocalFromParent[i];
+            }
+        }
     }
 
 } // namespace Leon

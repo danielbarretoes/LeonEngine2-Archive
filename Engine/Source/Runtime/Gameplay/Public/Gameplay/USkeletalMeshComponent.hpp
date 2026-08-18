@@ -76,9 +76,20 @@ namespace Leon {
         std::vector<IPhysicsBody*> RagdollBodies;
         std::vector<IPhysicsConstraint*> RagdollConstraints;
         std::vector<std::string> RagdollBoneNames;
+        /** Parent-relative component-space pose captured at ragdoll start (non-simulated bones follow). */
+        std::vector<glm::mat4> RagdollLocalFromParent;
+        std::vector<uint8_t> RagdollBoneIsSimulated;
         FPose EvaluatedPose;
         bool bHiddenInGame = false;
         bool bSimulatingRagdoll = false;
+
+        static glm::quat NormalizedMat3Quat(const glm::mat4& InM);
+        static void PhysicsWorldToComponent(const glm::mat4& InMeshWorld, const glm::vec3& InWorldPos,
+                                            const glm::quat& InWorldRot, glm::mat4& OutComponent);
+        static void ComponentToPhysicsWorld(const glm::mat4& InMeshWorld, const glm::mat4& InComponent,
+                                            glm::vec3& OutWorldPos, glm::quat& OutWorldRot);
+        void CaptureRagdollRestLocals();
+        void ApplyRagdollPoseFromBodies();
     };
 
 } // namespace Leon

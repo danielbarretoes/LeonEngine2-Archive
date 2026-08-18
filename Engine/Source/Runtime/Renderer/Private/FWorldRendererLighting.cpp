@@ -78,8 +78,14 @@ namespace Leon {
             CascadeShadowFramebuffer->AttachDepthTextureLayer(cascade);
             FRenderCommand::Clear();
 
-            glm::mat4 subProj =
-                glm::perspective(glm::radians(fov), aspect, splitPlane[cascade], splitPlane[cascade + 1]);
+            glm::mat4 subProj;
+            {
+                float sliceNear = splitPlane[cascade];
+                float sliceFar = splitPlane[cascade + 1];
+                ShadowMath::CascadeSliceDepthRange(cascade, splits, ShadowSettings.CascadeBlendWidth,
+                                                   FShadowSettings::kCascadeBlendMinMeters, sliceNear, sliceFar);
+                subProj = glm::perspective(glm::radians(fov), aspect, sliceNear, sliceFar);
+            }
             auto corners = ShadowMath::GetFrustumCornersWorldSpace(subProj, InCamera.GetViewMatrix());
 
             float worldUnitsPerTexel = 0.01f;
@@ -96,7 +102,7 @@ namespace Leon {
                 if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
                     continue;
 
-                glm::mat4 model = transform.GetTransform();
+                glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform);
                 ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
 
                 // Support alpha-masked shadow casters
@@ -142,7 +148,7 @@ namespace Leon {
                 for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
                     if (submesh.IndexCount == 0)
                         continue;
-                    glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                    glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform) * submesh.LocalTransform;
                     ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
                     ShadowDepthShader->SetInt("u_AlphaMode", 0);
                     ShadowDepthShader->SetInt("u_UseAlbedoMap", 0);
@@ -165,7 +171,8 @@ namespace Leon {
                     for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
                         if (submesh.IndexCount == 0)
                             continue;
-                        glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                        glm::mat4 model = SkeletalModelMatrix(ResolveActorWorldMatrix(World, entity, transform), skel,
+                                                              submesh.LocalTransform);
                         ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
                         ShadowDepthSkinnedShader->SetInt("u_AlphaMode", 0);
                         ShadowDepthSkinnedShader->SetInt("u_UseAlbedoMap", 0);
@@ -217,7 +224,7 @@ namespace Leon {
             auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
             if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
                 continue;
-            glm::mat4 model = transform.GetTransform();
+            glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform);
             ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
             mesh.VertexArray->Bind();
             FRenderCommand::DrawIndexed(mesh.VertexArray);
@@ -233,7 +240,7 @@ namespace Leon {
             for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
                 if (submesh.IndexCount == 0)
                     continue;
-                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform) * submesh.LocalTransform;
                 ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
                 FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
                                                   submesh.IndexOffset);
@@ -253,7 +260,8 @@ namespace Leon {
                 for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
                     if (submesh.IndexCount == 0)
                         continue;
-                    glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                    glm::mat4 model = SkeletalModelMatrix(ResolveActorWorldMatrix(World, entity, transform), skel,
+                                                          submesh.LocalTransform);
                     ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
                     FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
                                                       submesh.IndexOffset);
@@ -370,9 +378,11 @@ namespace Leon {
         FRenderCommand::Clear();
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
-        FRenderCommand::SetClipDistance(true);
+        // Skybox.glsl does not write gl_ClipDistance; enabling clip first culls the entire cube.
+        FRenderCommand::SetClipDistance(false);
 
         if (InSkybox && InSkybox->bEnabled && SkyboxShader && SkyboxVA) {
+            FRenderCommand::SetCulling(false);
             FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
             FRenderCommand::SetDepthMask(false);
             SkyboxShader->Bind();
@@ -401,6 +411,8 @@ namespace Leon {
             FRenderCommand::SetDepthMask(true);
             FRenderCommand::SetDepthFunc(EDepthFunc::Less);
         }
+
+        FRenderCommand::SetClipDistance(true);
 
         if (CascadeShadowFramebuffer)
             CascadeShadowFramebuffer->BindDepthTexture(10);
@@ -449,7 +461,8 @@ namespace Leon {
             if (!mesh.VertexArray || !mesh.Shader ||
                 !CanContributeToPlanarReflection(mesh.bVisible, mesh.bVisibleInReflection, mesh.Mobility))
                 continue;
-            if (IsProceduralMeshCulled(transform, mesh, reflectionFrustum))
+            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsProceduralMeshCulled(world, mesh, reflectionFrustum))
                 continue;
 
             mesh.Shader->Bind();
@@ -459,6 +472,7 @@ namespace Leon {
             mesh.Shader->SetInt("u_UseSpotShadows", 0);
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", 0);
+            mesh.Shader->SetInt("u_UseInstancing", 0);
             mesh.Shader->SetInt("u_EnableClipPlane", 1);
             mesh.Shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z,
                                    InPlane.Distance);
@@ -471,7 +485,7 @@ namespace Leon {
                 matInst = UAssetManager::GetDefaultMaterialInstance();
             }
 
-            glm::mat4 model = transform.GetTransform();
+            glm::mat4 model = world;
             const auto& pso = matInst->GetPipelineState();
             ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : CullModeForReflection(pso.CullMode);
             cullMode = FlipCullForNegativeScale(cullMode, model);
@@ -502,7 +516,8 @@ namespace Leon {
                 !CanContributeToPlanarReflection(staticMeshComp.bVisible, staticMeshComp.bVisibleInReflection,
                                                  staticMeshComp.Mobility))
                 continue;
-            if (IsStaticMeshCulled(transform, staticMeshComp, reflectionFrustum))
+            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsStaticMeshCulled(world, staticMeshComp, reflectionFrustum))
                 continue;
 
             TRef<FShader> shader = staticMeshComp.Shader
@@ -518,6 +533,7 @@ namespace Leon {
             shader->SetInt("u_UseSpotShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
+            shader->SetInt("u_UseInstancing", 0);
             shader->SetInt("u_EnableClipPlane", 1);
             shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z, InPlane.Distance);
 
@@ -529,7 +545,7 @@ namespace Leon {
                 TRef<FMaterialInstance> matInst =
                     ResolveStaticSubmeshMaterial(*staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
 
-                glm::mat4 model = transform.GetTransform() * submesh.LocalTransform;
+                glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform) * submesh.LocalTransform;
                 const auto& pso = matInst->GetPipelineState();
                 ECullMode cullMode = matInst->GetDoubleSided() ? ECullMode::None : CullModeForReflection(pso.CullMode);
                 cullMode = FlipCullForNegativeScale(cullMode, model);
@@ -560,7 +576,8 @@ namespace Leon {
             if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bVisible ||
                 !skel.bVisibleInReflection)
                 continue;
-            if (IsSkeletalMeshCulled(transform, skel, reflectionFrustum))
+            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsSkeletalMeshCulled(world, skel, reflectionFrustum))
                 continue;
             TRef<FShader> shader =
                 skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Skinned.glsl");
@@ -574,6 +591,7 @@ namespace Leon {
             shader->SetInt("u_UseSpotShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
+            shader->SetInt("u_UseInstancing", 0);
             shader->SetInt("u_EnableClipPlane", 1);
             shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z, InPlane.Distance);
             skel.SkeletalMesh->GetVertexArray()->Bind();
@@ -582,7 +600,8 @@ namespace Leon {
                     continue;
                 TRef<FMaterialInstance> matInst =
                     ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
-                glm::mat4 model = SkeletalModelMatrix(transform, skel, submesh.LocalTransform);
+                glm::mat4 model = SkeletalModelMatrix(ResolveActorWorldMatrix(World, entity, transform), skel,
+                                                      submesh.LocalTransform);
                 ApplyMeshRasterState(*matInst, model, matInst->GetAlphaMode() == EAlphaMode::Blend);
                 matInst->Bind(shader);
                 shader->SetMat4("u_Model", glm::value_ptr(model));

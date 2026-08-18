@@ -28,6 +28,10 @@ namespace Leon {
         void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0) override;
         void DrawIndexedOffset(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
                                unsigned int InIndexOffset) override;
+        void DrawIndexedInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                  unsigned int InInstanceCount) override;
+        void DrawIndexedOffsetInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                        unsigned int InIndexOffset, unsigned int InInstanceCount) override;
         void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) override;
         void SetLineWidth(float InWidth) override;
 

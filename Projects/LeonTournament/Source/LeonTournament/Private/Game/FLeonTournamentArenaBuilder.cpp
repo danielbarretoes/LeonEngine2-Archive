@@ -23,7 +23,7 @@ namespace Leon {
             case ELeonTournamentArenaSurface::Accent:
                 return "/Game/Materials/M_ArenaAccent.lmat";
             case ELeonTournamentArenaSurface::Ceiling:
-                return "/Game/Materials/M_LabProp.lmat";
+                return "/Game/Materials/M_LabCeiling.lmat";
             case ELeonTournamentArenaSurface::Mirror:
                 return "/Game/Materials/M_ArenaMirror.lmat";
             case ELeonTournamentArenaSurface::Prop:
@@ -51,7 +51,7 @@ namespace Leon {
                 mesh.LightmapResolution = 64;
                 mesh.bCastShadows = true;
                 mesh.bReceiveShadows = true;
-                mesh.bVisibleInReflection = true;
+                mesh.bVisibleInReflection = InSurface != ELeonTournamentArenaSurface::Floor;
                 if (auto mat = UAssetManager::GetMaterialInstance(ArenaMaterialPath(InSurface))) {
                     mat->SetAlbedoColor(InTint);
                     if (InUvTile > 0.0f)

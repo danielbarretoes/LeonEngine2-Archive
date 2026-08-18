@@ -37,7 +37,7 @@ namespace Leon {
         glm::vec4 CameraForward{0.0f, 0.0f, -1.0f, 0.0f}; // 16 bytes  (offset 400)
         glm::vec4 CascadeSplits{0.0f};                    // 16 bytes  (offset 416)
         glm::vec4 ShadowParams{0.0010f, 0.0035f, 0.040f,
-                               0.10f}; // 16 bytes (offset 432) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
+                               0.25f}; // 16 bytes (offset 432) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
         glm::ivec4 ShadowSettings{1, 0, 0,
                                   0}; // 16 bytes (offset 448) (x=filterMode, y=shadowedSpotIndex, z=0, w=debug)
     }; // Total: 464 bytes
@@ -90,7 +90,7 @@ namespace Leon {
 
         /**
          * @brief Execute all render passes for this frame.
-         * Order: CSM → Spot Shadow → Planar → Opaque → Skybox → Transparent → PostProcess
+         * Order: CSM → Spot Shadow → Planar → Opaque → Skybox → Transparent → SSAO → PostProcess
          */
         void Render(const FPerspectiveCamera& InCamera);
         void RenderScene(const FPerspectiveCamera& InCamera) { Render(InCamera); }
@@ -169,7 +169,8 @@ namespace Leon {
         void RenderSkyboxPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox, bool bHasDirLight,
                               const FDirectionalLight& InDirLight);
 
-        void RenderPostProcessPass(float InExposure, uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight);
+        void RenderPostProcessPass(float InExposure, uint32_t InTargetFBO, uint32_t InVpWidth, uint32_t InVpHeight,
+                                   const FPerspectiveCamera& InCamera);
 
         void UpdateIBL(const FSkyboxComponent& InSkybox);
 
@@ -213,6 +214,7 @@ namespace Leon {
         TRef<FUniformBuffer> CameraUBO;      // Binding 0
         TRef<FUniformBuffer> LightingUBO;    // Binding 1
         TRef<FUniformBuffer> BonePaletteUBO; // Binding 2 — GPU skinning palette
+        TRef<FUniformBuffer> InstanceUBO;    // Binding 3 — opaque instancing matrices
 
         // Built-in pipeline shaders
         TRef<FShader> ShadowDepthShader;

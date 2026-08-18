@@ -19,7 +19,7 @@ namespace Leon {
 
     enum class EPhysicsMotionType : uint8_t { Static = 0, Kinematic = 1, Dynamic = 2 };
 
-    enum class EPhysicsShapeType : uint8_t { Box = 0, Sphere = 1, Capsule = 2 };
+    enum class EPhysicsShapeType : uint8_t { Box = 0, Sphere = 1, Capsule = 2, TriangleMesh = 3 };
 
     constexpr uint8_t kCollisionChannelCount = 16;
 

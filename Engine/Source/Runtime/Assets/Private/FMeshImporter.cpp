@@ -6,9 +6,173 @@
 #include <ufbx.h>
 
 #include <algorithm>
+#include <cctype>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Leon {
+
+    namespace {
+
+        std::string SanitizeMeshToken(std::string InName) {
+            for (char& c : InName) {
+                if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-')
+                    c = '_';
+            }
+            InName.erase(std::remove_if(InName.begin(), InName.end(), [](unsigned char c) { return std::isspace(c); }),
+                         InName.end());
+            while (!InName.empty() && InName.front() == '_')
+                InName.erase(InName.begin());
+            while (!InName.empty() && InName.back() == '_')
+                InName.pop_back();
+            return InName.empty() ? "Mesh" : InName;
+        }
+
+        void CopyMaterialSlots(UStaticMesh& InMesh, const std::vector<FExtractedMaterial>& InMaterials) {
+            InMesh.GetMaterialSlots().clear();
+            for (const auto& extracted : InMaterials) {
+                FStaticMaterialSlot slot;
+                slot.SlotName = extracted.Name;
+                std::string formattedMatName =
+                    (extracted.Name.rfind("M_", 0) == 0) ? extracted.Name : ("M_" + extracted.Name);
+                slot.DefaultMaterialPath = "Materials/" + formattedMatName + ".lmat";
+                InMesh.GetMaterialSlots().push_back(slot);
+            }
+            if (InMesh.GetMaterialSlots().empty()) {
+                FStaticMaterialSlot defSlot;
+                defSlot.SlotName = "DefaultMaterial";
+                defSlot.DefaultMaterialPath = "Materials/M_DefaultPBR.lmat";
+                InMesh.GetMaterialSlots().push_back(defSlot);
+            }
+        }
+
+        FStaticMeshVertex MakeFbxVertex(const ufbx_mesh* InMesh, uint32_t InIndexInMesh, const glm::mat4& InLocalMat,
+                                        const glm::mat3& InNormMat, bool bFlipUVs) {
+            FStaticMeshVertex v;
+            if (InMesh->vertex_position.exists) {
+                ufbx_vec3 p = ufbx_get_vertex_vec3(&InMesh->vertex_position, InIndexInMesh);
+                glm::vec4 localPos(static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z), 1.0f);
+                v.Position = glm::vec3(InLocalMat * localPos);
+            }
+            if (InMesh->vertex_normal.exists) {
+                ufbx_vec3 n = ufbx_get_vertex_vec3(&InMesh->vertex_normal, InIndexInMesh);
+                v.Normal = glm::normalize(
+                    InNormMat * glm::vec3(static_cast<float>(n.x), static_cast<float>(n.y), static_cast<float>(n.z)));
+            }
+            if (InMesh->vertex_uv.exists) {
+                ufbx_vec2 uv = ufbx_get_vertex_vec2(&InMesh->vertex_uv, InIndexInMesh);
+                v.TexCoord = glm::vec2(static_cast<float>(uv.x),
+                                       bFlipUVs ? (1.0f - static_cast<float>(uv.y)) : static_cast<float>(uv.y));
+            }
+            glm::vec3 tangent{1.0f, 0.0f, 0.0f};
+            glm::vec3 bitangent = glm::cross(v.Normal, tangent);
+            if (InMesh->vertex_tangent.exists) {
+                ufbx_vec3 t = ufbx_get_vertex_vec3(&InMesh->vertex_tangent, InIndexInMesh);
+                tangent = glm::normalize(
+                    InNormMat * glm::vec3(static_cast<float>(t.x), static_cast<float>(t.y), static_cast<float>(t.z)));
+            }
+            if (InMesh->vertex_bitangent.exists) {
+                ufbx_vec3 b = ufbx_get_vertex_vec3(&InMesh->vertex_bitangent, InIndexInMesh);
+                bitangent = glm::normalize(
+                    InNormMat * glm::vec3(static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.z)));
+            } else {
+                bitangent = glm::normalize(glm::cross(v.Normal, tangent));
+            }
+            v.Tangent = PackTangent(tangent, v.Normal, bitangent);
+            v.LightmapUV = glm::vec2(0.0f);
+            if (InMesh->vertex_color.exists) {
+                ufbx_vec4 col = ufbx_get_vertex_vec4(&InMesh->vertex_color, InIndexInMesh);
+                v.Color = glm::vec3(static_cast<float>(col.x), static_cast<float>(col.y), static_cast<float>(col.z));
+            } else {
+                v.Color = glm::vec3(1.0f);
+            }
+            return v;
+        }
+
+        void AppendTriangulatedFaces(UStaticMesh& InMesh, const ufbx_mesh* InUMesh, const uint32_t* InFaceIndices,
+                                     size_t InFaceCount, const glm::mat4& InLocalMat, const glm::mat3& InNormMat,
+                                     bool bFlipUVs, FStaticSubmesh& InOutSubmesh) {
+            std::vector<FStaticMeshVertex>& verts = InMesh.GetVertices();
+            std::vector<uint32_t>& indices = InMesh.GetIndices();
+            const uint32_t vertexStart = static_cast<uint32_t>(verts.size());
+            InOutSubmesh.IndexOffset = static_cast<uint32_t>(indices.size());
+            InOutSubmesh.VertexOffset = vertexStart;
+            for (size_t fi = 0; fi < InFaceCount; ++fi) {
+                const uint32_t faceIndex = InFaceIndices ? InFaceIndices[fi] : static_cast<uint32_t>(fi);
+                ufbx_face face = InUMesh->faces.data[faceIndex];
+                const uint32_t numTri = face.num_indices >= 3 ? face.num_indices - 2 : 0;
+                for (uint32_t ti = 0; ti < numTri; ++ti) {
+                    const uint32_t cornerIndices[3] = {0, ti + 1, ti + 2};
+                    for (int k = 0; k < 3; ++k) {
+                        const uint32_t indexInMesh = face.index_begin + cornerIndices[k];
+                        indices.push_back(static_cast<uint32_t>(verts.size()));
+                        verts.push_back(MakeFbxVertex(InUMesh, indexInMesh, InLocalMat, InNormMat, bFlipUVs));
+                    }
+                }
+            }
+            InOutSubmesh.IndexCount = static_cast<uint32_t>(indices.size() - InOutSubmesh.IndexOffset);
+            InOutSubmesh.VertexCount = static_cast<uint32_t>(verts.size() - vertexStart);
+        }
+
+        bool FillStaticMeshFromFbxNode(UStaticMesh& InMesh, const ufbx_node* InNode,
+                                       const FMeshImportSettings& InSettings,
+                                       const std::unordered_map<const ufbx_material*, uint32_t>& InMatToSlot) {
+            if (!InNode || !InNode->mesh)
+                return false;
+            const ufbx_mesh* uMesh = InNode->mesh;
+            if (uMesh->num_faces == 0 || uMesh->num_triangles == 0)
+                return false;
+
+            const std::string submeshName =
+                InNode->name.data ? std::string(InNode->name.data, InNode->name.length) : InMesh.GetName();
+
+            glm::mat4 localMat(1.0f);
+            for (int c = 0; c < 4; ++c) {
+                for (int r = 0; r < 3; ++r)
+                    localMat[c][r] = static_cast<float>(InNode->node_to_world.cols[c].v[r]);
+            }
+            const glm::mat3 normMat = glm::transpose(glm::inverse(glm::mat3(localMat)));
+
+            bool bAdded = false;
+            if (uMesh->material_parts.count > 0) {
+                for (size_t pi = 0; pi < uMesh->material_parts.count; ++pi) {
+                    const ufbx_mesh_part& part = uMesh->material_parts.data[pi];
+                    if (part.num_triangles == 0)
+                        continue;
+                    uint32_t slotIdx = 0;
+                    if (pi < uMesh->materials.count && uMesh->materials.data[pi]) {
+                        const ufbx_material* partMat = uMesh->materials.data[pi];
+                        auto it = InMatToSlot.find(partMat);
+                        if (it != InMatToSlot.end())
+                            slotIdx = it->second;
+                    }
+                    FStaticSubmesh submesh;
+                    submesh.Name = submeshName + (uMesh->material_parts.count > 1 ? ("_" + std::to_string(pi)) : "");
+                    submesh.MaterialSlotIndex = slotIdx;
+                    submesh.LocalTransform = glm::mat4(1.0f);
+                    AppendTriangulatedFaces(InMesh, uMesh, part.face_indices.data, part.num_faces, localMat, normMat,
+                                            InSettings.bFlipUVs, submesh);
+                    if (submesh.IndexCount > 0) {
+                        InMesh.GetSubmeshes().push_back(submesh);
+                        bAdded = true;
+                    }
+                }
+            } else {
+                FStaticSubmesh submesh;
+                submesh.Name = submeshName;
+                submesh.MaterialSlotIndex = 0;
+                submesh.LocalTransform = glm::mat4(1.0f);
+                AppendTriangulatedFaces(InMesh, uMesh, nullptr, uMesh->num_faces, localMat, normMat,
+                                        InSettings.bFlipUVs, submesh);
+                if (submesh.IndexCount > 0) {
+                    InMesh.GetSubmeshes().push_back(submesh);
+                    bAdded = true;
+                }
+            }
+            return bAdded;
+        }
+
+    } // namespace
 
     bool FMeshImporter::ImportFBX(const std::string& InSourcePath, const FMeshImportSettings& InSettings,
                                   FMeshImportResult& OutResult) {
@@ -192,247 +356,65 @@ namespace Leon {
             return OutResult.SkeletalMesh != nullptr || !OutResult.Animations.empty() || OutResult.Skeleton != nullptr;
         }
 
-        auto staticMesh = UStaticMesh::Create(baseMeshName);
-        staticMesh->SetUUID(FUUID::FromPath(baseMeshName));
-        for (const auto& extracted : OutResult.ExtractedMaterials) {
-            FStaticMaterialSlot slot;
-            slot.SlotName = extracted.Name;
-            std::string formattedMatName =
-                (extracted.Name.rfind("M_", 0) == 0) ? extracted.Name : ("M_" + extracted.Name);
-            slot.DefaultMaterialPath = "Materials/" + formattedMatName + ".lmat";
-            staticMesh->GetMaterialSlots().push_back(slot);
-        }
-        if (staticMesh->GetMaterialSlots().empty()) {
-            FStaticMaterialSlot defSlot;
-            defSlot.SlotName = "DefaultMaterial";
-            defSlot.DefaultMaterialPath = "Materials/M_DefaultPBR.lmat";
-            staticMesh->GetMaterialSlots().push_back(defSlot);
-        }
-
-        // 2. Extract Geometry (Iterate through all nodes / meshes in the FBX)
-        std::vector<FStaticMeshVertex>& allVertices = staticMesh->GetVertices();
-        std::vector<uint32_t>& allIndices = staticMesh->GetIndices();
-
+        std::vector<const ufbx_node*> meshNodes;
+        meshNodes.reserve(scene->nodes.count);
         for (size_t ni = 0; ni < scene->nodes.count; ++ni) {
             const ufbx_node* node = scene->nodes.data[ni];
-            if (!node || !node->mesh)
-                continue;
-
-            const ufbx_mesh* uMesh = node->mesh;
-            if (uMesh->num_faces == 0 || uMesh->num_triangles == 0)
-                continue;
-
-            std::string submeshName =
-                node->name.data ? std::string(node->name.data, node->name.length) : ("Submesh_" + std::to_string(ni));
-
-            // Node local transform matrix
-            glm::mat4 localMat(1.0f);
-            for (int c = 0; c < 4; ++c) {
-                for (int r = 0; r < 3; ++r) {
-                    localMat[c][r] = static_cast<float>(node->node_to_world.cols[c].v[r]);
-                }
-            }
-            glm::mat3 normMat = glm::transpose(glm::inverse(glm::mat3(localMat)));
-
-            // If mesh has multiple material parts, split by material part
-            if (uMesh->material_parts.count > 0) {
-                for (size_t pi = 0; pi < uMesh->material_parts.count; ++pi) {
-                    const ufbx_mesh_part& part = uMesh->material_parts.data[pi];
-                    if (part.num_triangles == 0)
-                        continue;
-
-                    uint32_t slotIdx = 0;
-                    if (pi < uMesh->materials.count && uMesh->materials.data[pi]) {
-                        const ufbx_material* partMat = uMesh->materials.data[pi];
-                        if (matToSlotIndex.find(partMat) != matToSlotIndex.end()) {
-                            slotIdx = matToSlotIndex[partMat];
-                        }
-                    }
-
-                    FStaticSubmesh submesh;
-                    submesh.Name = submeshName + (uMesh->material_parts.count > 1 ? ("_" + std::to_string(pi)) : "");
-                    submesh.IndexOffset = static_cast<uint32_t>(allIndices.size());
-                    submesh.VertexOffset = static_cast<uint32_t>(allVertices.size());
-                    submesh.MaterialSlotIndex = slotIdx;
-                    submesh.LocalTransform = glm::mat4(1.0f);
-
-                    uint32_t submeshVertexStart = static_cast<uint32_t>(allVertices.size());
-
-                    for (size_t fi = 0; fi < part.num_faces; ++fi) {
-                        uint32_t faceIndex = part.face_indices.data[fi];
-                        ufbx_face face = uMesh->faces.data[faceIndex];
-                        uint32_t numTri = face.num_indices - 2;
-
-                        for (uint32_t ti = 0; ti < numTri; ++ti) {
-                            uint32_t cornerIndices[3] = {0, ti + 1, ti + 2};
-
-                            for (int k = 0; k < 3; ++k) {
-                                uint32_t indexInFace = cornerIndices[k];
-                                uint32_t indexInMesh = face.index_begin + indexInFace;
-
-                                FStaticMeshVertex v;
-
-                                // Position
-                                if (uMesh->vertex_position.exists) {
-                                    ufbx_vec3 p = ufbx_get_vertex_vec3(&uMesh->vertex_position, indexInMesh);
-                                    glm::vec4 localPos(static_cast<float>(p.x), static_cast<float>(p.y),
-                                                       static_cast<float>(p.z), 1.0f);
-                                    glm::vec4 worldPos = localMat * localPos;
-                                    v.Position = glm::vec3(worldPos);
-                                }
-
-                                // Normal
-                                if (uMesh->vertex_normal.exists) {
-                                    ufbx_vec3 n = ufbx_get_vertex_vec3(&uMesh->vertex_normal, indexInMesh);
-                                    v.Normal = glm::normalize(normMat * glm::vec3(static_cast<float>(n.x),
-                                                                                  static_cast<float>(n.y),
-                                                                                  static_cast<float>(n.z)));
-                                }
-
-                                // UV
-                                if (uMesh->vertex_uv.exists) {
-                                    ufbx_vec2 uv = ufbx_get_vertex_vec2(&uMesh->vertex_uv, indexInMesh);
-                                    v.TexCoord = glm::vec2(static_cast<float>(uv.x),
-                                                           InSettings.bFlipUVs ? (1.0f - static_cast<float>(uv.y))
-                                                                               : static_cast<float>(uv.y));
-                                }
-
-                                glm::vec3 tangent{1.0f, 0.0f, 0.0f};
-                                glm::vec3 bitangent = glm::cross(v.Normal, tangent);
-                                if (uMesh->vertex_tangent.exists) {
-                                    ufbx_vec3 t = ufbx_get_vertex_vec3(&uMesh->vertex_tangent, indexInMesh);
-                                    tangent = glm::normalize(normMat * glm::vec3(static_cast<float>(t.x),
-                                                                                 static_cast<float>(t.y),
-                                                                                 static_cast<float>(t.z)));
-                                }
-                                if (uMesh->vertex_bitangent.exists) {
-                                    ufbx_vec3 b = ufbx_get_vertex_vec3(&uMesh->vertex_bitangent, indexInMesh);
-                                    bitangent = glm::normalize(normMat * glm::vec3(static_cast<float>(b.x),
-                                                                                   static_cast<float>(b.y),
-                                                                                   static_cast<float>(b.z)));
-                                } else {
-                                    bitangent = glm::normalize(glm::cross(v.Normal, tangent));
-                                }
-                                v.Tangent = PackTangent(tangent, v.Normal, bitangent);
-                                v.LightmapUV = glm::vec2(0.0f);
-
-                                // Color
-                                if (uMesh->vertex_color.exists) {
-                                    ufbx_vec4 col = ufbx_get_vertex_vec4(&uMesh->vertex_color, indexInMesh);
-                                    v.Color = glm::vec3(static_cast<float>(col.x), static_cast<float>(col.y),
-                                                        static_cast<float>(col.z));
-                                } else {
-                                    v.Color = glm::vec3(1.0f);
-                                }
-
-                                allIndices.push_back(static_cast<uint32_t>(allVertices.size()));
-                                allVertices.push_back(v);
-                            }
-                        }
-                    }
-
-                    submesh.IndexCount = static_cast<uint32_t>(allIndices.size() - submesh.IndexOffset);
-                    submesh.VertexCount = static_cast<uint32_t>(allVertices.size() - submeshVertexStart);
-                    if (submesh.IndexCount > 0) {
-                        staticMesh->GetSubmeshes().push_back(submesh);
-                    }
-                }
-            } else {
-                // Single submesh for this node
-                FStaticSubmesh submesh;
-                submesh.Name = submeshName;
-                submesh.IndexOffset = static_cast<uint32_t>(allIndices.size());
-                submesh.VertexOffset = static_cast<uint32_t>(allVertices.size());
-                submesh.MaterialSlotIndex = 0;
-                submesh.LocalTransform = glm::mat4(1.0f);
-
-                uint32_t submeshVertexStart = static_cast<uint32_t>(allVertices.size());
-
-                for (size_t fi = 0; fi < uMesh->num_faces; ++fi) {
-                    ufbx_face face = uMesh->faces.data[fi];
-                    uint32_t numTri = face.num_indices - 2;
-
-                    for (uint32_t ti = 0; ti < numTri; ++ti) {
-                        uint32_t cornerIndices[3] = {0, ti + 1, ti + 2};
-
-                        for (int k = 0; k < 3; ++k) {
-                            uint32_t indexInFace = cornerIndices[k];
-                            uint32_t indexInMesh = face.index_begin + indexInFace;
-
-                            FStaticMeshVertex v;
-
-                            if (uMesh->vertex_position.exists) {
-                                ufbx_vec3 p = ufbx_get_vertex_vec3(&uMesh->vertex_position, indexInMesh);
-                                glm::vec4 localPos(static_cast<float>(p.x), static_cast<float>(p.y),
-                                                   static_cast<float>(p.z), 1.0f);
-                                glm::vec4 worldPos = localMat * localPos;
-                                v.Position = glm::vec3(worldPos);
-                            }
-
-                            if (uMesh->vertex_normal.exists) {
-                                ufbx_vec3 n = ufbx_get_vertex_vec3(&uMesh->vertex_normal, indexInMesh);
-                                v.Normal =
-                                    glm::normalize(normMat * glm::vec3(static_cast<float>(n.x), static_cast<float>(n.y),
-                                                                       static_cast<float>(n.z)));
-                            }
-
-                            if (uMesh->vertex_uv.exists) {
-                                ufbx_vec2 uv = ufbx_get_vertex_vec2(&uMesh->vertex_uv, indexInMesh);
-                                v.TexCoord = glm::vec2(static_cast<float>(uv.x), InSettings.bFlipUVs
-                                                                                     ? (1.0f - static_cast<float>(uv.y))
-                                                                                     : static_cast<float>(uv.y));
-                            }
-
-                            glm::vec3 tangent{1.0f, 0.0f, 0.0f};
-                            glm::vec3 bitangent = glm::cross(v.Normal, tangent);
-                            if (uMesh->vertex_tangent.exists) {
-                                ufbx_vec3 t = ufbx_get_vertex_vec3(&uMesh->vertex_tangent, indexInMesh);
-                                tangent =
-                                    glm::normalize(normMat * glm::vec3(static_cast<float>(t.x), static_cast<float>(t.y),
-                                                                       static_cast<float>(t.z)));
-                            }
-                            if (uMesh->vertex_bitangent.exists) {
-                                ufbx_vec3 b = ufbx_get_vertex_vec3(&uMesh->vertex_bitangent, indexInMesh);
-                                bitangent =
-                                    glm::normalize(normMat * glm::vec3(static_cast<float>(b.x), static_cast<float>(b.y),
-                                                                       static_cast<float>(b.z)));
-                            } else {
-                                bitangent = glm::normalize(glm::cross(v.Normal, tangent));
-                            }
-                            v.Tangent = PackTangent(tangent, v.Normal, bitangent);
-                            v.LightmapUV = glm::vec2(0.0f);
-
-                            if (uMesh->vertex_color.exists) {
-                                ufbx_vec4 col = ufbx_get_vertex_vec4(&uMesh->vertex_color, indexInMesh);
-                                v.Color = glm::vec3(static_cast<float>(col.x), static_cast<float>(col.y),
-                                                    static_cast<float>(col.z));
-                            } else {
-                                v.Color = glm::vec3(1.0f);
-                            }
-
-                            allIndices.push_back(static_cast<uint32_t>(allVertices.size()));
-                            allVertices.push_back(v);
-                        }
-                    }
-                }
-
-                submesh.IndexCount = static_cast<uint32_t>(allIndices.size() - submesh.IndexOffset);
-                submesh.VertexCount = static_cast<uint32_t>(allVertices.size() - submeshVertexStart);
-                if (submesh.IndexCount > 0) {
-                    staticMesh->GetSubmeshes().push_back(submesh);
-                }
-            }
+            if (node && node->mesh && node->mesh->num_faces > 0 && node->mesh->num_triangles > 0)
+                meshNodes.push_back(node);
         }
 
-        if (InSettings.bGenerateTangents)
-            GenerateLengyelTangents(allVertices, allIndices);
+        const bool bSplit = InSettings.bSplitStaticMeshes && meshNodes.size() > 1;
+        auto finishMesh = [&](UStaticMesh& mesh) {
+            if (InSettings.bGenerateTangents)
+                GenerateLengyelTangents(mesh.GetVertices(), mesh.GetIndices());
+            mesh.CalculateBounds();
+        };
 
-        staticMesh->CalculateBounds();
+        if (bSplit) {
+            std::unordered_set<std::string> usedNames;
+            for (size_t i = 0; i < meshNodes.size(); ++i) {
+                const ufbx_node* node = meshNodes[i];
+                std::string nodeName =
+                    node->name.data ? std::string(node->name.data, node->name.length) : ("Mesh_" + std::to_string(i));
+                nodeName = SanitizeMeshToken(nodeName);
+                std::string unique = nodeName;
+                int suffix = 2;
+                while (!usedNames.insert(unique).second) {
+                    unique = nodeName + "_" + std::to_string(suffix++);
+                }
+                const std::string meshName = baseMeshName + "_" + unique;
+                auto piece = UStaticMesh::Create(meshName);
+                piece->SetUUID(FUUID::FromPath(meshName));
+                CopyMaterialSlots(*piece, OutResult.ExtractedMaterials);
+                if (!FillStaticMeshFromFbxNode(*piece, node, InSettings, matToSlotIndex))
+                    continue;
+                finishMesh(*piece);
+                OutResult.SeparateMeshes.push_back(piece);
+            }
+            ufbx_free_scene(scene);
+            if (OutResult.SeparateMeshes.empty()) {
+                OutResult.Errors.push_back("FBX contained mesh nodes but none produced geometry: " + InSourcePath);
+                return false;
+            }
+            OutResult.StaticMesh = OutResult.SeparateMeshes.front();
+            LE_CORE_INFO("FMeshImporter: Split \"{0}\" into {1} static meshes", InSourcePath,
+                         OutResult.SeparateMeshes.size());
+            return true;
+        }
+
+        auto staticMesh = UStaticMesh::Create(baseMeshName);
+        staticMesh->SetUUID(FUUID::FromPath(baseMeshName));
+        CopyMaterialSlots(*staticMesh, OutResult.ExtractedMaterials);
+        for (const ufbx_node* node : meshNodes)
+            FillStaticMeshFromFbxNode(*staticMesh, node, InSettings, matToSlotIndex);
+        finishMesh(*staticMesh);
         ufbx_free_scene(scene);
 
         OutResult.StaticMesh = staticMesh;
         LE_CORE_INFO("FMeshImporter: Successfully imported \"{0}\" ({1} vertices, {2} indices, {3} submeshes)",
-                     InSourcePath, allVertices.size(), allIndices.size(), staticMesh->GetSubmeshes().size());
+                     InSourcePath, staticMesh->GetVertices().size(), staticMesh->GetIndices().size(),
+                     staticMesh->GetSubmeshes().size());
         return true;
     }
 

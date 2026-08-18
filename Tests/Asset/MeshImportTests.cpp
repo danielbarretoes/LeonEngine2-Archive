@@ -9,6 +9,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <unordered_set>
 
 namespace fs = std::filesystem;
 using namespace Leon;
@@ -161,5 +162,24 @@ TEST_SUITE("StaticMesh & .lmesh Binary Format Tests") {
         REQUIRE(b);
         CHECK(a.get() != b.get());
         CHECK(a->GetParent().get() == b->GetParent().get());
+    }
+
+    TEST_CASE("OrbitalPrism FBX splits into separate static meshes") {
+        const fs::path fbx = fs::path("Projects") / "LeonTournament" / "Raw" / "OrbitalPrism" / "SM_OrbitalPrism.fbx";
+        if (!fs::exists(fbx))
+            return;
+        FMeshImportSettings settings;
+        settings.bGenerateTangents = false;
+        FMeshImportResult result;
+        REQUIRE(FMeshImporter::ImportFBX(fbx.string(), settings, result));
+        CHECK(result.SeparateMeshes.size() > 1);
+        CHECK(result.StaticMesh != nullptr);
+        std::unordered_set<std::string> names;
+        for (const auto& piece : result.SeparateMeshes) {
+            REQUIRE(piece);
+            CHECK(piece->GetVertices().size() >= 3);
+            CHECK(piece->GetIndices().size() >= 3);
+            CHECK(names.insert(piece->GetName()).second);
+        }
     }
 }

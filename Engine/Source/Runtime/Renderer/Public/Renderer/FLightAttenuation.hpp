@@ -20,6 +20,10 @@ namespace Leon {
         return window / (d * d + 1.0f);
     }
 
+    inline float LambertNdotL(const glm::vec3& InNormal, const glm::vec3& InLightDir) {
+        return std::max(glm::dot(InNormal, InLightDir), 0.0f);
+    }
+
     /**
      * Spot angular attenuation matching PBR_Lit.glsl:
      *   t = saturate((cosTheta - cosOuter) / (cosInner - cosOuter))

@@ -15,6 +15,7 @@
 #include <entt/entt.hpp>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Leon {
@@ -56,6 +57,7 @@ namespace Leon {
             auto actor =
                 std::make_shared<T>(handle, this, InName.empty() ? "Actor" : InName, std::forward<TArgs>(InArgs)...);
             Actors.push_back(actor);
+            EntityToActor[static_cast<uint32_t>(handle)] = actor.get();
 
             actor->SetName(InName.empty() ? "Actor" : InName);
             if (!actor->template HasComponent<FTransformComponent>()) {
@@ -77,6 +79,7 @@ namespace Leon {
         void RemovePlayerController(APlayerController* InPC);
         AActor* FindActorByName(const std::string& InName);
         AActor* FindActorByGuid(const FUUID& InGuid);
+        AActor* FindActorByEntity(entt::entity InEntity) const;
         const std::vector<TRef<AActor>>& GetAllActors() const { return Actors; }
 
         /**
@@ -129,6 +132,12 @@ namespace Leon {
                                         uint32_t InCascadeCount = 0, float InShadowDistance = 0.0f,
                                         EPlanarReflectionQuality InPlanarQuality = EPlanarReflectionQuality::Epic,
                                         float InPlanarResolutionScale = 0.0f);
+        void SetProjectSSAODefaults(bool bInEnabled, float InRadius, float InIntensity, float InBias);
+        bool GetPendingSSAOEnabled() const { return bPendingSSAOEnabled; }
+        float GetPendingSSAORadius() const { return PendingSSAORadius; }
+        float GetPendingSSAOIntensity() const { return PendingSSAOIntensity; }
+        float GetPendingSSAOBias() const { return PendingSSAOBias; }
+
         bool HasPendingRendererDefaults() const { return bHasPendingRendererDefaults; }
         uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
         bool GetPendingPlanarReflectionEnabled() const { return bPendingPlanarReflection; }
@@ -169,6 +178,7 @@ namespace Leon {
 
         entt::registry Registry;
         std::vector<TRef<AActor>> Actors;
+        std::unordered_map<uint32_t, AActor*> EntityToActor;
         std::vector<APlayerController*> PlayerControllers;
         std::vector<AAIController*> AIControllers;
         std::vector<AActor*> PendingDestroy;
@@ -194,6 +204,10 @@ namespace Leon {
         float PendingShadowDistance = 100.0f;
         EPlanarReflectionQuality PendingPlanarQuality = EPlanarReflectionQuality::Epic;
         float PendingPlanarResolutionScale = 1.0f;
+        bool bPendingSSAOEnabled = true;
+        float PendingSSAORadius = 0.5f;
+        float PendingSSAOIntensity = 1.0f;
+        float PendingSSAOBias = 0.025f;
 
         friend class FMapSerializer;
     };

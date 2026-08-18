@@ -2,6 +2,8 @@
 
 #include "Assets/FAnimTypes.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/UWorld.hpp"
+#include "Gameplay/AActor.hpp"
 #include "RHI/FBuffer.hpp"
 #include "RHI/FRenderCommand.hpp"
 #include "RHI/FRenderer.hpp"
@@ -10,6 +12,7 @@
 #include "Renderer/FFrustumCull.hpp"
 #include "Renderer/FMaterialInstance.hpp"
 #include "Renderer/FRenderingMath.hpp"
+#include "RHI/FTexture.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -20,6 +23,17 @@
 #include <vector>
 
 namespace Leon {
+
+    constexpr uint32_t kMaxOpaqueInstances = 64;
+
+    inline glm::mat4 ResolveActorWorldMatrix(UWorld* InWorld, entt::entity InEntity,
+                                             const FTransformComponent& InTransform) {
+        if (InWorld) {
+            if (AActor* actor = InWorld->FindActorByEntity(InEntity))
+                return actor->GetActorWorldMatrix();
+        }
+        return InTransform.GetTransform();
+    }
 
     inline ECullMode FlipCullForNegativeScale(ECullMode InMode, const glm::mat4& InModel) {
         if (InMode == ECullMode::None || !HasNegativeScale(InModel))
@@ -62,13 +76,49 @@ namespace Leon {
         const std::vector<glm::mat4>* BonePalette = nullptr;
     };
 
-    inline bool IsStaticMeshCulled(const FTransformComponent& InTransform, const FStaticMeshComponent& InMesh,
+    struct FOpaqueDraw {
+        TRef<FShader> Shader;
+        TRef<FVertexArray> VA;
+        TRef<FMaterialInstance> Mat;
+        glm::mat4 Model{1.0f};
+        uint32_t IndexCount = 0;
+        uint32_t IndexOffset = 0;
+        bool bOffset = false;
+        bool bReceiveShadows = true;
+        bool bUseLightmap = false;
+        bool bLightmapUseTexCoord = false;
+        bool bPlanar = false;
+        bool bSkinned = false;
+        glm::vec2 LightmapScale{1.0f};
+        glm::vec2 LightmapBias{0.0f};
+        TRef<FTexture2D> Lightmap;
+        const std::vector<glm::mat4>* BonePalette = nullptr;
+    };
+
+    inline bool OpaqueDrawsBatchable(const FOpaqueDraw& InA, const FOpaqueDraw& InB) {
+        if (InA.bSkinned || InB.bSkinned || InA.BonePalette || InB.BonePalette)
+            return false;
+        if (InA.Shader != InB.Shader || InA.VA != InB.VA || InA.Mat != InB.Mat)
+            return false;
+        if (InA.IndexCount != InB.IndexCount || InA.IndexOffset != InB.IndexOffset || InA.bOffset != InB.bOffset)
+            return false;
+        if (InA.bReceiveShadows != InB.bReceiveShadows || InA.bUseLightmap != InB.bUseLightmap)
+            return false;
+        if (InA.bLightmapUseTexCoord != InB.bLightmapUseTexCoord || InA.Lightmap != InB.Lightmap)
+            return false;
+        if (InA.bPlanar != InB.bPlanar)
+            return false;
+        if (InA.LightmapScale != InB.LightmapScale || InA.LightmapBias != InB.LightmapBias)
+            return false;
+        return HasNegativeScale(InA.Model) == HasNegativeScale(InB.Model);
+    }
+
+    inline bool IsStaticMeshCulled(const glm::mat4& InWorld, const FStaticMeshComponent& InMesh,
                             const FFrustumPlanes& InFrustum) {
         if (!InMesh.StaticMesh)
             return false;
         glm::vec3 wMin, wMax;
-        TransformAABB(InMesh.StaticMesh->GetBoundsMin(), InMesh.StaticMesh->GetBoundsMax(),
-                      InTransform.GetTransform(), wMin, wMax);
+        TransformAABB(InMesh.StaticMesh->GetBoundsMin(), InMesh.StaticMesh->GetBoundsMax(), InWorld, wMin, wMax);
         if (!AABBIntersectsFrustum(wMin, wMax, InFrustum)) {
             FRenderer::GetStatsMutable().MeshesCulled++;
             return true;
@@ -77,18 +127,17 @@ namespace Leon {
         return false;
     }
 
-    inline bool IsSkeletalMeshCulled(const FTransformComponent& InTransform, const FSkinnedMeshRenderState& InMesh,
+    inline bool IsSkeletalMeshCulled(const glm::mat4& InWorld, const FSkinnedMeshRenderState& InMesh,
                               const FFrustumPlanes& InFrustum) {
         if (!InMesh.bVisible)
             return true;
         if (!InMesh.SkeletalMesh)
             return false;
-        glm::mat4 model = InTransform.GetTransform();
         glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
                              glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
                              glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
         glm::vec3 wMin, wMax;
-        TransformAABB(InMesh.SkeletalMesh->GetBoundsMin(), InMesh.SkeletalMesh->GetBoundsMax(), model * relative,
+        TransformAABB(InMesh.SkeletalMesh->GetBoundsMin(), InMesh.SkeletalMesh->GetBoundsMax(), InWorld * relative,
                       wMin, wMax);
         if (!AABBIntersectsFrustum(wMin, wMax, InFrustum)) {
             FRenderer::GetStatsMutable().MeshesCulled++;
@@ -98,12 +147,12 @@ namespace Leon {
         return false;
     }
 
-    inline glm::mat4 SkeletalModelMatrix(const FTransformComponent& InTransform, const FSkinnedMeshRenderState& InMesh,
+    inline glm::mat4 SkeletalModelMatrix(const glm::mat4& InWorld, const FSkinnedMeshRenderState& InMesh,
                                   const glm::mat4& InSubmeshLocal) {
         glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
                              glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
                              glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
-        return InTransform.GetTransform() * relative * InSubmeshLocal;
+        return InWorld * relative * InSubmeshLocal;
     }
 
     inline void UploadBonePalette(FUniformBuffer* InUBO, const std::vector<glm::mat4>& InPalette) {
@@ -115,13 +164,13 @@ namespace Leon {
         InUBO->SetData(padded, sizeof(padded), 0);
     }
 
-    inline bool IsProceduralMeshCulled(const FTransformComponent& InTransform, const FMeshComponent& InMesh,
+    inline bool IsProceduralMeshCulled(const glm::mat4& InWorld, const FMeshComponent& InMesh,
                                 const FFrustumPlanes& InFrustum) {
         float e = std::max({InMesh.MeshSize * 0.5f, InMesh.MeshRadius, InMesh.MeshWidth * 0.5f,
                             InMesh.MeshHeight * 0.5f, InMesh.MeshDepth * 0.5f, 0.5f});
         glm::vec3 localMin(-e), localMax(e);
         glm::vec3 wMin, wMax;
-        TransformAABB(localMin, localMax, InTransform.GetTransform(), wMin, wMax);
+        TransformAABB(localMin, localMax, InWorld, wMin, wMax);
         if (!AABBIntersectsFrustum(wMin, wMax, InFrustum)) {
             FRenderer::GetStatsMutable().MeshesCulled++;
             return true;

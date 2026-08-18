@@ -10,6 +10,8 @@
 
 namespace Leon {
 
+    class USkeleton;
+
     enum class EPhysicsAssetBodyShape : uint8_t { Sphere = 0, Box = 1, Capsule = 2 };
 
     struct FPhysicsAssetBody {
@@ -39,6 +41,12 @@ namespace Leon {
 
         void AddConstraint(const FPhysicsAssetConstraint& InConstraint) { Constraints.push_back(InConstraint); }
         const std::vector<FPhysicsAssetConstraint>& GetConstraints() const { return Constraints; }
+
+        /**
+         * Build a Mixamo/UE-style ragdoll from common bone name tokens (hips, spine, head, arms, legs).
+         * Constraints are left empty so TryEnableRagdoll can wire parent links from the skeleton.
+         */
+        static TRef<UPhysicsAsset> CreateHumanoidFromSkeleton(const USkeleton& InSkeleton);
 
         bool SaveToFile(const std::string& InPath) const;
         bool LoadFromFile(const std::string& InPath);

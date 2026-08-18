@@ -81,6 +81,6 @@ No GPU Lightmass, no volumetric lightmaps, no photon mapping, no true Stationary
 | :--- | :--- | :--- | :--- |
 | `/Game/Maps/ShowcaseLevel` | Procedural primitives (studio floor 36×32) | `DaySky1k` | `ShowcaseLevel.llightmap` |
 | `/Game/Maps/NightLevel` | Imported static meshes | `NightSky1k` | `NightLevel.llightmap` |
-| `/Game/Maps/RendererLab` | Spawned PBR spheres + cube + glass (GameMode) | Procedural sky | none (movable) |
+| `/Game/Maps/RendererLab` | Spawned PBR spheres + cube + glass + SSAO corner (GameMode) | Procedural sky | none (movable) |
 
 `AutumnField1k.lhdr` is an engine IBL/HDR test fixture under Sandbox `Content/HDR/`; neither map references it. Rebake after content changes: `python Projects/Sandbox/Scripts/bake.py --force`.

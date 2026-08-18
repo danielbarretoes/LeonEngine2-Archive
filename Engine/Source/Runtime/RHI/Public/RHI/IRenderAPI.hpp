@@ -62,6 +62,10 @@ namespace Leon {
         virtual void DrawIndexed(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount = 0) = 0;
         virtual void DrawIndexedOffset(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
                                        unsigned int InIndexOffset) = 0;
+        virtual void DrawIndexedInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                          unsigned int InInstanceCount) = 0;
+        virtual void DrawIndexedOffsetInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                                unsigned int InIndexOffset, unsigned int InInstanceCount) = 0;
         virtual void DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) = 0;
         virtual void SetLineWidth(float InWidth) = 0;
 

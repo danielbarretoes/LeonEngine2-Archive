@@ -99,7 +99,7 @@ Actors:
       Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
-      VisibleInReflection: true
+      VisibleInReflection: false
       Mobility: Static
       LightmapResolution: 64
       LightmapIndex: 0

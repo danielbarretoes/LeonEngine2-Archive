@@ -29,11 +29,21 @@
 namespace Leon {
 
     namespace {
-        ULeonTournamentGameInstance* GI() { return FLeonTournamentUILayout::GI(); }
-        bool GamepadEdge(int InButton, bool& InOutWasDown) { return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown); }
-        ALeonTournamentGameMode* GM(APlayerController* InPC) { return FLeonTournamentUILayout::GM(InPC); }
-        ALeonTournamentGameState* GS(APlayerController* InPC) { return FLeonTournamentUILayout::GS(InPC); }
-        bool IsClientWorld(APlayerController* InPC) { return FLeonTournamentUILayout::IsClientWorld(InPC); }
+        ULeonTournamentGameInstance* GI() {
+            return FLeonTournamentUILayout::GI();
+        }
+        bool GamepadEdge(int InButton, bool& InOutWasDown) {
+            return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown);
+        }
+        ALeonTournamentGameMode* GM(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GM(InPC);
+        }
+        ALeonTournamentGameState* GS(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GS(InPC);
+        }
+        bool IsClientWorld(APlayerController* InPC) {
+            return FLeonTournamentUILayout::IsClientWorld(InPC);
+        }
         constexpr float kFsCaption = FLeonTournamentUILayout::kFsCaption;
         constexpr float kFsBody = FLeonTournamentUILayout::kFsBody;
         constexpr float kFsLabel = FLeonTournamentUILayout::kFsLabel;
@@ -46,7 +56,9 @@ namespace Leon {
         constexpr float kFsVital = FLeonTournamentUILayout::kFsVital;
         constexpr float kFsBanner = FLeonTournamentUILayout::kFsBanner;
 
-        FMargin BoxTL(float InX, float InY, float InW, float InH) { return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH); }
+        FMargin BoxTL(float InX, float InY, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH);
+        }
         FMargin BoxBL(float InX, float InBottom, float InW, float InH) {
             return FLeonTournamentUILayout::BoxBL(InX, InBottom, InW, InH);
         }
@@ -59,7 +71,9 @@ namespace Leon {
         FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f) {
             return FLeonTournamentUILayout::BoxBC(InBottom, InW, InH, InOx);
         }
-        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH);
+        }
         glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f, float InPadY = 6.0f) {
             return FLeonTournamentUILayout::MeasurePadded(InText, InScale, InPadX, InPadY);
         }
@@ -163,6 +177,11 @@ namespace Leon {
         PlaceButtonTL(*Root, animLab, leftX, y);
         y += animLab->GetSize().y + 12.0f;
 
+        auto nightArena = MakeButton("NightArena", "NIGHT ARENA", kFsButton, 280.0f);
+        nightArena->OnClicked.AddLambda([this]() { OnNightArena(); });
+        PlaceButtonTL(*Root, nightArena, leftX, y);
+        y += nightArena->GetSize().y + 12.0f;
+
         auto host = MakeButton("Host", "HOST LAN", kFsButton, 280.0f);
         host->OnClicked.AddLambda([this]() { OnHostLan(); });
         PlaceButtonTL(*Root, host, leftX, y);
@@ -220,9 +239,9 @@ namespace Leon {
         CharacterLabel->SetText("PATRICK");
         const float nameW = 220.0f;
         const float nameH = MeasurePadded("PATRICK", kFsSub).y;
-        Root->AddChild(CharacterLabel, FAnchors::TopLeft(),
-                       BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f,
-                             nameW, nameH));
+        Root->AddChild(
+            CharacterLabel, FAnchors::TopLeft(),
+            BoxTL(charX + prevChar->GetSize().x + 12.0f, charY + (prevChar->GetSize().y - nameH) * 0.5f, nameW, nameH));
         RefreshCharacterLabel();
 
         auto nextChar = MakeButton("NextChar", ">", kFsSub, 56.0f, 52.0f);
@@ -292,6 +311,14 @@ namespace Leon {
             gm->OpenAnimLab();
     }
 
+    void ULeonTournamentMainMenuWidget::OnNightArena() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        if (IsClientWorld(OwningPlayer))
+            return;
+        if (auto* gm = GM(OwningPlayer))
+            gm->OpenNightArena();
+    }
+
     void ULeonTournamentMainMenuWidget::OnHostLan() {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (auto* gi = GI()) {
@@ -314,6 +341,5 @@ namespace Leon {
         if (FApplication::HasInstance())
             FApplication::Get().Close();
     }
-
 
 } // namespace Leon

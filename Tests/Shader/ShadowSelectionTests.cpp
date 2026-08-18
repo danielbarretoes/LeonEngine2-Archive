@@ -104,11 +104,10 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
             camData.LightSpaceMatrices[0] = glm::mat4(1.0f);
             camData.LightSpaceMatrices[1] = glm::mat4(1.0f);
 
-            // Cascade 0 split = 5.0, blendWidth = 0.20 (blendZone = [4.0, 5.0])
+            // Cascade 0 split = 5.0, blendWidth = 0.20 → blendMeters = min(max(1.0, 3.0), 4.5) = 3.0
+            // blendZone = [2.0, 5.0]; 50% at depth 3.5
             camData.ShadowParams = glm::vec4(0.0f, 0.0f, 0.0f, 0.20f);
-            // Camera position at depth = 4.5 -> exact 50% blend between cascade 0 (lit 1.0) and cascade 1 (shadowed
-            // 0.0)
-            camData.CameraPosition = glm::vec4(0.0f, 0.0f, 4.5f, 1.0f);
+            camData.CameraPosition = glm::vec4(0.0f, 0.0f, 3.5f, 1.0f);
             gl.UpdateCameraUBO(camData);
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

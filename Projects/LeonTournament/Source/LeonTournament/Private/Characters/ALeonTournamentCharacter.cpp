@@ -9,7 +9,6 @@
 #include "Engine/UEngine.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/FControlInput.hpp"
-#include "Physics/FSimplePhysicsScene.hpp"
 #include "Renderer/FRenderingMath.hpp"
 
 #include <algorithm>
@@ -82,6 +81,8 @@ namespace Leon {
         constexpr float kFootPlantBias = 0.035f;
         GetMesh()->SetRelativeLocation(
             glm::vec3(0.0f, -GetCapsuleHalfHeight() - feetY * uniformScale - kFootPlantBias, 0.0f));
+        // Death ragdoll temporarily disabled (mesh scale / writeback bugs). Clear any leftover asset.
+        GetMesh()->SetPhysicsAsset(nullptr);
     }
 
     void ALeonTournamentCharacter::BeginPlay() {
@@ -416,25 +417,18 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::BeginDeathRagdoll() {
-        glm::vec3 impulse = PendingDeathImpulse;
-        if (glm::length(impulse) < 1.0f) {
-            impulse = GetControlLookDirection() * -80.0f;
-            impulse.y = 140.0f;
-        } else {
-            impulse *= 70.0f;
-            impulse.y = std::max(impulse.y, 160.0f);
-        }
-        EnableRagdoll(impulse);
+        // Ragdoll temporarily disabled (mesh scale / writeback bugs). Death uses montage only.
     }
 
     void ALeonTournamentCharacter::StopDeathRagdoll() { StopRagdoll(); }
 
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
         bDeadFrozen = true;
-        // Flow: death presentation
+        // Flow: death presentation (ragdoll OFF for now)
         // 1. Always third-person + free look orbit (control yaw does not spin the corpse)
-        // 2. Pull spring arm out for a readable spectator view of the ragdoll
-        // 3. Stop movement, play death anim, enable capsule ragdoll; authority notifies GameMode
+        // 2. Pull spring arm out for a readable spectator view
+        // 3. Stop movement; play death montage (no physics ragdoll)
+        // 4. Authority notifies GameMode for scoring / respawn
         bDeathForcedThirdPerson = !IsThirdPerson();
         SetThirdPerson(true);
         if (auto arm = GetSpringArm()) {
@@ -453,6 +447,8 @@ namespace Leon {
             Combat->SetFireHeld(false);
         if (Weapon)
             Weapon->SetFireHeld(false);
+        if (auto mesh = GetMesh())
+            mesh->SetComponentTickEnabled(true);
         if (AnimInst)
             AnimInst->PlayDeathMontage();
         BeginDeathRagdoll();
@@ -599,37 +595,6 @@ namespace Leon {
         ACharacter::Tick(DeltaSeconds);
         UpdateAimDownSights(DeltaSeconds);
         DodgeCooldownRemaining = std::max(0.0f, DodgeCooldownRemaining - DeltaSeconds);
-        if (bDeadFrozen) {
-            if (auto cap = GetCapsuleComponent(); cap && cap->IsSimulatingPhysics()) {
-                glm::vec3 loc = GetActorLocation();
-                const float minY = GetFloorZ() + GetCapsuleHalfHeight();
-                bool bTouchedFloor = false;
-                if (loc.y < minY) {
-                    loc.y = minY;
-                    bTouchedFloor = true;
-                }
-                loc.x = std::clamp(loc.x, -35.0f, 35.0f);
-                loc.z = std::clamp(loc.z, -35.0f, 35.0f);
-                SetActorLocation(loc);
-                if (auto* body = cap->GetPhysicsBody()) {
-                    glm::vec3 bodyLoc;
-                    glm::quat rot;
-                    body->GetTransform(bodyLoc, rot);
-                    bodyLoc = loc + cap->GetRelativeLocation();
-                    body->SetTransform(bodyLoc, rot);
-                    glm::vec3 vel = body->GetLinearVelocity();
-                    if (bTouchedFloor) {
-                        vel.y = std::max(0.0f, vel.y);
-                        vel.x *= 0.35f;
-                        vel.z *= 0.35f;
-                    }
-                    const float speed = glm::length(vel);
-                    if (speed > 42.0f)
-                        vel *= 42.0f / speed;
-                    body->SetLinearVelocity(vel);
-                }
-            }
-        }
         UpdatePresentationVisibility();
     }
 

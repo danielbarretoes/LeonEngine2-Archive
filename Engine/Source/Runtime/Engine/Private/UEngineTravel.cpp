@@ -56,6 +56,7 @@ namespace Leon {
         newWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection,
                                              ProjectCascadeCount, ProjectShadowDistance, ProjectPlanarReflectionQuality,
                                              ProjectPlanarReflectionResolutionScale);
+        newWorld->SetProjectSSAODefaults(bProjectSSAOEnabled, ProjectSSAORadius, ProjectSSAOIntensity, ProjectSSAOBias);
         if (GameInstance)
             newWorld->SetNetMode(GameInstance->GetNetMode());
 

@@ -28,6 +28,7 @@ namespace Leon {
         void RefreshCharacterLabel();
         void OnOffline();
         void OnAnimLab();
+        void OnNightArena();
         void OnHostLan();
         void OnJoinLan();
         void OnQuit();
@@ -56,13 +57,17 @@ namespace Leon {
         void OnBack();
         void OnPrevCharacter();
         void OnNextCharacter();
+        void OnPrevMap();
+        void OnNextMap();
         void OnAdjustBotsTeam1(int InDelta);
         void OnAdjustBotsTeam2(int InDelta);
         void RefreshBotLabels();
+        void RefreshMapLabel();
         TRef<UCanvasPanel> Root;
         TRef<UScrollBox> RosterScroll;
         TRef<UTextBlock> RosterText;
         TRef<UTextBlock> CharacterLabel;
+        TRef<UTextBlock> MapLabel;
         TRef<UTextBlock> TitleText;
         TRef<UTextBlock> BotsTeam1Label;
         TRef<UTextBlock> BotsTeam2Label;
@@ -92,6 +97,8 @@ namespace Leon {
 
     private:
         void Build();
+        void ApplyViewportLayout(float InScale);
+        glm::vec2 ResolveViewportSize();
         TRef<UCanvasPanel> Root;
         TRef<UImage> TopBar;
         TRef<UImage> BottomBarL;
@@ -124,6 +131,8 @@ namespace Leon {
         TRef<UImage> DamageFlash;
         int LastCountdownSecond = -1;
         bool bPlayedFightBanner = false;
+        float AppliedLayoutScale = 0.0f;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
     };
 
     class ULeonTournamentScoreboardWidget : public UUserWidget {

@@ -932,8 +932,7 @@ namespace {
 
         for (size_t i = 0; i < instances.size(); ++i) {
             AActor* actor = instances[i].Actor;
-            auto& transform = actor->GetComponent<FTransformComponent>();
-            glm::mat4 M = transform.GetTransform();
+            glm::mat4 M = actor->GetActorWorldMatrix();
             FBakeMaterialSample mat = ResolveBakeMaterial(*actor);
             uint32_t chartIndex = static_cast<uint32_t>(i);
 

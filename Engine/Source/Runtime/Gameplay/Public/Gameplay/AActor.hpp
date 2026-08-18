@@ -10,6 +10,7 @@
 #include "Engine/ENetTypes.hpp"
 
 #include <entt/entt.hpp>
+#include <glm/glm.hpp>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -150,6 +151,9 @@ namespace Leon {
 
         glm::vec3 GetActorScale() const;
         void SetActorScale(const glm::vec3& InScale);
+
+        /** RootComponent world matrix when set; otherwise FTransformComponent. */
+        glm::mat4 GetActorWorldMatrix() const;
 
         /** Engine local -Z mapped through the actor transform. */
         glm::vec3 GetActorForwardVector() const;

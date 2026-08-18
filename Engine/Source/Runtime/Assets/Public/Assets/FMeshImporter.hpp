@@ -41,6 +41,8 @@ namespace Leon {
         bool bGenerateNormalsIfMissing = true;
         bool bFlipUVs = false;
         bool bExtractMaterials = true;
+        /** One UStaticMesh per FBX mesh node so frustum culling can drop hidden pieces. */
+        bool bSplitStaticMeshes = true;
         float ScaleFactor = 1.0f; // 1.0 = auto-detect / standard
         /** When set, animation FBX files retarget onto this skeleton instead of extracting a new one. */
         TRef<USkeleton> SharedSkeleton;

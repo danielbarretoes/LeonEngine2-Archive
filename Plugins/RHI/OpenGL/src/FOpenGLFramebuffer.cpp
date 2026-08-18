@@ -131,8 +131,8 @@ namespace Leon {
             if (DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW) {
                 uint32_t layers = std::max(Specification.ArrayLayers, 1u);
                 glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &DepthAttachment);
-                glTextureStorage3D(DepthAttachment, 1, GL_DEPTH_COMPONENT32F, Specification.Width,
-                                   Specification.Height, layers);
+                glTextureStorage3D(DepthAttachment, 1, GL_DEPTH_COMPONENT32F, Specification.Width, Specification.Height,
+                                   layers);
 
                 glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                 glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -160,8 +160,10 @@ namespace Leon {
                 glCreateTextures(GL_TEXTURE_2D, 1, &DepthAttachment);
                 glTextureStorage2D(DepthAttachment, 1, internalFormat, Specification.Width, Specification.Height);
 
-                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, bIsShadow ? GL_NEAREST : GL_LINEAR);
-                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, bIsShadow ? GL_NEAREST : GL_LINEAR);
+                // Depth is not interpolatable. LINEAR on the HDR depth (SSAO at half-res)
+                // blends neighbouring window-Z values and paints a camera-facing floor band.
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
                 if (bIsShadow) {
                     glTextureParameteri(DepthAttachment, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);

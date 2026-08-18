@@ -3,9 +3,13 @@
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Gameplay/ACharacter.hpp"
+#include "Gameplay/UActorComponent.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 
 #include <algorithm>
+#include <glm/gtc/quaternion.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/quaternion.hpp>
 
 namespace Leon {
 
@@ -105,6 +109,20 @@ namespace Leon {
             if (speed > kMaxSimSpeed)
                 body->LinearVelocity *= kMaxSimSpeed / speed;
             body->Location += body->LinearVelocity * InDeltaSeconds;
+
+            const float angSpeed = glm::length(body->AngularVelocity);
+            if (angSpeed > 1e-4f) {
+                const glm::vec3 axis = body->AngularVelocity / angSpeed;
+                body->Rotation = glm::normalize(glm::angleAxis(angSpeed * InDeltaSeconds, axis) * body->Rotation);
+                body->AngularVelocity *= std::max(0.0f, 1.0f - 1.2f * InDeltaSeconds);
+            }
+
+            AActor* actorOwner = body->Info.Actor;
+            if (!actorOwner) {
+                if (auto* comp = dynamic_cast<UActorComponent*>(body->Info.Component))
+                    actorOwner = comp->GetOwner();
+            }
+
             if (body->Info.Actor) {
                 glm::vec3 actorLoc = body->Location;
                 glm::vec3 relative(0.0f);
@@ -120,6 +138,7 @@ namespace Leon {
                         body->LinearVelocity.y = std::max(0.0f, body->LinearVelocity.y);
                         body->LinearVelocity.x *= 0.35f;
                         body->LinearVelocity.z *= 0.35f;
+                        body->AngularVelocity *= 0.55f;
                     }
                     // Soft arena clamp so dead bodies do not leave the playable volume.
                     constexpr float kArenaHalf = 35.0f;
@@ -128,6 +147,16 @@ namespace Leon {
                     body->Location = actorLoc + relative;
                 }
                 body->Info.Actor->SetActorLocation(actorLoc);
+                body->Info.Actor->SetActorRotation(glm::degrees(glm::eulerAngles(body->Rotation)));
+            } else if (auto* character = dynamic_cast<ACharacter*>(actorOwner)) {
+                // Mesh ragdoll bone bodies: clamp to floor without moving the standing capsule actor.
+                const float minBoneY = character->GetFloorZ() + 0.08f;
+                if (body->Location.y < minBoneY) {
+                    body->Location.y = minBoneY;
+                    body->LinearVelocity.y = std::max(0.0f, body->LinearVelocity.y);
+                    body->LinearVelocity.x *= 0.45f;
+                    body->LinearVelocity.z *= 0.45f;
+                }
             }
         }
 

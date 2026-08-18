@@ -47,6 +47,8 @@ namespace Leon {
         void EnterLobby();
         void RequestStartMatch();
         void OpenAnimLab();
+        void OpenNightArena();
+        void OpenPlayableMap(ELeonTournamentPlayableMap InMap);
         void StartMatch();
         void EndMatch(ELeonTournamentMatchWinner InWinner);
         void ReturnToMenu();
@@ -100,6 +102,7 @@ namespace Leon {
         std::unordered_map<ALeonTournamentCharacter*, std::vector<FLeonTournamentDamageCredit>> DamageLog;
         std::unordered_map<AController*, FTimerHandle> RespawnTimerHandles;
         FTimerHandle CountdownHandle;
+        FTimerHandle PendingStartMatchHandle;
         int32_t NextBotId = 0;
         mutable int32_t NextTeam1Spawn = 0;
         mutable int32_t NextTeam2Spawn = 0;

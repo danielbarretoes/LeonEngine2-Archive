@@ -32,6 +32,24 @@ namespace Leon {
                 SelectedCharacterSkin = LeonTournamentPrevCharacterSkin(SelectedCharacterSkin);
         }
 
+        ELeonTournamentPlayableMap GetSelectedPlayableMap() const { return SelectedPlayableMap; }
+        void SetSelectedPlayableMap(ELeonTournamentPlayableMap InMap) {
+            SelectedPlayableMap = LeonTournamentClampPlayableMap(InMap);
+        }
+        void CycleSelectedPlayableMap(int InDelta) {
+            if (InDelta >= 0)
+                SelectedPlayableMap = LeonTournamentNextPlayableMap(SelectedPlayableMap);
+            else
+                SelectedPlayableMap = LeonTournamentPrevPlayableMap(SelectedPlayableMap);
+        }
+
+        bool ConsumePendingMatchStart() {
+            const bool bPending = bPendingMatchStart;
+            bPendingMatchStart = false;
+            return bPending;
+        }
+        void SetPendingMatchStart(bool bPending) { bPendingMatchStart = bPending; }
+
         int32_t GetDesiredBotsTeam1() const { return DesiredBotsTeam1; }
         int32_t GetDesiredBotsTeam2() const { return DesiredBotsTeam2; }
         void SetDesiredBotsTeam1(int32_t InCount);
@@ -56,6 +74,7 @@ namespace Leon {
     private:
         ELeonTournamentSessionMode SessionMode = ELeonTournamentSessionMode::Offline;
         ELeonTournamentCharacterSkin SelectedCharacterSkin = ELeonTournamentCharacterSkin::YBot;
+        ELeonTournamentPlayableMap SelectedPlayableMap = ELeonTournamentPlayableMap::Arena;
         int32_t DesiredBotsTeam1 = 2;
         int32_t DesiredBotsTeam2 = 2;
         std::string JoinAddress = "127.0.0.1";
@@ -63,6 +82,7 @@ namespace Leon {
         bool bAutoOfflineMatch = false;
         float AutoMatchSeconds = 65.0f;
         std::string AutoReportPath;
+        bool bPendingMatchStart = false;
     };
 
 } // namespace Leon

@@ -232,7 +232,9 @@ vec3 ApplyShadowUvNormalOffset(vec3 projCoords, mat4 lightMatrix, vec3 normal, f
     return projCoords;
 }
 
-float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 fragPos, vec3 vertexN, vec3 lightDir) {
+float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 fragPos, vec3 vertexN,
+                               vec3 lightDir, out bool outInBounds) {
+    outInBounds = false;
     vec3 normal = ShadowFaceNormal(fragPos, vertexN);
     float NdotL = max(dot(normal, lightDir), 0.0);
     float slopeFactor = max(1.0 - NdotL, 0.0);
@@ -241,6 +243,10 @@ float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex,
     float constBias  = u_ShadowParams.x;
     float slopeBias  = u_ShadowParams.y;
     float normalBias = u_ShadowParams.z;
+    // Identity light VP in tests has [2][2] = 1. Larger ortho slices have a longer Z range, so the
+    // same NDC bias is too small and the floor self-shadows (a hard line in the occlusion mask).
+    float zRow = max(abs(u_LightSpaceMatrices[cascadeIndex][2][2]), 1e-4);
+    float biasScale = max(1.0, 0.025 / zRow);
 
     vec3 normalOffset = normal * (normalBias * slopeFactor);
     vec4 biasedFragPos = vec4(fragPos + normalOffset, 1.0);
@@ -256,8 +262,14 @@ float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex,
     if (projCoords.z > 1.0 || projCoords.z < 0.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    float bias = constBias + slopeBias * tanTheta;
+    outInBounds = true;
+    float bias = (constBias + slopeBias * tanTheta) * biasScale;
     return FilterShadowArray(shadowMap, cascadeIndex, projCoords, projCoords.z - bias);
+}
+
+float SampleCascadeShadowSlice(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 fragPos, vec3 vertexN, vec3 lightDir) {
+    bool ignored = false;
+    return SampleCascadeShadowSlice(shadowMap, cascadeIndex, fragPos, vertexN, lightDir, ignored);
 }
 
 float SampleSpotShadowMap(sampler2DShadow shadowMap, vec3 fragPos, vec3 vertexN, vec3 lightDir) {
@@ -287,6 +299,43 @@ float SampleSpotShadowMap(sampler2DShadow shadowMap, vec3 fragPos, vec3 vertexN,
     return FilterShadow2D(shadowMap, projCoords, projCoords.z - bias);
 }
 
+// Keep in sync with FShadowSettings::kCascadeBlendMinMeters.
+const float kCascadeBlendMinMeters = 3.0;
+
+float CascadeSplitNear(int cascadeIndex) {
+    if (cascadeIndex <= 0)
+        return 0.0;
+    if (cascadeIndex == 1)
+        return u_CascadeSplits.x;
+    if (cascadeIndex == 2)
+        return u_CascadeSplits.y;
+    return u_CascadeSplits.z;
+}
+
+float CascadeSplitFar(int cascadeIndex) {
+    if (cascadeIndex <= 0)
+        return u_CascadeSplits.x;
+    if (cascadeIndex == 1)
+        return u_CascadeSplits.y;
+    if (cascadeIndex == 2)
+        return u_CascadeSplits.z;
+    return u_CascadeSplits.w;
+}
+
+float CascadeBlendAlpha(float depth, int cascadeIndex) {
+    float blendWidth = u_ShadowParams.w;
+    if (blendWidth < 0.001 || cascadeIndex >= 3)
+        return 0.0;
+    float splitDist = CascadeSplitFar(cascadeIndex);
+    float cascadeLen = max(splitDist - CascadeSplitNear(cascadeIndex), 0.001);
+    float blendMeters = max(cascadeLen * blendWidth, kCascadeBlendMinMeters);
+    blendMeters = min(blendMeters, cascadeLen * 0.90);
+    float blendThreshold = splitDist - blendMeters;
+    if (depth <= blendThreshold)
+        return 0.0;
+    return clamp((depth - blendThreshold) / max(blendMeters, 0.001), 0.0, 1.0);
+}
+
 float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDir, out int outCascadeIndex) {
     if (u_UseShadows == 0) {
         outCascadeIndex = 0;
@@ -307,17 +356,13 @@ float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDi
 
     float shadow = SampleCascadeShadowSlice(u_CascadeShadowMap, cascadeIndex, fragPos, normal, lightDir);
 
-    // Cascade smooth blend transition
-    float blendWidth = u_ShadowParams.w;
-    if (blendWidth > 0.001 && cascadeIndex < 3) {
-        float splitDist = (cascadeIndex == 0) ? u_CascadeSplits.x :
-                          (cascadeIndex == 1) ? u_CascadeSplits.y : u_CascadeSplits.z;
-        float blendThreshold = splitDist * (1.0 - blendWidth);
-        if (depth > blendThreshold) {
-            float nextShadow = SampleCascadeShadowSlice(u_CascadeShadowMap, cascadeIndex + 1, fragPos, normal, lightDir);
-            float alpha = clamp((depth - blendThreshold) / max(splitDist - blendThreshold, 0.001), 0.0, 1.0);
+    float alpha = CascadeBlendAlpha(depth, cascadeIndex);
+    if (alpha > 0.0) {
+        bool nextInBounds = false;
+        float nextShadow =
+            SampleCascadeShadowSlice(u_CascadeShadowMap, cascadeIndex + 1, fragPos, normal, lightDir, nextInBounds);
+        if (nextInBounds)
             shadow = mix(shadow, nextShadow, alpha);
-        }
     }
 
     // Soft fadeout at far shadow distance (split3 / cascadeSplits.w)

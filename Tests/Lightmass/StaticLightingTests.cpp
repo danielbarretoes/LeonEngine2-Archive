@@ -11,6 +11,7 @@
 #include "Lightmass/FLightmapBuilder.hpp"
 #include "Lightmass/FLightmass.hpp"
 #include "Renderer/FIBLMath.hpp"
+#include "Renderer/FLightAttenuation.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -117,6 +118,27 @@ TEST_CASE("Light baker attenuation and sampling") {
     glm::vec3 n(0, 1, 0);
     glm::vec3 d = FLightBaker::CosineSampleHemisphere(n, 0.25f, 0.5f);
     CHECK(glm::dot(d, n) > 0.0f);
+}
+
+TEST_CASE("Baker attenuation and Lambert match runtime helpers") {
+    CHECK(FLightBaker::PointAttenuation(0.0f, 10.0f) ==
+          doctest::Approx(DistanceAttenuationUE4(0.0f, 10.0f)).epsilon(1e-6f));
+    CHECK(FLightBaker::PointAttenuation(2.0f, 10.0f) ==
+          doctest::Approx(DistanceAttenuationUE4(2.0f, 10.0f)).epsilon(1e-6f));
+    CHECK(FLightBaker::PointAttenuation(10.0f, 10.0f) ==
+          doctest::Approx(DistanceAttenuationUE4(10.0f, 10.0f)).epsilon(1e-6f));
+
+    glm::vec3 travel(0, -1, 0);
+    glm::vec3 toLight(0, 1, 0);
+    CHECK(FLightBaker::SpotConeFactor(travel, toLight, 12.5f, 17.5f) ==
+          doctest::Approx(SpotConeAttenuation(travel, toLight, 12.5f, 17.5f)).epsilon(1e-6f));
+    CHECK(FLightBaker::SpotConeFactor(travel, glm::vec3(1, 0, 0), 12.5f, 17.5f) ==
+          doctest::Approx(SpotConeAttenuation(travel, glm::vec3(1, 0, 0), 12.5f, 17.5f)).epsilon(1e-6f));
+
+    glm::vec3 N(0, 1, 0);
+    glm::vec3 L(0, 1, 0);
+    CHECK(LambertNdotL(N, L) == doctest::Approx(1.0f));
+    CHECK(LambertNdotL(N, glm::vec3(0, -1, 0)) == doctest::Approx(0.0f));
 }
 
 TEST_CASE("Light baker deterministic direct lighting") {

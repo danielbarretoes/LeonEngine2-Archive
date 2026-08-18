@@ -3,12 +3,27 @@
 #include "RHI/FBuffer.hpp"
 
 #include <cmath>
+#include <string>
+#include <unordered_map>
 #include <glm/glm.hpp>
 #include <vector>
 
 namespace Leon {
 
     namespace {
+
+        std::unordered_map<std::string, TRef<FVertexArray>> GPrimitiveCache;
+
+        TRef<FVertexArray> CachePrimitive(const std::string& InKey, TRef<FVertexArray> InVA) {
+            if (InVA)
+                GPrimitiveCache[InKey] = InVA;
+            return InVA;
+        }
+
+        TRef<FVertexArray> FindCachedPrimitive(const std::string& InKey) {
+            auto it = GPrimitiveCache.find(InKey);
+            return it != GPrimitiveCache.end() ? it->second : nullptr;
+        }
 
         TRef<FVertexArray> BuildCanonicalMesh(const std::vector<float>& InVertices,
                                               const std::vector<uint32_t>& InIndices) {
@@ -44,6 +59,9 @@ namespace Leon {
     } // namespace
 
     TRef<FVertexArray> FMeshPrimitives::CreateCube(float InSize) {
+        const std::string key = "cube:" + std::to_string(InSize);
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         float h = InSize * 0.5f;
         std::vector<float> vertices;
         vertices.reserve(24 * kCanonicalVertexFloats);
@@ -83,10 +101,13 @@ namespace Leon {
 
         std::vector<uint32_t> indices = {0,  1,  2,  2,  3,  0,  4,  5,  6,  6,  7,  4,  8,  9,  10, 10, 11, 8,
                                          12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20};
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreateQuad(float InWidth, float InHeight) {
+        const std::string key = "quad:" + std::to_string(InWidth) + ":" + std::to_string(InHeight);
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         float hx = InWidth * 0.5f;
         float hy = InHeight * 0.5f;
         std::vector<float> vertices;
@@ -94,10 +115,14 @@ namespace Leon {
         glm::vec2 uv[4] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
         PushQuad(vertices, p, uv, {0, 0, 1}, {1, 0, 0}, {0, 1, 0});
         std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0};
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreateSphere(float InRadius, unsigned int InSegments, unsigned int InRings) {
+        const std::string key =
+            "sphere:" + std::to_string(InRadius) + ":" + std::to_string(InSegments) + ":" + std::to_string(InRings);
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         std::vector<float> vertices;
         std::vector<uint32_t> indices;
 
@@ -147,11 +172,15 @@ namespace Leon {
             }
         }
 
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreatePlane(float InWidth, float InDepth, unsigned int InSubdivisionsX,
                                                     unsigned int InSubdivisionsZ) {
+        const std::string key = "plane:uv0v:" + std::to_string(InWidth) + ":" + std::to_string(InDepth) + ":" +
+                                std::to_string(InSubdivisionsX) + ":" + std::to_string(InSubdivisionsZ);
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         std::vector<float> vertices;
         std::vector<uint32_t> indices;
 
@@ -162,17 +191,20 @@ namespace Leon {
 
         glm::vec3 n(0.0f, 1.0f, 0.0f);
         glm::vec3 t(1.0f, 0.0f, 0.0f);
-        glm::vec3 b(0.0f, 0.0f, -1.0f); // T×B = N
+        glm::vec3 b(0.0f, 0.0f, -1.0f); // T×B = N; UV0 V increases toward -Z so dP/dV = B
 
         for (unsigned int z = 0; z <= InSubdivisionsZ; ++z) {
             float posZ = -hz + z * dz;
-            float v = (static_cast<float>(z) / static_cast<float>(InSubdivisionsZ)) * (InDepth / 4.0f);
+            float zNorm = static_cast<float>(z) / static_cast<float>(InSubdivisionsZ);
+            // Viewed from +Y: +X right, -Z screen-up. V=1 at the -Z edge so albedo is not upside-down.
+            float v = (1.0f - zNorm) * (InDepth / 4.0f);
 
             for (unsigned int x = 0; x <= InSubdivisionsX; ++x) {
                 float posX = -hx + x * dx;
                 float u = (static_cast<float>(x) / static_cast<float>(InSubdivisionsX)) * (InWidth / 4.0f);
                 float u1 = (static_cast<float>(x) / static_cast<float>(InSubdivisionsX)) * 0.96f + 0.02f;
-                float v1 = (static_cast<float>(z) / static_cast<float>(InSubdivisionsZ)) * 0.96f + 0.02f;
+                // UV1 keeps V along +Z so existing lightmap atlases stay aligned.
+                float v1 = zNorm * 0.96f + 0.02f;
                 AppendCanonicalVertex(vertices, glm::vec3(posX, 0.0f, posZ), n, glm::vec2(u, v), t, b, glm::vec3(1.0f),
                                       glm::vec2(u1, v1));
             }
@@ -196,11 +228,16 @@ namespace Leon {
             }
         }
 
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreateCylinder(float InBottomRadius, float InTopRadius, float InHeight,
                                                        unsigned int InSegments, bool InbCaps) {
+        const std::string key = "cyl:" + std::to_string(InBottomRadius) + ":" + std::to_string(InTopRadius) + ":" +
+                                std::to_string(InHeight) + ":" + std::to_string(InSegments) + ":" +
+                                (InbCaps ? "1" : "0");
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         std::vector<float> vertices;
         std::vector<uint32_t> indices;
 
@@ -298,10 +335,14 @@ namespace Leon {
             }
         }
 
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreateRamp(float InWidth, float InHeight, float InDepth) {
+        const std::string key =
+            "ramp:" + std::to_string(InWidth) + ":" + std::to_string(InHeight) + ":" + std::to_string(InDepth);
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         float w = InWidth * 0.5f;
         float h = InHeight * 0.5f;
         float d = InDepth * 0.5f;
@@ -341,10 +382,14 @@ namespace Leon {
 
         std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 12, 13, 14, 15, 16,
                                          17};
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreatePyramid(float InWidth, float InHeight, float InDepth) {
+        const std::string key =
+            "pyr:" + std::to_string(InWidth) + ":" + std::to_string(InHeight) + ":" + std::to_string(InDepth);
+        if (auto cached = FindCachedPrimitive(key))
+            return cached;
         float w = InWidth * 0.5f;
         float h = InHeight * 0.5f;
         float d = InDepth * 0.5f;
@@ -381,7 +426,7 @@ namespace Leon {
         tri({-w, -h, -d}, {-w, -h, d}, {0, h, 0}, {-rnX, rnY, 0}, {0, 0, 1}, {-rbX, rbY, 0});
 
         std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-        return BuildCanonicalMesh(vertices, indices);
+        return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 
 } // namespace Leon

@@ -32,6 +32,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Shader/PostProcessToneMappingTests.cpp
     Shader/PostProcessFXAATests.cpp
     Shader/PostProcessPipelineTests.cpp
+    Shader/PostProcessSSAOTests.cpp
     Shader/PBRShaderNormalMappingTests.cpp
     Shader/PBRShaderMaterialTextureTests.cpp
     Shader/PBRShaderEmissiveTests.cpp
@@ -48,6 +49,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Asset/TextureImportTests.cpp
     Asset/HDRAssetTests.cpp
     Asset/MeshImportTests.cpp
+    Physics/TriangleMeshCollisionTests.cpp
     Asset/SkeletalAnimationTests.cpp
     Asset/AssetValidationTests.cpp
     Gameplay/GameplayFrameworkTests.cpp

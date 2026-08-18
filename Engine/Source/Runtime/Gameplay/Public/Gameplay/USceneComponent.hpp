@@ -38,6 +38,12 @@ namespace Leon {
         /** World-space location (actor root + relative chain). */
         virtual glm::vec3 GetComponentLocation() const;
         virtual glm::vec3 GetComponentRotation() const;
+        virtual glm::vec3 GetComponentScale() const;
+
+        /** Relative T*R*S (GLM, same convention as FTransformComponent). */
+        glm::mat4 GetRelativeMatrix() const;
+        /** Parent world * relative, or actor pose * relative when unattached. */
+        glm::mat4 GetComponentWorldMatrix() const;
 
         bool IsRegistered() const { return bRegistered; }
         void SetRegistered(bool bInRegistered) { bRegistered = bInRegistered; }

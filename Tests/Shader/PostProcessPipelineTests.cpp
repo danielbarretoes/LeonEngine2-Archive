@@ -114,6 +114,9 @@ TEST_SUITE("Shader GPU - End-to-End Post-Processing Pipeline") {
         // 1. Initial 1280x720
         pipeline.OnViewportResize(1280, 720);
         CHECK(pipeline.GetToneMappedFBO() != nullptr);
+        CHECK(pipeline.GetSSAOShader() != nullptr);
+        CHECK(pipeline.GetSSAOFramebuffer() != nullptr);
+        CHECK(pipeline.GetSSAOFramebuffer()->GetSpecification().Width == 640);
         CHECK(pipeline.GetToneMappedFBO()->GetSpecification().Width == 1280);
         CHECK(pipeline.GetToneMappedFBO()->GetSpecification().Height == 720);
 

@@ -1,0 +1,16 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [0.82, 0.84, 0.88]
+  Metallic: 0.0
+  Roughness: 0.88
+  AO: 1.0
+  AlbedoMap: "/Game/Textures/T_Brick_Color.ltex"
+  NormalMap: "/Game/Textures/T_Brick_Normal.ltex"
+  RoughnessMap: "/Game/Textures/T_Brick_Roughness.ltex"
+  AOMap: "/Game/Textures/T_Brick_AO.ltex"
+  NormalScale: 1.0
+  OcclusionStrength: 1.0
+  UVTiling: [6.0, 6.0]
+  UVOffset: [0.0, 0.0]
+  UsePlanarReflection: false

@@ -1,12 +1,19 @@
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Engine/UWorld.hpp"
+#include "Physics/FSimplePhysicsScene.hpp"
 #include "Physics/IPhysicsScene.hpp"
 
 #include <algorithm>
 #include <glm/gtc/quaternion.hpp>
 
 namespace Leon {
+
+    namespace {
+        FSimplePhysicsBody* AsSimpleBody(IPhysicsBody* InBody) {
+            return dynamic_cast<FSimplePhysicsBody*>(InBody);
+        }
+    } // namespace
 
     UPrimitiveComponent::UPrimitiveComponent(const std::string& InName) : USceneComponent(InName) {}
 
@@ -195,10 +202,25 @@ namespace Leon {
 
     void UPrimitiveComponent::SetEnableGravity(bool bEnable) {
         bEnableGravity = bEnable;
+        if (auto* simple = AsSimpleBody(PhysicsBody))
+            simple->Info.bEnableGravity = bEnable;
     }
 
     void UPrimitiveComponent::SetMass(float InMass) {
         Mass = std::max(InMass, 0.001f);
+        if (auto* simple = AsSimpleBody(PhysicsBody))
+            simple->Info.Mass = Mass;
+    }
+
+    void UPrimitiveComponent::SetLinearDamping(float InDamping) {
+        LinearDamping = InDamping;
+        if (auto* simple = AsSimpleBody(PhysicsBody))
+            simple->Info.LinearDamping = InDamping;
+    }
+
+    void UPrimitiveComponent::RecreatePhysicsBody() {
+        UnregisterPhysics();
+        RegisterPhysics();
     }
 
     UShapeComponent::UShapeComponent(const std::string& InName) : UPrimitiveComponent(InName) {}

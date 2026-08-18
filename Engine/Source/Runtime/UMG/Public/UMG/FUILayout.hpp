@@ -27,6 +27,15 @@ namespace Leon {
         static constexpr float kFsTimer = 0.78f;
         static constexpr float kFsVital = 0.85f;
         static constexpr float kFsBanner = 1.05f;
+        static constexpr float kDesignWidth = 1280.0f;
+        static constexpr float kDesignHeight = 720.0f;
+
+        /** Uniform scale vs the 1280×720 design; clamped so 800×600 stays readable. */
+        static float LayoutScale(float InViewportW, float InViewportH) {
+            const float sx = InViewportW / kDesignWidth;
+            const float sy = InViewportH / kDesignHeight;
+            return std::clamp(std::min(sx, sy), 0.7f, 2.25f);
+        }
 
         static FMargin BoxTL(float InX, float InY, float InW, float InH);
         static FMargin BoxBL(float InX, float InBottom, float InW, float InH);
@@ -34,6 +43,7 @@ namespace Leon {
         static FMargin BoxTC(float InTop, float InW, float InH, float InOx = 0.0f);
         static FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f);
         static FMargin BoxC(float InOx, float InOy, float InW, float InH);
+        static FMargin BoxTopStretch(float InTop, float InH, float InLeft = 0.0f, float InRight = 0.0f);
 
         static glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f,
                                        float InPadY = 6.0f);

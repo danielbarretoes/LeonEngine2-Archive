@@ -151,7 +151,7 @@ Games register planes with `FWorldRenderer::AddPlanarReflectionPlane`. LeonTourn
 
 `UsePlanarReflection` on a material is for surfaces **on** that plane (wet floors, glass panels). Curved chrome (Showcase `M_ChromeMirror` sphere) uses **cubemap IBL**. The fragment shader fades planar weight by distance to the plane (`smoothstep(0.08, 0.40)`) so off-plane meshes keep IBL even if the flag is left on.
 
-Capture skips hidden and **Movable** meshes. Nested planar is disabled in the capture pass (`u_UsePlanarReflection = 0`).
+Capture skips hidden and **Movable** meshes. Nested planar is disabled in the capture pass (`u_UsePlanarReflection = 0`). Capture and sampling share the same mirrored view-projection (`playerProj * view * reflect`). Clip is the geometric plane. Planar capture draws the skybox with culling off before enabling clip distance (Skybox.glsl does not write `gl_ClipDistance`).
 
 Quality (`[/Script/Engine.RendererSettings]`):
 
@@ -202,11 +202,14 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 | 38 | Direct diffuse |
 | 39 | Direct specular |
 
+Post-process `FPostProcessSettings::DebugMode` 5 visualizes SSAO (grayscale) before bloom.
+
 ## Limitations
 
-- Forward renderer, one draw per mesh. No clustered lights, VSM, or GPU-driven path.
+- Forward renderer. Opaque draws with the same VA + material instance together (≤64). No clustered lights, VSM, or GPU-driven path.
 - At most 16 point lights and 8 spot lights in the UBO; one shadowed spotlight.
 - No local cubemap / sphere reflection probes. Planar is for registered planes; curved metals use IBL.
+- SSAO is depth-only at half resolution (view-space normals from depth derivatives). No G-buffer. Occlusion ignores coplanar hits so open floors do not get a camera-facing AO band; composite keeps high-luminance specular.
 - No OIT.
 - No reversed-Z.
 - Bake AO settings may still appear on maps; they do not modulate stored irradiance.

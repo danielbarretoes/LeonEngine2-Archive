@@ -291,16 +291,17 @@ UpdateIBL
 PASS 1: Cascaded Shadow (4-slice DEPTH32F array, front-face cull)
 PASS 2: Spot shadow (one 2D DEPTH32F map — `ShadowedSpotIndex` in the runtime spot list)
 PASS 3: Planar reflection (mirrored camera, RGBA16F, shadows disabled, clip plane)
-PASS 4: Opaque HDR geometry RGBA16F — CPU AABB frustum cull
+PASS 4: Opaque HDR geometry RGBA16F — CPU AABB frustum cull, bind cache,
+         GPU instancing (same VA + material, ≤64)
          opaque → skinned inverted-hull outline
 PASS 5: Skybox (z = w, depth LessEqual)
 PASS 6: Transparent Blend (back-to-front, depth write off) → 3D world text + particles
         optional gameplay debug (depth test on, depth write off)
-PASS 7: Bloom → exposure → tone map (ACES default) → IEC sRGB → FXAA
+PASS 7: SSAO (half-res depth, plane-aware occlusion, bilateral blur) → Bloom → exposure → tone map (ACES default) → IEC sRGB → FXAA
 Restore PreviousFBO
 ```
 
-**Coordinates (implemented):** right-handed, +Y up, camera forward −Z (default yaw −90°), OpenGL clip $z \in [-1,1]$, front face CCW, `M = T * R * S`, GPU column-major no-transpose. Not reversed-Z. Near 0.1 / far 1000.
+**Coordinates (implemented):** right-handed, +Y up, camera forward −Z (default yaw −90°), OpenGL clip $z \in [-1,1]$, front face CCW, `M = T * R * S`, GPU column-major no-transpose. Not reversed-Z. Near 0.1 / far 1000. Actor world pose is `AActor::GetActorWorldMatrix()` (root `USceneComponent` chain, else `FTransformComponent`).
 
 **Planar pass:** not cubemap probes. Floor FBO fills when a plane is registered; optional wall FBO when the camera faces a non-horizontal plane. Games currently register the floor (`n = +Y`, `d = 0`). Contract: [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md#planar-reflections).
 

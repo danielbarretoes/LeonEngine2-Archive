@@ -3,18 +3,12 @@
 
 #include <algorithm>
 #include <cmath>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace Leon {
-
-    namespace {
-        /** Rotate a local offset by parent yaw (degrees, Y-up) — Unreal-lite ComponentToWorld for planar attach. */
-        glm::vec3 RotateOffsetByYaw(const glm::vec3& InOffset, float InYawDegrees) {
-            const float rad = glm::radians(InYawDegrees);
-            const float c = std::cos(rad);
-            const float s = std::sin(rad);
-            return {InOffset.x * c + InOffset.z * s, InOffset.y, -InOffset.x * s + InOffset.z * c};
-        }
-    } // namespace
 
     USceneComponent::USceneComponent(const std::string& InName) : UActorComponent(InName) {}
 
@@ -44,18 +38,22 @@ namespace Leon {
         AttachParent = nullptr;
     }
 
-    glm::vec3 USceneComponent::GetComponentLocation() const {
-        if (AttachParent) {
-            const glm::vec3 parentLoc = AttachParent->GetComponentLocation();
-            const float parentYaw = AttachParent->GetComponentRotation().y;
-            return parentLoc + RotateOffsetByYaw(RelativeLocation, parentYaw);
-        }
+    glm::mat4 USceneComponent::GetRelativeMatrix() const {
+        return glm::translate(glm::mat4(1.0f), RelativeLocation) *
+               glm::toMat4(glm::quat(glm::radians(RelativeRotation))) *
+               glm::scale(glm::mat4(1.0f), RelativeScale);
+    }
 
-        if (Owner) {
-            // Root (or unattached): actor transform is world pose; relative must stay identity for RootComponent.
-            return Owner->GetActorLocation() + RelativeLocation;
-        }
-        return RelativeLocation;
+    glm::mat4 USceneComponent::GetComponentWorldMatrix() const {
+        if (AttachParent)
+            return AttachParent->GetComponentWorldMatrix() * GetRelativeMatrix();
+        if (Owner)
+            return Owner->GetTransform().GetTransform() * GetRelativeMatrix();
+        return GetRelativeMatrix();
+    }
+
+    glm::vec3 USceneComponent::GetComponentLocation() const {
+        return glm::vec3(GetComponentWorldMatrix()[3]);
     }
 
     glm::vec3 USceneComponent::GetComponentRotation() const {
@@ -64,6 +62,14 @@ namespace Leon {
         if (Owner)
             return Owner->GetActorRotation() + RelativeRotation;
         return RelativeRotation;
+    }
+
+    glm::vec3 USceneComponent::GetComponentScale() const {
+        if (AttachParent)
+            return AttachParent->GetComponentScale() * RelativeScale;
+        if (Owner)
+            return Owner->GetActorScale() * RelativeScale;
+        return RelativeScale;
     }
 
 } // namespace Leon

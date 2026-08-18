@@ -32,6 +32,26 @@ namespace Leon {
         }
     }
 
+    void FRenderCommand::DrawIndexedInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                              unsigned int InInstanceCount) {
+        if (RenderAPI && InVertexArray && InInstanceCount > 0) {
+            unsigned int count = InIndexCount;
+            if (count == 0 && InVertexArray->GetIndexBuffer()) {
+                count = InVertexArray->GetIndexBuffer()->GetCount();
+            }
+            RenderAPI->DrawIndexedInstanced(InVertexArray, count, InInstanceCount);
+            FRenderer::RecordDrawIndexed(count * InInstanceCount, count * InInstanceCount);
+        }
+    }
+
+    void FRenderCommand::DrawIndexedOffsetInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
+                                                    unsigned int InIndexOffset, unsigned int InInstanceCount) {
+        if (RenderAPI && InVertexArray && InInstanceCount > 0) {
+            RenderAPI->DrawIndexedOffsetInstanced(InVertexArray, InIndexCount, InIndexOffset, InInstanceCount);
+            FRenderer::RecordDrawIndexed(InIndexCount * InInstanceCount, InIndexCount * InInstanceCount);
+        }
+    }
+
     void FRenderCommand::DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
         if (RenderAPI && InVertexArray) {
             RenderAPI->DrawLines(InVertexArray, InVertexCount);

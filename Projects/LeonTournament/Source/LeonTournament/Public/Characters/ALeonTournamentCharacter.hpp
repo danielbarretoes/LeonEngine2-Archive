@@ -53,6 +53,9 @@ namespace Leon {
 
         virtual bool ShouldSpawnWeapon() const { return true; }
 
+        /** Grant default rifle if missing and select it. Safe to call before or after BeginPlay. */
+        void EnsureWeapon();
+
         /** UT inventory: grant weapon (or refill mag) and optionally auto-switch. Returns true if pickup consumed. */
         bool GiveWeapon(ELeonTournamentWeaponId InId, bool bAutoSwitch = true);
         bool HasWeapon(ELeonTournamentWeaponId InId) const;
@@ -80,7 +83,6 @@ namespace Leon {
         bool CanApplyControlMove() const override { return !bDeadFrozen && ACharacter::CanApplyControlMove(); }
 
     private:
-        void EnsureWeapon();
         void ClearInventoryKeepRifle();
         ALeonTournamentWeapon* SpawnWeaponActor(ELeonTournamentWeaponId InId);
         void ApplyLookRotation();

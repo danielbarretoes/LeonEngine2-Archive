@@ -131,7 +131,7 @@ namespace {
             if (bDirectLightingPass && !dl.bContributeDirect)
                 continue;
             glm::vec3 L = glm::normalize(-dl.Light.Direction);
-            float NdotL = std::max(glm::dot(Normal, L), 0.0f);
+            float NdotL = LambertNdotL(Normal, L);
             if (NdotL <= 0.0f)
                 continue;
             if (IsShadowed(Scene, Pos + Normal * kEpsilon * 2.0f, L, 1e6f))
@@ -148,7 +148,7 @@ namespace {
             if (dist < 1e-5f || dist > pl.Light.Radius)
                 continue;
             glm::vec3 L = toLight / dist;
-            float NdotL = std::max(glm::dot(Normal, L), 0.0f);
+            float NdotL = LambertNdotL(Normal, L);
             if (NdotL <= 0.0f)
                 continue;
             if (IsShadowed(Scene, Pos + Normal * kEpsilon * 2.0f, L, dist - kEpsilon))
@@ -166,7 +166,7 @@ namespace {
             if (dist < 1e-5f || dist > sl.Light.Radius)
                 continue;
             glm::vec3 L = toLight / dist;
-            float NdotL = std::max(glm::dot(Normal, L), 0.0f);
+            float NdotL = LambertNdotL(Normal, L);
             if (NdotL <= 0.0f)
                 continue;
             float cone = FLightBaker::SpotConeFactor(sl.Light.Direction, toLight, sl.Light.CutOff,

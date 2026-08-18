@@ -4,12 +4,14 @@
 #include "Physics/FHitResult.hpp"
 
 #include <glm/glm.hpp>
+#include <glm/mat4x4.hpp>
 #include <vector>
 
 namespace Leon {
 
     class AActor;
     class UPrimitiveComponent;
+    class UStaticMesh;
     class UWorld;
 
     struct FColliderDesc {
@@ -21,6 +23,8 @@ namespace Leon {
         float SphereRadius = 0.5f;
         float CapsuleRadius = 0.4f;
         float CapsuleHalfHeight = 0.9f;
+        const UStaticMesh* TriangleMesh = nullptr;
+        glm::mat4 TriangleWorld{1.0f};
         ECollisionChannel ObjectType = ECollisionChannel::WorldStatic;
         FCollisionResponseContainer Responses;
         ECollisionEnabled CollisionEnabled = ECollisionEnabled::QueryAndPhysics;

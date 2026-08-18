@@ -7,7 +7,7 @@ namespace Leon {
 
     /**
      * Tournament locomotion graph: 2D blend (speed x direction) + airborne clips + death.
-     * Death is driven by UHealthComponent via the bIsDead parameter.
+     * Death montage / Death state via bIsDead (ragdoll remains disabled for now).
      */
     class ULeonTournamentAnimInstance : public UAnimInstance {
     public:

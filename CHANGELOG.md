@@ -23,11 +23,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LeonTournament weapons idle/walk sway on the view model (aim ray unchanged).
 - LeonTournament weapon damage/stats retuned vs 100 HP: rifle mid TTK, shotgun close burst, rocket/grenade/laser two connecting hits, flame close-cone DPS (no full-health instagib).
 - LeonTournament arena keeps floor planar only (no wall mirror panels).
+- LeonTournament shadows use 2048 cascades (4 splits, 100 m) again; 1024 made the arena look softer after the old 2048 override was removed.
 
 #### Removed
 - Legacy `Projects/MultiverseTournament` product tree (already absent from the active tree; product is LeonTournament only).
 
 #### Fixed
+- LeonTournament: death uses physical ragdoll only (no `PlayDeathMontage` / Death anim state); capsule ragdoll freezes the last mesh pose instead of keeping locomotion/death clips running.
+- LeonTournament death ragdoll temporarily disabled (mesh scale/writeback bugs); death uses `DeathFromTheFront` montage / Death anim state again.
+- LeonTournament: `StartMatch` no longer runs while `UWorld` is deferring BeginPlay (next-tick timer), and `RestartPlayer` calls `EnsureWeapon` before spawn validation — fixes false `has no weapon` errors on Night/Orbital.
+- LeonTournament: `TournamentArenaNight` is treated as an authored playable map — `BuildArena` seeds spawns/pickups/nav without `EnsurePlayableLighting`, which was destroying baked lights and stale-hashing lightmaps.
+- LeonTournament HUD scales with the viewport (1280×720 design): top bar stretches full width, fonts and margins follow `FUILayout::LayoutScale`.
+- Skybox cube is drawn with culling off (faces are outward-CCW; the camera is inside). Planar capture draws the skybox before enabling clip distance, because Skybox.glsl does not write `gl_ClipDistance`.
+- SSAO samples scene depth with NEAREST filtering and tests the local plane so large floors do not self-occlude; the composite keeps bright planar/IBL specular.
+- Procedural ground-plane UV0 V increases toward −Z (viewed from +Y) so Showcase floor albedo is not upside-down; lightmap UV1 is unchanged.
 - Anim Lab: opposing teams + friendly fire so dummy damage works; lab weapon pickups with 5s respawn; capsule foot plant; TAB scoreboard grouped by team.
 - Planar reflections sample the mirrored camera with projective UVs (`u_PlanarViewProjection * worldPos`) so small mirrors are not a zoomed screen grab.
 - LeonTournament hitscan follows `ACharacter::GetViewPoint` (spring-arm camera in third person) so shots land on the HUD crosshair when looking down.
@@ -37,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Planar reflection weight fades off the capture plane so chrome spheres and other curved meshes keep cubemap IBL instead of a stretched floor grab. Showcase `M_ChromeMirror` is IBL-only.
 
 #### Added
+- FBX static import writes one `.lmesh` per mesh node (no merge) so frustum culling can hide unseen pieces.
+- Static-mesh collision uses triangle vertices (not the mesh AABB). Procedural boxes stay box colliders.
+- LeonTournament **Orbital Prism** map (`/Game/Maps/OrbitalPrism`) from `SM_OrbitalPrism.fbx`, with Static baked point/spot lights and a lobby MAP selector (Arena / Night Arena / Orbital Prism).
+- LeonTournament night arena (`/Game/Maps/TournamentArenaNight`, menu **NIGHT ARENA**): NightSky HDR, moonlight, stationary point+spot lights with a Preview lightmap. Day match stays directional-only.
 - Component overlap Begin/End events (`UPrimitiveComponent::OnComponentBeginOverlap` / `EndOverlap`) driven by `UWorld::UpdateComponentOverlaps`.
 - `UGameplayStatics::ApplyPointDamage` / `ApplyRadialDamage` (authority-only) plus `AGameModeBase::NotifyActorDamaged` / `NotifyActorKilled`.
 - `AActor::FindComponentByClass<T>()`.
@@ -84,15 +97,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Spot shadows use `ShadowedSpotIndex`; inner/outer cone cosines are ordered.
 - Stale lightmaps are skipped at play (`FLightmass::RefreshRuntimeLightmapTrust`).
 - `USceneComponent` attach yaw matches GLM `Ry`.
+- `AActor::GetActorWorldMatrix` / `USceneComponent::GetComponentWorldMatrix` feed geometry, shadows, planar, and Lightmass (via `UWorld::FindActorByEntity`).
 
 #### Changed
 - IBL disk cache is `.libl` **v6** (Karis cubemap `saTexel`). v5 files are ignored and rebuilt on first load.
 - BRDF LUT disk header is `LEONBRDF` **v2** (24 bytes, stores sample count).
 - Lightmass bake-input hash algorithm version is **5** (mesh/material/HDR **content** hash). Existing `.llightmap` files must be rebaked.
+- Opaque PBR draws batch `DrawIndexedInstanced` for the same VA + material (up to 64 instances). Procedural primitives reuse cached VAOs.
 
 #### Added
 - Anisotropic filtering (up to 16×) on mipped 2D color/data textures.
-- Sandbox diagnostic map `/Game/Maps/RendererLab` (roughness/metal spheres, chrome, cube, glass).
+- Sandbox diagnostic map `/Game/Maps/RendererLab` (roughness/metal spheres, chrome, cube, glass, SSAO corner).
+- Depth SSAO at half resolution with bilateral blur, composited before bloom (`EnableSSAO` in `DefaultEngine.ini`).
 - Missing lightmap UV1 is persisted to `.lmesh` **before** the bake-input hash, so validation is not stale after the first bake.
 
 ### Renderer correctness (canonical pipeline)

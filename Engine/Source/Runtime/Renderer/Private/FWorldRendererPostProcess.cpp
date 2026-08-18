@@ -46,6 +46,8 @@ namespace Leon {
         if (!InSkybox || !InSkybox->bEnabled || !SkyboxShader || !SkyboxVA)
             return;
 
+        // Cube is authored outward-CCW; the camera sits inside it, so back-face cull would drop every face.
+        FRenderCommand::SetCulling(false);
         FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
         FRenderCommand::SetDepthMask(false);
 
@@ -83,12 +85,17 @@ namespace Leon {
     // Post-Process Pass (Bloom + ACES Tonemapping + FXAA)
     // =========================================================================
     void FWorldRenderer::RenderPostProcessPass(float InExposure, uint32_t InTargetFBO, uint32_t InVpWidth,
-                                               uint32_t InVpHeight) {
+                                               uint32_t InVpHeight, const FPerspectiveCamera& InCamera) {
         if (!HDRSceneFramebuffer)
             return;
 
         PostProcessSettings.Exposure = InExposure;
-        PostProcessPipeline.Render(PostProcessSettings, HDRSceneFramebuffer, InTargetFBO, InVpWidth, InVpHeight);
+        FPostProcessFrameContext frame;
+        frame.Projection = InCamera.GetProjectionMatrix();
+        frame.InverseProjection = glm::inverse(frame.Projection);
+        frame.bValid = true;
+        PostProcessPipeline.Render(PostProcessSettings, HDRSceneFramebuffer, InTargetFBO, InVpWidth, InVpHeight,
+                                   &frame);
     }
 
 } // namespace Leon

@@ -174,4 +174,12 @@ namespace Leon {
         GetTransform().Scale = InScale;
     }
 
+    glm::mat4 AActor::GetActorWorldMatrix() const {
+        if (RootComponent)
+            return RootComponent->GetComponentWorldMatrix();
+        if (HasComponent<FTransformComponent>())
+            return GetTransform().GetTransform();
+        return glm::mat4(1.0f);
+    }
+
 } // namespace Leon

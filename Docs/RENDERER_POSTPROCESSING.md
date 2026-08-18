@@ -4,12 +4,18 @@
 
 The post-processing and anti-aliasing subsystem in `LeonEngine2` transforms linear high dynamic range (HDR) radiance produced by the forward Cook-Torrance PBR + IBL pipeline into perceptually tone-mapped, anti-aliased low dynamic range (LDR) display imagery ready for presentation on standard sRGB displays.
 
-The pipeline executes in three sequential GPU rendering passes:
+The pipeline executes SSAO, then bloom, then tone map / FXAA:
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │                   HDR Scene Buffer                     │
 │               (RGBA16F, Linear Radiance)               │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│  SSAO (half-res depth, nearest samples, bilateral blur)│
+│  Composite keeps high-luminance specular (planar/IBL)  │
 └───────────────────────────┬────────────────────────────┘
                             │
               ┌─────────────┴─────────────┐

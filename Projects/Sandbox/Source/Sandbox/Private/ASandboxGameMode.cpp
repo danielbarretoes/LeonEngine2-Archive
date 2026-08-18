@@ -169,6 +169,28 @@ namespace Leon {
         spawnMesh("LabUvCube", FMeshPrimitives::CreateCube(1.0f), {-2.2f, 0.5f, -1.4f}, parent->CreateInstance("LabCube"),
                   "Cube");
 
+        auto wallMat = parent->CreateInstance("LabSSAOWall");
+        wallMat->SetAlbedoColor({0.42f, 0.43f, 0.45f});
+        wallMat->SetMetallic(0.0f);
+        wallMat->SetRoughness(0.82f);
+        auto spawnWall = [&](const std::string& InName, const glm::vec3& InLoc, const glm::vec3& InScale) {
+            AActor* actor = World->SpawnActor<AActor>(InName);
+            if (!actor)
+                return;
+            actor->SetActorLocation(InLoc);
+            actor->SetActorScale(InScale);
+            auto& mesh = actor->AddComponent<FMeshComponent>(FMeshPrimitives::CreateCube(1.0f), shader);
+            mesh.MeshType = "Cube";
+            mesh.Mobility = EComponentMobility::Movable;
+            mesh.bCastShadows = true;
+            mesh.bReceiveShadows = true;
+            actor->AddComponent<FMaterialComponent>(wallMat);
+        };
+        spawnWall("LabSSAOWallX", {-6.5f, 1.0f, -4.0f}, {4.0f, 2.0f, 0.2f});
+        spawnWall("LabSSAOWallZ", {-8.4f, 1.0f, -2.1f}, {0.2f, 2.0f, 4.0f});
+        spawnMesh("LabSSAOSphere", FMeshPrimitives::CreateSphere(0.35f, 24, 16), {-7.2f, 0.45f, -3.2f}, wallMat,
+                  "Sphere");
+
         if (auto glass = UAssetManager::GetMaterialInstance("/Game/Materials/M_GlassTransparent.lmat")) {
             spawnMesh("LabGlass", FMeshPrimitives::CreateQuad(1.6f, 1.8f), {4.0f, 1.0f, -0.5f}, glass, "Quad");
         }

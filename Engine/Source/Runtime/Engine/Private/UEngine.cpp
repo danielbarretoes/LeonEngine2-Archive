@@ -287,6 +287,10 @@ namespace Leon {
         ProjectCascadeCount =
             static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.RendererSettings", "CascadeCount", 4));
         ProjectShadowDistance = engineConfig.GetFloat("/Script/Engine.RendererSettings", "ShadowDistance", 100.0f);
+        bProjectSSAOEnabled = engineConfig.GetBool("/Script/Engine.RendererSettings", "EnableSSAO", true);
+        ProjectSSAORadius = engineConfig.GetFloat("/Script/Engine.RendererSettings", "SSAORadius", 0.5f);
+        ProjectSSAOIntensity = engineConfig.GetFloat("/Script/Engine.RendererSettings", "SSAOIntensity", 1.0f);
+        ProjectSSAOBias = engineConfig.GetFloat("/Script/Engine.RendererSettings", "SSAOBias", 0.025f);
         if (engineConfig.HasKey("/Script/Engine.RendererSettings", "Exposure") ||
             engineConfig.HasKey("/Script/Engine.RendererSettings", "SunIntensity")) {
             LE_CORE_INFO("UEngine: RendererSettings Exposure/SunIntensity are map-owned; INI values are not applied "
@@ -340,6 +344,8 @@ namespace Leon {
         ActiveWorld->SetProjectRendererDefaults(ProjectShadowMapResolution, bProjectEnablePlanarReflection,
                                                 ProjectCascadeCount, ProjectShadowDistance,
                                                 ProjectPlanarReflectionQuality, ProjectPlanarReflectionResolutionScale);
+        ActiveWorld->SetProjectSSAODefaults(bProjectSSAOEnabled, ProjectSSAORadius, ProjectSSAOIntensity,
+                                            ProjectSSAOBias);
         GameInstance->SetWorld(ActiveWorld);
         GameInstance->Init();
 

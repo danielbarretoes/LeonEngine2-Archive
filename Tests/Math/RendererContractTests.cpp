@@ -1,4 +1,5 @@
 #include <doctest/doctest.h>
+#include <algorithm>
 #include <cmath>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -162,6 +163,29 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(Leon::ClampPlanarReflectionResolutionScale(2.0f) == doctest::Approx(1.0f));
     }
 
+    TEST_CASE("Planar sampling VP projects the floor into 0-1 UV") {
+        const glm::vec3 camPos(0.0f, 8.0f, 2.0f);
+        glm::mat4 view = glm::lookAt(camPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 proj = glm::perspective(glm::radians(70.0f), 16.0f / 9.0f, 0.1f, 100.0f);
+        glm::mat4 reflectM = Leon::PlanarReflectionMatrix({0.0f, 1.0f, 0.0f}, 0.0f);
+        glm::mat4 sampleVP = proj * view * reflectM;
+        const glm::vec3 floorPt(0.0f, 0.0f, 0.0f);
+        glm::vec4 sampleClip = sampleVP * glm::vec4(floorPt, 1.0f);
+        float invW = 1.0f / std::max(std::abs(sampleClip.w), 1e-5f);
+        glm::vec2 uv = glm::vec2(sampleClip.x, sampleClip.y) * invW * 0.5f + 0.5f;
+        CHECK(uv.x > 0.0f);
+        CHECK(uv.x < 1.0f);
+        CHECK(uv.y > 0.0f);
+        CHECK(uv.y < 1.0f);
+    }
+
+    TEST_CASE("Ground plane UV0 V increases toward -Z when viewed from +Y") {
+        const float subdivZ = 4.0f;
+        auto vAt = [&](float zIndex) { return 1.0f - zIndex / subdivZ; };
+        CHECK(vAt(0.0f) == doctest::Approx(1.0f));
+        CHECK(vAt(subdivZ) == doctest::Approx(0.0f));
+    }
+
     TEST_CASE("Cook-Torrance Lambert term uses albedo/PI") {
         glm::vec3 N(0, 0, 1), V(0, 0, 1), L(0, 0, 1);
         glm::vec3 lo = Leon::EvaluateCookTorrance(N, V, L, glm::vec3(1.0f), 0.0f, 1.0f, glm::vec3(1.0f));
@@ -242,6 +266,11 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         window *= window;
         CHECK(d2 == doctest::Approx(window / 5.0f).epsilon(1e-5f));
         CHECK(Leon::DistanceAttenuationUE4(10.0f, 10.0f) == doctest::Approx(0.0f).epsilon(1e-6f));
+    }
+
+    TEST_CASE("LambertNdotL clamps the backface") {
+        CHECK(Leon::LambertNdotL({0, 1, 0}, {0, 1, 0}) == doctest::Approx(1.0f));
+        CHECK(Leon::LambertNdotL({0, 1, 0}, {0, -1, 0}) == doctest::Approx(0.0f));
     }
 
     TEST_CASE("Negative scale flips handedness of normal matrix") {

@@ -135,6 +135,7 @@ namespace Leon {
         GameState = nullptr;
         PlayerControllers.clear();
         AIControllers.clear();
+        EntityToActor.clear();
         Actors.clear();
         Registry.clear();
         Renderer.reset();
@@ -315,6 +316,8 @@ namespace Leon {
             return;
 
         entt::entity handle = InActor->GetEntityHandle();
+        if (handle != entt::null)
+            EntityToActor.erase(static_cast<uint32_t>(handle));
         if (handle != entt::null && Registry.valid(handle)) {
             Registry.destroy(handle);
         }
@@ -418,6 +421,15 @@ namespace Leon {
         return nullptr;
     }
 
+    AActor* UWorld::FindActorByEntity(entt::entity InEntity) const {
+        if (InEntity == entt::null)
+            return nullptr;
+        auto it = EntityToActor.find(static_cast<uint32_t>(InEntity));
+        if (it == EntityToActor.end() || !it->second || it->second->IsPendingKill())
+            return nullptr;
+        return it->second;
+    }
+
     void UWorld::AddPlayerController(APlayerController* InPC) {
         if (InPC && std::find(PlayerControllers.begin(), PlayerControllers.end(), InPC) == PlayerControllers.end()) {
             PlayerControllers.push_back(InPC);
@@ -460,6 +472,20 @@ namespace Leon {
                                                    PendingPlanarQuality, PendingPlanarResolutionScale);
             Renderer->GetShadowSettings().CascadeCount = PendingCascadeCount;
             Renderer->GetShadowSettings().ShadowDistance = PendingShadowDistance;
+        }
+    }
+
+    void UWorld::SetProjectSSAODefaults(bool bInEnabled, float InRadius, float InIntensity, float InBias) {
+        bPendingSSAOEnabled = bInEnabled;
+        PendingSSAORadius = InRadius > 0.0f ? InRadius : 0.5f;
+        PendingSSAOIntensity = InIntensity >= 0.0f ? InIntensity : 1.0f;
+        PendingSSAOBias = InBias >= 0.0f ? InBias : 0.025f;
+        if (Renderer) {
+            auto& pp = Renderer->GetPostProcessSettings();
+            pp.bSSAOEnabled = bPendingSSAOEnabled;
+            pp.SSAORadius = PendingSSAORadius;
+            pp.SSAOIntensity = PendingSSAOIntensity;
+            pp.SSAOBias = PendingSSAOBias;
         }
     }
 

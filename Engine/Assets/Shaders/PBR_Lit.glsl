@@ -28,15 +28,29 @@ layout(std140) uniform CameraData {
 
 uniform mat4 u_Model;
 uniform mat3 u_NormalMatrix;
+uniform int u_UseInstancing = 0;
 uniform int u_EnableClipPlane = 0;
 uniform vec4 u_ClipPlane = vec4(0.0, 1.0, 0.0, 0.0);
 
+layout(std140, binding = 3) uniform InstanceBlock {
+    mat4 u_InstanceModels[64];
+};
+
 void main() {
-    vec4 worldPos = u_Model * vec4(aPos, 1.0);
+    mat4 model = u_Model;
+    mat3 normalMatrix = u_NormalMatrix;
+    if (u_UseInstancing == 1) {
+        model = u_InstanceModels[gl_InstanceID];
+        mat3 m3 = mat3(model);
+        float det = determinant(m3);
+        normalMatrix = (abs(det) < 1e-12) ? mat3(1.0) : transpose(inverse(m3));
+    }
+
+    vec4 worldPos = model * vec4(aPos, 1.0);
     v_FragPos = worldPos.xyz;
 
-    vec3 N = normalize(u_NormalMatrix * aNormal);
-    vec3 T = u_NormalMatrix * aTangent.xyz;
+    vec3 N = normalize(normalMatrix * aNormal);
+    vec3 T = normalMatrix * aTangent.xyz;
     float tLen = length(T);
     T = tLen > 1e-8 ? T / tLen : vec3(1.0, 0.0, 0.0);
     T = normalize(T - N * dot(N, T));
@@ -488,14 +502,20 @@ void main() {
         FragColor = vec4(vec3(1.0 - dirShadow), 1.0);
         return;
     } else if (u_DebugMode == 25) {
-        // Cascade Index False-Color (0: Red, 1: Green, 2: Blue, 3: Yellow)
+        // Cascade index false-color; mix in the blend zone so F9 matches the lit seam.
         vec3 cascadeColors[4] = vec3[](
             vec3(1.0, 0.15, 0.15),
             vec3(0.15, 0.90, 0.20),
             vec3(0.20, 0.40, 1.00),
             vec3(1.00, 0.90, 0.10)
         );
-        FragColor = vec4(cascadeColors[clamp(activeCascadeIndex, 0, 3)], 1.0);
+        int cascadeIndex = clamp(activeCascadeIndex, 0, 3);
+        vec3 col = cascadeColors[cascadeIndex];
+        float viewDepth = dot(v_FragPos - u_ViewPos.xyz, u_CameraForward.xyz);
+        float blendA = CascadeBlendAlpha(viewDepth, cascadeIndex);
+        if (blendA > 0.0 && cascadeIndex < 3)
+            col = mix(col, cascadeColors[cascadeIndex + 1], blendA);
+        FragColor = vec4(col, 1.0);
         return;
     } else if (u_DebugMode == 26) {
         FragColor = vec4(vec3(spotShadowFactor), 1.0);

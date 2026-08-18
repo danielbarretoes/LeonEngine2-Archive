@@ -7,6 +7,7 @@
 #include "Assets/FMaterialImporter.hpp"
 #include "Assets/FAssetManifest.hpp"
 #include "Assets/FHDRImporter.hpp"
+#include "Assets/UStaticMesh.hpp"
 #include "Assets/USkeleton.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Assets/UAnimSequence.hpp"
@@ -250,8 +251,8 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
             entry.Source = meshPath;
             entry.Stem = stem;
             if (FMeshImporter::ImportFBX(meshPath.string(), meshSettings, entry.Result) &&
-                (entry.Result.StaticMesh || entry.Result.SkeletalMesh || !entry.Result.Animations.empty() ||
-                 entry.Result.Skeleton)) {
+                (entry.Result.StaticMesh || !entry.Result.SeparateMeshes.empty() || entry.Result.SkeletalMesh ||
+                 !entry.Result.Animations.empty() || entry.Result.Skeleton)) {
                 pending.push_back(std::move(entry));
             } else {
                 std::cerr << "  [ERROR] Failed to import mesh: " << meshPath.string() << "\n";
@@ -380,8 +381,8 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                     importResult.Skeleton->SetAssetPath("/Game/" + meshSkelRel);
                     if (importResult.Skeleton->SaveToFile(skelPath.string())) {
                         generatedAssets.push_back(meshSkelRel);
-                        std::cout << "    [SAVED SKELETON] Bones: " << importResult.Skeleton->GetNumBones()
-                                  << " -> " << meshSkelRel << "\n";
+                        std::cout << "    [SAVED SKELETON] Bones: " << importResult.Skeleton->GetNumBones() << " -> "
+                                  << meshSkelRel << "\n";
                     }
                     importResult.SkeletalMesh->SetSkeletonPath("/Game/" + meshSkelRel);
                     importResult.SkeletalMesh->SetSkeleton(importResult.Skeleton);
@@ -419,22 +420,52 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                     }
                 }
                 manifest.RegisterImport(entry.Source.string(), generatedAssets, dependencies);
-            } else if (importResult.StaticMesh) {
+            } else if (importResult.StaticMesh || !importResult.SeparateMeshes.empty()) {
                 writeMaterials();
-                auto staticMesh = importResult.StaticMesh;
-                std::string outRelPath = "Meshes/" + stem + ".lmesh";
-                fs::path outFilePath = contentPath / "Meshes" / (stem + ".lmesh");
-                generatedAssets.insert(generatedAssets.begin(), outRelPath);
-                if (staticMesh->SaveToFile(outFilePath.string())) {
-                    importedMeshes++;
-                    manifest.RegisterImport(entry.Source.string(), generatedAssets, dependencies);
-                    std::cout << "    [SAVED] Verts: " << staticMesh->GetVertices().size()
-                              << ", Indices: " << staticMesh->GetIndices().size()
-                              << ", Submeshes: " << staticMesh->GetSubmeshes().size() << "\n";
-                } else {
+                auto saveOne = [&](const TRef<UStaticMesh>& mesh, const std::string& fileStem) {
+                    std::string outRelPath = "Meshes/" + fileStem + ".lmesh";
+                    fs::path outFilePath = contentPath / "Meshes" / (fileStem + ".lmesh");
+                    generatedAssets.push_back(outRelPath);
+                    mesh->SetName(fileStem);
+                    mesh->SetAssetPath("/Game/" + outRelPath);
+                    if (mesh->SaveToFile(outFilePath.string())) {
+                        importedMeshes++;
+                        std::cout << "    [SAVED] " << outRelPath << " Verts: " << mesh->GetVertices().size()
+                                  << ", Indices: " << mesh->GetIndices().size()
+                                  << ", Submeshes: " << mesh->GetSubmeshes().size() << "\n";
+                        return true;
+                    }
                     std::cerr << "  [ERROR] Failed to save native mesh: " << outFilePath.string() << "\n";
                     errorCount++;
+                    return false;
+                };
+                if (importResult.SeparateMeshes.size() > 1) {
+                    for (auto& piece : importResult.SeparateMeshes)
+                        saveOne(piece, sanitize(piece->GetName()));
+                    fs::path partsPath = contentPath / "Meshes" / (stem + ".parts.json");
+                    std::ofstream parts(partsPath);
+                    parts << "{\n  \"stem\": \"" << stem << "\",\n  \"meshes\": [\n";
+                    for (size_t i = 0; i < importResult.SeparateMeshes.size(); ++i) {
+                        const auto& piece = importResult.SeparateMeshes[i];
+                        const glm::vec3 mn = piece->GetBoundsMin();
+                        const glm::vec3 mx = piece->GetBoundsMax();
+                        std::string mat = "Materials/M_DefaultPBR.lmat";
+                        if (!piece->GetMaterialSlots().empty() &&
+                            !piece->GetMaterialSlots()[0].DefaultMaterialPath.empty())
+                            mat = piece->GetMaterialSlots()[0].DefaultMaterialPath;
+                        if (!mat.empty() && mat[0] != '/')
+                            mat = "/Game/" + mat;
+                        parts << "    {\"name\": \"" << piece->GetName() << "\", \"asset\": \"" << piece->GetAssetPath()
+                              << "\", \"material\": \"" << mat << "\", \"min\": [" << mn.x << ", " << mn.y << ", "
+                              << mn.z << "], \"max\": [" << mx.x << ", " << mx.y << ", " << mx.z << "]}";
+                        parts << (i + 1 < importResult.SeparateMeshes.size() ? ",\n" : "\n");
+                    }
+                    parts << "  ]\n}\n";
+                    std::cout << "    [PARTS] " << partsPath.filename().string() << "\n";
+                } else if (importResult.StaticMesh) {
+                    saveOne(importResult.StaticMesh, stem);
                 }
+                manifest.RegisterImport(entry.Source.string(), generatedAssets, dependencies);
             }
         }
     }

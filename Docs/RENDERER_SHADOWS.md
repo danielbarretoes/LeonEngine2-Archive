@@ -16,7 +16,7 @@ The shadow pipeline consists of:
   - `PCF 3x3`: 9-tap uniform filter grid.
   - `PCF 5x5`: 25-tap uniform filter grid.
   - `Poisson Disk`: 16 fixed LearnOpenGL offsets rotated by interleaved gradient noise (not a generated Vogel spiral).
-- **Smooth Cascade Blending**: Linear interpolation across cascade transition boundaries (`u_ShadowParams.w`).
+- **Smooth Cascade Blending**: Mix over `max(cascadeLength × CascadeBlendWidth, 3 m)` (capped at 90% of the slice). Each cascade frustum overlaps that zone. Out-of-bounds samples of the next map are skipped (they used to mix toward fully lit and draw a floor line). NDC depth bias scales with the ortho Z range.
 - **Far Shadow Distance Soft Fadeout**: Linear fade over 15 m past the last cascade split (`mix(shadow, 0, clamp((d − split.w) / 15, 0, 1))`).
 - **Alpha Masked Caster Support**: Cutoff discard for masked materials (`u_AlphaMode == 1`).
 - **Spotlight shadows**: one shadowed spot (`ShadowedSpotIndex`), resolution `SpotResolution`.

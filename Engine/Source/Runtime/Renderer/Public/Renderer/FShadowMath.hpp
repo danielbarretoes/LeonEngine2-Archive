@@ -46,6 +46,14 @@ namespace Leon {
          */
         glm::vec4 GetAtlasScaleOffset2x2(uint32_t InCascadeIndex);
 
+        /**
+         * Camera-depth range used to fit cascade InIndex. Extends into the neighbour
+         * slice by the blend width so the next map still covers the mix zone
+         * (otherwise SampleCascadeShadowSlice goes out of UV and the mix reads as a floor line).
+         */
+        void CascadeSliceDepthRange(uint32_t InIndex, const std::vector<float>& InSplits, float InBlendWidth,
+                                    float InMinBlendMeters, float& OutNear, float& OutFar);
+
     } // namespace ShadowMath
 
 } // namespace Leon

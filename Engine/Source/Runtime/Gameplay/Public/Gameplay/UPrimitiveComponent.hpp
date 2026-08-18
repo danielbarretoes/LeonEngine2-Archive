@@ -68,7 +68,7 @@ namespace Leon {
 
         void SetMass(float InMass);
         float GetMass() const { return Mass; }
-        void SetLinearDamping(float InDamping) { LinearDamping = InDamping; }
+        void SetLinearDamping(float InDamping);
         float GetLinearDamping() const { return LinearDamping; }
         void SetAngularDamping(float InDamping) { AngularDamping = InDamping; }
         float GetAngularDamping() const { return AngularDamping; }
@@ -80,6 +80,8 @@ namespace Leon {
         IPhysicsBody* GetPhysicsBody() const { return PhysicsBody; }
         void UnregisterPhysics();
         void RegisterPhysics();
+        /** Destroy and recreate the rigid body using current mass/gravity/simulate flags. */
+        void RecreatePhysicsBody();
         void SyncPhysicsTransform();
 
         virtual FPhysicsBodyCreateInfo MakeBodyCreateInfo() const;

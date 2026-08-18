@@ -509,14 +509,19 @@ void main() {
         FragColor = vec4(vec3(1.0 - dirShadow), 1.0);
         return;
     } else if (u_DebugMode == 25) {
-        // Cascade Index False-Color (0: Red, 1: Green, 2: Blue, 3: Yellow)
         vec3 cascadeColors[4] = vec3[](
             vec3(1.0, 0.15, 0.15),
             vec3(0.15, 0.90, 0.20),
             vec3(0.20, 0.40, 1.00),
             vec3(1.00, 0.90, 0.10)
         );
-        FragColor = vec4(cascadeColors[clamp(activeCascadeIndex, 0, 3)], 1.0);
+        int cascadeIndex = clamp(activeCascadeIndex, 0, 3);
+        vec3 col = cascadeColors[cascadeIndex];
+        float viewDepth = dot(v_FragPos - u_ViewPos.xyz, u_CameraForward.xyz);
+        float blendA = CascadeBlendAlpha(viewDepth, cascadeIndex);
+        if (blendA > 0.0 && cascadeIndex < 3)
+            col = mix(col, cascadeColors[cascadeIndex + 1], blendA);
+        FragColor = vec4(col, 1.0);
         return;
     } else if (u_DebugMode == 26) {
         FragColor = vec4(vec3(spotShadowFactor), 1.0);

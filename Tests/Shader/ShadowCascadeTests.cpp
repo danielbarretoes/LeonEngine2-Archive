@@ -10,11 +10,12 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
 
     TEST_CASE("ShadowMath - Practical Split Scheme Calculations") {
         const float nearClip = 0.1f;
-        const float farClip  = 100.0f;
+        const float farClip = 100.0f;
         const uint32_t count = 4;
 
         SUBCASE("Practical Split Monotonicity and Boundary Invariants") {
-            auto splits = ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 0.85f, ECascadeSplitScheme::Practical);
+            auto splits =
+                ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 0.85f, ECascadeSplitScheme::Practical);
             REQUIRE(splits.size() == 5);
 
             CHECK(splits[0] == doctest::Approx(nearClip).epsilon(0.0001f));
@@ -26,13 +27,15 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
             }
 
             // Practical blend (0.85) should allocate tighter near-plane cascades than uniform
-            auto uniformSplits = ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 0.0f, ECascadeSplitScheme::Uniform);
+            auto uniformSplits =
+                ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 0.0f, ECascadeSplitScheme::Uniform);
             CHECK(splits[1] < uniformSplits[1]);
             CHECK(splits[2] < uniformSplits[2]);
         }
 
         SUBCASE("Uniform Scheme Equidistant Spacing") {
-            auto uniformSplits = ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 0.0f, ECascadeSplitScheme::Uniform);
+            auto uniformSplits =
+                ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 0.0f, ECascadeSplitScheme::Uniform);
             REQUIRE(uniformSplits.size() == 5);
 
             float expectedStep = (farClip - nearClip) / static_cast<float>(count);
@@ -43,7 +46,8 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
         }
 
         SUBCASE("Logarithmic Scheme High Near-Plane Density") {
-            auto logSplits = ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 1.0f, ECascadeSplitScheme::Logarithmic);
+            auto logSplits =
+                ShadowMath::CalculateCascadeSplits(count, nearClip, farClip, 1.0f, ECascadeSplitScheme::Logarithmic);
             REQUIRE(logSplits.size() == 5);
 
             // Logarithmic split 1 should be dramatically closer to near plane
@@ -54,7 +58,8 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
 
     TEST_CASE("ShadowMath - Frustum Corner Extraction Invariants") {
         glm::mat4 proj = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.1f, 50.0f);
-        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 2.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 view =
+            glm::lookAt(glm::vec3(0.0f, 2.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
         auto corners = ShadowMath::GetFrustumCornersWorldSpace(proj, view);
         REQUIRE(corners.size() == 8);
@@ -75,23 +80,27 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
 
     TEST_CASE("ShadowMath - Bounding Sphere Projection & Texel Grid Snapping") {
         glm::mat4 proj = glm::perspective(glm::radians(60.0f), 1.0f, 0.1f, 20.0f);
-        glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 view =
+            glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         auto corners = ShadowMath::GetFrustumCornersWorldSpace(proj, view);
 
         glm::vec3 lightDir = glm::normalize(glm::vec3(0.5f, -1.0f, -0.3f));
         uint32_t resolution = 2048;
 
         float worldUnitsPerTexel = 0.0f;
-        glm::mat4 stabilizedMatrix = ShadowMath::CalculateCascadeMatrix(corners, lightDir, resolution, true, worldUnitsPerTexel);
+        glm::mat4 stabilizedMatrix =
+            ShadowMath::CalculateCascadeMatrix(corners, lightDir, resolution, true, worldUnitsPerTexel);
 
         CHECK(worldUnitsPerTexel > 0.0f);
         CHECK(worldUnitsPerTexel < 1.0f);
 
         // Test small translation jitter stability
-        glm::mat4 jitteredView = glm::lookAt(glm::vec3(0.002f, 0.0f, 0.0f), glm::vec3(0.002f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 jitteredView =
+            glm::lookAt(glm::vec3(0.002f, 0.0f, 0.0f), glm::vec3(0.002f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         auto jitteredCorners = ShadowMath::GetFrustumCornersWorldSpace(proj, jitteredView);
         float jitteredTexelSize = 0.0f;
-        glm::mat4 jitteredMatrix = ShadowMath::CalculateCascadeMatrix(jitteredCorners, lightDir, resolution, true, jitteredTexelSize);
+        glm::mat4 jitteredMatrix =
+            ShadowMath::CalculateCascadeMatrix(jitteredCorners, lightDir, resolution, true, jitteredTexelSize);
 
         CHECK(jitteredTexelSize == doctest::Approx(worldUnitsPerTexel).epsilon(0.0001f));
     }
@@ -106,5 +115,16 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
         CHECK(q1 == glm::vec4(0.5f, 0.5f, 0.5f, 0.0f));
         CHECK(q2 == glm::vec4(0.5f, 0.5f, 0.0f, 0.5f));
         CHECK(q3 == glm::vec4(0.5f, 0.5f, 0.5f, 0.5f));
+    }
+
+    TEST_CASE("ShadowMath - cascade slice range overlaps the blend zone") {
+        auto splits = ShadowMath::CalculateCascadeSplits(4, 0.1f, 100.0f, 0.85f, ECascadeSplitScheme::Practical);
+        float near1 = 0.0f;
+        float far1 = 0.0f;
+        ShadowMath::CascadeSliceDepthRange(1, splits, 0.25f, FShadowSettings::kCascadeBlendMinMeters, near1, far1);
+        CHECK(near1 < splits[1]);
+        CHECK(far1 > splits[2]);
+        CHECK(near1 >= splits[0]);
+        CHECK(far1 <= splits[4]);
     }
 }

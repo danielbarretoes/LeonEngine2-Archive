@@ -82,6 +82,28 @@ namespace Leon {
             CHECK(loc.z == doctest::Approx(expected.z).epsilon(1e-4f));
         }
 
+        TEST_CASE("USceneComponent world matrix includes parent scale and yaw") {
+            auto world = UWorld::Create("WorldMtx");
+            auto* actor = world->SpawnActor<AActor>("MtxActor");
+            actor->SetActorLocation({0.0f, 0.0f, 0.0f});
+            actor->SetActorRotation({0.0f, 90.0f, 0.0f});
+            actor->SetActorScale({2.0f, 2.0f, 2.0f});
+            auto child = actor->AddActorComponent<USceneComponent>("Child");
+            REQUIRE(child);
+            child->SetRelativeLocation({1.0f, 0.0f, 0.0f});
+            glm::vec3 loc = child->GetComponentLocation();
+            CHECK(loc.x == doctest::Approx(0.0f).epsilon(1e-4f));
+            CHECK(loc.y == doctest::Approx(0.0f).epsilon(1e-4f));
+            CHECK(loc.z == doctest::Approx(-2.0f).epsilon(1e-4f));
+            CHECK(child->GetComponentScale().x == doctest::Approx(2.0f));
+            CHECK(world->FindActorByEntity(actor->GetEntityHandle()) == actor);
+            glm::mat4 actorM = actor->GetActorWorldMatrix();
+            glm::mat4 expected = actor->GetTransform().GetTransform();
+            CHECK(actorM[3].x == doctest::Approx(expected[3].x));
+            CHECK(actorM[3].y == doctest::Approx(expected[3].y));
+            CHECK(actorM[3].z == doctest::Approx(expected[3].z));
+        }
+
         TEST_CASE("UActorComponent lifecycle with ExecuteBeginPlay/Tick/EndPlay") {
             auto world = UWorld::Create("CompWorld");
             auto* actor = world->SpawnActor<AActor>("Owner");

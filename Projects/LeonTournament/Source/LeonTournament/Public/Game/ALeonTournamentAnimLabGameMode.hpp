@@ -6,7 +6,7 @@
 namespace Leon {
 
     /**
-     * Anim lab: Blend2D locomotion, jump/fall, death + ragdoll, dummy combat.
+     * Anim lab: Blend2D locomotion, jump/fall, ragdoll on death, dummy combat.
      * Camera defaults to third person; V toggles first/third person.
      */
     class ALeonTournamentAnimLabGameMode : public ALeonTournamentGameMode {
