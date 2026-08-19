@@ -40,6 +40,7 @@ namespace Leon {
         bool NeedsReload() const;
 
         void AttachVisual();
+        void RefreshVisualPerspective(bool bFirstPerson);
         void SetVisualHidden(bool bHidden);
         glm::vec3 GetMuzzleLocation() const;
         int32_t GetLastVfxSpawnCount() const { return LastVfxSpawnCount; }
@@ -75,6 +76,7 @@ namespace Leon {
         bool bFiring = false;
         bool bVisualReady = false;
         bool bVisualHidden = false;
+        bool bUsingFirstPersonMesh = false;
         int32_t LastVfxSpawnCount = 0;
         float SwayPhase = 0.0f;
     };

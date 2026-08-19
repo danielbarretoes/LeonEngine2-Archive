@@ -71,6 +71,7 @@ namespace {
     }
 
     void FAudioDevice::Shutdown() {
+        StopMusic();
         {
             std::lock_guard<std::mutex> lock(GVoiceMutex);
             for (auto& [id, voice] : GVoices) {
@@ -127,16 +128,28 @@ namespace {
     }
 
     void FAudioDevice::PlaySound2D(const TRef<USoundWave>& InSound, float InVolume) {
-        PlayWave(InSound, InVolume, false, glm::vec3(0.0f), 0.0f);
+        PlayWave(InSound, InVolume, false, glm::vec3(0.0f), 0.0f, false);
+    }
+
+    void FAudioDevice::PlayMusic2D(const TRef<USoundWave>& InSound, float InVolume) {
+        StopMusic();
+        MusicVoiceId = PlayWave(InSound, InVolume, false, glm::vec3(0.0f), 0.0f, true);
+    }
+
+    void FAudioDevice::StopMusic() {
+        if (MusicVoiceId != 0) {
+            StopVoice(MusicVoiceId);
+            MusicVoiceId = 0;
+        }
     }
 
     void FAudioDevice::PlaySoundAtLocation(const TRef<USoundWave>& InSound, const glm::vec3& InLocation, float InVolume,
                                            float InAttenuationRadius) {
-        PlayWave(InSound, InVolume, true, InLocation, InAttenuationRadius);
+        PlayWave(InSound, InVolume, true, InLocation, InAttenuationRadius, false);
     }
 
     uint32_t FAudioDevice::PlayWave(const TRef<USoundWave>& InSound, float InVolume, bool bSpatial,
-                                    const glm::vec3& InLocation, float InAttenuationRadius) {
+                                    const glm::vec3& InLocation, float InAttenuationRadius, bool bLoop) {
         if (!bInitialized || bNullDevice || !GEngine || !InSound || !InSound->IsValid())
             return 0;
 
@@ -166,6 +179,8 @@ namespace {
         }
 
         ma_sound_set_volume(&voice.Sound, volume);
+        if (bLoop)
+            ma_sound_set_looping(&voice.Sound, MA_TRUE);
         if (bSpatial) {
             ma_sound_set_spatialization_enabled(&voice.Sound, MA_TRUE);
             ma_sound_set_position(&voice.Sound, InLocation.x, InLocation.y, InLocation.z);
@@ -196,6 +211,8 @@ namespace {
             ma_sound_uninit(&it->second.Sound);
             it->second.bValid = false;
         }
+        if (InVoiceId == MusicVoiceId)
+            MusicVoiceId = 0;
         GVoices.erase(it);
     }
 

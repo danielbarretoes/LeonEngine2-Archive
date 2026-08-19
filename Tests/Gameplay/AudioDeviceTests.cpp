@@ -27,6 +27,8 @@ TEST_CASE("Audio null device init and play no-crash") {
 
     auto wave = CreateRef<USoundWave>("Empty");
     FAudioDevice::Get().PlaySound2D(wave, 1.0f);
+    FAudioDevice::Get().PlayMusic2D(wave, 0.5f);
+    FAudioDevice::Get().StopMusic();
     FAudioDevice::Get().Tick(0.016f);
     FAudioDevice::Get().Shutdown();
 }

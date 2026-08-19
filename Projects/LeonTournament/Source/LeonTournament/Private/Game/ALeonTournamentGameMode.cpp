@@ -244,12 +244,14 @@ namespace Leon {
             gs->SetTeam1Kills(0);
             gs->SetTeam2Kills(0);
         }
+        UGameplayStatics::PlayMusic2D("/Game/Audio/BGM_Menu", 0.32f);
         EnsureMenuShowcase();
     }
 
     void ALeonTournamentGameMode::EnterLobby() {
         if (!IsNetworkAuthority())
             return;
+        UGameplayStatics::StopMusic();
         if (auto* gs = GetGameState())
             gs->SetMatchState(ELeonTournamentMatchState::Lobby);
         if (auto* pc = World ? World->GetFirstPlayerController() : nullptr) {
@@ -1185,6 +1187,7 @@ namespace Leon {
         // 3. Enter Starting warmup — combat allowed, scoring blocked until Playing.
         if (!IsNetworkAuthority())
             return;
+        UGameplayStatics::StopMusic();
         auto* gs = GetGameState();
         if (gs && (gs->GetMatchState() == ELeonTournamentMatchState::Starting ||
                    gs->GetMatchState() == ELeonTournamentMatchState::Playing))
@@ -1681,6 +1684,7 @@ namespace Leon {
     }
 
     void ALeonTournamentGameMode::EndPlay() {
+        UGameplayStatics::StopMusic();
         DestroyMenuShowcase();
         DamageLog.clear();
         RespawnTimerHandles.clear();

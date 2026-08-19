@@ -37,9 +37,11 @@ namespace Leon {
         }
 
         void EnsureWeaponMesh(AActor& InActor, ELeonTournamentWeaponId InWeaponId,
-                              const FLeonTournamentWeaponConfig& InConfig) {
-            const FLeonTournamentWeaponVisual visual = LeonTournamentWeaponVisualPreset(InWeaponId);
-            const std::string meshTag = LeonTournamentWeaponMeshTag(InWeaponId);
+                              const FLeonTournamentWeaponConfig& InConfig, bool bFirstPerson) {
+            const FLeonTournamentWeaponVisual visual =
+                bFirstPerson ? LeonTournamentWeaponFirstPersonVisualPreset(InWeaponId)
+                             : LeonTournamentWeaponVisualPreset(InWeaponId);
+            const std::string meshTag = LeonTournamentWeaponMeshTag(InWeaponId, bFirstPerson);
             if (InActor.HasComponent<FMeshComponent>()) {
                 auto& mesh = InActor.GetComponent<FMeshComponent>();
                 if (mesh.MeshType == meshTag) {
@@ -226,7 +228,15 @@ namespace Leon {
     }
 
     void ALeonTournamentWeapon::AttachVisual() {
-        EnsureWeaponMesh(*this, WeaponId, Config);
+        const bool bFp = OwnerCharacter && OwnerCharacter->IsLocallyControlled() && !OwnerCharacter->IsThirdPerson();
+        RefreshVisualPerspective(bFp);
+    }
+
+    void ALeonTournamentWeapon::RefreshVisualPerspective(bool bFirstPerson) {
+        if (bVisualReady && bUsingFirstPersonMesh == bFirstPerson)
+            return;
+        bUsingFirstPersonMesh = bFirstPerson;
+        EnsureWeaponMesh(*this, WeaponId, Config, bFirstPerson);
         bVisualReady = HasComponent<FMeshComponent>();
         SetVisualHidden(bVisualHidden);
     }
@@ -544,6 +554,10 @@ namespace Leon {
     void ALeonTournamentWeapon::UpdateFirstPersonVisual() {
         if (!OwnerCharacter || OwnerCharacter->IsPendingKill())
             return;
+
+        const bool bFp = OwnerCharacter->IsLocallyControlled() && !OwnerCharacter->IsThirdPerson();
+        RefreshVisualPerspective(bFp);
+
         glm::vec3 camOrigin, look;
         OwnerCharacter->GetAimRay(camOrigin, look);
         (void)camOrigin;

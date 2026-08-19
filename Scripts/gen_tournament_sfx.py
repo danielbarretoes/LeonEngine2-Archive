@@ -66,8 +66,31 @@ def sweep(f0: float, f1: float, dur: float, vol: float = 0.32) -> list[float]:
     return out
 
 
+def menu_music(dur: float = 12.0, vol: float = 0.22) -> list[float]:
+    """Short ambient loop: bass pulse + airy pad (seam-friendly)."""
+    n = int(RATE * dur)
+    out = [0.0] * n
+    bass_freqs = [110.0, 146.83, 164.81, 146.83]
+    pad_freqs = [220.0, 277.18, 329.63, 277.18]
+    for i in range(n):
+        t = i / RATE
+        beat = int(t * 2.0) % len(bass_freqs)
+        bass = math.sin(2.0 * math.pi * bass_freqs[beat] * t) * vol
+        pad = math.sin(2.0 * math.pi * pad_freqs[beat] * t) * vol * 0.45
+        shimmer = math.sin(2.0 * math.pi * 880.0 * t + math.sin(t * 0.7)) * vol * 0.08
+        env = 1.0
+        if t < 0.25:
+            env = t / 0.25
+        rem = dur - t
+        if rem < 0.35:
+            env *= max(0.0, rem / 0.35)
+        out[i] = (bass + pad + shimmer) * env
+    return out
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    write_wav("BGM_Menu.wav", menu_music())
     write_wav("SFX_Countdown.wav", tone(660, 0.12, 0.4) + [0.0] * int(RATE * 0.05))
     write_wav("SFX_MatchStart.wav", chord([523.25, 659.25, 783.99], 0.55, 0.4))
     write_wav("SFX_DoubleKill.wav", tone(880, 0.1, 0.4) + tone(1174.7, 0.18, 0.42))

@@ -42,7 +42,7 @@ Roadmap to reach a credible UT-style MVP. Naming follows [NAMING.md](NAMING.md):
 | Second map `TournamentArenaNight` | Done (existing) |
 | Weapon mesh silhouettes per id | Done — `FLeonTournamentWeaponVisual` |
 | Dedicated SFX per weapon (WAV files) | Done — placeholder copies; swap for real assets |
-| Weapon FP meshes / menu music | Pending |
+| Weapon FP meshes / menu music | Done — FP presets + `BGM_Menu` loop |
 
 ---
 

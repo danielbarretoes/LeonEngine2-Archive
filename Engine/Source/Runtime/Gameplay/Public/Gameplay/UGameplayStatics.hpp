@@ -47,6 +47,10 @@ namespace Leon {
         /** Fire-and-forget 2D one-shot from a virtual/physical sound path. */
         static void PlaySound2D(const std::string& InSoundPath, float InVolume = 1.0f);
 
+        /** Looping menu/ambient music; stops any previous music track. */
+        static void PlayMusic2D(const std::string& InSoundPath, float InVolume = 1.0f);
+        static void StopMusic();
+
         /** Fire-and-forget 3D one-shot with distance attenuation. */
         static void PlaySoundAtLocation(const std::string& InSoundPath, const glm::vec3& InLocation,
                                         float InVolume = 1.0f, float InAttenuationRadius = 2500.0f);

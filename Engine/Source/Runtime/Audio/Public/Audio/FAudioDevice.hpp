@@ -31,13 +31,18 @@ namespace Leon {
         /** Fire-and-forget 2D one-shot. Safe no-op on null device. */
         void PlaySound2D(const TRef<USoundWave>& InSound, float InVolume = 1.0f);
 
+        /** Looping 2D music track; replaces any previous music voice. */
+        void PlayMusic2D(const TRef<USoundWave>& InSound, float InVolume = 1.0f);
+        void StopMusic();
+        bool IsMusicPlaying() const { return MusicVoiceId != 0; }
+
         /** Fire-and-forget 3D one-shot with distance attenuation. */
         void PlaySoundAtLocation(const TRef<USoundWave>& InSound, const glm::vec3& InLocation, float InVolume = 1.0f,
                                  float InAttenuationRadius = 2500.0f);
 
         /** Low-level: play decoded PCM already owned by USoundWave. Returns voice id or 0. */
         uint32_t PlayWave(const TRef<USoundWave>& InSound, float InVolume, bool bSpatial, const glm::vec3& InLocation,
-                          float InAttenuationRadius);
+                          float InAttenuationRadius, bool bLoop = false);
         void StopVoice(uint32_t InVoiceId);
 
     private:
@@ -49,6 +54,7 @@ namespace Leon {
         glm::vec3 ListenerForward{0.0f, 0.0f, -1.0f};
         glm::vec3 ListenerUp{0.0f, 1.0f, 0.0f};
         uint32_t NextVoiceId = 1;
+        uint32_t MusicVoiceId = 0;
     };
 
 } // namespace Leon

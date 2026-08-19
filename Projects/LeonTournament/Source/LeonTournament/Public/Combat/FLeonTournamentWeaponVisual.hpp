@@ -16,6 +16,7 @@ namespace Leon {
         float CubeSize = 0.22f;
     };
 
+    /** Third-person / world silhouette (compact). */
     inline FLeonTournamentWeaponVisual LeonTournamentWeaponVisualPreset(ELeonTournamentWeaponId InId) {
         FLeonTournamentWeaponVisual visual;
         switch (InId) {
@@ -44,7 +45,43 @@ namespace Leon {
         return visual;
     }
 
-    inline std::string LeonTournamentWeaponMeshTag(ELeonTournamentWeaponId InId) {
+    /** First-person view mesh (larger, readable at arm's length). */
+    inline FLeonTournamentWeaponVisual LeonTournamentWeaponFirstPersonVisualPreset(ELeonTournamentWeaponId InId) {
+        FLeonTournamentWeaponVisual visual = LeonTournamentWeaponVisualPreset(InId);
+        switch (InId) {
+        case ELeonTournamentWeaponId::Shotgun:
+            visual.MeshKind = ELeonTournamentWeaponMeshKind::Cube;
+            visual.CubeSize = 0.44f;
+            break;
+        case ELeonTournamentWeaponId::Rocket:
+            visual.Radius = 0.085f;
+            visual.TopRadius = 0.06f;
+            visual.Length = 0.68f;
+            break;
+        case ELeonTournamentWeaponId::Laser:
+            visual.Radius = 0.038f;
+            visual.TopRadius = 0.038f;
+            visual.Length = 0.62f;
+            break;
+        case ELeonTournamentWeaponId::Flamethrower:
+            visual.MeshKind = ELeonTournamentWeaponMeshKind::Cube;
+            visual.CubeSize = 0.48f;
+            break;
+        case ELeonTournamentWeaponId::Rifle:
+        default:
+            visual.Radius = 0.058f;
+            visual.TopRadius = 0.048f;
+            visual.Length = 0.58f;
+            break;
+        }
+        return visual;
+    }
+
+    inline std::string LeonTournamentWeaponMeshTag(ELeonTournamentWeaponId InId, bool bFirstPerson = false) {
+        return std::string("Weapon:") + LeonTournamentWeaponName(InId) + (bFirstPerson ? ":FP" : ":TP");
+    }
+
+    inline std::string LeonTournamentWeaponMeshTagLegacy(ELeonTournamentWeaponId InId) {
         return std::string("Weapon:") + LeonTournamentWeaponName(InId);
     }
 

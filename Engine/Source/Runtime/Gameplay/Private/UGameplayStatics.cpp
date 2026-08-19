@@ -90,6 +90,18 @@ namespace Leon {
             FAudioDevice::Get().PlaySound2D(wave, InVolume);
     }
 
+    void UGameplayStatics::PlayMusic2D(const std::string& InSoundPath, float InVolume) {
+        if (InSoundPath.empty())
+            return;
+        auto wave = USoundWave::Load(InSoundPath);
+        if (wave)
+            FAudioDevice::Get().PlayMusic2D(wave, InVolume);
+    }
+
+    void UGameplayStatics::StopMusic() {
+        FAudioDevice::Get().StopMusic();
+    }
+
     void UGameplayStatics::PlaySoundAtLocation(const std::string& InSoundPath, const glm::vec3& InLocation,
                                                float InVolume, float InAttenuationRadius) {
         if (InSoundPath.empty())
