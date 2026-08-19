@@ -1,10 +1,19 @@
 #include "RHI/FRenderer.hpp"
 #include "Core/FLog.hpp"
 
+#include <algorithm>
+
 namespace Leon {
 
     FRenderStats FRenderer::Stats;
+    uint32_t FRenderer::MaxTextureResolution = 1024;
     static size_t SwapchainBytes = 0;
+
+    void FRenderer::SetMaxTextureResolution(uint32_t InMaxDim) {
+        MaxTextureResolution = std::max(1u, InMaxDim);
+    }
+
+    uint32_t FRenderer::GetMaxTextureResolution() { return MaxTextureResolution; }
 
     void FRenderer::Init() {
         LE_CORE_INFO("Initializing Renderer Subsystem...");

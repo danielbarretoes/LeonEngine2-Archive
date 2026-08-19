@@ -2,6 +2,7 @@
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
 #include "Assets/FAssetPath.hpp"
+#include "Assets/UAssetManager.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "RHI/FRenderer.hpp"
 #include "Renderer/FRenderStats.hpp"
@@ -195,6 +196,7 @@ namespace Leon {
             preset.bEnableSSAO = false;
             preset.bEnableBloom = false;
             preset.bEnableFXAA = false;
+            preset.MaxTextureResolution = 256;
             break;
         case EGraphicsQuality::Medium:
             preset.ShadowMapResolution = 1024;
@@ -209,6 +211,7 @@ namespace Leon {
             preset.bEnableSSAO = true;
             preset.bEnableBloom = true;
             preset.bEnableFXAA = true;
+            preset.MaxTextureResolution = 512;
             break;
         case EGraphicsQuality::High:
         default:
@@ -224,6 +227,7 @@ namespace Leon {
             preset.bEnableSSAO = true;
             preset.bEnableBloom = true;
             preset.bEnableFXAA = true;
+            preset.MaxTextureResolution = 1024;
             break;
         }
         return preset;
@@ -257,6 +261,8 @@ namespace Leon {
         InWorld.SetProjectShadowFilter(preset.ShadowFilter);
         InWorld.SetProjectOmniShadowDefaults(preset.SpotResolution, preset.PointShadowResolution,
                                              preset.MaxShadowedPointLights);
+        FRenderer::SetMaxTextureResolution(preset.MaxTextureResolution);
+        UAssetManager::ReloadAllTextures(&InWorld);
         SyncEngineProjectDefaults(preset);
     }
 
@@ -292,6 +298,7 @@ namespace Leon {
         const FGraphicsPreset preset = GetPreset(InQuality);
         const std::pair<std::string, std::string> keys[] = {
             {"GraphicsQuality", ToToken(InQuality)},
+            {"MaxTextureResolution", std::to_string(preset.MaxTextureResolution)},
             {"ShadowMapResolution", std::to_string(preset.ShadowMapResolution)},
             {"CascadeCount", std::to_string(preset.CascadeCount)},
             {"ShadowDistance", std::to_string(static_cast<int>(preset.ShadowDistance))},
@@ -321,12 +328,23 @@ namespace Leon {
                 replaced = true;
                 break;
             }
-            if (replaced || key != "GraphicsQuality")
+            if (replaced)
+                continue;
+            if (key != "GraphicsQuality" && key != "MaxTextureResolution")
                 continue;
 
-            const std::string insert = "GraphicsQuality=" + value;
-            if (enableFxaaIndex >= 0)
-                lines.insert(lines.begin() + enableFxaaIndex + 1, insert);
+            const std::string insert = key + "=" + value;
+            int insertAfter = enableFxaaIndex;
+            if (key == "MaxTextureResolution") {
+                for (size_t i = 0; i < lines.size(); ++i) {
+                    if (LineIsLiveKey(lines[i], "GraphicsQuality")) {
+                        insertAfter = static_cast<int>(i);
+                        break;
+                    }
+                }
+            }
+            if (insertAfter >= 0)
+                lines.insert(lines.begin() + insertAfter + 1, insert);
             else if (rendererSectionIndex >= 0)
                 lines.insert(lines.begin() + rendererSectionIndex + 1, insert);
             else
@@ -366,12 +384,21 @@ namespace Leon {
         return bytes;
     }
 
+    std::string FGraphicsQuality::FormatPresetLabel(EGraphicsQuality InQuality) {
+        const FGraphicsPreset preset = GetPreset(InQuality);
+        char buffer[48];
+        std::snprintf(buffer, sizeof(buffer), "%s  Tex %upx", ToLabel(InQuality), preset.MaxTextureResolution);
+        return buffer;
+    }
+
     std::string FGraphicsQuality::FormatVRAMLabel(EGraphicsQuality InQuality, uint32_t InViewportWidth,
                                                   uint32_t InViewportHeight) {
+        const FGraphicsPreset preset = GetPreset(InQuality);
         const size_t mb =
             (EstimateVRAMBytes(InQuality, InViewportWidth, InViewportHeight) + 512ull * 1024ull) / (1024ull * 1024ull);
         char buffer[64];
-        std::snprintf(buffer, sizeof(buffer), "%s  ~%zu MB", ToLabel(InQuality), mb);
+        std::snprintf(buffer, sizeof(buffer), "%s  Tex %upx  ~%zu MB", ToLabel(InQuality), preset.MaxTextureResolution,
+                      mb);
         return buffer;
     }
 

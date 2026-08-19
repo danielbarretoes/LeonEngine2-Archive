@@ -5,7 +5,7 @@
 namespace Leon {
 
     /**
-     * Shift+F1 master overlay. Categories can be toggled independently (Shift+F5..F8).
+     * Shift+F1 master overlay. Colliders + weapon traces by default; Shift+F5..F8 toggle AI/character/etc.
      */
     class FGameplayDebugger {
     public:

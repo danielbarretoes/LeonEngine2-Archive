@@ -245,9 +245,6 @@ namespace Leon {
         case ELeonTournamentWeaponId::Laser:
             weap = World->SpawnActor<ALeonTournamentLaserRifle>("LaserRifle");
             break;
-        case ELeonTournamentWeaponId::Grenade:
-            weap = World->SpawnActor<ALeonTournamentGrenadeLauncher>("GrenadeLauncher");
-            break;
         case ELeonTournamentWeaponId::Flamethrower:
             weap = World->SpawnActor<ALeonTournamentFlamethrower>("Flamethrower");
             break;
@@ -360,7 +357,6 @@ namespace Leon {
         const bool k3 = FInput::IsKeyPressed(Key::D3);
         const bool k4 = FInput::IsKeyPressed(Key::D4);
         const bool k5 = FInput::IsKeyPressed(Key::D5);
-        const bool k6 = FInput::IsKeyPressed(Key::D6);
         const bool kQ = FInput::IsKeyPressed(Key::Q);
         const bool kE = FInput::IsKeyPressed(Key::E);
         if (k1 && !bKey1WasDown)
@@ -372,8 +368,6 @@ namespace Leon {
         if (k4 && !bKey4WasDown)
             SelectWeapon(ELeonTournamentWeaponId::Laser);
         if (k5 && !bKey5WasDown)
-            SelectWeapon(ELeonTournamentWeaponId::Grenade);
-        if (k6 && !bKey6WasDown)
             SelectWeapon(ELeonTournamentWeaponId::Flamethrower);
         if (kQ && !bKeyQWasDown)
             CycleWeapon(-1);
@@ -384,7 +378,6 @@ namespace Leon {
         bKey3WasDown = k3;
         bKey4WasDown = k4;
         bKey5WasDown = k5;
-        bKey6WasDown = k6;
         bKeyQWasDown = kQ;
         bKeyEWasDown = kE;
 
@@ -476,28 +469,43 @@ namespace Leon {
         move->SetVelocity(v);
         move->SetMovementMode(EMovementMode::Falling);
         DodgeCooldownRemaining = 0.75f;
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_Dodge", 0.55f);
     }
 
     void ALeonTournamentCharacter::ApplyDamageFrom(const FDamageInfo& InInfo) {
         if (!IsNetworkAuthority())
             return;
+        if (bSpawnProtected)
+            return;
+        if (auto* attacker = dynamic_cast<ALeonTournamentCharacter*>(InInfo.Instigator)) {
+            glm::vec3 delta = attacker->GetActorLocation() - GetActorLocation();
+            delta.y = 0.0f;
+            if (glm::length(delta) > 1e-4f) {
+                delta = glm::normalize(delta);
+                LastDamageYawDeg = glm::degrees(std::atan2(delta.z, delta.x));
+                DamageIndicatorRemaining = 0.35f;
+            }
+        }
         if (Health)
             Health->ApplyDamage(InInfo);
         PendingDamageFlash = 1;
         if (IsLocallyControlled()) {
             if (auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(GetController()))
-                pc->NotifyTookDamage();
+                pc->NotifyTookDamage(LastDamageYawDeg);
         }
     }
 
-    void ALeonTournamentCharacter::PulseHitConfirm(bool bKill) {
-        PendingHitConfirm = bKill ? 2 : 1;
+    void ALeonTournamentCharacter::PulseHitConfirm(bool bKill, bool bHeadshot) {
+        if (bHeadshot)
+            PendingHitConfirm = bKill ? 4 : 3;
+        else
+            PendingHitConfirm = bKill ? 2 : 1;
         auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(GetController());
         if (!pc)
             return;
         const bool bLocalHud = IsLocallyControlled() || (World && pc == World->GetFirstPlayerController());
         if (bLocalHud)
-            pc->NotifyConfirmedHit(bKill);
+            pc->NotifyConfirmedHit(bKill, bHeadshot);
     }
 
     void ALeonTournamentCharacter::UpdatePresentationVisibility() {
@@ -544,8 +552,31 @@ namespace Leon {
         const bool bAlly =
             localTeam != ELeonTournamentTeam::None && myTeam != ELeonTournamentTeam::None && myTeam == localTeam;
         skel.bDrawOutline = true;
+        if (bSpawnProtected) {
+            const float alpha = SpawnProtectionRemaining > 0.0f
+                                    ? std::clamp(SpawnProtectionRemaining / 2.5f, 0.25f, 1.0f)
+                                    : 1.0f;
+            skel.OutlineColor = bAlly ? glm::vec3(0.10f * alpha, 0.95f * alpha, 0.28f * alpha)
+                                      : glm::vec3(1.0f * alpha, 0.55f * alpha, 0.08f * alpha);
+            skel.OutlineWidth = 0.048f;
+            return;
+        }
         skel.OutlineColor = bAlly ? glm::vec3(0.10f, 0.95f, 0.28f) : glm::vec3(1.0f, 0.02f, 0.02f);
         skel.OutlineWidth = 0.038f;
+    }
+
+    void ALeonTournamentCharacter::BeginSpawnProtection(float InSeconds) {
+        bSpawnProtected = InSeconds > 0.0f;
+        SpawnProtectionRemaining = std::max(0.0f, InSeconds);
+        UpdateTeamOutline();
+    }
+
+    void ALeonTournamentCharacter::TickSpawnProtection(float InDeltaSeconds) {
+        if (!bSpawnProtected)
+            return;
+        SpawnProtectionRemaining = std::max(0.0f, SpawnProtectionRemaining - InDeltaSeconds);
+        if (SpawnProtectionRemaining <= 0.0f)
+            bSpawnProtected = false;
     }
 
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
@@ -590,6 +621,8 @@ namespace Leon {
 
     void ALeonTournamentCharacter::OnServerRespawn(const glm::vec3& InLocation) {
         bDeadFrozen = false;
+        bSpawnProtected = false;
+        SpawnProtectionRemaining = 0.0f;
         DodgeCooldownRemaining = 0.0f;
         bAimingDownSights = false;
         if (AnimInst)
@@ -721,6 +754,8 @@ namespace Leon {
         ACharacter::Tick(DeltaSeconds);
         UpdateAimDownSights(DeltaSeconds);
         DodgeCooldownRemaining = std::max(0.0f, DodgeCooldownRemaining - DeltaSeconds);
+        TickSpawnProtection(DeltaSeconds);
+        DamageIndicatorRemaining = std::max(0.0f, DamageIndicatorRemaining - DeltaSeconds);
         UpdatePresentationVisibility();
     }
 
@@ -808,7 +843,7 @@ namespace Leon {
         UpdatePresentationVisibility();
         if (auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(GetController())) {
             if (hitConfirm)
-                pc->NotifyConfirmedHit(hitConfirm == 2);
+                pc->NotifyConfirmedHit(hitConfirm == 2 || hitConfirm == 4, hitConfirm >= 3);
             if (damageFlash)
                 pc->NotifyTookDamage();
         }

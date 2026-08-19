@@ -99,6 +99,7 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentGameMode.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentArenaBuilder.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentDamageRules.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentKillFeed.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentGameState.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentCharacter.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentPlayerController.cpp

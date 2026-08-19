@@ -41,6 +41,8 @@ namespace Leon {
         glm::vec3 PickApproachLocation(const glm::vec3& InFrom, const glm::vec3& InTarget, float InRange) const;
         glm::vec3 PickCoverLocation(ALeonTournamentCharacter& InSelf, ALeonTournamentCharacter* InTarget) const;
         glm::vec3 PickPatrolLocation(ALeonTournamentCharacter& InSelf) const;
+        void SelectCombatWeapon(ALeonTournamentCharacter& InSelf, float InDistance);
+        void TickPickupScan();
         void DrawDebug() const;
 
         TRef<UBehaviorTree> Tree;

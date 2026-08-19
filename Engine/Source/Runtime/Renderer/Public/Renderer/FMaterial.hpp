@@ -182,6 +182,9 @@ namespace Leon {
         bool GetUsePlanarReflection() const { return bUsePlanarReflection; }
         void SetUsePlanarReflection(bool bUse) { bUsePlanarReflection = bUse; }
 
+        /** Reload GPU textures from stored paths (respects current max texture resolution). */
+        void ReloadTextures();
+
     private:
         std::string Name;
         std::string AssetPath;

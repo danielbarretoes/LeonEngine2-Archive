@@ -18,6 +18,7 @@
 #include "FLeonTournamentDamageRules.hpp"
 #include "Physics/FHitResult.hpp"
 #include "ALeonTournamentBotController.hpp"
+#include "Engine/UEngine.hpp"
 #include "ULeonTournamentGameInstance.hpp"
 #include "FLeonTournamentCrosshairTextures.hpp"
 #include "FLeonTournamentWeaponPresets.hpp"
@@ -347,7 +348,7 @@ namespace Leon {
 
             const auto shotgun = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Shotgun);
             CHECK(shotgun.Damage < kHp);
-            CHECK(shotgun.Damage * shotgun.PelletCount >= kHp);
+            CHECK(shotgun.Damage * shotgun.PelletCount >= kHp * 0.85f);
             CHECK(shotgun.Damage * (shotgun.PelletCount - 2) < kHp);
             CHECK(shotgun.Range < rifle.Range * 0.25f);
 
@@ -362,30 +363,19 @@ namespace Leon {
             CHECK(laser.Damage * 2.0f >= kHp);
             CHECK(laser.BaseSpreadDeg == doctest::Approx(0.0f));
 
-            const auto grenade = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Grenade);
-            CHECK(grenade.Damage < kHp);
-            CHECK(grenade.Damage * 2.0f >= kHp);
-            CHECK(grenade.SplashDamage < grenade.Damage);
-            CHECK(grenade.ProjectileGravityScale > rocket.ProjectileGravityScale);
-
             const auto flame = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Flamethrower);
             CHECK(flame.PelletCount == 1);
-            CHECK(flame.Damage * flame.FireRate > 80.0f);
+            CHECK(flame.Damage * flame.FireRate >= 80.0f);
             CHECK(flame.Damage * flame.FireRate < 140.0f);
             CHECK(flame.Range > 6.0f);
             CHECK(flame.Range < 14.0f);
         }
 
-        TEST_CASE("grenade rocket and flame presets") {
-            const auto grenade = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Grenade);
-            CHECK(grenade.FireMode == ELeonTournamentFireMode::Projectile);
-            CHECK(grenade.ProjectileGravityScale > 0.1f);
-            CHECK(grenade.SplashRadius > 1.0f);
-            CHECK(grenade.Knockback > 8.0f);
-
+        TEST_CASE("rocket and flame presets") {
             const auto rocket = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rocket);
             CHECK(rocket.FireMode == ELeonTournamentFireMode::Projectile);
             CHECK(rocket.ProjectileGravityScale == doctest::Approx(0.0f));
+            CHECK(rocket.Knockback > 8.0f);
 
             const auto flame = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Flamethrower);
             CHECK(flame.FireMode == ELeonTournamentFireMode::Flame);
@@ -859,6 +849,177 @@ namespace Leon {
             const auto tex = LeonTournamentGetCrosshairTexture(ELeonTournamentWeaponId::Rocket);
             if (tex)
                 CHECK(image.GetBrushTexture() == tex);
+        }
+    }
+
+    TEST_SUITE("LeonTournament gameplay polish") {
+
+        TEST_CASE("spawn protection blocks authoritative damage") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* a = f.World->SpawnActor<ALeonTournamentCharacter>("A");
+            auto* b = f.World->SpawnActor<ALeonTournamentCharacter>("B");
+            auto* psa = f.World->SpawnActor<ALeonTournamentPlayerState>("PSA");
+            auto* psb = f.World->SpawnActor<ALeonTournamentPlayerState>("PSB");
+            psa->SetTeam(ELeonTournamentTeam::Team1);
+            psb->SetTeam(ELeonTournamentTeam::Team2);
+            auto* pca = f.World->SpawnActor<ALeonTournamentPlayerController>("PCA");
+            auto* pcb = f.World->SpawnActor<ALeonTournamentPlayerController>("PCB");
+            pca->SetPlayerState(psa);
+            pcb->SetPlayerState(psb);
+            pca->Possess(a);
+            pcb->Possess(b);
+            b->BeginSpawnProtection(2.0f);
+            CHECK(b->IsSpawnProtected());
+            FDamageInfo info;
+            info.DamageAmount = 50.0f;
+            info.Instigator = a;
+            CHECK_FALSE(f.GM->ApplyAuthoritativeDamage(*a, *b, info));
+            CHECK(b->GetHealthComponent()->GetHealth() == doctest::Approx(100.0f));
+        }
+
+        TEST_CASE("in-place respawn preserves pawn pointer") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* ps = f.World->SpawnActor<ALeonTournamentPlayerState>("PS");
+            ps->SetTeam(ELeonTournamentTeam::Team1);
+            auto* pc = f.World->SpawnActor<ALeonTournamentPlayerController>("PC");
+            pc->SetPlayerState(ps);
+            f.GM->RestartPlayer(pc);
+            auto* pawn = pc->GetPawn<ALeonTournamentCharacter>();
+            REQUIRE(pawn);
+            FDamageInfo info;
+            info.Instigator = pawn;
+            pawn->OnServerDeath(info);
+            CHECK(pawn->IsDeadFrozen());
+            f.GM->RestartPlayer(pc);
+            CHECK(pc->GetPawn() == pawn);
+        }
+
+        TEST_CASE("kill feed entry on death") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* killer = f.World->SpawnActor<ALeonTournamentCharacter>("K");
+            auto* victim = f.World->SpawnActor<ALeonTournamentCharacter>("V");
+            auto* psk = f.World->SpawnActor<ALeonTournamentPlayerState>("PSK");
+            auto* psv = f.World->SpawnActor<ALeonTournamentPlayerState>("PSV");
+            psk->SetPlayerName("Alpha");
+            psv->SetPlayerName("Bravo");
+            psk->SetTeam(ELeonTournamentTeam::Team1);
+            psv->SetTeam(ELeonTournamentTeam::Team2);
+            auto* pck = f.World->SpawnActor<ALeonTournamentPlayerController>("PCK");
+            auto* pcv = f.World->SpawnActor<ALeonTournamentPlayerController>("PCV");
+            pck->SetPlayerState(psk);
+            pcv->SetPlayerState(psv);
+            pck->Possess(killer);
+            pcv->Possess(victim);
+            FDamageInfo info;
+            info.DamageAmount = 200.0f;
+            info.Instigator = killer;
+            REQUIRE(f.GM->ApplyAuthoritativeDamage(*killer, *victim, info));
+            f.GM->NotifyDeath(*victim, info);
+            CHECK(f.GM->GetKillFeed().GetCount() >= 1);
+            const size_t newest = f.GM->GetKillFeed().GetCount() - 1;
+            CHECK(f.GM->GetKillFeed().GetEntries()[newest].InstigatorName == "Alpha");
+            CHECK(f.GM->GetKillFeed().GetEntries()[newest].VictimName == "Bravo");
+        }
+
+        TEST_CASE("FFA win condition uses individual kills") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            FLeonTournamentMatchConfig cfg = f.GM->GetMatchConfig();
+            cfg.ScoreLimit = 3;
+            f.GM->SetMatchConfig(cfg);
+            f.GM->SetActiveGameMode(ELeonTournamentGameModeId::FreeForAll);
+
+            auto* killer = f.World->SpawnActor<ALeonTournamentCharacter>("K");
+            auto* victim = f.World->SpawnActor<ALeonTournamentCharacter>("V");
+            auto* psk = f.World->SpawnActor<ALeonTournamentPlayerState>("PSK");
+            auto* psv = f.World->SpawnActor<ALeonTournamentPlayerState>("PSV");
+            psk->SetTeam(ELeonTournamentTeam::Team1);
+            psv->SetTeam(ELeonTournamentTeam::Team1);
+            auto* pck = f.World->SpawnActor<ALeonTournamentPlayerController>("PCK");
+            auto* pcv = f.World->SpawnActor<ALeonTournamentPlayerController>("PCV");
+            pck->SetPlayerState(psk);
+            pcv->SetPlayerState(psv);
+            f.GS->AddPlayerState(psk);
+            f.GS->AddPlayerState(psv);
+            pck->Possess(killer);
+            pcv->Possess(victim);
+
+            for (int i = 0; i < 2; ++i)
+                psk->AddKill();
+
+            FDamageInfo info;
+            info.DamageAmount = 200.0f;
+            info.Instigator = killer;
+            REQUIRE(f.GM->ApplyAuthoritativeDamage(*killer, *victim, info));
+            CHECK(f.GS->GetMatchState() == ELeonTournamentMatchState::Finished);
+            CHECK(psk->GetKills() == 3);
+        }
+
+        TEST_CASE("match config defaults") {
+            FLeonTournamentMatchConfig cfg;
+            CHECK(cfg.ScoreLimit == 15);
+            CHECK(cfg.MatchDurationSeconds == doctest::Approx(420.0f));
+            CHECK(cfg.RespawnDelaySeconds == doctest::Approx(1.0f));
+            CHECK(cfg.SpawnProtectionSeconds == doctest::Approx(2.5f));
+        }
+
+        TEST_CASE("weapon id count is five without grenade") {
+            CHECK(static_cast<int>(ELeonTournamentWeaponId::Count) == 5);
+            CHECK(static_cast<int>(ELeonTournamentWeaponId::Flamethrower) == 4);
+        }
+
+        TEST_CASE("headshot multiplies point damage") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+            auto* a = f.World->SpawnActor<ALeonTournamentCharacter>("A");
+            auto* b = f.World->SpawnActor<ALeonTournamentCharacter>("B");
+            auto* psa = f.World->SpawnActor<ALeonTournamentPlayerState>("PSA");
+            auto* psb = f.World->SpawnActor<ALeonTournamentPlayerState>("PSB");
+            psa->SetTeam(ELeonTournamentTeam::Team1);
+            psb->SetTeam(ELeonTournamentTeam::Team2);
+            auto* pca = f.World->SpawnActor<ALeonTournamentPlayerController>("PCA");
+            auto* pcb = f.World->SpawnActor<ALeonTournamentPlayerController>("PCB");
+            pca->SetPlayerState(psa);
+            pcb->SetPlayerState(psb);
+            pca->Possess(a);
+            pcb->Possess(b);
+
+            const glm::vec3 chest = b->GetActorLocation();
+            CHECK_FALSE(FLeonTournamentDamageRules::IsHeadHit(*b, chest));
+            CHECK(FLeonTournamentDamageRules::IsHeadHit(*b, b->GetPawnViewLocation()));
+
+            FDamageInfo body;
+            body.DamageAmount = 16.0f;
+            body.DamageType = EDamageType::Point;
+            body.Instigator = a;
+            body.HitLocation = chest;
+            FLeonTournamentDamageRules::ApplyHeadshotIfHit(*b, body);
+            CHECK_FALSE(body.bCriticalHit);
+            CHECK(body.DamageAmount == doctest::Approx(16.0f));
+            CHECK(f.GM->ApplyAuthoritativeDamage(*a, *b, body));
+            CHECK(b->GetHealthComponent()->GetHealth() == doctest::Approx(84.0f));
+
+            FDamageInfo head;
+            head.DamageAmount = 16.0f;
+            head.DamageType = EDamageType::Point;
+            head.Instigator = a;
+            head.HitLocation = b->GetPawnViewLocation();
+            FLeonTournamentDamageRules::ApplyHeadshotIfHit(*b, head);
+            CHECK(head.bCriticalHit);
+            CHECK(head.DamageAmount == doctest::Approx(32.0f));
+            CHECK(f.GM->ApplyAuthoritativeDamage(*a, *b, head));
+            CHECK(b->GetHealthComponent()->GetHealth() == doctest::Approx(52.0f));
+
+            FDamageInfo splash;
+            splash.DamageAmount = 16.0f;
+            splash.DamageType = EDamageType::Radial;
+            splash.HitLocation = b->GetPawnViewLocation();
+            FLeonTournamentDamageRules::ApplyHeadshotIfHit(*b, splash);
+            CHECK_FALSE(splash.bCriticalHit);
+            CHECK(splash.DamageAmount == doctest::Approx(16.0f));
         }
     }
 

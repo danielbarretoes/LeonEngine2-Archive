@@ -84,4 +84,18 @@ namespace Leon {
         }
     }
 
+    void FMaterial::ReloadTextures() {
+        for (uint32_t slot = 0; slot < 12; ++slot) {
+            std::string path = GetTexturePath(slot);
+            if (path.empty()) {
+                if (const TRef<FTexture2D> existing = GetTexture(slot))
+                    path = existing->GetPath();
+            }
+            if (path.empty())
+                continue;
+            SetTexturePath(slot, path);
+            SetTexture(slot, UAssetManager::GetTexture2D(path));
+        }
+    }
+
 } // namespace Leon

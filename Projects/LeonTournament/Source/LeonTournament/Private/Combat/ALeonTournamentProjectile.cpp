@@ -2,6 +2,7 @@
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentWeapon.hpp"
+#include "FLeonTournamentDamageRules.hpp"
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/UParticleComponent.hpp"
@@ -184,13 +185,12 @@ namespace Leon {
         info.HitActor = InTarget;
         info.HitLocation = InLocation;
         info.HitNormal = InNormal;
-        info.Impulse = InImpulseDir * Config.Knockback;
+        FLeonTournamentDamageRules::ApplyHeadshotIfHit(*InTarget, info);
         if (gm->ApplyAuthoritativeDamage(*InstigatorCharacter, *InTarget, info)) {
             const bool bKill = InTarget->GetHealthComponent() && InTarget->GetHealthComponent()->IsDead();
             if (InTarget != InstigatorCharacter)
-                InstigatorCharacter->PulseHitConfirm(bKill);
+                InstigatorCharacter->PulseHitConfirm(bKill, info.bCriticalHit);
         }
-        InTarget->ApplyLaunchVelocity(InImpulseDir * Config.Knockback + glm::vec3(0.0f, 0.35f, 0.0f));
     }
 
     void ALeonTournamentProjectile::ImpactPellet(const glm::vec3& InLocation, const glm::vec3& InNormal,
@@ -314,10 +314,11 @@ namespace Leon {
                     info.HitLocation = InLocation;
                     info.HitNormal = InNormal;
                     info.Impulse = impulse;
+                    FLeonTournamentDamageRules::ApplyHeadshotIfHit(*target, info);
                     if (gm->ApplyAuthoritativeDamage(*InstigatorCharacter, *target, info)) {
                         const bool bKill = target->GetHealthComponent() && target->GetHealthComponent()->IsDead();
                         if (target != InstigatorCharacter)
-                            InstigatorCharacter->PulseHitConfirm(bKill);
+                            InstigatorCharacter->PulseHitConfirm(bKill, info.bCriticalHit);
                     }
                 }
 

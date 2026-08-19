@@ -11,6 +11,13 @@ namespace Leon {
 
     namespace {
         constexpr int kCrosshairDim = 64;
+        constexpr unsigned char kChR = 232;
+        constexpr unsigned char kChG = 236;
+        constexpr unsigned char kChB = 242;
+        constexpr unsigned char kChCenterR = 248;
+        constexpr unsigned char kChCenterG = 250;
+        constexpr unsigned char kChCenterB = 252;
+        constexpr unsigned char kChSoftA = 220;
 
         struct FPixelWriter {
             std::vector<unsigned char> rgba;
@@ -72,69 +79,62 @@ namespace Leon {
             const int gap = 5;
             const int len = 14;
             const int thick = 2;
-            w.LineV(c, c - gap - len, c - gap, thick, 240, 245, 255);
-            w.LineV(c, c + gap, c + gap + len, thick, 240, 245, 255);
-            w.LineH(c - gap - len, c, c - gap, thick, 240, 245, 255);
-            w.LineH(c + gap, c, c + gap + len, thick, 240, 245, 255);
-            w.FillRect(c - 1, c - 1, c + 1, c + 1, 255, 220, 120);
+            w.LineV(c, c - gap - len, c - gap, thick, kChR, kChG, kChB);
+            w.LineV(c, c + gap, c + gap + len, thick, kChR, kChG, kChB);
+            w.LineH(c - gap - len, c, c - gap, thick, kChR, kChG, kChB);
+            w.LineH(c + gap, c, c + gap + len, thick, kChR, kChG, kChB);
+            w.FillRect(c - 1, c - 1, c + 1, c + 1, kChCenterR, kChCenterG, kChCenterB);
         }
 
         void DrawShotgunCircle(FPixelWriter& w) {
             const int c = kCrosshairDim / 2;
-            w.CircleOutline(c, c, 16, 2, 255, 210, 90);
+            w.CircleOutline(c, c, 16, 2, kChR, kChG, kChB);
             for (int i = 0; i < 8; ++i) {
                 const float ang = static_cast<float>(i) * 0.78539816f;
                 const int x = c + static_cast<int>(std::cos(ang) * 16.0f);
                 const int y = c + static_cast<int>(std::sin(ang) * 16.0f);
-                w.FillRect(x - 1, y - 1, x + 1, y + 1, 255, 210, 90);
+                w.FillRect(x - 1, y - 1, x + 1, y + 1, kChR, kChG, kChB);
             }
-            w.FillRect(c - 1, c - 1, c + 1, c + 1, 255, 240, 200);
+            w.FillRect(c - 1, c - 1, c + 1, c + 1, kChCenterR, kChCenterG, kChCenterB);
         }
 
         void DrawRocketBrackets(FPixelWriter& w) {
             const int inset = 18;
             const int arm = 10;
             const int thick = 2;
-            w.LineH(inset, inset, inset + arm, thick, 220, 80, 80);
-            w.LineV(inset, inset, inset + arm, thick, 220, 80, 80);
+            w.LineH(inset, inset, inset + arm, thick, kChR, kChG, kChB);
+            w.LineV(inset, inset, inset + arm, thick, kChR, kChG, kChB);
             const int r = kCrosshairDim - inset - 1;
-            w.LineH(r - arm, inset, r, thick, 220, 80, 80);
-            w.LineV(r, inset, inset + arm, thick, 220, 80, 80);
-            w.LineH(inset, r, inset + arm, thick, 220, 80, 80);
-            w.LineV(inset, r - arm, r, thick, 220, 80, 80);
-            w.LineH(r - arm, r, r, thick, 220, 80, 80);
-            w.LineV(r, r - arm, r, thick, 220, 80, 80);
+            w.LineH(r - arm, inset, r, thick, kChR, kChG, kChB);
+            w.LineV(r, inset, inset + arm, thick, kChR, kChG, kChB);
+            w.LineH(inset, r, inset + arm, thick, kChR, kChG, kChB);
+            w.LineV(inset, r - arm, r, thick, kChR, kChG, kChB);
+            w.LineH(r - arm, r, r, thick, kChR, kChG, kChB);
+            w.LineV(r, r - arm, r, thick, kChR, kChG, kChB);
             w.FillRect(kCrosshairDim / 2 - 1, kCrosshairDim / 2 - 1, kCrosshairDim / 2 + 1, kCrosshairDim / 2 + 1,
-                       255, 120, 120);
+                       kChCenterR, kChCenterG, kChCenterB);
         }
 
         void DrawLaserScope(FPixelWriter& w) {
             const int c = kCrosshairDim / 2;
-            w.CircleOutline(c, c, 20, 1, 40, 220, 255, 180);
-            w.LineV(c, c - 18, c - 4, 1, 120, 240, 255);
-            w.LineV(c, c + 4, c + 18, 1, 120, 240, 255);
-            w.LineH(c - 18, c, c - 4, 1, 120, 240, 255);
-            w.LineH(c + 4, c, c + 18, 1, 120, 240, 255);
-            w.FillRect(c - 1, c - 1, c + 1, c + 1, 180, 250, 255);
-        }
-
-        void DrawGrenadeReticle(FPixelWriter& w) {
-            const int c = kCrosshairDim / 2;
-            w.CircleOutline(c, c, 14, 2, 90, 210, 80);
-            w.LineV(c, c - 10, c + 10, 2, 90, 210, 80);
-            w.LineH(c - 10, c, c + 10, 2, 90, 210, 80);
+            w.CircleOutline(c, c, 20, 1, kChR, kChG, kChB, kChSoftA);
+            w.LineV(c, c - 18, c - 4, 1, kChR, kChG, kChB);
+            w.LineV(c, c + 4, c + 18, 1, kChR, kChG, kChB);
+            w.LineH(c - 18, c, c - 4, 1, kChR, kChG, kChB);
+            w.LineH(c + 4, c, c + 18, 1, kChR, kChG, kChB);
+            w.FillRect(c - 1, c - 1, c + 1, c + 1, kChCenterR, kChCenterG, kChCenterB);
         }
 
         void DrawFlameCone(FPixelWriter& w) {
             const int c = kCrosshairDim / 2;
-            w.FillRect(c - 1, c - 1, c + 1, c + 1, 255, 120, 40);
+            w.FillRect(c - 1, c - 1, c + 1, c + 1, kChCenterR, kChCenterG, kChCenterB);
             for (int i = -2; i <= 2; ++i) {
                 const int x0 = c + i * 6 - 2;
                 const int x1 = c + i * 6 + 2;
                 const int y0 = c + 6 + std::abs(i) * 2;
-                w.FillRect(x0, y0, x1, y0 + 3, 255, 90 + static_cast<unsigned char>(i * 10), 30);
+                w.FillRect(x0, y0, x1, y0 + 3, kChR, kChG, kChB, kChSoftA);
             }
-            w.LineH(c - 14, c + 18, c + 14, 2, 255, 160, 40, 200);
+            w.LineH(c - 14, c + 18, c + 14, 2, kChR, kChG, kChB, kChSoftA);
         }
 
         TRef<FTexture2D> BuildCrosshairTexture(ELeonTournamentWeaponId InId) {
@@ -148,9 +148,6 @@ namespace Leon {
                 break;
             case ELeonTournamentWeaponId::Laser:
                 DrawLaserScope(writer);
-                break;
-            case ELeonTournamentWeaponId::Grenade:
-                DrawGrenadeReticle(writer);
                 break;
             case ELeonTournamentWeaponId::Flamethrower:
                 DrawFlameCone(writer);

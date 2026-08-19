@@ -3,6 +3,7 @@
 #include "Gameplay/AGameMode.hpp"
 #include "Gameplay/AController.hpp"
 #include "FLeonTournamentTypes.hpp"
+#include "FLeonTournamentKillFeed.hpp"
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerState.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -40,6 +41,10 @@ namespace Leon {
         ALeonTournamentGameState* GetGameState() const;
         const FLeonTournamentMatchConfig& GetMatchConfig() const { return Config; }
         void SetMatchConfig(const FLeonTournamentMatchConfig& InConfig) { Config = InConfig; }
+        ELeonTournamentGameModeId GetActiveGameMode() const { return ActiveGameMode; }
+        void SetActiveGameMode(ELeonTournamentGameModeId InMode) { ActiveGameMode = InMode; }
+        float GetRespawnRemaining(AController* InController) const;
+        const FLeonTournamentKillFeed& GetKillFeed() const { return KillFeed; }
 
         bool PrefersThirdPerson() const { return bPreferThirdPerson; }
         void SetPreferThirdPerson(bool bEnabled) { bPreferThirdPerson = bEnabled; }
@@ -98,8 +103,12 @@ namespace Leon {
         void DestroyMenuShowcase();
         void PlaceMenuShowcase(ALeonTournamentCharacter& InCharacter);
         void RefreshMenuShowcasePlacement();
+        void CheckScoreLimitWin(ALeonTournamentPlayerState* InRecentKiller = nullptr);
+        ALeonTournamentPlayerState* FindLeadingPlayerState() const;
 
         FLeonTournamentMatchConfig Config;
+        ELeonTournamentGameModeId ActiveGameMode = ELeonTournamentGameModeId::TeamDeathmatch;
+        FLeonTournamentKillFeed KillFeed;
         float StartingRemaining = 0.0f;
         bool bArenaBuilt = false;
         bool bArenaLightingBaked = false;

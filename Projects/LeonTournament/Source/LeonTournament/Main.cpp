@@ -87,7 +87,6 @@ int main(int argc, char** argv) {
     registry.RegisterClass<Leon::ALeonTournamentShotgun>("ALeonTournamentShotgun");
     registry.RegisterClass<Leon::ALeonTournamentRocketLauncher>("ALeonTournamentRocketLauncher");
     registry.RegisterClass<Leon::ALeonTournamentLaserRifle>("ALeonTournamentLaserRifle");
-    registry.RegisterClass<Leon::ALeonTournamentGrenadeLauncher>("ALeonTournamentGrenadeLauncher");
     registry.RegisterClass<Leon::ALeonTournamentFlamethrower>("ALeonTournamentFlamethrower");
     registry.RegisterClass<Leon::ALeonTournamentWeapon>("ALeonTournamentWeapon");
     registry.RegisterClass<Leon::ALeonTournamentProjectile>("ALeonTournamentProjectile");

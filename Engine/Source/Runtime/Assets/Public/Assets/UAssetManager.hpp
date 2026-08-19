@@ -94,6 +94,10 @@ namespace Leon {
         template <typename T> static TRef<T> Load(const std::string& InPath);
 
         static void Clear();
+        /** Drop cached textures/materials so the next load respects the current max texture resolution. */
+        static void ClearLoadedTextures();
+        /** Reload all resident material/world textures at the current max texture resolution. */
+        static void ReloadAllTextures(class UWorld* InWorld = nullptr);
         /** Drop cache entries whose only remaining owner is the cache itself. Keeps shaders and defaults. */
         static void UnloadUnused();
 

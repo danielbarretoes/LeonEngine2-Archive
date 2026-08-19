@@ -106,13 +106,6 @@ namespace Leon {
                                   const std::string& InName = "LeonTournamentLaserRifle");
     };
 
-    class ALeonTournamentGrenadeLauncher : public ALeonTournamentWeapon {
-    public:
-        ALeonTournamentGrenadeLauncher() = default;
-        ALeonTournamentGrenadeLauncher(entt::entity InHandle, UWorld* InWorld,
-                                       const std::string& InName = "LeonTournamentGrenadeLauncher");
-    };
-
     class ALeonTournamentFlamethrower : public ALeonTournamentWeapon {
     public:
         ALeonTournamentFlamethrower() = default;

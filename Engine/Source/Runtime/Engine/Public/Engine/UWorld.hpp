@@ -8,6 +8,7 @@
 #include "Renderer/FPlanarReflectionTypes.hpp"
 #include "Renderer/FShadowTypes.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/FParticleTypes.hpp"
 #include "Engine/ENetTypes.hpp"
 #include "Engine/FTimerManager.hpp"
 #include "Physics/FHitResult.hpp"
@@ -124,6 +125,8 @@ namespace Leon {
         // --- Rendering ---
         void OnRender(const FPerspectiveCamera& InCamera);
         FWorldRenderer* GetWorldRenderer();
+        /** Returns null until the renderer has been created (avoids lazy init in headless / asset reload paths). */
+        FWorldRenderer* GetWorldRendererIfInitialized() { return Renderer.get(); }
 
         bool AreLightmapsTrusted() const { return bLightmapsTrusted; }
         void SetLightmapsTrusted(bool bTrusted) { bLightmapsTrusted = bTrusted; }
@@ -188,10 +191,16 @@ namespace Leon {
         /** Diff overlap generators vs all primitives; fires Begin/End overlap delegates. */
         void UpdateComponentOverlaps();
 
+        bool SpawnTransientParticles(const FParticleEmitterSettings& InSettings, const glm::vec3& InLocation);
+        int32_t GetTransientParticleCount() const { return static_cast<int32_t>(TransientParticles.size()); }
+
     private:
         void DestroyActorImmediate(AActor* InActor);
         void UnbindActorAliases(AActor* InActor);
         void FlushPendingDestroy();
+        void EnsureTransientParticleEntity();
+        void TickTransientParticles(float InDeltaSeconds);
+        void SyncTransientParticleRender();
 
         entt::registry Registry;
         std::vector<TRef<AActor>> Actors;
@@ -231,6 +240,10 @@ namespace Leon {
         uint32_t PendingSpotResolution = 1024;
         uint32_t PendingPointShadowResolution = 512;
         uint32_t PendingMaxShadowedPointLights = 4;
+
+        entt::entity TransientParticleEntity = entt::null;
+        std::vector<FSimulatedParticle> TransientParticles;
+        uint32_t TransientParticleRng = 1u;
 
         friend class FMapSerializer;
     };

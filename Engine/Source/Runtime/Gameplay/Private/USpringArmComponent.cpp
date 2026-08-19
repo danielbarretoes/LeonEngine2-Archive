@@ -45,7 +45,7 @@ namespace Leon {
             TargetLocation = DesiredLocation;
         }
 
-        if (FGameplayDebugger::ShowPhysics() && FGameplayDebugger::IsEnabled()) {
+        if (FGameplayDebugger::ShowCharacter() && FGameplayDebugger::IsEnabled()) {
             FDebugRenderer::DrawDebugLine(origin, DesiredLocation, glm::vec4(0.2f, 0.8f, 1.0f, 1.0f));
             FDebugRenderer::DrawDebugSphere(DesiredLocation, ProbeSize, glm::vec4(0.2f, 0.8f, 1.0f, 0.5f));
             FDebugRenderer::DrawDebugSphere(TargetLocation, ProbeSize, glm::vec4(0.2f, 1.0f, 0.4f, 1.0f));

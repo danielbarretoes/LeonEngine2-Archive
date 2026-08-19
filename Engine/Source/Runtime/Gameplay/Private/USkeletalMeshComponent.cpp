@@ -625,7 +625,7 @@ namespace Leon {
             FAnimRuntime::BuildSkinningPalette(*SkeletalMesh->GetSkeleton(), ComponentSpaceTransforms, BonePalette);
         PushToRenderComponent();
 
-        if (FGameplayDebugger::ShowPhysics()) {
+        if (FGameplayDebugger::ShowCharacter()) {
             for (size_t i = 0; i < RagdollBodies.size(); ++i) {
                 if (!RagdollBodies[i])
                     continue;

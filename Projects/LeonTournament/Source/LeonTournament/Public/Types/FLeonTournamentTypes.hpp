@@ -62,10 +62,16 @@ namespace Leon {
         return static_cast<ELeonTournamentPlayableMap>((cur + count - 1) % count);
     }
 
-    enum class ELeonTournamentGameModeId : uint8_t { TeamDeathmatch = 0, Count = 1 };
+    enum class ELeonTournamentGameModeId : uint8_t { TeamDeathmatch = 0, FreeForAll = 1, Count = 2 };
 
-    inline const char* LeonTournamentGameModeName(ELeonTournamentGameModeId /*InMode*/) {
-        return "TDM";
+    inline const char* LeonTournamentGameModeName(ELeonTournamentGameModeId InMode) {
+        switch (InMode) {
+        case ELeonTournamentGameModeId::FreeForAll:
+            return "FFA";
+        case ELeonTournamentGameModeId::TeamDeathmatch:
+        default:
+            return "TDM";
+        }
     }
 
     inline ELeonTournamentGameModeId LeonTournamentClampGameModeId(ELeonTournamentGameModeId InMode) {
@@ -240,14 +246,38 @@ namespace Leon {
     }
 
     struct FLeonTournamentMatchConfig {
-        float MatchDurationSeconds = 600.0f;
-        int32_t ScoreLimit = 25;
+        float MatchDurationSeconds = 420.0f;
+        int32_t ScoreLimit = 15;
         int32_t MaxTeamSize = 6;
         int32_t MaxPlayers = 12;
         float AssistWindowSeconds = 5.0f;
-        float RespawnDelaySeconds = 1.5f;
+        float RespawnDelaySeconds = 1.0f;
         float StartCountdownSeconds = 2.0f;
+        float SpawnProtectionSeconds = 2.5f;
         bool bFriendlyFire = false;
+    };
+
+    enum class ELeonTournamentBotDifficulty : uint8_t { Casual = 0, Normal = 1, Hard = 2 };
+
+    inline const char* LeonTournamentBotDifficultyName(ELeonTournamentBotDifficulty InDifficulty) {
+        switch (InDifficulty) {
+        case ELeonTournamentBotDifficulty::Casual:
+            return "CASUAL";
+        case ELeonTournamentBotDifficulty::Hard:
+            return "HARD";
+        case ELeonTournamentBotDifficulty::Normal:
+        default:
+            return "NORMAL";
+        }
+    }
+
+    enum class ELeonTournamentKillFeedKind : uint8_t { Kill = 0, Assist = 1, Streak = 2 };
+
+    struct FLeonTournamentKillFeedEntry {
+        std::string InstigatorName;
+        std::string VictimName;
+        ELeonTournamentKillFeedKind Kind = ELeonTournamentKillFeedKind::Kill;
+        float TimeRemaining = 4.0f;
     };
 
     enum class ELeonTournamentWeaponId : uint8_t {
@@ -255,9 +285,8 @@ namespace Leon {
         Shotgun = 1,
         Rocket = 2,
         Laser = 3,
-        Grenade = 4,
-        Flamethrower = 5,
-        Count = 6
+        Flamethrower = 4,
+        Count = 5
     };
 
     enum class ELeonTournamentFireMode : uint8_t { Hitscan = 0, Projectile = 1, Flame = 2 };
@@ -272,8 +301,6 @@ namespace Leon {
             return "ROCKET";
         case ELeonTournamentWeaponId::Laser:
             return "LASER";
-        case ELeonTournamentWeaponId::Grenade:
-            return "GRENADE";
         case ELeonTournamentWeaponId::Flamethrower:
             return "FLAMER";
         case ELeonTournamentWeaponId::Rifle:
@@ -322,6 +349,9 @@ namespace Leon {
     inline constexpr float LeonTournamentFireHeightFromGround = 0.90f;
     inline constexpr float LeonTournamentFireRightOffset = 0.22f;
     inline constexpr float LeonTournamentFireForwardOffset = 0.20f;
+    /** Hitscan / pellet hits at or above the eyes count as headshots. */
+    inline constexpr float kLeonTournamentHeadshotMultiplier = 2.0f;
+    inline constexpr float kLeonTournamentHeadshotChinBelowEyeMeters = 0.10f;
 
     struct FLeonTournamentBotPersonality {
         float Aggression = 0.55f;

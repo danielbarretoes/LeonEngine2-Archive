@@ -2,8 +2,11 @@
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerState.hpp"
 #include "ALeonTournamentWeapon.hpp"
+#include "ALeonTournamentPickup.hpp"
 #include "ALeonTournamentGameState.hpp"
 #include "ALeonTournamentGameMode.hpp"
+#include "ULeonTournamentGameInstance.hpp"
+#include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
@@ -75,6 +78,88 @@ namespace Leon {
         Personality.StrafeFrequency = 0.7f + static_cast<float>((id * 13) % 5) * 0.25f;
         Personality.CoverPreference = 0.25f + static_cast<float>((id * 17) % 5) * 0.14f;
         Personality.Tactic = id % 3;
+
+        ELeonTournamentBotDifficulty difficulty = ELeonTournamentBotDifficulty::Normal;
+        if (UEngine::HasInstance()) {
+            if (auto* gi = dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get()))
+                difficulty = gi->GetBotDifficulty();
+        }
+        switch (difficulty) {
+        case ELeonTournamentBotDifficulty::Casual:
+            Personality.Accuracy *= 0.72f;
+            Personality.ReactionTime *= 1.35f;
+            Personality.Aggression *= 0.85f;
+            break;
+        case ELeonTournamentBotDifficulty::Hard:
+            Personality.Accuracy = std::min(0.95f, Personality.Accuracy * 1.28f);
+            Personality.ReactionTime = std::max(0.08f, Personality.ReactionTime * 0.72f);
+            Personality.Aggression = std::min(0.95f, Personality.Aggression * 1.25f);
+            Personality.CoverPreference *= 0.75f;
+            break;
+        case ELeonTournamentBotDifficulty::Normal:
+        default:
+            break;
+        }
+    }
+
+    void ALeonTournamentBotController::SelectCombatWeapon(ALeonTournamentCharacter& InSelf, float InDistance) {
+        if (InDistance < 8.0f && InSelf.HasWeapon(ELeonTournamentWeaponId::Shotgun))
+            InSelf.SelectWeapon(ELeonTournamentWeaponId::Shotgun);
+        else if (InDistance < 26.0f && InSelf.HasWeapon(ELeonTournamentWeaponId::Rocket))
+            InSelf.SelectWeapon(ELeonTournamentWeaponId::Rocket);
+        else if (InSelf.HasWeapon(ELeonTournamentWeaponId::Rifle))
+            InSelf.SelectWeapon(ELeonTournamentWeaponId::Rifle);
+    }
+
+    void ALeonTournamentBotController::TickPickupScan() {
+        auto board = Blackboard;
+        auto* self = GetPawn<ALeonTournamentCharacter>();
+        if (!board || !self || !World)
+            return;
+
+        board->SetValueAsBool("WantsPickup", false);
+        board->SetValueAsVector("PickupLocation", glm::vec3(0.0f));
+        board->SetValueAsInt("PickupKind", 0);
+
+        const glm::vec3 origin = self->GetActorLocation();
+        const bool bLow = self->GetHealthComponent() &&
+                          self->GetHealthComponent()->GetHealth() < self->GetHealthComponent()->GetMaxHealth() * 0.35f;
+
+        float bestDist = 18.0f;
+        glm::vec3 bestLoc{0.0f};
+        int32_t bestKind = 0;
+
+        for (const auto& actor : World->GetAllActors()) {
+            if (!actor || actor->IsPendingKill())
+                continue;
+            if (auto* health = dynamic_cast<ALeonTournamentHealthPickup*>(actor.get())) {
+                if (!bLow)
+                    continue;
+                const float d = PlanarDistance(origin, health->GetActorLocation());
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestLoc = health->GetActorLocation();
+                    bestKind = 1;
+                }
+                continue;
+            }
+            if (auto* weapon = dynamic_cast<ALeonTournamentWeaponPickup*>(actor.get())) {
+                if (self->HasWeapon(weapon->GetWeaponId()))
+                    continue;
+                const float d = PlanarDistance(origin, weapon->GetActorLocation());
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestLoc = weapon->GetActorLocation();
+                    bestKind = 2;
+                }
+            }
+        }
+
+        if (bestKind > 0) {
+            board->SetValueAsBool("WantsPickup", true);
+            board->SetValueAsVector("PickupLocation", bestLoc);
+            board->SetValueAsInt("PickupKind", bestKind);
+        }
     }
 
     void ALeonTournamentBotController::Possess(APawn* InPawn) {
@@ -94,8 +179,14 @@ namespace Leon {
         auto* self = GetPawn<ALeonTournamentCharacter>();
         if (!attacker || !self || attacker == self || !Blackboard)
             return;
-        if (self->GetTeam() != ELeonTournamentTeam::None && attacker->GetTeam() == self->GetTeam())
-            return;
+        if (self->GetTeam() != ELeonTournamentTeam::None && attacker->GetTeam() == self->GetTeam()) {
+            if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr)) {
+                if (gm->GetActiveGameMode() != ELeonTournamentGameModeId::FreeForAll)
+                    return;
+            } else {
+                return;
+            }
+        }
         Blackboard->SetValueAsObject("TargetActor", attacker);
         Blackboard->SetValueAsBool("HasTarget", true);
         Blackboard->SetValueAsVector("LastKnownTargetLocation", attacker->GetActorLocation());
@@ -283,11 +374,19 @@ namespace Leon {
         BoardAsset->AddKey({"IsReloading", EBlackboardKeyType::Bool, false});
         BoardAsset->AddKey({"IsDead", EBlackboardKeyType::Bool, false});
         BoardAsset->AddKey({"HasCover", EBlackboardKeyType::Bool, false});
+        BoardAsset->AddKey({"WantsPickup", EBlackboardKeyType::Bool, false});
+        BoardAsset->AddKey({"PickupLocation", EBlackboardKeyType::Vector, glm::vec3(0.0f)});
+        BoardAsset->AddKey({"PickupKind", EBlackboardKeyType::Int, 0});
 
         auto perception =
             MakeRef<UBTService_Native>("Perception", [this](UBehaviorTreeComponent&, float) { TickPerception(); });
         perception->Interval = 0.12f;
         perception->TimeAccumulator = perception->Interval;
+
+        auto pickupScan =
+            MakeRef<UBTService_Native>("PickupScan", [this](UBehaviorTreeComponent&, float) { TickPickupScan(); });
+        pickupScan->Interval = 0.25f;
+        pickupScan->TimeAccumulator = pickupScan->Interval;
 
         auto dead = MakeRef<UBTTask_Native>("Dead", [this](UBehaviorTreeComponent& owner, float) {
             auto board = owner.GetBlackboard();
@@ -351,6 +450,7 @@ namespace Leon {
             const glm::vec3 tgt = target->GetActorLocation();
             const float dist = PlanarDistance(pawn->GetActorLocation(), tgt);
             const float ideal = Personality.PreferredRange;
+            SelectCombatWeapon(*pawn, dist);
             TickAim(dt, tgt);
 
             if (dist > kMaxRange || dist > ideal + 6.0f) {
@@ -405,6 +505,24 @@ namespace Leon {
             return EBTNodeResult::InProgress;
         });
 
+        auto pickup = MakeRef<UBTTask_Native>("Pickup", [this](UBehaviorTreeComponent& owner, float) {
+            auto board = owner.GetBlackboard();
+            auto* pawn = GetPawn<ALeonTournamentCharacter>();
+            if (!board || !pawn || !board->GetValueAsBool("WantsPickup"))
+                return EBTNodeResult::Failed;
+            if (board->GetValueAsBool("HasTarget") && board->GetValueAsFloat("DistanceToTarget") < 14.0f)
+                return EBTNodeResult::Failed;
+            CachedState = ELeonTournamentBotState::Idle;
+            pawn->BotSetFireHeld(false);
+            const glm::vec3 dest = board->GetValueAsVector("PickupLocation");
+            MoveToLocation(dest, 1.0f);
+            if (PlanarDistance(pawn->GetActorLocation(), dest) <= 1.4f) {
+                SelectCombatWeapon(*pawn, 999.0f);
+                return EBTNodeResult::Succeeded;
+            }
+            return EBTNodeResult::InProgress;
+        });
+
         auto search = MakeRef<UBTTask_Native>("Search", [this](UBehaviorTreeComponent& owner, float dt) {
             auto board = owner.GetBlackboard();
             auto* pawn = GetPawn<ALeonTournamentCharacter>();
@@ -451,12 +569,18 @@ namespace Leon {
         coverSeq->Decorators.push_back(MakeRef<UBTDecorator_Blackboard>("IsLowHealth", true));
         coverSeq->AddChild(cover);
 
+        auto pickupSeq = MakeRef<UBTComposite_Sequence>("WantPickup");
+        pickupSeq->Decorators.push_back(MakeRef<UBTDecorator_Blackboard>("WantsPickup", true));
+        pickupSeq->AddChild(pickup);
+
         auto root = MakeRef<UBTComposite_Selector>("Selector");
         root->Services.push_back(perception);
+        root->Services.push_back(pickupScan);
         root->AddChild(dead);
         root->AddChild(reloadSeq);
         root->AddChild(coverSeq);
         root->AddChild(combat);
+        root->AddChild(pickupSeq);
         root->AddChild(search);
         root->AddChild(patrol);
 
@@ -478,8 +602,12 @@ namespace Leon {
             Perception->SetSensePredicate([this](AActor* actor) {
                 auto* other = dynamic_cast<ALeonTournamentCharacter*>(actor);
                 auto* self = GetPawn<ALeonTournamentCharacter>();
-                if (!other || !self)
+                if (!other || !self || other == self)
                     return false;
+                if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr)) {
+                    if (gm->GetActiveGameMode() == ELeonTournamentGameModeId::FreeForAll)
+                        return true;
+                }
                 if (self->GetTeam() != ELeonTournamentTeam::None && other->GetTeam() == self->GetTeam())
                     return false;
                 return true;

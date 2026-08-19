@@ -25,6 +25,8 @@ namespace Leon {
         bool bEnableSSAO = true;
         bool bEnableBloom = true;
         bool bEnableFXAA = true;
+        /** Max edge length for loaded 2D / cubemap textures (Low=256, Medium=512, High=1024). */
+        uint32_t MaxTextureResolution = 1024;
     };
 
     /** Low / Medium / High renderer presets (product-agnostic). */
@@ -42,6 +44,7 @@ namespace Leon {
         /** Estimated GPU working set for the preset at the given viewport (includes a live asset baseline when
          * available). */
         static size_t EstimateVRAMBytes(EGraphicsQuality InQuality, uint32_t InViewportWidth, uint32_t InViewportHeight);
+        static std::string FormatPresetLabel(EGraphicsQuality InQuality);
         static std::string FormatVRAMLabel(EGraphicsQuality InQuality, uint32_t InViewportWidth,
                                            uint32_t InViewportHeight);
     };

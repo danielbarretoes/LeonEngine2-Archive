@@ -62,6 +62,18 @@ namespace Leon {
                 SelectedGameMode = LeonTournamentPrevGameModeId(SelectedGameMode);
         }
 
+        ELeonTournamentBotDifficulty GetBotDifficulty() const { return BotDifficulty; }
+        void SetBotDifficulty(ELeonTournamentBotDifficulty InDifficulty) { BotDifficulty = InDifficulty; }
+        void CycleBotDifficulty(int InDelta) {
+            const uint8_t count = 3;
+            uint8_t v = static_cast<uint8_t>(BotDifficulty);
+            if (InDelta >= 0)
+                v = static_cast<uint8_t>((v + 1) % count);
+            else
+                v = static_cast<uint8_t>((v + count - 1) % count);
+            BotDifficulty = static_cast<ELeonTournamentBotDifficulty>(v);
+        }
+
         bool ConsumePendingMatchStart() {
             const bool bPending = bPendingMatchStart;
             bPendingMatchStart = false;
@@ -109,6 +121,7 @@ namespace Leon {
         ELeonTournamentCharacterSkin SelectedCharacterSkin = ELeonTournamentCharacterSkin::YBot;
         ELeonTournamentPlayableMap SelectedPlayableMap = ELeonTournamentPlayableMap::Arena;
         ELeonTournamentGameModeId SelectedGameMode = ELeonTournamentGameModeId::TeamDeathmatch;
+        ELeonTournamentBotDifficulty BotDifficulty = ELeonTournamentBotDifficulty::Normal;
         int32_t DesiredBotsTeam1 = 2;
         int32_t DesiredBotsTeam2 = 2;
         std::string JoinAddress = "127.0.0.1";

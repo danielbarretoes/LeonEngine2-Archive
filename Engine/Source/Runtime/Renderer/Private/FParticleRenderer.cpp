@@ -40,6 +40,8 @@ namespace Leon {
 
         const glm::vec3 camRight = InCamera.GetRightDirection();
         const glm::vec3 camUp = InCamera.GetUpDirection();
+        const glm::vec3 camPos = InCamera.GetPosition();
+        const float cullDistSq = kParticleCullDistance * kParticleCullDistance;
 
         auto pushQuad = [&](const glm::vec3& center, const glm::vec3& right, const glm::vec3& up, float halfW,
                             float halfH, const glm::vec4& color) {
@@ -63,6 +65,13 @@ namespace Leon {
             if (!render.bVisible)
                 continue;
             for (const auto& p : render.Particles) {
+                if (count >= kMaxRenderedParticles)
+                    break;
+                const glm::vec3 samplePos =
+                    p.Kind == EParticleKind::Beam ? (p.Location + p.BeamEnd) * 0.5f : p.Location;
+                const glm::vec3 toCam = samplePos - camPos;
+                if (glm::dot(toCam, toCam) > cullDistSq)
+                    continue;
                 const float t = p.Lifetime > 1e-4f ? std::clamp(p.Age / p.Lifetime, 0.0f, 1.0f) : 1.0f;
                 const glm::vec4 color = glm::mix(p.Color, p.ColorEnd, t);
                 const float size = glm::mix(p.Size, p.SizeEnd, t);

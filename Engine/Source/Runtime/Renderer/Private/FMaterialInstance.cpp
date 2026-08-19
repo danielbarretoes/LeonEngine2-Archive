@@ -116,6 +116,17 @@ namespace Leon {
         TextureOverrides.erase(InSlot);
     }
 
+    void FMaterialInstance::ReloadTextureOverrides() {
+        for (auto& [slot, texture] : TextureOverrides) {
+            if (!texture)
+                continue;
+            const std::string& path = texture->GetPath();
+            if (path.empty())
+                continue;
+            texture = UAssetManager::GetTexture2D(path);
+        }
+    }
+
     void FMaterialInstance::Bind(const TRef<FShader>& InShader) const {
         if (!InShader)
             return;

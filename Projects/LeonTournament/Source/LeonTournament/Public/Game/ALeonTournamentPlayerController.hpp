@@ -17,13 +17,17 @@ namespace Leon {
         bool IsScoreboardHeld() const { return bScoreboardHeld; }
         bool ConsumeEscapePressed();
 
-        void NotifyConfirmedHit(bool bKill);
-        void NotifyTookDamage();
+        void NotifyConfirmedHit(bool bKill, bool bHeadshot = false);
+        void NotifyTookDamage(float InYawDeg = 0.0f);
         void NotifyLocalDeath();
         void PushBanner(const std::string& InText, float InSeconds, const glm::vec4& InColor);
         void ClearBanner();
 
+        float GetDamageIndicatorYawDeg() const { return DamageIndicatorYawDeg; }
+        float GetDamageIndicatorRemaining() const { return DamageIndicatorRemaining; }
+
         bool IsHitMarkerActive() const { return HitMarkerRemaining > 0.0f; }
+        bool IsHeadshotMarkerActive() const { return bHeadshotMarker && HitMarkerRemaining > 0.0f; }
         bool IsKillConfirmActive() const { return KillConfirmRemaining > 0.0f; }
         bool IsDamageFlashActive() const { return DamageFlashRemaining > 0.0f; }
         bool IsBannerActive() const { return BannerRemaining > 0.0f; }
@@ -40,6 +44,7 @@ namespace Leon {
         bool bEscapeWasDown = false;
         bool bEscapePressed = false;
         bool bPauseMenuOpen = false;
+        bool bHeadshotMarker = false;
         float HitMarkerRemaining = 0.0f;
         float KillConfirmRemaining = 0.0f;
         float DamageFlashRemaining = 0.0f;
@@ -49,6 +54,8 @@ namespace Leon {
         std::string BannerText;
         glm::vec4 BannerColor{1.0f};
         std::string KillFeedText;
+        float DamageIndicatorYawDeg = 0.0f;
+        float DamageIndicatorRemaining = 0.0f;
     };
 
 } // namespace Leon

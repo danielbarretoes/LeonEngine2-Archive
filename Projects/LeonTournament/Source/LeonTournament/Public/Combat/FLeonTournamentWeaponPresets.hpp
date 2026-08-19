@@ -14,7 +14,7 @@ namespace Leon {
         switch (InId) {
         case ELeonTournamentWeaponId::Shotgun:
             c.FireRate = 1.15f;
-            c.Damage = 14.0f;
+            c.Damage = 10.0f;
             c.MagazineSize = 6;
             c.ReloadTime = 2.0f;
             c.Range = 22.0f;
@@ -24,7 +24,7 @@ namespace Leon {
             c.SpreadRecoveryPerSec = 4.5f;
             c.RecoilPitchDeg = 2.2f;
             c.PelletCount = 9;
-            c.PelletSpreadDeg = 6.8f;
+            c.PelletSpreadDeg = 6.5f;
             c.FireMode = ELeonTournamentFireMode::Projectile;
             c.ProjectileSpeed = 58.0f;
             c.ProjectileRadius = 0.05f;
@@ -54,8 +54,8 @@ namespace Leon {
             c.ProjectileSpeed = 30.0f;
             c.ProjectileRadius = 0.22f;
             c.ProjectileGravityScale = 0.0f;
-            c.SplashRadius = 4.8f;
-            c.SplashDamage = 48.0f;
+            c.SplashRadius = 4.5f;
+            c.SplashDamage = 44.0f;
             c.Knockback = 20.0f;
             c.CrosshairStyle = ELeonTournamentCrosshairStyle::Cross;
             c.VisualColor = {0.55f, 0.12f, 0.12f};
@@ -64,7 +64,7 @@ namespace Leon {
             break;
         case ELeonTournamentWeaponId::Laser:
             c.FireRate = 0.70f;
-            c.Damage = 62.0f;
+            c.Damage = 58.0f;
             c.MagazineSize = 3;
             c.ReloadTime = 1.40f;
             c.Range = 220.0f;
@@ -81,33 +81,9 @@ namespace Leon {
             c.VisualRadius = 0.028f;
             c.VisualLength = 0.52f;
             break;
-        case ELeonTournamentWeaponId::Grenade:
-            c.FireRate = 0.95f;
-            c.Damage = 52.0f;
-            c.MagazineSize = 5;
-            c.ReloadTime = 2.2f;
-            c.Range = 70.0f;
-            c.BaseSpreadDeg = 0.5f;
-            c.MaxSpreadDeg = 1.6f;
-            c.SpreadPerShotDeg = 0.28f;
-            c.SpreadRecoveryPerSec = 5.0f;
-            c.RecoilPitchDeg = 1.5f;
-            c.PelletCount = 1;
-            c.FireMode = ELeonTournamentFireMode::Projectile;
-            c.ProjectileSpeed = 17.0f;
-            c.ProjectileRadius = 0.16f;
-            c.ProjectileGravityScale = 0.70f;
-            c.SplashRadius = 4.0f;
-            c.SplashDamage = 38.0f;
-            c.Knockback = 18.0f;
-            c.CrosshairStyle = ELeonTournamentCrosshairStyle::Circle;
-            c.VisualColor = {0.22f, 0.55f, 0.18f};
-            c.VisualRadius = 0.055f;
-            c.VisualLength = 0.34f;
-            break;
         case ELeonTournamentWeaponId::Flamethrower:
-            c.FireRate = 12.0f;
-            c.Damage = 9.0f;
+            c.FireRate = 10.0f;
+            c.Damage = 8.0f;
             c.MagazineSize = 60;
             c.ReloadTime = 2.3f;
             c.Range = 9.0f;

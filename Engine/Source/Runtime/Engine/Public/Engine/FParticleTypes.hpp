@@ -28,6 +28,12 @@ namespace Leon {
         bool bOneShot = true;
     };
 
+    static constexpr int32_t kMaxBurstParticles = 24;
+    static constexpr int32_t kMaxLiveParticleEmitters = 48;
+    static constexpr int32_t kMaxTransientParticles = 512;
+    static constexpr int32_t kMaxRenderedParticles = 320;
+    static constexpr float kParticleCullDistance = 55.0f;
+
     struct FParticleInstance {
         glm::vec3 Location{0.0f};
         glm::vec3 Velocity{0.0f};
@@ -39,6 +45,11 @@ namespace Leon {
         float Size = 0.06f;
         float SizeEnd = 0.015f;
         EParticleKind Kind = EParticleKind::SpriteBurst;
+    };
+
+    /** Simulated particle with per-instance gravity (world pool). */
+    struct FSimulatedParticle : FParticleInstance {
+        glm::vec3 Gravity{0.0f};
     };
 
     /** EnTT render mirror written by UParticleComponent. */

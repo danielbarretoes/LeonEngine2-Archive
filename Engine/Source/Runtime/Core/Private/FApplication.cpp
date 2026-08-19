@@ -98,9 +98,9 @@ namespace Leon {
             if (InEvent.GetKeyCode() == Key::F1 && !InEvent.IsRepeat()) {
                 bShowGameplayDebug = !bShowGameplayDebug;
                 bDebugPhysics = bShowGameplayDebug;
-                bDebugCharacter = bShowGameplayDebug;
+                bDebugCharacter = false;
                 FDebugRenderer::SetTraceCaptureEnabled(bShowGameplayDebug);
-                LE_CORE_INFO("Gameplay debug (colliders + traces, depth-tested): {0}  [Shift+F1]",
+                LE_CORE_INFO("Gameplay debug (colliders + weapon traces): {0}  [Shift+F1]",
                              bShowGameplayDebug ? "ENABLED" : "DISABLED");
                 return true;
             }

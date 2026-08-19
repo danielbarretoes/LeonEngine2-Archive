@@ -255,7 +255,33 @@ namespace Leon {
         auto nextMode = MakeButton("LobbyNextMode", ">", kFsSub, 48.0f, 44.0f);
         nextMode->OnClicked.AddLambda([this]() { OnNextGameMode(); });
         PlaceButtonTL(*Root, nextMode, leftX + prevMode->GetSize().x + 8.0f + cycleLabelW + 8.0f, y);
-        y += prevMode->GetSize().y + 16.0f;
+        y += prevMode->GetSize().y + 10.0f;
+
+        auto diffTitle = std::make_shared<UTextBlock>("LobbyDiffTitle");
+        diffTitle->SetText("BOT DIFFICULTY");
+        diffTitle->SetFontScale(kFsCaption);
+        diffTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        PlaceTextTL(*Root, diffTitle, leftX, y);
+        y += MeasurePadded(diffTitle->GetText(), diffTitle->GetFontScale()).y + 6.0f;
+
+        auto prevDiff = MakeButton("LobbyPrevDiff", "<", kFsSub, 48.0f, 44.0f);
+        prevDiff->OnClicked.AddLambda([this]() { OnPrevBotDifficulty(); });
+        PlaceButtonTL(*Root, prevDiff, leftX, y);
+
+        BotDifficultyLabel = std::make_shared<UTextBlock>("LobbyDiffName");
+        BotDifficultyLabel->SetFontScale(kFsSub);
+        BotDifficultyLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        BotDifficultyLabel->SetJustification(ETextAlignment::Center);
+        BotDifficultyLabel->SetText("NORMAL");
+        Root->AddChild(BotDifficultyLabel, FAnchors::TopLeft(),
+                       BoxTL(leftX + prevDiff->GetSize().x + 8.0f, y + (prevDiff->GetSize().y - nameH) * 0.5f,
+                             cycleLabelW, nameH));
+        RefreshBotDifficultyLabel();
+
+        auto nextDiff = MakeButton("LobbyNextDiff", ">", kFsSub, 48.0f, 44.0f);
+        nextDiff->OnClicked.AddLambda([this]() { OnNextBotDifficulty(); });
+        PlaceButtonTL(*Root, nextDiff, leftX + prevDiff->GetSize().x + 8.0f + cycleLabelW + 8.0f, y);
+        y += prevDiff->GetSize().y + 16.0f;
 
         auto start = MakeButton("Start", "START MATCH", kFsButton, 220.0f);
         start->OnClicked.AddLambda([this]() { OnStart(); });
@@ -403,6 +429,28 @@ namespace Leon {
         RefreshGameModeLabel();
     }
 
+    void ULeonTournamentLobbyWidget::RefreshBotDifficultyLabel() {
+        if (!BotDifficultyLabel)
+            return;
+        auto* gi = GI();
+        const auto diff = gi ? gi->GetBotDifficulty() : ELeonTournamentBotDifficulty::Normal;
+        BotDifficultyLabel->SetText(LeonTournamentBotDifficultyName(diff));
+    }
+
+    void ULeonTournamentLobbyWidget::OnPrevBotDifficulty() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.45f);
+        if (auto* gi = GI())
+            gi->CycleBotDifficulty(-1);
+        RefreshBotDifficultyLabel();
+    }
+
+    void ULeonTournamentLobbyWidget::OnNextBotDifficulty() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.45f);
+        if (auto* gi = GI())
+            gi->CycleBotDifficulty(1);
+        RefreshBotDifficultyLabel();
+    }
+
     void ULeonTournamentLobbyWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
         const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
@@ -412,6 +460,7 @@ namespace Leon {
         RefreshCharacterLabel();
         RefreshMapLabel();
         RefreshGameModeLabel();
+        RefreshBotDifficultyLabel();
         if (GamepadEdge(GamepadButton::A, bPadAWasDown) || GamepadEdge(GamepadButton::Start, bPadStartWasDown))
             OnStart();
         if (GamepadEdge(GamepadButton::B, bPadBWasDown))

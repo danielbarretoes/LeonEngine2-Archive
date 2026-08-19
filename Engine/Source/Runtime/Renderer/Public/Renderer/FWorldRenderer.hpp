@@ -143,6 +143,9 @@ namespace Leon {
                                           EPlanarReflectionQuality InPlanarQuality = EPlanarReflectionQuality::Epic,
                                           float InPlanarResolutionScale = 0.0f);
 
+        /** Force IBL / HDR environment rebuild on the next frame (e.g. after texture quality change). */
+        void InvalidateEnvironment();
+
     private:
         // ----- Render Passes -------------------------------------------------
         void RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,

@@ -19,7 +19,6 @@
 #include "Renderer/FRenderingMath.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "Gameplay/AActor.hpp"
-#include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/FGameplayDebugger.hpp"
 #include "Physics/FCollisionQuery.hpp"
 #include "AI/UNavigationSystem.hpp"
@@ -167,6 +166,12 @@ namespace Leon {
 
         ShadowSettings.CascadeResolution = InShadowMapResolution;
         EnsureShadowFramebuffers();
+    }
+
+    void FWorldRenderer::InvalidateEnvironment() {
+        IBLEnvironment = {};
+        bEnvironmentGenerated = false;
+        LoadedHDRPath.clear();
     }
 
     void FWorldRenderer::SetPlanarReflectionQuality(EPlanarReflectionQuality InQuality) {
@@ -492,29 +497,7 @@ namespace Leon {
             FDebugRenderer::BeginScene(InCamera);
             if (FGameplayDebugger::ShowPhysics()) {
                 DrawDebugWorldColliders(*World);
-                if (ShadowSettings.bEnableShadows) {
-                    const glm::vec4 cascadeColor(0.95f, 0.55f, 0.15f, 0.85f);
-                    for (uint32_t i = 0; i < ShadowSettings.CascadeCount && i < 4; ++i)
-                        FDebugRenderer::DrawWireFrustum(mainCamData.LightSpaceMatrices[i], cascadeColor);
-                    if (bHasSpotLight)
-                        FDebugRenderer::DrawWireFrustum(mainCamData.SpotLightSpaceMatrix,
-                                                        glm::vec4(0.2f, 0.85f, 1.0f, 0.85f));
-                }
-                for (const auto& actorRef : World->GetAllActors()) {
-                    auto* start = dynamic_cast<APlayerStart*>(actorRef.get());
-                    if (!start || start->IsPendingKill() || !start->IsEnabled())
-                        continue;
-                    const glm::vec3 origin = start->GetActorLocation();
-                    FDebugRenderer::DrawDebugCapsule(origin, 0.4f, 0.9f, glm::vec4(0.95f, 0.85f, 0.15f, 1.0f));
-                    const glm::vec3 rot = start->GetActorRotation();
-                    const float yawRad = glm::radians(rot.y);
-                    const glm::vec3 fwd(std::cos(yawRad), 0.0f, std::sin(yawRad));
-                    FDebugRenderer::DrawDebugArrow(origin, origin + fwd * 1.6f, glm::vec4(1.0f, 0.9f, 0.2f, 1.0f),
-                                                   0.25f);
-                }
             }
-            if (FGameplayDebugger::ShowAI() && World->GetNavigationSystem() && World->GetNavigationSystem()->IsBuilt())
-                World->GetNavigationSystem()->DrawDebug();
             FDebugRenderer::DrawQueuedTraces();
             FDebugRenderer::EndScene(true);
             FDebugRenderer::ClearQueuedTraces();

@@ -45,14 +45,20 @@ namespace Leon {
         void GetAimRay(glm::vec3& OutOrigin, glm::vec3& OutDirection) const;
         /** Grip / muzzle for VFX. Hitscan uses GetAimRay (camera), not this. */
         glm::vec3 GetMuzzleSocketLocation() const;
-        /** Impulse used by rocket splash / jump pads (sets Falling when upward). */
+        /** Explosion / jump-pad impulse (living characters only). */
         void ApplyLaunchVelocity(const glm::vec3& InVelocity);
         void TryDodge();
         void ApplyDamageFrom(const FDamageInfo& InInfo);
         bool IsAimingDownSights() const { return bAimingDownSights; }
-        void PulseHitConfirm(bool bKill);
+        void PulseHitConfirm(bool bKill, bool bHeadshot = false);
         void OnServerDeath(const FDamageInfo& InInfo);
         void OnServerRespawn(const glm::vec3& InLocation);
+        void BeginSpawnProtection(float InSeconds);
+        bool IsSpawnProtected() const { return bSpawnProtected; }
+        float GetSpawnProtectionRemaining() const { return SpawnProtectionRemaining; }
+        float GetDodgeCooldownRemaining() const { return DodgeCooldownRemaining; }
+        float GetLastDamageYawDeg() const { return LastDamageYawDeg; }
+        float GetDamageIndicatorRemaining() const { return DamageIndicatorRemaining; }
 
         virtual bool ShouldSpawnWeapon() const;
 
@@ -101,6 +107,7 @@ namespace Leon {
         void ApplyLookRotation();
         void UpdatePresentationVisibility();
         void UpdateTeamOutline();
+        void TickSpawnProtection(float InDeltaSeconds);
         void HandleWeaponSwitchInput();
         void HandleCameraToggleInput();
         void UpdateAimDownSights(float DeltaSeconds);
@@ -125,7 +132,6 @@ namespace Leon {
         bool bKey3WasDown = false;
         bool bKey4WasDown = false;
         bool bKey5WasDown = false;
-        bool bKey6WasDown = false;
         bool bKeyQWasDown = false;
         bool bKeyEWasDown = false;
         bool bPadDLeftWasDown = false;
@@ -133,7 +139,11 @@ namespace Leon {
         bool bDodgeWasDown = false;
         bool bCameraToggleWasDown = false;
         bool bAimingDownSights = false;
+        bool bSpawnProtected = false;
+        float SpawnProtectionRemaining = 0.0f;
         float DodgeCooldownRemaining = 0.0f;
+        float LastDamageYawDeg = 0.0f;
+        float DamageIndicatorRemaining = 0.0f;
         ELeonTournamentCharacterSkin CharacterSkin = ELeonTournamentCharacterSkin::YBot;
         /** Bind-pose sole Y in mesh space; filled on skin apply (vertex scan is too heavy per tick). */
         float CachedBindPoseFeetY = 0.0f;

@@ -60,6 +60,9 @@ namespace Leon {
         FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f) {
             return FLeonTournamentUILayout::BoxBC(InBottom, InW, InH, InOx);
         }
+        FMargin BoxTR(float InRight, float InTop, float InW, float InH) {
+            return FMargin(-(InRight + InW), InTop, InRight, -(InTop + InH));
+        }
         FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
         glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f, float InPadY = 6.0f) {
             return FLeonTournamentUILayout::MeasurePadded(InText, InScale, InPadX, InPadY);
@@ -158,6 +161,12 @@ namespace Leon {
             BannerText->SetFontScale(kFsBanner * s);
         if (HintText)
             HintText->SetFontScale(kFsCaption * s);
+        if (DodgeCooldownText)
+            DodgeCooldownText->SetFontScale(kFsCaption * s);
+        for (auto& line : KillFeedLines) {
+            if (line)
+                line->SetFontScale(kFsCaption * s);
+        }
 
         const float topBarH =
             MeasurePadded("00:00", kFsTimer * s).y + MeasurePadded("TEAM DEATHMATCH", kFsBody * s).y + 18.0f * s;
@@ -245,6 +254,29 @@ namespace Leon {
             const glm::vec2 e = MeasurePadded(HintText->GetText(), HintText->GetFontScale());
             place(HintText, FAnchors::TopLeft(), BoxTL(36.0f * s, topBarH + 12.0f * s, std::max(900.0f * s, e.x), e.y));
         }
+        if (DodgeCooldownText) {
+            const glm::vec2 e = MeasurePadded(DodgeCooldownText->GetText(), DodgeCooldownText->GetFontScale());
+            place(DodgeCooldownText, FAnchors::BottomLeft(),
+                  BoxBL(textInset, bottomPad + bottomBarH + 8.0f * s, std::max(180.0f * s, e.x), e.y));
+        }
+        for (size_t i = 0; i < KillFeedLines.size(); ++i) {
+            if (!KillFeedLines[i])
+                continue;
+            const glm::vec2 e = MeasurePadded(KillFeedLines[i]->GetText(), KillFeedLines[i]->GetFontScale());
+            place(KillFeedLines[i], FAnchors::TopRight(),
+                  BoxTR(24.0f * s, scoreTop + static_cast<float>(i) * (e.y + 4.0f * s),
+                        std::max(320.0f * s, e.x), e.y));
+        }
+        const float edge = std::min(Root ? Root->GetSize().x : 1280.0f, Root ? Root->GetSize().y : 720.0f) * 0.42f;
+        for (size_t i = 0; i < DamageIndicators.size(); ++i) {
+            if (!DamageIndicators[i])
+                continue;
+            const float ang = static_cast<float>(i) * 0.78539816f;
+            const float cx = std::cos(ang) * edge;
+            const float cy = std::sin(ang) * edge;
+            place(DamageIndicators[i], FAnchors::Center(),
+                  BoxC(cx, cy, 18.0f * s, 6.0f * s));
+        }
         if (CrosshairDot) {
             const float d = 3.0f * s;
             place(CrosshairDot, FAnchors::Center(), BoxC(0.0f, 0.0f, d, d));
@@ -293,6 +325,7 @@ namespace Leon {
         CrosshairImage->SetVisibility(ESlateVisibility::HitTestInvisible);
         LeonTournamentApplyCrosshairBrush(*CrosshairImage, ELeonTournamentWeaponId::Rifle,
                                           LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rifle));
+        CrosshairImage->SetTintColor({0.91f, 0.93f, 0.95f, 0.95f});
         Root->AddChild(CrosshairImage, FAnchors::Center(), BoxC(0.0f, 0.0f, 40.0f, 40.0f));
 
         CrosshairDot = std::make_shared<UImage>("CrosshairDot");
@@ -356,12 +389,17 @@ namespace Leon {
         AmmoBar->SetFillColor({0.75f, 0.82f, 1.0f, 0.95f});
 
         WeaponSlotsText = std::make_shared<UTextBlock>("WeaponSlots");
-        WeaponSlotsText->SetText("[1]  2  3  4  5  6");
+        WeaponSlotsText->SetText("[1]  2  3  4  5");
         WeaponSlotsText->SetColor({0.78f, 0.86f, 1.0f, 0.95f});
         WeaponSlotsText->SetJustification(ETextAlignment::Right);
 
+        DodgeCooldownText = std::make_shared<UTextBlock>("DodgeCD");
+        DodgeCooldownText->SetText("");
+        DodgeCooldownText->SetColor({0.72f, 0.82f, 0.95f, 0.85f});
+        DodgeCooldownText->SetVisibility(ESlateVisibility::Collapsed);
+
         StatusText = std::make_shared<UTextBlock>("Status");
-        StatusText->SetText("RESPAWNING  -  FREE LOOK");
+        StatusText->SetText("RESPAWN IN 1.0s");
         StatusText->SetColor({1.0f, 0.55f, 0.45f, 1.0f});
         StatusText->SetJustification(ETextAlignment::Center);
         StatusText->SetVisibility(ESlateVisibility::Collapsed);
@@ -386,7 +424,22 @@ namespace Leon {
         HintText->SetColor({0.78f, 0.86f, 0.96f, 0.92f});
         HintText->SetVisibility(ESlateVisibility::Collapsed);
         HintText->SetText(
-            "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   1-6 Weapons");
+            "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   Q/E or 1-5 Weapons");
+
+        for (size_t i = 0; i < KillFeedLines.size(); ++i) {
+            auto line = std::make_shared<UTextBlock>(std::string("KillFeed_") + std::to_string(i));
+            line->SetColor({0.92f, 0.94f, 0.98f, 0.92f});
+            line->SetJustification(ETextAlignment::Right);
+            line->SetVisibility(ESlateVisibility::Collapsed);
+            KillFeedLines[i] = line;
+        }
+
+        for (size_t i = 0; i < DamageIndicators.size(); ++i) {
+            auto seg = std::make_shared<UImage>(std::string("DmgInd_") + std::to_string(i));
+            seg->SetTintColor({0.95f, 0.15f, 0.12f, 0.0f});
+            seg->SetVisibility(ESlateVisibility::Collapsed);
+            DamageIndicators[i] = seg;
+        }
 
         SetWidgetTree(Root);
         SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -407,6 +460,10 @@ namespace Leon {
         auto* animLab = world ? dynamic_cast<ALeonTournamentAnimLabGameMode*>(world->GetGameMode()) : nullptr;
         const bool bLab = animLab != nullptr;
 
+        auto* gm = world ? dynamic_cast<ALeonTournamentGameMode*>(world->GetGameMode()) : nullptr;
+        const bool bFFA = gm && gm->GetActiveGameMode() == ELeonTournamentGameModeId::FreeForAll;
+        auto* localPs = dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer ? OwningPlayer->GetPlayerState() : nullptr);
+
         if (Team1Text && Team2Text && TimerText) {
             if (bLab) {
                 if (MatchLabel)
@@ -421,10 +478,23 @@ namespace Leon {
                     else if (gs->GetMatchState() == ELeonTournamentMatchState::Finished)
                         MatchLabel->SetText("MATCH OVER");
                     else
-                        MatchLabel->SetText("TEAM DEATHMATCH");
+                        MatchLabel->SetText(bFFA ? "FREE FOR ALL" : "TEAM DEATHMATCH");
                 }
-                Team1Text->SetText(std::to_string(gs->GetTeam1Kills()));
-                Team2Text->SetText(std::to_string(gs->GetTeam2Kills()));
+                if (bFFA) {
+                    const int localKills = localPs ? localPs->GetKills() : 0;
+                    int leaderKills = localKills;
+                    if (gm && gm->GetGameState()) {
+                        for (APlayerState* ps : gm->GetGameState()->GetPlayerArray()) {
+                            if (auto* sps = dynamic_cast<ALeonTournamentPlayerState*>(ps))
+                                leaderKills = std::max(leaderKills, sps->GetKills());
+                        }
+                    }
+                    Team1Text->SetText(std::to_string(localKills));
+                    Team2Text->SetText("LEAD " + std::to_string(leaderKills));
+                } else {
+                    Team1Text->SetText(std::to_string(gs->GetTeam1Kills()));
+                    Team2Text->SetText(std::to_string(gs->GetTeam2Kills()));
+                }
                 const float seconds = gs->GetMatchState() == ELeonTournamentMatchState::Starting
                                           ? gs->GetCountdownRemaining()
                                           : gs->GetRemainingTime();
@@ -518,7 +588,15 @@ namespace Leon {
         if (StatusText) {
             if (bDead) {
                 StatusText->SetVisibility(ESlateVisibility::HitTestInvisible);
-                StatusText->SetText("RESPAWNING  -  FREE LOOK");
+                float respawn = 0.0f;
+                if (gm && OwningPlayer)
+                    respawn = gm->GetRespawnRemaining(OwningPlayer);
+                char buf[48];
+                if (respawn > 0.05f)
+                    std::snprintf(buf, sizeof(buf), "RESPAWN IN %.1fs  -  FREE LOOK", respawn);
+                else
+                    std::snprintf(buf, sizeof(buf), "RESPAWNING  -  FREE LOOK");
+                StatusText->SetText(buf);
             } else if (gs && gs->GetMatchState() == ELeonTournamentMatchState::Starting) {
                 StatusText->SetVisibility(ESlateVisibility::HitTestInvisible);
                 StatusText->SetText("ROUND STARTING");
@@ -553,12 +631,76 @@ namespace Leon {
         }
 
         if (HintText) {
-            if (bLab) {
+            const bool bShowHints = bLab || (localPs && localPs->GetDeaths() < 3 && gs &&
+                                             gs->GetMatchState() == ELeonTournamentMatchState::Playing);
+            if (bShowHints) {
                 HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
                 HintText->SetText(
-                    "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   1-6 Weapons");
+                    "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   Q/E or 1-5 Weapons");
             } else {
                 HintText->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
+        if (DodgeCooldownText) {
+            if (ch && !bDead && ch->GetDodgeCooldownRemaining() > 0.05f) {
+                DodgeCooldownText->SetVisibility(ESlateVisibility::HitTestInvisible);
+                char buf[32];
+                std::snprintf(buf, sizeof(buf), "DODGE %.1fs", ch->GetDodgeCooldownRemaining());
+                DodgeCooldownText->SetText(buf);
+            } else {
+                DodgeCooldownText->SetVisibility(ESlateVisibility::Collapsed);
+            }
+        }
+        if (gm) {
+            const auto& feed = gm->GetKillFeed();
+            for (size_t i = 0; i < KillFeedLines.size(); ++i) {
+                if (!KillFeedLines[i])
+                    continue;
+                if (i < feed.GetCount()) {
+                    const auto& entry = feed.GetEntries()[i];
+                    std::string line;
+                    if (entry.Kind == ELeonTournamentKillFeedKind::Assist)
+                        line = entry.InstigatorName + " assisted";
+                    else
+                        line = entry.InstigatorName + "  >  " + entry.VictimName;
+                    KillFeedLines[i]->SetText(line);
+                    KillFeedLines[i]->SetVisibility(ESlateVisibility::HitTestInvisible);
+                } else {
+                    KillFeedLines[i]->SetVisibility(ESlateVisibility::Collapsed);
+                }
+            }
+        }
+        float damageYaw = 0.0f;
+        float damageRemaining = 0.0f;
+        if (spc && spc->GetDamageIndicatorRemaining() > 0.0f) {
+            damageYaw = spc->GetDamageIndicatorYawDeg();
+            damageRemaining = spc->GetDamageIndicatorRemaining();
+        } else if (ch && ch->GetDamageIndicatorRemaining() > 0.0f) {
+            damageYaw = ch->GetLastDamageYawDeg();
+            damageRemaining = ch->GetDamageIndicatorRemaining();
+        }
+        float camYaw = 0.0f;
+        if (OwningPlayer) {
+            FPerspectiveCamera viewCam;
+            OwningPlayer->GetPlayerViewPoint(viewCam);
+            camYaw = viewCam.GetYaw();
+        }
+        const float relYaw = damageYaw - camYaw;
+        for (size_t i = 0; i < DamageIndicators.size(); ++i) {
+            if (!DamageIndicators[i])
+                continue;
+            if (damageRemaining <= 0.0f) {
+                DamageIndicators[i]->SetVisibility(ESlateVisibility::Collapsed);
+                continue;
+            }
+            const float segAng = static_cast<float>(i) * 45.0f;
+            const float diff = std::abs(std::fmod(relYaw - segAng + 540.0f, 360.0f) - 180.0f);
+            const float alpha = diff < 30.0f ? std::clamp(damageRemaining / 0.35f, 0.0f, 1.0f) : 0.0f;
+            if (alpha > 0.01f) {
+                DamageIndicators[i]->SetVisibility(ESlateVisibility::HitTestInvisible);
+                DamageIndicators[i]->SetTintColor({0.95f, 0.15f, 0.12f, alpha * 0.85f});
+            } else {
+                DamageIndicators[i]->SetVisibility(ESlateVisibility::Collapsed);
             }
         }
         // Crosshair half-gap in HUD pixels = angular spread projected through vertical FOV.
@@ -590,10 +732,7 @@ namespace Leon {
         const float crosshairSize = 40.0f * AppliedLayoutScale * spreadScale;
         if (Root && CrosshairImage) {
             Root->SetChildLayout(CrosshairImage, center, BoxC(0.0f, 0.0f, crosshairSize, crosshairSize));
-            if (weaponCfg) {
-                const glm::vec3& c = weaponCfg->VisualColor;
-                CrosshairImage->SetTintColor({c.x, c.y, c.z, 0.95f});
-            }
+            CrosshairImage->SetTintColor({0.91f, 0.93f, 0.95f, 0.95f});
             CrosshairImage->SetVisibility(ESlateVisibility::HitTestInvisible);
         }
         const bool bCircle =
@@ -625,6 +764,8 @@ namespace Leon {
             }
         }
         const bool bHit = spc && spc->IsHitMarkerActive();
+        const bool bHeadshot = spc && spc->IsHeadshotMarkerActive();
+        const glm::vec4 hitColor = bHeadshot ? glm::vec4(1.0f, 0.22f, 0.18f, 1.0f) : glm::vec4(1.0f, 0.85f, 0.15f, 1.0f);
         const float hitLen = 9.0f * AppliedLayoutScale;
         const float hitThick = 2.5f * AppliedLayoutScale;
         if (Root && HitMarkTL && HitMarkTR && HitMarkBL && HitMarkBR) {
@@ -654,19 +795,27 @@ namespace Leon {
             if (seg)
                 seg->SetVisibility(ringVis);
         }
-        if (HitMarkTL)
+        if (HitMarkTL) {
             HitMarkTL->SetVisibility(hitVis);
-        if (HitMarkTR)
+            HitMarkTL->SetTintColor(hitColor);
+        }
+        if (HitMarkTR) {
             HitMarkTR->SetVisibility(hitVis);
-        if (HitMarkBL)
+            HitMarkTR->SetTintColor(hitColor);
+        }
+        if (HitMarkBL) {
             HitMarkBL->SetVisibility(hitVis);
-        if (HitMarkBR)
+            HitMarkBL->SetTintColor(hitColor);
+        }
+        if (HitMarkBR) {
             HitMarkBR->SetVisibility(hitVis);
+            HitMarkBR->SetTintColor(hitColor);
+        }
         if (CrosshairText) {
             CrosshairText->SetVisibility(ESlateVisibility::HitTestInvisible);
             CrosshairText->SetText(bHit ? "X" : "");
             CrosshairText->SetFontScale(bHit ? 1.35f * AppliedLayoutScale : 1.0f * AppliedLayoutScale);
-            CrosshairText->SetColor(bHit ? glm::vec4(1.0f, 0.85f, 0.15f, 1.0f) : glm::vec4(0.95f, 0.97f, 1.0f, 0.0f));
+            CrosshairText->SetColor(bHit ? hitColor : glm::vec4(0.95f, 0.97f, 1.0f, 0.0f));
             if (Root) {
                 if (bHit)
                     Root->SetChildLayout(CrosshairText, center,

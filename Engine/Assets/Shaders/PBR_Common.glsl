@@ -494,8 +494,10 @@ vec3 SampleOnePlanarLi(sampler2D planarMap, mat4 planarVP, vec3 planeN, float pl
                        float roughness, out float weight) {
     float clipW = 0.0;
     vec2 uv = PlanarReflectionUVFrom(planarVP, worldPos, N, roughness, clipW);
-    float inFront = step(1e-5, clipW);
-    float inBounds = float(uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0);
+    // Hard 0/1 bounds pop between HDR IBL and the planar capture (bright vs dark) as UV grazes the edge.
+    float uvEdge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+    float inBounds = smoothstep(0.0, 0.08, uvEdge);
+    float inFront = smoothstep(0.0, 0.04, clipW);
     vec3 n = normalize(planeN);
     float planeAlign = smoothstep(0.35, 0.70, abs(dot(N, n)));
     // Capture is a flat mirrored camera. Off-plane meshes (spheres, car bodies) must keep IBL.

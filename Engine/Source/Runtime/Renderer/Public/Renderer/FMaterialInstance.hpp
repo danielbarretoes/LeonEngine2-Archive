@@ -116,6 +116,8 @@ namespace Leon {
 
         void SetTexture(uint32_t InSlot, const TRef<FTexture2D>& InTexture);
         void ClearTextureOverride(uint32_t InSlot);
+        /** Reload texture override slots from their source paths. */
+        void ReloadTextureOverrides();
 
         // --- GPU State Binding ---
         /**

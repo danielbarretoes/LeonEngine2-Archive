@@ -2,6 +2,7 @@
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentProjectile.hpp"
+#include "FLeonTournamentDamageRules.hpp"
 #include "FLeonTournamentWeaponPresets.hpp"
 #include "FLeonTournamentWeaponVfx.hpp"
 #include "Gameplay/UHealthComponent.hpp"
@@ -88,13 +89,6 @@ namespace Leon {
         : ALeonTournamentWeapon(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentLaserRifle");
         SetWeaponId(ELeonTournamentWeaponId::Laser);
-    }
-
-    ALeonTournamentGrenadeLauncher::ALeonTournamentGrenadeLauncher(entt::entity InHandle, UWorld* InWorld,
-                                                                   const std::string& InName)
-        : ALeonTournamentWeapon(InHandle, InWorld, InName) {
-        SetClass("ALeonTournamentGrenadeLauncher");
-        SetWeaponId(ELeonTournamentWeaponId::Grenade);
     }
 
     ALeonTournamentFlamethrower::ALeonTournamentFlamethrower(entt::entity InHandle, UWorld* InWorld,
@@ -267,15 +261,14 @@ namespace Leon {
                 info.HitActor = target;
                 info.HitLocation = hit.Location;
                 info.HitNormal = hit.Normal;
-                info.Impulse = dir * Config.Knockback;
+                FLeonTournamentDamageRules::ApplyHeadshotIfHit(*target, info);
                 if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World->GetGameMode())) {
                     if (gm->ApplyAuthoritativeDamage(*OwnerCharacter, *target, info)) {
                         bDamaged = true;
                         const bool bKill = target->GetHealthComponent() && target->GetHealthComponent()->IsDead();
-                        OwnerCharacter->PulseHitConfirm(bKill);
+                        OwnerCharacter->PulseHitConfirm(bKill, info.bCriticalHit);
                     }
                 }
-                target->ApplyLaunchVelocity(dir * Config.Knockback + glm::vec3(0.0f, 0.4f, 0.0f));
                 break;
             }
 

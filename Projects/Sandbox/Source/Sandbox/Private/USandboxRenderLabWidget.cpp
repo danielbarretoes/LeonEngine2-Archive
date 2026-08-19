@@ -9,6 +9,8 @@
 #include "Renderer/FPlanarReflectionTypes.hpp"
 #include "Renderer/FWorldRenderer.hpp"
 #include "Renderer/FRenderDebugHotkeys.hpp"
+#include "Engine/FGraphicsQuality.hpp"
+#include "RHI/FRenderer.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -201,7 +203,7 @@ namespace Leon {
         y += PresetHighBtn->GetSize().y + 10.0f;
 
         section("SBRLShadowHdr", "SHADOWS (tap to cycle)");
-        ShadowResBtn = FUILayout::MakeButton("SBRLShadowRes", "Res: 2048", kFsCaption, btnW, btnH);
+        ShadowResBtn = FUILayout::MakeButton("SBRLShadowRes", "CSM: 2048", kFsCaption, btnW, btnH);
         ShadowResBtn->OnClicked.AddLambda([this]() { CycleShadowResolution(); });
         FUILayout::PlaceButtonTL(*Root, ShadowResBtn, leftX, y);
         y += ShadowResBtn->GetSize().y + gap;
@@ -319,8 +321,12 @@ namespace Leon {
         if (PresetHighBtn)
             PresetHighBtn->SetNormalColor(SelectedQuality == EGraphicsQuality::High ? selected : idle);
 
+        SetButtonLabel(PresetLowBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Low));
+        SetButtonLabel(PresetMedBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Medium));
+        SetButtonLabel(PresetHighBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::High));
+
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "Res: %u", p.ShadowMapResolution);
+        std::snprintf(buf, sizeof(buf), "CSM: %u", p.ShadowMapResolution);
         SetButtonLabel(ShadowResBtn, buf);
         std::snprintf(buf, sizeof(buf), "Cascades: %u", p.CascadeCount);
         SetButtonLabel(CascadeBtn, buf);
@@ -361,8 +367,9 @@ namespace Leon {
             } else {
                 const auto& sh = renderer->GetShadowSettings();
                 const auto& pp = renderer->GetPostProcessSettings();
-                std::snprintf(live, sizeof(live), "LIVE %ux CSM%u %s d%.0f  P:%s AO:%s BL:%.2f FX:%s",
+                std::snprintf(live, sizeof(live), "LIVE %ux CSM%u %s d%.0f  Tex:%u  P:%s AO:%s BL:%.2f FX:%s",
                               sh.CascadeResolution, sh.CascadeCount, FilterLabel(sh.FilterMode), sh.ShadowDistance,
+                              FRenderer::GetMaxTextureResolution(),
                               renderer->IsPlanarReflectionEnabled() ? "ON" : "off", pp.bSSAOEnabled ? "ON" : "off",
                               pp.BloomIntensity, pp.bFXAAEnabled ? "ON" : "off");
                 StatusText->SetText(live);

@@ -1,10 +1,12 @@
 #include "FOpenGLTextureCube.hpp"
+#include "FOpenGLTextureResize.hpp"
 #include "Core/FLog.hpp"
 #include "RHI/FRenderer.hpp"
 
 #include <stb_image.h>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 namespace Leon {
 
@@ -57,19 +59,37 @@ namespace Leon {
         if (width > 0 && height > 0) {
             Width = static_cast<uint32_t>(width);
             Height = static_cast<uint32_t>(height);
-            totalBytes = static_cast<size_t>(Width * Height * 4 * 6);
-            uint32_t levels = CalculateCubemapMipLevels(Width, Height);
+
+            const uint32_t maxDim = FRenderer::GetMaxTextureResolution();
+            uint32_t uploadW = Width;
+            uint32_t uploadH = Height;
+            if (std::max(Width, Height) > maxDim)
+                FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
+
+            std::vector<std::vector<uint8_t>> resizedFaces(6);
+            totalBytes = static_cast<size_t>(uploadW * uploadH * 4 * 6);
+            uint32_t levels = CalculateCubemapMipLevels(uploadW, uploadH);
 
             glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &RendererID);
-            glTextureStorage2D(RendererID, levels, GL_RGBA8, Width, Height);
+            glTextureStorage2D(RendererID, levels, GL_RGBA8, uploadW, uploadH);
 
             for (unsigned int i = 0; i < 6; ++i) {
-                if (faceData[i]) {
-                    glTextureSubImage3D(RendererID, 0, 0, 0, i, Width, Height, 1, GL_RGBA, GL_UNSIGNED_BYTE,
-                                        faceData[i]);
-                    stbi_image_free(faceData[i]);
+                if (!faceData[i])
+                    continue;
+                const uint8_t* uploadPixels = faceData[i];
+                if (uploadW != Width || uploadH != Height) {
+                    resizedFaces[i] =
+                        FOpenGLTextureResize::DownscaleU8(faceData[i], Width, Height, 4, uploadW, uploadH);
+                    uploadPixels = resizedFaces[i].data();
                 }
+                glTextureSubImage3D(RendererID, 0, 0, 0, i, uploadW, uploadH, 1, GL_RGBA, GL_UNSIGNED_BYTE,
+                                    uploadPixels);
+                stbi_image_free(faceData[i]);
+                faceData[i] = nullptr;
             }
+
+            Width = uploadW;
+            Height = uploadH;
 
             glTextureParameteri(RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glTextureParameteri(RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

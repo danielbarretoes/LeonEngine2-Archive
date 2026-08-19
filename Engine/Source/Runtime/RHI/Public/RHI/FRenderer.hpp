@@ -41,10 +41,15 @@ namespace Leon {
         static void OnGPUFree(size_t InBytes, EGPUMemoryCategory InCategory, const char* InLabel = nullptr);
         static size_t GetAllocatedGPUMemory() { return Stats.AllocatedGPUMemoryBytes; }
 
+        /** Max edge length for file-loaded 2D/cube textures (Low=256, Medium=512, High=1024). */
+        static void SetMaxTextureResolution(uint32_t InMaxDim);
+        static uint32_t GetMaxTextureResolution();
+
         static ERenderAPI GetAPI() { return IRenderAPI::GetAPI(); }
 
     private:
         static FRenderStats Stats;
+        static uint32_t MaxTextureResolution;
     };
 
 } // namespace Leon

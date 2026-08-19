@@ -189,6 +189,24 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(uv.y < 1.0f);
     }
 
+    TEST_CASE("Planar UV edge fade is zero outside the capture and one in the interior") {
+        auto uvEdgeFade = [](glm::vec2 uv) {
+            const float uvEdge = std::min(std::min(uv.x, 1.0f - uv.x), std::min(uv.y, 1.0f - uv.y));
+            if (uvEdge <= 0.0f)
+                return 0.0f;
+            if (uvEdge >= 0.08f)
+                return 1.0f;
+            const float t = uvEdge / 0.08f;
+            return t * t * (3.0f - 2.0f * t);
+        };
+        CHECK(uvEdgeFade({-0.02f, 0.5f}) == doctest::Approx(0.0f));
+        CHECK(uvEdgeFade({1.05f, 0.5f}) == doctest::Approx(0.0f));
+        CHECK(uvEdgeFade({0.5f, 0.5f}) == doctest::Approx(1.0f));
+        CHECK(uvEdgeFade({0.04f, 0.5f}) > 0.0f);
+        CHECK(uvEdgeFade({0.04f, 0.5f}) < 1.0f);
+        CHECK(uvEdgeFade({0.04f, 0.5f}) < uvEdgeFade({0.07f, 0.5f}));
+    }
+
     TEST_CASE("Ground plane UV0 V increases toward -Z when viewed from +Y") {
         const float subdivZ = 4.0f;
         auto vAt = [&](float zIndex) { return 1.0f - zIndex / subdivZ; };

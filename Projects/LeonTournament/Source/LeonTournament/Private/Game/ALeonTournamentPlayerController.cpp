@@ -66,6 +66,7 @@ namespace Leon {
         KillConfirmRemaining = std::max(0.0f, KillConfirmRemaining - DeltaSeconds);
         DamageFlashRemaining = std::max(0.0f, DamageFlashRemaining - DeltaSeconds);
         BannerRemaining = std::max(0.0f, BannerRemaining - DeltaSeconds);
+        DamageIndicatorRemaining = std::max(0.0f, DamageIndicatorRemaining - DeltaSeconds);
         KillStreakWindowRemaining = std::max(0.0f, KillStreakWindowRemaining - DeltaSeconds);
         if (KillStreakWindowRemaining <= 0.0f)
             KillStreak = 0;
@@ -104,10 +105,11 @@ namespace Leon {
         BannerRemaining = 0.0f;
     }
 
-    void ALeonTournamentPlayerController::NotifyConfirmedHit(bool bKill) {
+    void ALeonTournamentPlayerController::NotifyConfirmedHit(bool bKill, bool bHeadshot) {
         HitMarkerRemaining = kHitMarkerSeconds;
+        bHeadshotMarker = bHeadshot;
         if (!bKill) {
-            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_HitConfirm", 0.55f);
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_HitConfirm", bHeadshot ? 0.75f : 0.55f);
             return;
         }
 
@@ -133,8 +135,10 @@ namespace Leon {
         }
     }
 
-    void ALeonTournamentPlayerController::NotifyTookDamage() {
+    void ALeonTournamentPlayerController::NotifyTookDamage(float InYawDeg) {
         DamageFlashRemaining = kDamageFlashSeconds;
+        DamageIndicatorYawDeg = InYawDeg;
+        DamageIndicatorRemaining = 0.35f;
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_DamageTaken", 0.7f);
     }
 

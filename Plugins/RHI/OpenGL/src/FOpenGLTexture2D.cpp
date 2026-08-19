@@ -1,4 +1,5 @@
 #include "FOpenGLTexture2D.hpp"
+#include "FOpenGLTextureResize.hpp"
 #include "Assets/FTextureImporter.hpp"
 #include "Assets/FHDRImporter.hpp"
 #include "Core/FLog.hpp"
@@ -7,6 +8,7 @@
 #include <stb_image.h>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 namespace Leon {
 
@@ -15,6 +17,25 @@ namespace Leon {
             GLfloat maxAniso = 1.0f;
             glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
             glTextureParameterf(InTexture, GL_TEXTURE_MAX_ANISOTROPY, std::min(16.0f, std::max(1.0f, maxAniso)));
+        }
+
+        const FTextureMipData* FindMipLevel(const std::vector<FTextureMipData>& InMips, uint32_t InLevel) {
+            for (const auto& mip : InMips) {
+                if (mip.Level == InLevel)
+                    return &mip;
+            }
+            return InMips.empty() ? nullptr : &InMips.front();
+        }
+
+        const FTextureMipData* FindBestFittingMip(const std::vector<FTextureMipData>& InMips, uint32_t InMaxDim) {
+            const FTextureMipData* best = nullptr;
+            for (const auto& mip : InMips) {
+                if (std::max(mip.Width, mip.Height) > InMaxDim)
+                    continue;
+                if (!best || mip.Level < best->Level)
+                    best = &mip;
+            }
+            return best;
         }
     } // namespace
 
@@ -101,6 +122,53 @@ namespace Leon {
             Height = nativeData.Header.Height;
             InternalFormat = (nativeData.Header.ColorSpace == 1) ? GL_SRGB8_ALPHA8 : GL_RGBA8;
             DataFormat = GL_RGBA;
+
+            const uint32_t maxDim = FRenderer::GetMaxTextureResolution();
+            const bool needsLimit = std::max(Width, Height) > maxDim;
+            uint32_t uploadW = Width;
+            uint32_t uploadH = Height;
+            std::vector<uint8_t> resizedPixels;
+            const uint8_t* uploadPixels = nullptr;
+
+            if (needsLimit) {
+                if (const FTextureMipData* bestMip = FindBestFittingMip(nativeData.Mips, maxDim)) {
+                    uploadW = bestMip->Width;
+                    uploadH = bestMip->Height;
+                    uploadPixels = bestMip->Pixels.data();
+                } else if (const FTextureMipData* mip0 = FindMipLevel(nativeData.Mips, 0)) {
+                    FOpenGLTextureResize::ComputeTargetSize(mip0->Width, mip0->Height, maxDim, uploadW, uploadH);
+                    resizedPixels =
+                        FOpenGLTextureResize::DownscaleU8(mip0->Pixels.data(), mip0->Width, mip0->Height, 4, uploadW,
+                                                        uploadH);
+                    uploadPixels = resizedPixels.data();
+                }
+            }
+
+            if (needsLimit && uploadPixels) {
+                Width = uploadW;
+                Height = uploadH;
+                AllocatedBytes = static_cast<size_t>(Width * Height * 4);
+                const uint32_t levels = CalculateMipLevels(Width, Height);
+
+                glCreateTextures(GL_TEXTURE_2D, 1, &RendererID);
+                glTextureStorage2D(RendererID, levels, InternalFormat, Width, Height);
+
+                glTextureParameteri(RendererID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glTextureParameteri(RendererID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                const GLenum wrap = (nativeData.Header.WrapMode == 1) ? GL_CLAMP_TO_EDGE : GL_REPEAT;
+                glTextureParameteri(RendererID, GL_TEXTURE_WRAP_S, wrap);
+                glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, wrap);
+                ApplyAnisotropicFilter(RendererID);
+
+                glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_UNSIGNED_BYTE, uploadPixels);
+                glGenerateTextureMipmap(RendererID);
+
+                FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
+                LE_CORE_INFO("Loaded Native Texture (limited to {0}px): {1} ({2}x{3}, {4} KB)", maxDim, InPath, Width,
+                             Height, AllocatedBytes / 1024);
+                return;
+            }
+
             AllocatedBytes = static_cast<size_t>(nativeData.Header.TotalDataSize);
 
             glCreateTextures(GL_TEXTURE_2D, 1, &RendererID);
@@ -142,7 +210,23 @@ namespace Leon {
             Height = hdrData.Header.Height;
             InternalFormat = GL_RGBA32F;
             DataFormat = GL_RGBA;
-            AllocatedBytes = static_cast<size_t>(hdrData.Header.TotalDataSize);
+
+            const uint32_t maxDim = FRenderer::GetMaxTextureResolution();
+            uint32_t uploadW = Width;
+            uint32_t uploadH = Height;
+            std::vector<float> resizedPixels;
+            const float* uploadPixels = hdrData.Pixels.data();
+
+            if (std::max(Width, Height) > maxDim && !hdrData.Pixels.empty()) {
+                FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
+                resizedPixels = FOpenGLTextureResize::DownscaleFloat(hdrData.Pixels.data(), Width, Height, 4, uploadW,
+                                                                    uploadH);
+                uploadPixels = resizedPixels.data();
+                Width = uploadW;
+                Height = uploadH;
+            }
+
+            AllocatedBytes = static_cast<size_t>(Width * Height * 4 * sizeof(float));
 
             uint32_t levels = CalculateMipLevels(Width, Height);
 
@@ -154,8 +238,8 @@ namespace Leon {
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-            if (!hdrData.Pixels.empty()) {
-                glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_FLOAT, hdrData.Pixels.data());
+            if (uploadPixels) {
+                glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_FLOAT, uploadPixels);
                 glGenerateTextureMipmap(RendererID);
             }
 
@@ -181,6 +265,22 @@ namespace Leon {
             Height = static_cast<uint32_t>(height);
             InternalFormat = GL_RGBA32F;
             DataFormat = GL_RGBA;
+
+            const uint32_t maxDim = FRenderer::GetMaxTextureResolution();
+            uint32_t uploadW = Width;
+            uint32_t uploadH = Height;
+            std::vector<float> resizedPixels;
+            const float* uploadPixels = data;
+
+            if (std::max(Width, Height) > maxDim) {
+                FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
+                resizedPixels =
+                    FOpenGLTextureResize::DownscaleFloat(data, Width, Height, 4, uploadW, uploadH);
+                uploadPixels = resizedPixels.data();
+                Width = uploadW;
+                Height = uploadH;
+            }
+
             AllocatedBytes = static_cast<size_t>(Width * Height * 4 * sizeof(float));
 
             uint32_t levels = CalculateMipLevels(Width, Height);
@@ -193,7 +293,7 @@ namespace Leon {
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-            glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_FLOAT, data);
+            glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_FLOAT, uploadPixels);
             glGenerateTextureMipmap(RendererID);
 
             stbi_image_free(data);
@@ -235,6 +335,31 @@ namespace Leon {
             return;
         }
 
+        const uint32_t maxDim = FRenderer::GetMaxTextureResolution();
+        uint32_t uploadW = Width;
+        uint32_t uploadH = Height;
+        std::vector<uint8_t> resizedPixels;
+        const void* uploadPixels = data;
+
+        if (std::max(Width, Height) > maxDim) {
+            FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
+            if (bpp == 4) {
+                resizedPixels =
+                    FOpenGLTextureResize::DownscaleU8(data, Width, Height, 4, uploadW, uploadH);
+                uploadPixels = resizedPixels.data();
+            } else if (bpp == 3) {
+                resizedPixels =
+                    FOpenGLTextureResize::DownscaleU8(data, Width, Height, 3, uploadW, uploadH);
+                uploadPixels = resizedPixels.data();
+            } else {
+                resizedPixels =
+                    FOpenGLTextureResize::DownscaleU8(data, Width, Height, 1, uploadW, uploadH);
+                uploadPixels = resizedPixels.data();
+            }
+            Width = uploadW;
+            Height = uploadH;
+        }
+
         AllocatedBytes = static_cast<size_t>(Width * Height * bpp);
         uint32_t levels = CalculateMipLevels(Width, Height);
 
@@ -250,7 +375,7 @@ namespace Leon {
         if (bpp != 4)
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-        glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_UNSIGNED_BYTE, data);
+        glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_UNSIGNED_BYTE, uploadPixels);
         glGenerateTextureMipmap(RendererID);
 
         if (bpp != 4)

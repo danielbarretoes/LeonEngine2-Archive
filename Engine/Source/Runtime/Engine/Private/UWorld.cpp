@@ -13,15 +13,14 @@
 #include "Gameplay/APlayerState.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Renderer/FWorldRenderer.hpp"
+#include "Engine/FParticleSimulation.hpp"
+#include "Engine/FParticleTypes.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UNetDriver.hpp"
 #include "Assets/UStaticMesh.hpp"
 #include "Gameplay/USkeletalMeshComponent.hpp"
 #include "Physics/IPhysicsScene.hpp"
 #include "AI/UNavigationSystem.hpp"
-#include "Renderer/FDebugRenderer.hpp"
-
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -146,6 +145,9 @@ namespace Leon {
         TimerManager.Clear();
         bIsTicking = false;
         bLightmapsTrusted = true;
+        TransientParticleEntity = entt::null;
+        TransientParticles.clear();
+        TransientParticleRng = 1u;
     }
 
     UNavigationSystem* UWorld::GetNavigationSystem() {
@@ -191,6 +193,7 @@ namespace Leon {
         }
         if (PhysicsScene)
             PhysicsScene->NotifyBeginPlayFinished();
+        EnsureTransientParticleEntity();
     }
 
     void UWorld::Tick(FTimestep InTs) {
@@ -262,6 +265,9 @@ namespace Leon {
                 }
             }
         }
+
+        if (bBegunPlay)
+            TickTransientParticles(deltaSeconds);
 
         if (PhysicsScene) {
             FFrameProfiler::FScope physics(&FFrameProfiler::Working().PhysicsMs);
@@ -585,14 +591,9 @@ namespace Leon {
     bool UWorld::LineTraceSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, ECollisionChannel InChannel,
                                           AActor* InIgnore, FHitResult& OutHit) const {
         OutHit = {};
-        bool bHit = false;
         if (PhysicsScene)
-            bHit = PhysicsScene->LineTraceSingleByChannel(InStart, InEnd, InChannel, InIgnore, OutHit);
-        if (FDebugRenderer::IsTraceCaptureEnabled()) {
-            FDebugRenderer::RecordLineTrace(InStart, InEnd, bHit && OutHit.bBlockingHit, OutHit.Location, OutHit.Normal,
-                                            static_cast<uint8_t>(InChannel));
-        }
-        return bHit;
+            return PhysicsScene->LineTraceSingleByChannel(InStart, InEnd, InChannel, InIgnore, OutHit);
+        return false;
     }
 
     int32_t UWorld::LineTraceMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
@@ -682,6 +683,49 @@ namespace Leon {
 
         for (UPrimitiveComponent* gen : generators)
             gen->UpdateOverlaps(candidates);
+    }
+
+    void UWorld::EnsureTransientParticleEntity() {
+        if (TransientParticleEntity != entt::null && Registry.valid(TransientParticleEntity))
+            return;
+        TransientParticleEntity = Registry.create();
+        Registry.emplace<FParticleRenderComponent>(TransientParticleEntity);
+    }
+
+    void UWorld::TickTransientParticles(float InDeltaSeconds) {
+        if (TransientParticles.empty()) {
+            if (TransientParticleEntity != entt::null && Registry.valid(TransientParticleEntity)) {
+                auto& render = Registry.get<FParticleRenderComponent>(TransientParticleEntity);
+                render.Particles.clear();
+                render.bVisible = false;
+            }
+            return;
+        }
+        SimulateParticles(TransientParticles, InDeltaSeconds);
+        SyncTransientParticleRender();
+    }
+
+    void UWorld::SyncTransientParticleRender() {
+        EnsureTransientParticleEntity();
+        auto& render = Registry.get<FParticleRenderComponent>(TransientParticleEntity);
+        CopyParticlesForRender(TransientParticles, render.Particles);
+        render.bVisible = !render.Particles.empty();
+    }
+
+    bool UWorld::SpawnTransientParticles(const FParticleEmitterSettings& InSettings, const glm::vec3& InLocation) {
+        if (static_cast<int32_t>(TransientParticles.size()) >= kMaxTransientParticles)
+            return false;
+        EnsureTransientParticleEntity();
+        bool bSpawned = false;
+        if (InSettings.Kind == EParticleKind::Beam) {
+            bSpawned = AppendBeamParticle(TransientParticles, InSettings, InLocation, kMaxTransientParticles);
+        } else {
+            bSpawned = AppendBurstParticles(TransientParticles, InSettings, InLocation, TransientParticleRng,
+                                            kMaxTransientParticles) > 0;
+        }
+        if (bSpawned)
+            SyncTransientParticleRender();
+        return bSpawned;
     }
 
 } // namespace Leon

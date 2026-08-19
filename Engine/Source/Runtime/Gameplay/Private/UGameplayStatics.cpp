@@ -58,20 +58,28 @@ namespace Leon {
         return pc ? pc->GetPawn() : nullptr;
     }
 
-    UParticleComponent* UGameplayStatics::SpawnEmitterAtLocation(UWorld* InWorld,
-                                                                 const FParticleEmitterSettings& InSettings,
-                                                                 const glm::vec3& InLocation) {
+    bool UGameplayStatics::SpawnEmitterAtLocation(UWorld* InWorld,
+                                                  const FParticleEmitterSettings& InSettings,
+                                                  const glm::vec3& InLocation) {
         if (!InWorld)
-            return nullptr;
+            return false;
+        if (InSettings.bOneShot)
+            return InWorld->SpawnTransientParticles(InSettings, InLocation);
+        int32_t live = 0;
+        for (auto entity : InWorld->GetRegistry().view<FParticleRenderComponent>()) {
+            (void)entity;
+            if (++live >= kMaxLiveParticleEmitters)
+                return false;
+        }
         AActor* actor = InWorld->SpawnActor<AActor>("ParticleEmitter");
         if (!actor)
-            return nullptr;
+            return false;
         actor->SetActorLocation(InLocation);
         auto emitter = actor->AddActorComponent<UParticleComponent>("Particles");
         emitter->SetEmitterSettings(InSettings);
         emitter->SetDestroyOwnerWhenDone(true);
         emitter->Activate(true);
-        return emitter.get();
+        return true;
     }
 
     void UGameplayStatics::PlaySound2D(const std::string& InSoundPath, float InVolume) {

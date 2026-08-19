@@ -10,6 +10,7 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/Game/ALeonTournamentPlayerController.cpp
     Source/LeonTournament/Private/Game/ALeonTournamentPlayerState.cpp
     Source/LeonTournament/Private/Game/ALeonTournamentBotController.cpp
+    Source/LeonTournament/Private/Game/FLeonTournamentKillFeed.cpp
     Source/LeonTournament/Private/Combat/ALeonTournamentWeapon.cpp
     Source/LeonTournament/Private/Combat/FLeonTournamentWeaponVfx.cpp
     Source/LeonTournament/Private/Combat/ALeonTournamentProjectile.cpp

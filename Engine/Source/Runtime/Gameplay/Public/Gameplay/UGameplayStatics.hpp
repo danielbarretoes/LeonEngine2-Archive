@@ -41,8 +41,8 @@ namespace Leon {
         static AGameStateBase* GetGameState(UWorld* InWorldContext);
         static APawn* GetPlayerPawn(UWorld* InWorldContext, int32_t InPlayerIndex = 0);
 
-        static UParticleComponent* SpawnEmitterAtLocation(UWorld* InWorld, const FParticleEmitterSettings& InSettings,
-                                                          const glm::vec3& InLocation);
+        static bool SpawnEmitterAtLocation(UWorld* InWorld, const FParticleEmitterSettings& InSettings,
+                                           const glm::vec3& InLocation);
 
         /** Fire-and-forget 2D one-shot from a virtual/physical sound path. */
         static void PlaySound2D(const std::string& InSoundPath, float InVolume = 1.0f);

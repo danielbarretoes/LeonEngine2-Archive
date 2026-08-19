@@ -191,7 +191,6 @@ namespace Leon {
         spawnWeapon("LabPU_Shotgun", ELeonTournamentWeaponId::Shotgun, {-2.0f, 1.0f, 4.0f});
         spawnWeapon("LabPU_Rocket", ELeonTournamentWeaponId::Rocket, {0.0f, 1.0f, 4.5f});
         spawnWeapon("LabPU_Laser", ELeonTournamentWeaponId::Laser, {2.0f, 1.0f, 4.0f});
-        spawnWeapon("LabPU_Grenade", ELeonTournamentWeaponId::Grenade, {4.0f, 1.0f, 3.0f});
         spawnWeapon("LabPU_Flamer", ELeonTournamentWeaponId::Flamethrower, {5.0f, 1.0f, 1.5f});
     }
 

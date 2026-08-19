@@ -2,6 +2,8 @@
 
 #include "Engine/UWorld.hpp"
 #include "Engine/FGraphicsQuality.hpp"
+#include "RHI/FRenderer.hpp"
+#include "Assets/UAssetManager.hpp"
 #include "Renderer/FShadowTypes.hpp"
 #include "Renderer/FPlanarReflectionTypes.hpp"
 
@@ -45,6 +47,7 @@ TEST_SUITE("LeonTournament graphics quality") {
         CHECK(low.PointShadowResolution == 256);
         CHECK(low.MaxShadowedPointLights == 1);
         CHECK_FALSE(low.bEnableFXAA);
+        CHECK(low.MaxTextureResolution == 256);
 
         const auto medium = FGraphicsQuality::GetPreset(EGraphicsQuality::Medium);
         CHECK(medium.ShadowMapResolution == 1024);
@@ -56,6 +59,7 @@ TEST_SUITE("LeonTournament graphics quality") {
         CHECK(medium.PlanarQuality == EPlanarReflectionQuality::Low);
         CHECK(medium.bEnableSSAO);
         CHECK(medium.bEnableBloom);
+        CHECK(medium.MaxTextureResolution == 512);
 
         const auto high = FGraphicsQuality::GetPreset(EGraphicsQuality::High);
         CHECK(high.ShadowMapResolution == 2048);
@@ -67,6 +71,39 @@ TEST_SUITE("LeonTournament graphics quality") {
         CHECK(high.PlanarQuality == EPlanarReflectionQuality::Epic);
         CHECK(high.bEnableSSAO);
         CHECK(high.bEnableBloom);
+        CHECK(high.MaxTextureResolution == 1024);
+    }
+
+    TEST_CASE("ApplyToWorld sets max texture resolution") {
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
+        using Leon::FRenderer;
+
+        auto world = Leon::UWorld::Create("TextureQualityWorld");
+        REQUIRE(world != nullptr);
+
+        FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::Low);
+        CHECK(FRenderer::GetMaxTextureResolution() == 256);
+
+        FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::Medium);
+        CHECK(FRenderer::GetMaxTextureResolution() == 512);
+
+        FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::High);
+        CHECK(FRenderer::GetMaxTextureResolution() == 1024);
+    }
+
+    TEST_CASE("ReloadAllTextures keeps max resolution and does not crash headless") {
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
+        using Leon::FRenderer;
+        using Leon::UAssetManager;
+
+        auto world = Leon::UWorld::Create("TextureReloadWorld");
+        REQUIRE(world != nullptr);
+        FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::Low);
+        CHECK(FRenderer::GetMaxTextureResolution() == 256);
+        UAssetManager::ReloadAllTextures(world.get());
+        CHECK(FRenderer::GetMaxTextureResolution() == 256);
     }
 
     TEST_CASE("ApplyToWorld writes pending renderer defaults") {
@@ -105,7 +142,16 @@ TEST_SUITE("LeonTournament graphics quality") {
         const std::string label =
             FGraphicsQuality::FormatVRAMLabel(EGraphicsQuality::High, 1280, 720);
         CHECK(label.find("HIGH") != std::string::npos);
+        CHECK(label.find("Tex 1024px") != std::string::npos);
         CHECK(label.find("MB") != std::string::npos);
+    }
+
+    TEST_CASE("FormatPresetLabel exposes texture limits") {
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
+        CHECK(FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Low).find("Tex 256px") != std::string::npos);
+        CHECK(FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Medium).find("Tex 512px") != std::string::npos);
+        CHECK(FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::High).find("Tex 1024px") != std::string::npos);
     }
 
     TEST_CASE("PersistToIniFile patches live keys and keeps comments") {
@@ -136,6 +182,7 @@ TEST_SUITE("LeonTournament graphics quality") {
         in.close();
         CHECK(text.find("; keep this comment") != std::string::npos);
         CHECK(text.find("GraphicsQuality=Low") != std::string::npos);
+        CHECK(text.find("MaxTextureResolution=256") != std::string::npos);
         CHECK(text.find("ShadowMapResolution=512") != std::string::npos);
         CHECK(text.find("EnablePlanarReflection=False") != std::string::npos);
         CHECK(text.find("EnableSSAO=False") != std::string::npos);

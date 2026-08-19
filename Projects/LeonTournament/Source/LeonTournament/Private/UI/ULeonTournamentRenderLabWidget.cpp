@@ -7,7 +7,9 @@
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/FGraphicsQuality.hpp"
 #include "Core/FApplication.hpp"
+#include "RHI/FRenderer.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FInputSettings.hpp"
 #include "UMG/FUIRenderer.hpp"
@@ -229,7 +231,7 @@ namespace Leon {
         y += PresetHighBtn->GetSize().y + 10.0f;
 
         section("RLShadowHdr", "SHADOWS (tap to cycle)");
-        ShadowResBtn = MakeButton("RLShadowRes", "Res: 2048", kFsCaption, btnW, btnH);
+        ShadowResBtn = MakeButton("RLShadowRes", "CSM: 2048", kFsCaption, btnW, btnH);
         ShadowResBtn->OnClicked.AddLambda([this]() { CycleShadowResolution(); });
         PlaceButtonTL(*Root, ShadowResBtn, leftX, y);
         y += ShadowResBtn->GetSize().y + gap;
@@ -329,6 +331,7 @@ namespace Leon {
         p.bEnableSSAO = world->GetPendingSSAOEnabled();
         p.bEnableBloom = world->GetPendingBloomEnabled();
         p.bEnableFXAA = world->GetPendingFXAAEnabled();
+        p.MaxTextureResolution = FRenderer::GetMaxTextureResolution();
         return p;
     }
 
@@ -351,8 +354,12 @@ namespace Leon {
         if (PresetHighBtn)
             PresetHighBtn->SetNormalColor(q == EGraphicsQuality::High ? selected : idle);
 
+        SetButtonLabel(PresetLowBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Low));
+        SetButtonLabel(PresetMedBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Medium));
+        SetButtonLabel(PresetHighBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::High));
+
         char buf[64];
-        std::snprintf(buf, sizeof(buf), "Res: %u", p.ShadowMapResolution);
+        std::snprintf(buf, sizeof(buf), "CSM: %u", p.ShadowMapResolution);
         SetButtonLabel(ShadowResBtn, buf);
         std::snprintf(buf, sizeof(buf), "Cascades: %u", p.CascadeCount);
         SetButtonLabel(CascadeBtn, buf);
@@ -398,8 +405,9 @@ namespace Leon {
             } else {
                 const auto& sh = renderer->GetShadowSettings();
                 const auto& pp = renderer->GetPostProcessSettings();
-                std::snprintf(live, sizeof(live), "LIVE %ux CSM%u %s d%.0f  P:%s AO:%s BL:%.2f FX:%s",
+                std::snprintf(live, sizeof(live), "LIVE %ux CSM%u %s d%.0f  Tex:%u  P:%s AO:%s BL:%.2f FX:%s",
                               sh.CascadeResolution, sh.CascadeCount, FilterLabel(sh.FilterMode), sh.ShadowDistance,
+                              FRenderer::GetMaxTextureResolution(),
                               renderer->IsPlanarReflectionEnabled() ? "ON" : "off", pp.bSSAOEnabled ? "ON" : "off",
                               pp.BloomIntensity, pp.bFXAAEnabled ? "ON" : "off");
                 StatusText->SetText(live);

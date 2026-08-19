@@ -49,7 +49,7 @@ namespace Leon {
     }
 
     void UParticleComponent::SpawnBurst(const glm::vec3& InOrigin) {
-        const int32_t count = std::max(1, Settings.BurstCount);
+        const int32_t count = std::clamp(Settings.BurstCount, 1, kMaxBurstParticles);
         Particles.reserve(Particles.size() + static_cast<size_t>(count));
         for (int32_t i = 0; i < count; ++i) {
             FParticleInstance p;

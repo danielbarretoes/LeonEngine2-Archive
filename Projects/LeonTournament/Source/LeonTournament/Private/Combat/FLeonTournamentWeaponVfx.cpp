@@ -172,10 +172,10 @@ namespace Leon {
 
         FParticleEmitterSettings flash;
         flash.Kind = EParticleKind::SpriteBurst;
-        flash.BurstCount = 28;
-        flash.Lifetime = 0.1f;
-        flash.Size = 0.08f;
-        flash.SizeEnd = 0.22f;
+        flash.BurstCount = 18;
+        flash.Lifetime = 0.08f;
+        flash.Size = 0.07f;
+        flash.SizeEnd = 0.18f;
         flash.Color = {1.0f, 0.85f, 0.35f, 1.0f};
         flash.ColorEnd = {1.0f, 0.35f, 0.05f, 0.0f};
         flash.VelocityMin = n * 2.0f + glm::vec3(-1.5f, -0.4f, -1.5f);
@@ -186,10 +186,10 @@ namespace Leon {
 
         FParticleEmitterSettings smoke;
         smoke.Kind = EParticleKind::SpriteBurst;
-        smoke.BurstCount = 14;
-        smoke.Lifetime = 0.35f;
-        smoke.Size = 0.1f;
-        smoke.SizeEnd = 0.35f;
+        smoke.BurstCount = 8;
+        smoke.Lifetime = 0.28f;
+        smoke.Size = 0.08f;
+        smoke.SizeEnd = 0.28f;
         smoke.Color = {0.35f, 0.3f, 0.25f, 0.65f};
         smoke.ColorEnd = {0.08f, 0.07f, 0.06f, 0.0f};
         smoke.VelocityMin = n * 0.5f + glm::vec3(-0.5f, 0.2f, -0.5f);
@@ -199,7 +199,7 @@ namespace Leon {
             ++spawnCount;
 
         if (ApplySpread) {
-            for (int i = 0; i < 6; ++i) {
+            for (int i = 0; i < 2; ++i) {
                 const glm::vec3 dir = ApplySpread(n, InCurrentSpreadDeg + Ctx.Config->PelletSpreadDeg);
                 FParticleEmitterSettings tracer;
                 tracer.Kind = EParticleKind::Beam;
@@ -225,53 +225,43 @@ namespace Leon {
         if (!Ctx.World || !Ctx.Config)
             return spawnCount;
 
+        static uint32_t sFlameVfxTick = 0;
+        if ((++sFlameVfxTick & 1u) != 0u)
+            return spawnCount;
+
         const glm::vec3 n = glm::length(InDir) > 1e-5f ? glm::normalize(InDir) : glm::vec3(0.0f, 0.0f, 1.0f);
-        // Lifetime * forward speed ≈ Config.Range (2 m) so the spray visually matches damage reach.
         const float reach = std::max(0.5f, Ctx.Config->Range);
-        const float life = 0.42f;
+        const float life = 0.38f;
         const float speedMin = reach / life * 0.85f;
         const float speedMax = reach / life * 1.15f;
 
         FParticleEmitterSettings flame;
         flame.Kind = EParticleKind::SpriteBurst;
-        flame.BurstCount = 48;
+        flame.BurstCount = 12;
         flame.Lifetime = life;
-        flame.Size = 0.18f;
-        flame.SizeEnd = 0.55f;
+        flame.Size = 0.16f;
+        flame.SizeEnd = 0.48f;
         flame.Color = {1.0f, 0.55f, 0.08f, 1.0f};
         flame.ColorEnd = {0.35f, 0.05f, 0.0f, 0.0f};
-        flame.VelocityMin = n * speedMin + glm::vec3(-1.8f, -0.35f, -1.8f);
-        flame.VelocityMax = n * speedMax + glm::vec3(1.8f, 2.0f, 1.8f);
+        flame.VelocityMin = n * speedMin + glm::vec3(-1.4f, -0.3f, -1.4f);
+        flame.VelocityMax = n * speedMax + glm::vec3(1.4f, 1.6f, 1.4f);
         flame.Gravity = {0.0f, 1.8f, 0.0f};
         if (UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, flame, InMuzzle + n * 0.2f))
             ++spawnCount;
 
-        FParticleEmitterSettings core;
-        core.Kind = EParticleKind::SpriteBurst;
-        core.BurstCount = 22;
-        core.Lifetime = life * 0.85f;
-        core.Size = 0.12f;
-        core.SizeEnd = 0.38f;
-        core.Color = {1.0f, 0.85f, 0.25f, 1.0f};
-        core.ColorEnd = {1.0f, 0.25f, 0.02f, 0.0f};
-        core.VelocityMin = n * (speedMin * 0.9f) + glm::vec3(-0.9f, -0.15f, -0.9f);
-        core.VelocityMax = n * (speedMax * 1.05f) + glm::vec3(0.9f, 1.1f, 0.9f);
-        core.Gravity = {0.0f, 1.2f, 0.0f};
-        if (UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, core, InMuzzle + n * 0.15f))
-            ++spawnCount;
-
         FParticleEmitterSettings smoke;
         smoke.Kind = EParticleKind::SpriteBurst;
-        smoke.BurstCount = 18;
-        smoke.Lifetime = 0.55f;
-        smoke.Size = 0.22f;
-        smoke.SizeEnd = 0.65f;
-        smoke.Color = {0.28f, 0.18f, 0.1f, 0.6f};
+        smoke.BurstCount = 4;
+        smoke.Lifetime = 0.45f;
+        smoke.Size = 0.18f;
+        smoke.SizeEnd = 0.52f;
+        smoke.Color = {0.28f, 0.18f, 0.1f, 0.55f};
         smoke.ColorEnd = {0.05f, 0.05f, 0.05f, 0.0f};
-        smoke.VelocityMin = n * (speedMin * 0.55f) + glm::vec3(-1.0f, 0.5f, -1.0f);
-        smoke.VelocityMax = n * (speedMax * 0.75f) + glm::vec3(1.0f, 2.2f, 1.0f);
+        smoke.VelocityMin = n * (speedMin * 0.55f) + glm::vec3(-0.8f, 0.4f, -0.8f);
+        smoke.VelocityMax = n * (speedMax * 0.75f) + glm::vec3(0.8f, 1.8f, 0.8f);
         smoke.Gravity = {0.0f, 2.4f, 0.0f};
-        UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, smoke, InMuzzle + n * 0.35f);
+        if (UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, smoke, InMuzzle + n * 0.35f))
+            ++spawnCount;
 
         if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
             UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 0.35f);

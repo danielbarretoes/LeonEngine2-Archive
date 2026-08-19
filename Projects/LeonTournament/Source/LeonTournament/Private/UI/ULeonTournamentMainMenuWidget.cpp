@@ -210,7 +210,7 @@ namespace Leon {
 
         float settingsY = stackY;
         SettingsHint = std::make_shared<UTextBlock>("SettingsHint");
-        SettingsHint->SetText("Estimated VRAM at this resolution");
+        SettingsHint->SetText("Texture limit + estimated VRAM at this resolution");
         SettingsHint->SetFontScale(kFsCaption);
         SettingsHint->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
         PlaceTextTL(*Root, SettingsHint, leftX, settingsY);

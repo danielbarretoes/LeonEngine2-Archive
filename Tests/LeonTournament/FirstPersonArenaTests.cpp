@@ -333,11 +333,20 @@ namespace Leon {
             FParticleEmitterSettings settings;
             settings.BurstCount = 4;
             settings.Lifetime = 0.05f;
-            auto* emitter = UGameplayStatics::SpawnEmitterAtLocation(world.get(), settings, {0.0f, 1.0f, 0.0f});
-            REQUIRE(emitter);
-            CHECK(emitter->GetParticleCount() == 4);
+            CHECK(UGameplayStatics::SpawnEmitterAtLocation(world.get(), settings, {0.0f, 1.0f, 0.0f}));
+            CHECK(world->GetTransientParticleCount() == 4);
             world->Tick(FTimestep(0.02f));
-            CHECK(emitter->GetParticleCount() > 0);
+            CHECK(world->GetTransientParticleCount() > 0);
+        }
+
+        TEST_CASE("emitter burst count is clamped") {
+            auto world = UWorld::Create("VfxBurstCap");
+            world->BeginPlay();
+            FParticleEmitterSettings settings;
+            settings.BurstCount = 200;
+            settings.Lifetime = 0.2f;
+            CHECK(UGameplayStatics::SpawnEmitterAtLocation(world.get(), settings, {0.0f, 1.0f, 0.0f}));
+            CHECK(world->GetTransientParticleCount() == kMaxBurstParticles);
         }
     }
 
@@ -346,13 +355,16 @@ namespace Leon {
             FMatchWorld f;
             CHECK(f.GM->GetMatchConfig().MaxPlayers == 12);
             CHECK(f.GM->GetMatchConfig().MaxTeamSize == 6);
-            CHECK(f.GM->GetMatchConfig().ScoreLimit == 25);
+            CHECK(f.GM->GetMatchConfig().ScoreLimit == 15);
+            CHECK(f.GM->GetMatchConfig().MatchDurationSeconds == doctest::Approx(420.0f));
+            CHECK(f.GM->GetMatchConfig().RespawnDelaySeconds == doctest::Approx(1.0f));
+            CHECK(f.GM->GetMatchConfig().SpawnProtectionSeconds == doctest::Approx(2.5f));
             f.GM->EnterLobby();
             CHECK(f.GM->CountBotsOnTeam(ELeonTournamentTeam::Team1) == 2);
             CHECK(f.GM->CountBotsOnTeam(ELeonTournamentTeam::Team2) == 2);
         }
 
-        TEST_CASE("score limit 25 ends the match") {
+        TEST_CASE("score limit 15 ends the match") {
             FMatchWorld f;
             f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
             auto* killer = f.World->SpawnActor<ALeonTournamentCharacter>("K");
@@ -367,7 +379,7 @@ namespace Leon {
             pcv->SetPlayerState(psv);
             pck->Possess(killer);
             pcv->Possess(victim);
-            f.GS->SetTeam1Kills(24);
+            f.GS->SetTeam1Kills(14);
             FDamageInfo info;
             info.DamageAmount = 200.0f;
             info.Instigator = killer;

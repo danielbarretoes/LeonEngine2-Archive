@@ -92,11 +92,14 @@ namespace Leon {
         void OnNextMap();
         void OnPrevGameMode();
         void OnNextGameMode();
+        void OnPrevBotDifficulty();
+        void OnNextBotDifficulty();
         void OnAdjustBotsTeam1(int InDelta);
         void OnAdjustBotsTeam2(int InDelta);
         void RefreshBotLabels();
         void RefreshMapLabel();
         void RefreshGameModeLabel();
+        void RefreshBotDifficultyLabel();
         TRef<UCanvasPanel> Root;
         TRef<UImage> Panel;
         TRef<UButton> PrevCharBtn;
@@ -109,6 +112,7 @@ namespace Leon {
         float DesignContentHeight = 0.0f;
         TRef<UTextBlock> MapLabel;
         TRef<UTextBlock> GameModeLabel;
+        TRef<UTextBlock> BotDifficultyLabel;
         TRef<UTextBlock> TitleText;
         TRef<UTextBlock> BotsTeam1Label;
         TRef<UTextBlock> BotsTeam2Label;
@@ -174,6 +178,9 @@ namespace Leon {
         TRef<UTextBlock> KillText;
         TRef<UTextBlock> BannerText;
         TRef<UTextBlock> HintText;
+        TRef<UTextBlock> DodgeCooldownText;
+        std::array<TRef<UTextBlock>, 8> KillFeedLines{};
+        std::array<TRef<UImage>, 8> DamageIndicators{};
         TRef<UImage> DamageFlash;
         int LastCountdownSecond = -1;
         bool bPlayedFightBanner = false;
