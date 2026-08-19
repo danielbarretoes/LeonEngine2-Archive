@@ -57,6 +57,8 @@ namespace Leon {
                                              ProjectCascadeCount, ProjectShadowDistance, ProjectPlanarReflectionQuality,
                                              ProjectPlanarReflectionResolutionScale);
         newWorld->SetProjectSSAODefaults(bProjectSSAOEnabled, ProjectSSAORadius, ProjectSSAOIntensity, ProjectSSAOBias);
+        newWorld->SetProjectPostProcessToggles(bProjectBloomEnabled, bProjectFXAAEnabled);
+        newWorld->SetProjectShadowFilter(ProjectShadowFilter);
         if (GameInstance)
             newWorld->SetNetMode(GameInstance->GetNetMode());
 

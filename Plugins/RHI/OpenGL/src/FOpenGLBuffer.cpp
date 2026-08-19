@@ -8,17 +8,17 @@ namespace Leon {
     FOpenGLVertexBuffer::FOpenGLVertexBuffer(unsigned int InSize) : AllocatedBytes(InSize) {
         glCreateBuffers(1, &RendererID);
         glNamedBufferData(RendererID, InSize, nullptr, GL_DYNAMIC_DRAW);
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::VertexBuffer);
     }
 
     FOpenGLVertexBuffer::FOpenGLVertexBuffer(const float* InVertices, unsigned int InSize) : AllocatedBytes(InSize) {
         glCreateBuffers(1, &RendererID);
         glNamedBufferStorage(RendererID, InSize, InVertices, 0);
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::VertexBuffer);
     }
 
     FOpenGLVertexBuffer::~FOpenGLVertexBuffer() {
-        FRenderer::OnGPUFree(AllocatedBytes);
+        FRenderer::OnGPUFree(AllocatedBytes, EGPUMemoryCategory::VertexBuffer);
         glDeleteBuffers(1, &RendererID);
     }
 
@@ -39,11 +39,11 @@ namespace Leon {
         : Count(InCount), AllocatedBytes(InCount * sizeof(uint32_t)) {
         glCreateBuffers(1, &RendererID);
         glNamedBufferStorage(RendererID, AllocatedBytes, InIndices, 0);
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::IndexBuffer);
     }
 
     FOpenGLIndexBuffer::~FOpenGLIndexBuffer() {
-        FRenderer::OnGPUFree(AllocatedBytes);
+        FRenderer::OnGPUFree(AllocatedBytes, EGPUMemoryCategory::IndexBuffer);
         glDeleteBuffers(1, &RendererID);
     }
 

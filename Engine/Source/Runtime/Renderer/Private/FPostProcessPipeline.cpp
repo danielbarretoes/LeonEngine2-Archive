@@ -69,6 +69,7 @@ namespace Leon {
             mipSpec.Width = currentWidth;
             mipSpec.Height = currentHeight;
             mipSpec.Attachments = {EFramebufferTextureFormat::RGBA16F};
+            mipSpec.DebugName = "Bloom";
 
             BloomDownsampleFBOs[i] = FFramebuffer::Create(mipSpec);
             BloomUpsampleFBOs[i] = FFramebuffer::Create(mipSpec);
@@ -82,6 +83,7 @@ namespace Leon {
         ldrSpec.Width = InWidth;
         ldrSpec.Height = InHeight;
         ldrSpec.Attachments = {EFramebufferTextureFormat::RGBA8};
+        ldrSpec.DebugName = "ToneMap";
         ToneMappedFBO = FFramebuffer::Create(ldrSpec);
 
         const uint32_t halfW = std::max(InWidth / 2, 1u);
@@ -90,6 +92,7 @@ namespace Leon {
         ssaoSpec.Width = halfW;
         ssaoSpec.Height = halfH;
         ssaoSpec.Attachments = {EFramebufferTextureFormat::RGBA8};
+        ssaoSpec.DebugName = "SSAO";
         SSAOFBO = FFramebuffer::Create(ssaoSpec);
         SSAOBlurFBO = FFramebuffer::Create(ssaoSpec);
 
@@ -97,6 +100,7 @@ namespace Leon {
         ssaoColorSpec.Width = InWidth;
         ssaoColorSpec.Height = InHeight;
         ssaoColorSpec.Attachments = {EFramebufferTextureFormat::RGBA16F};
+        ssaoColorSpec.DebugName = "SSAO";
         SSAOCompositeFBO = FFramebuffer::Create(ssaoColorSpec);
     }
 

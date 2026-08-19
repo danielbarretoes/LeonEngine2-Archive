@@ -4,7 +4,6 @@
 #include "Core/FLog.hpp"
 #include "Renderer/FColorSpace.hpp"
 #include "RHI/FRenderer.hpp"
-#include "RHI/FRenderer.hpp"
 #include <stb_image.h>
 #include <cmath>
 #include <algorithm>
@@ -17,7 +16,7 @@ namespace Leon {
             glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
             glTextureParameterf(InTexture, GL_TEXTURE_MAX_ANISOTROPY, std::min(16.0f, std::max(1.0f, maxAniso)));
         }
-    }
+    } // namespace
 
     static uint32_t CalculateMipLevels(uint32_t InWidth, uint32_t InHeight) {
         return static_cast<uint32_t>(std::floor(std::log2(std::max(InWidth, InHeight)))) + 1;
@@ -40,7 +39,7 @@ namespace Leon {
         glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, GL_REPEAT);
         bIsLoaded = true;
 
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
     }
 
     // -------------------------------------------------------------------------
@@ -82,7 +81,7 @@ namespace Leon {
         glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         bIsLoaded = true;
 
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
     }
 
     // -------------------------------------------------------------------------
@@ -124,7 +123,7 @@ namespace Leon {
                 }
             }
 
-            FRenderer::OnGPUAlloc(AllocatedBytes);
+            FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
             LE_CORE_INFO("Loaded Native Texture: {0} ({1}x{2}, {3} mips, {4} KB)", InPath, Width, Height, mipLevels,
                          AllocatedBytes / 1024);
             return;
@@ -156,12 +155,11 @@ namespace Leon {
             glTextureParameteri(RendererID, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
             if (!hdrData.Pixels.empty()) {
-                glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_FLOAT,
-                                    hdrData.Pixels.data());
+                glTextureSubImage2D(RendererID, 0, 0, 0, Width, Height, DataFormat, GL_FLOAT, hdrData.Pixels.data());
                 glGenerateTextureMipmap(RendererID);
             }
 
-            FRenderer::OnGPUAlloc(AllocatedBytes);
+            FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
             LE_CORE_INFO("Loaded Native HDR Texture: {0} ({1}x{2}, RGBA32F, {3} KB)", InPath, Width, Height,
                          AllocatedBytes / 1024);
             return;
@@ -199,7 +197,7 @@ namespace Leon {
             glGenerateTextureMipmap(RendererID);
 
             stbi_image_free(data);
-            FRenderer::OnGPUAlloc(AllocatedBytes);
+            FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
 
             LE_CORE_INFO("Loaded HDR Environment Map: {0} ({1}x{2}, RGBA32F, {3} KB)", InPath, Width, Height,
                          AllocatedBytes / 1024);
@@ -259,12 +257,12 @@ namespace Leon {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
         stbi_image_free(data);
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Texture2D);
     }
 
     FOpenGLTexture2D::~FOpenGLTexture2D() {
         if (RendererID) {
-            FRenderer::OnGPUFree(AllocatedBytes);
+            FRenderer::OnGPUFree(AllocatedBytes, EGPUMemoryCategory::Texture2D);
             glDeleteTextures(1, &RendererID);
         }
     }

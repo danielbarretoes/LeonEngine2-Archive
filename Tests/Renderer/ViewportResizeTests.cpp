@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 #include "GPU/HeadlessGLContext.hpp"
 #include "RHI/FFramebuffer.hpp"
+#include "RHI/FRenderer.hpp"
 
 TEST_SUITE("Renderer pipeline - viewport / FBO resize") {
 
@@ -27,5 +28,30 @@ TEST_SUITE("Renderer pipeline - viewport / FBO resize") {
         fb->Resize(800, 600);
         CHECK(fb->GetSpecification().Width == 800);
         CHECK(fb->GetSpecification().Height == 600);
+    }
+
+    TEST_CASE("Named framebuffer VRAM is tracked and released") {
+        auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
+        REQUIRE(gl.IsValid());
+
+        auto& stats = Leon::FRenderer::GetStats();
+        const size_t fboBefore = stats.GPUMemory[static_cast<size_t>(Leon::EGPUMemoryCategory::Framebuffer)].Bytes;
+
+        {
+            Leon::FFramebufferSpecification spec;
+            spec.Width = 64;
+            spec.Height = 64;
+            spec.Attachments = {Leon::EFramebufferTextureFormat::RGBA8};
+            spec.DebugName = "VRAMTest";
+            auto fb = Leon::FFramebuffer::Create(spec);
+            REQUIRE(fb != nullptr);
+            REQUIRE(stats.NamedGPUMemory.contains("VRAMTest"));
+            CHECK(stats.NamedGPUMemory.at("VRAMTest").Bytes == 64ull * 64ull * 4ull);
+            CHECK(stats.GPUMemory[static_cast<size_t>(Leon::EGPUMemoryCategory::Framebuffer)].Bytes ==
+                  fboBefore + 64ull * 64ull * 4ull);
+        }
+
+        CHECK_FALSE(stats.NamedGPUMemory.contains("VRAMTest"));
+        CHECK(stats.GPUMemory[static_cast<size_t>(Leon::EGPUMemoryCategory::Framebuffer)].Bytes == fboBefore);
     }
 }

@@ -6,6 +6,7 @@
 #include "Assets/FAssetTypes.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "Renderer/FPlanarReflectionTypes.hpp"
+#include "Renderer/FShadowTypes.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/ENetTypes.hpp"
 #include "Engine/FTimerManager.hpp"
@@ -133,10 +134,15 @@ namespace Leon {
                                         EPlanarReflectionQuality InPlanarQuality = EPlanarReflectionQuality::Epic,
                                         float InPlanarResolutionScale = 0.0f);
         void SetProjectSSAODefaults(bool bInEnabled, float InRadius, float InIntensity, float InBias);
+        void SetProjectPostProcessToggles(bool bInBloomEnabled, bool bInFXAAEnabled);
+        void SetProjectShadowFilter(EShadowFilterMode InFilter);
         bool GetPendingSSAOEnabled() const { return bPendingSSAOEnabled; }
         float GetPendingSSAORadius() const { return PendingSSAORadius; }
         float GetPendingSSAOIntensity() const { return PendingSSAOIntensity; }
         float GetPendingSSAOBias() const { return PendingSSAOBias; }
+        bool GetPendingBloomEnabled() const { return bPendingBloomEnabled; }
+        bool GetPendingFXAAEnabled() const { return bPendingFXAAEnabled; }
+        EShadowFilterMode GetPendingShadowFilter() const { return PendingShadowFilter; }
 
         bool HasPendingRendererDefaults() const { return bHasPendingRendererDefaults; }
         uint32_t GetPendingShadowMapResolution() const { return PendingShadowMapResolution; }
@@ -162,6 +168,12 @@ namespace Leon {
         int32_t SweepMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
                                     ECollisionChannel InChannel, AActor* InIgnore,
                                     std::vector<FHitResult>& OutHits) const;
+        bool SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                         float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                         FHitResult& OutHit) const;
+        int32_t SweepCapsuleMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                           float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                           std::vector<FHitResult>& OutHits) const;
         bool OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
                                      AActor* InIgnore) const;
         int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,
@@ -208,6 +220,9 @@ namespace Leon {
         float PendingSSAORadius = 0.5f;
         float PendingSSAOIntensity = 1.0f;
         float PendingSSAOBias = 0.025f;
+        bool bPendingBloomEnabled = true;
+        bool bPendingFXAAEnabled = true;
+        EShadowFilterMode PendingShadowFilter = EShadowFilterMode::PCF3x3;
 
         friend class FMapSerializer;
     };

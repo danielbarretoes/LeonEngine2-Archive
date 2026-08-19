@@ -37,13 +37,8 @@ namespace Leon {
             Stats.VertexCount += InVertexCount;
         }
 
-        static void OnGPUAlloc(size_t InBytes) { Stats.AllocatedGPUMemoryBytes += InBytes; }
-        static void OnGPUFree(size_t InBytes) {
-            if (Stats.AllocatedGPUMemoryBytes >= InBytes)
-                Stats.AllocatedGPUMemoryBytes -= InBytes;
-            else
-                Stats.AllocatedGPUMemoryBytes = 0;
-        }
+        static void OnGPUAlloc(size_t InBytes, EGPUMemoryCategory InCategory, const char* InLabel = nullptr);
+        static void OnGPUFree(size_t InBytes, EGPUMemoryCategory InCategory, const char* InLabel = nullptr);
         static size_t GetAllocatedGPUMemory() { return Stats.AllocatedGPUMemoryBytes; }
 
         static ERenderAPI GetAPI() { return IRenderAPI::GetAPI(); }

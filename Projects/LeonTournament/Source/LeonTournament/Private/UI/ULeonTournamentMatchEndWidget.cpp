@@ -129,10 +129,22 @@ namespace Leon {
 
         SetWidgetTree(Root);
         SetSize({1280, 720});
+        ApplyViewportLayout();
+    }
+
+    void ULeonTournamentMatchEndWidget::ApplyViewportLayout() {
+        if (!Root)
+            return;
+        SetSize(FLeonTournamentUILayout::ResolveViewportSize(Root.get()));
+        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport);
     }
 
     void ULeonTournamentMatchEndWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
+        const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
+        const float scale = FUILayout::LayoutScale(vp.x, vp.y);
+        if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
+            ApplyViewportLayout();
         if (GamepadEdge(GamepadButton::A, bPadAWasDown) || GamepadEdge(GamepadButton::Start, bPadStartWasDown))
             OnReturn();
         auto* gs = GS(OwningPlayer);

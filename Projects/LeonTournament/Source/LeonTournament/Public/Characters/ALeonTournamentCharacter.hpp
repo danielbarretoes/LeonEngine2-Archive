@@ -101,8 +101,6 @@ namespace Leon {
         void ApplyLookRotation();
         void UpdatePresentationVisibility();
         void UpdateTeamOutline();
-        void BeginDeathRagdoll();
-        void StopDeathRagdoll();
         void HandleWeaponSwitchInput();
         void HandleCameraToggleInput();
         void UpdateAimDownSights(float DeltaSeconds);
@@ -136,7 +134,6 @@ namespace Leon {
         bool bCameraToggleWasDown = false;
         bool bAimingDownSights = false;
         float DodgeCooldownRemaining = 0.0f;
-        glm::vec3 PendingDeathImpulse{0.0f, 4.0f, 0.0f};
         ELeonTournamentCharacterSkin CharacterSkin = ELeonTournamentCharacterSkin::YBot;
         /** Bind-pose sole Y in mesh space; filled on skin apply (vertex scan is too heavy per tick). */
         float CachedBindPoseFeetY = 0.0f;

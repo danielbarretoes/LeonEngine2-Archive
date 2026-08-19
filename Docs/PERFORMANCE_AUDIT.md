@@ -63,7 +63,9 @@ Approx. **2.6×** frame-time reduction vs baseline (21.9 → 7.9 ms) on the same
 | Opaque + planar | 1.7 + 0.9 ms | Render CPU; GPU remains ~1 ms |
 | Characters | 1.3 ms | Movement/queries much healthier than baseline |
 | Animation | 1.0 ms | Acceptable for 5 skinned pawns in Debug |
-| Shadows | 0.86 ms | Not the primary bottleneck |
+| Shadows | 0.86 ms | Not the primary bottleneck today; still no light-frustum cull (remediation P1) |
+
+GPU shadow cull is a known next win when scenes grow; current TDM remains **CPU-bound**. See [RENDERER_REMEDIATION.md](RENDERER_REMEDIATION.md).
 
 ## Validation checklist
 

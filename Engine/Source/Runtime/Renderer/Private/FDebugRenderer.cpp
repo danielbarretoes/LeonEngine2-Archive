@@ -84,6 +84,9 @@ namespace Leon {
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetLineWidth(1.0f);
 
         LineVertices.clear();
     }

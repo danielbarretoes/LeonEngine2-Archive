@@ -43,9 +43,9 @@ target_include_directories(LeonEngine_Jolt PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-target_link_libraries(LeonEngine_Jolt PUBLIC
-    Leon::Engine
-    Jolt
+target_link_libraries(LeonEngine_Jolt
+    PUBLIC Leon::Engine
+    PRIVATE Jolt
 )
 
 target_compile_features(LeonEngine_Jolt PUBLIC cxx_std_20)

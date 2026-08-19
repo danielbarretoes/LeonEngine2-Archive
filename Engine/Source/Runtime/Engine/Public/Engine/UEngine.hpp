@@ -95,6 +95,12 @@ namespace Leon {
 
         void SetGameModeConfig(const FGameModeConfig& InConfig) { GameModeConfig = InConfig; }
 
+        /** Keep travel/boot renderer defaults in sync with a runtime quality change. */
+        void SetProjectRendererConfig(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
+                                      uint32_t InCascadeCount, float InShadowDistance,
+                                      EPlanarReflectionQuality InPlanarQuality, bool bInSSAOEnabled,
+                                      bool bInBloomEnabled, bool bInFXAAEnabled, EShadowFilterMode InShadowFilter);
+
     private:
         int InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InConfigPath);
 
@@ -121,6 +127,9 @@ namespace Leon {
         float ProjectSSAORadius = 0.5f;
         float ProjectSSAOIntensity = 1.0f;
         float ProjectSSAOBias = 0.025f;
+        bool bProjectBloomEnabled = true;
+        bool bProjectFXAAEnabled = true;
+        EShadowFilterMode ProjectShadowFilter = EShadowFilterMode::PCF3x3;
 
         // Non-owning pointer to the active viewport layer so travel can rebind the world.
         FGameViewportLayer* ViewportLayer = nullptr;

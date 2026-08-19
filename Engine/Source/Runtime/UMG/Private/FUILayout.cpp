@@ -1,6 +1,16 @@
 #include "UMG/FUILayout.hpp"
+#include "Core/FApplication.hpp"
 
 namespace Leon {
+
+    glm::vec2 FUILayout::ResolveWindowSize() {
+        if (FApplication::HasInstance()) {
+            const auto& window = FApplication::Get().GetWindow();
+            if (window.GetWidth() > 0 && window.GetHeight() > 0)
+                return {static_cast<float>(window.GetWidth()), static_cast<float>(window.GetHeight())};
+        }
+        return {kDesignWidth, kDesignHeight};
+    }
 
     FMargin FUILayout::BoxTL(float InX, float InY, float InW, float InH) {
         return FMargin(InX, InY, -(InX + InW), -(InY + InH));

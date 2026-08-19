@@ -20,6 +20,11 @@ namespace Leon {
     static TRef<FTexture2D> CachedBRDFLUT = nullptr;
     static uint32_t CachedBRDFLUTSize = 0;
 
+    void FIBLGenerator::ReleaseStaticCaches() {
+        CachedBRDFLUT = nullptr;
+        CachedBRDFLUTSize = 0;
+    }
+
     TRef<FTexture2D> FIBLGenerator::GenerateBRDFLUT(uint32_t InSize) {
         if (CachedBRDFLUT && CachedBRDFLUTSize == InSize) {
             return CachedBRDFLUT;

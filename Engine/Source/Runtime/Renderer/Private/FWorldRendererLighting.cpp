@@ -66,8 +66,7 @@ namespace Leon {
 
         CascadeShadowFramebuffer->Bind();
         FRenderCommand::SetViewport(0, 0, ShadowSettings.CascadeResolution, ShadowSettings.CascadeResolution);
-        FRenderCommand::SetDepthTesting(true);
-        FRenderCommand::SetDepthMask(true);
+        ResetDefaultMeshRasterState();
         FRenderCommand::SetCulling(true, ECullMode::Front);
         FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
 
@@ -142,8 +141,8 @@ namespace Leon {
             for (auto entity : staticMeshView) {
                 auto [transform, staticMeshComp] =
                     staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
-                if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
-                    !staticMeshComp.bCastShadows)
+                if (!staticMeshComp.bVisible || !staticMeshComp.StaticMesh ||
+                    !staticMeshComp.StaticMesh->GetVertexArray() || !staticMeshComp.bCastShadows)
                     continue;
 
                 staticMeshComp.StaticMesh->GetVertexArray()->Bind();
@@ -188,7 +187,7 @@ namespace Leon {
         }
 
         FRenderCommand::SetPolygonOffset(false);
-        FRenderCommand::SetCulling(false);
+        ResetDefaultMeshRasterState();
         CascadeShadowFramebuffer->Unbind();
     }
 
@@ -213,9 +212,7 @@ namespace Leon {
         SpotShadowFramebuffer->Bind();
         FRenderCommand::SetViewport(0, 0, ShadowSettings.SpotResolution, ShadowSettings.SpotResolution);
         FRenderCommand::Clear();
-        FRenderCommand::SetDepthTesting(true);
-        FRenderCommand::SetDepthMask(true);
-        FRenderCommand::SetCulling(true, ECullMode::Back);
+        ResetDefaultMeshRasterState();
         FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
 
         ShadowDepthShader->Bind();
@@ -235,8 +232,8 @@ namespace Leon {
         auto staticMeshView = World->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
         for (auto entity : staticMeshView) {
             auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
-            if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray() ||
-                !staticMeshComp.bCastShadows)
+            if (!staticMeshComp.bVisible || !staticMeshComp.StaticMesh ||
+                !staticMeshComp.StaticMesh->GetVertexArray() || !staticMeshComp.bCastShadows)
                 continue;
             staticMeshComp.StaticMesh->GetVertexArray()->Bind();
             for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
@@ -272,7 +269,7 @@ namespace Leon {
         }
 
         FRenderCommand::SetPolygonOffset(false);
-        FRenderCommand::SetCulling(false);
+        ResetDefaultMeshRasterState();
         SpotShadowFramebuffer->Unbind();
     }
 

@@ -70,6 +70,12 @@ namespace Leon {
 
         bool SetChildLayout(const TRef<UWidget>& InChild, const FAnchors& InAnchors, const FMargin& InOffsets);
 
+        /**
+         * Uniformly scale slot offsets and nested text FontScale (e.g. 720p→1080p).
+         * Call before PerformLayout / next Paint. Factor is relative to the current layout.
+         */
+        void ScaleLayout(float InFactor);
+
         /** Resolves child Position/Size from anchors given parent size. */
         void PerformLayout(const glm::vec2& InParentSize);
 

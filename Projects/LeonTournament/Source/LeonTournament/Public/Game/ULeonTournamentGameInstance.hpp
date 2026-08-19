@@ -3,6 +3,7 @@
 #include "Engine/UGameInstance.hpp"
 #include "Engine/UIpNetDriver.hpp"
 #include "FLeonTournamentTypes.hpp"
+#include "FLeonTournamentGraphicsQuality.hpp"
 
 namespace Leon {
 
@@ -80,6 +81,10 @@ namespace Leon {
         float GetAutoMatchSeconds() const { return AutoMatchSeconds; }
         const std::string& GetAutoReportPath() const { return AutoReportPath; }
 
+        ELeonTournamentGraphicsQuality GetGraphicsQuality() const { return GraphicsQuality; }
+        void SetGraphicsQuality(ELeonTournamentGraphicsQuality InQuality) { GraphicsQuality = InQuality; }
+
+        void Init() override;
         void Shutdown() override;
 
     private:
@@ -95,6 +100,7 @@ namespace Leon {
         float AutoMatchSeconds = 65.0f;
         std::string AutoReportPath;
         bool bPendingMatchStart = false;
+        ELeonTournamentGraphicsQuality GraphicsQuality = ELeonTournamentGraphicsQuality::High;
     };
 
 } // namespace Leon

@@ -12,8 +12,11 @@
 #include "UMG/UWidgetSwitcher.hpp"
 #include "UMG/UScrollBox.hpp"
 #include "FLeonTournamentTypes.hpp"
+#include "FLeonTournamentGraphicsQuality.hpp"
 
 #include <array>
+#include <cstdint>
+#include <vector>
 
 namespace Leon {
 
@@ -33,6 +36,13 @@ namespace Leon {
         void OnHostLan();
         void OnJoinLan();
         void OnQuit();
+        void OnOpenSettings();
+        void OnCloseSettings();
+        void OnSelectGraphicsQuality(ELeonTournamentGraphicsQuality InQuality);
+        void SetSettingsPageVisible(bool bInSettings);
+        void RefreshSettingsQualityButtons();
+        uint32_t ViewportWidth() const;
+        uint32_t ViewportHeight() const;
         void OnPrevCharacter();
         void OnNextCharacter();
         TRef<UCanvasPanel> Root;
@@ -41,9 +51,20 @@ namespace Leon {
         TRef<UButton> NextCharBtn;
         TRef<UEditableText> AddressField;
         TRef<UTextBlock> CharacterLabel;
+        TRef<UTextBlock> Subtitle;
+        TRef<UTextBlock> SettingsHint;
+        TRef<UButton> SettingsLowBtn;
+        TRef<UButton> SettingsMediumBtn;
+        TRef<UButton> SettingsHighBtn;
+        TRef<UButton> SettingsBackBtn;
+        std::vector<TRef<UWidget>> MainPageWidgets;
+        std::vector<TRef<UWidget>> SettingsPageWidgets;
         glm::vec2 AppliedViewport{0.0f, 0.0f};
+        float AppliedLayoutScale = 0.0f;
+        bool bInSettings = false;
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;
+        bool bPadBWasDown = false;
         bool bPadLBWasDown = false;
         bool bPadRBWasDown = false;
     };
@@ -80,6 +101,7 @@ namespace Leon {
         TRef<UTextBlock> RosterText;
         TRef<UTextBlock> CharacterLabel;
         glm::vec2 AppliedViewport{0.0f, 0.0f};
+        float AppliedLayoutScale = 0.0f;
         TRef<UTextBlock> MapLabel;
         TRef<UTextBlock> GameModeLabel;
         TRef<UTextBlock> TitleText;
@@ -129,6 +151,7 @@ namespace Leon {
         TRef<UTextBlock> WeaponSlotsText;
         TRef<UTextBlock> StatusText;
         TRef<UTextBlock> CrosshairText;
+        TRef<UImage> CrosshairDot;
         TRef<UImage> CrosshairBarT;
         TRef<UImage> CrosshairBarB;
         TRef<UImage> CrosshairBarL;
@@ -156,12 +179,15 @@ namespace Leon {
 
     private:
         void Build();
+        void ApplyViewportLayout();
         TRef<UCanvasPanel> Root;
         TRef<UImage> Panel;
         TRef<UTextBlock> TitleText;
         TRef<UTextBlock> HeaderText;
         TRef<UTextBlock> RowsText;
         TRef<UTextBlock> FooterText;
+        float AppliedLayoutScale = 0.0f;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
     };
 
     class ULeonTournamentPauseWidget : public UUserWidget {
@@ -172,9 +198,12 @@ namespace Leon {
 
     private:
         void Build();
+        void ApplyViewportLayout();
         void OnResume();
         void OnLeave();
         TRef<UCanvasPanel> Root;
+        float AppliedLayoutScale = 0.0f;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
         bool bPadAWasDown = false;
         bool bPadBWasDown = false;
     };
@@ -187,10 +216,13 @@ namespace Leon {
 
     private:
         void Build();
+        void ApplyViewportLayout();
         void OnReturn();
         TRef<UCanvasPanel> Root;
         TRef<UTextBlock> ResultText;
         TRef<UTextBlock> StatsText;
+        float AppliedLayoutScale = 0.0f;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;
     };

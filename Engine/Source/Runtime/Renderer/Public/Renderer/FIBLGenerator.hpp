@@ -22,6 +22,8 @@ namespace Leon {
     public:
         static TRef<FTexture2D> GenerateBRDFLUT(uint32_t InSize = 512);
         static FIBLEnvironment CreateEnvironmentFromSkybox(const FSkyboxComponent& InSkybox);
+        /** Drop process-lifetime BRDF LUT GPU texture (call while GL context is alive). */
+        static void ReleaseStaticCaches();
     };
 
 } // namespace Leon

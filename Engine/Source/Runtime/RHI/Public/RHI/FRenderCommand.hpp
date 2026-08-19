@@ -119,6 +119,9 @@ namespace Leon {
             return RenderAPI ? RenderAPI->GetGPUTimeMs(InSlot) : 0.0f;
         }
 
+        /** Release the process IRenderAPI while the graphics context is still alive. */
+        static void Shutdown() { RenderAPI.reset(); }
+
     private:
         static TScope<IRenderAPI> RenderAPI;
     };

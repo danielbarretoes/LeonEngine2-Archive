@@ -69,20 +69,10 @@ namespace Leon {
         remaining.y = 0.0f;
         glm::vec3 applied(0.0f);
         glm::vec3 pos = GetActorLocation();
-        const float bottomOffset = -(GetCapsuleHalfHeight() - CapsuleRadius);
 
         auto sweepCapsule = [&](const glm::vec3& InStart, const glm::vec3& InEnd, std::vector<FHitResult>& OutHits) {
-            OutHits.clear();
-            const glm::vec3 offsets[2] = {{0.0f, 0.0f, 0.0f}, {0.0f, bottomOffset, 0.0f}};
-            for (const glm::vec3& off : offsets) {
-                std::vector<FHitResult> slice;
-                World->SweepMultiByChannel(InStart + off, InEnd + off, CapsuleRadius, ECollisionChannel::WorldStatic,
-                                           this, slice);
-                OutHits.insert(OutHits.end(), slice.begin(), slice.end());
-            }
-            std::sort(OutHits.begin(), OutHits.end(),
-                      [](const FHitResult& a, const FHitResult& b) { return a.Distance < b.Distance; });
-            return static_cast<int32_t>(OutHits.size());
+            return World->SweepCapsuleMultiByChannel(InStart, InEnd, CapsuleRadius, GetCapsuleHalfHeight(),
+                                                     ECollisionChannel::WorldStatic, this, OutHits);
         };
 
         for (int iter = 0; iter < 3; ++iter) {
@@ -248,7 +238,7 @@ namespace Leon {
         if (ShouldApplyControlYawToActor())
             ApplyYawOnlyActorRotation();
         if (CharacterMovement && !bIsRagdoll)
-            CharacterMovement->PerformMovement(DeltaSeconds);
+            CharacterMovement->TickMovement(DeltaSeconds);
         UpdatePhysicsVolume();
         UpdateAnimFromMovement(DeltaSeconds);
         UpdateCameraFromView();
@@ -599,26 +589,76 @@ namespace Leon {
             CharacterMovement->StopMovementImmediately();
             CharacterMovement->SetMovementMode(EMovementMode::None);
         }
-        if (Mesh && Mesh->TryEnableRagdoll(InImpulse)) {
-            bIsRagdoll = true;
-            bMeshRagdoll = true;
-            if (CapsuleComponent)
-                CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            return;
-        }
-        if (CapsuleComponent) {
+
+        glm::vec3 impulse = InImpulse;
+        // Mesh ragdoll scales knockback itself; only clamp absurd values.
+        const float impulseLen = glm::length(impulse);
+        constexpr float kMaxDeathImpulse = 40.0f;
+        if (impulseLen > kMaxDeathImpulse)
+            impulse *= kMaxDeathImpulse / impulseLen;
+        if (impulseLen < 0.1f)
+            impulse = glm::vec3(0.0f, 2.0f, 6.0f);
+
+        auto enableCapsuleCorpse = [&]() {
+            if (!CapsuleComponent)
+                return;
+            CapsuleComponent->SetCollisionObjectType(ECollisionChannel::PhysicsBody);
+            CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            CapsuleComponent->SetCollisionResponseToAllChannels(ECollisionResponse::Block);
             CapsuleComponent->SetMass(70.0f);
             CapsuleComponent->SetLinearDamping(0.55f);
+            CapsuleComponent->SetAngularDamping(0.35f);
             CapsuleComponent->SetEnableGravity(true);
             CapsuleComponent->SetSimulatePhysics(true);
             CapsuleComponent->RecreatePhysicsBody();
             CapsuleComponent->SyncPhysicsTransform();
-            CapsuleComponent->AddImpulse(InImpulse);
+            CapsuleComponent->AddImpulse(impulse);
             if (auto* body = CapsuleComponent->GetPhysicsBody())
-                body->SetAngularVelocity({1.8f, 0.0f, 0.6f});
+                body->SetAngularVelocity({1.2f, 0.0f, 0.4f});
+        };
+
+        // Unreal-style: PhysicsAsset bones simulate; pawn capsule stops blocking.
+        if (Mesh && Mesh->TryEnableRagdoll(impulse)) {
+            bIsRagdoll = true;
+            bMeshRagdoll = true;
+            Mesh->SetRelativeLocation(glm::vec3(0.0f));
+            Mesh->SetRelativeRotation(glm::vec3(0.0f));
+            if (CapsuleComponent) {
+                CapsuleComponent->SetSimulatePhysics(false);
+                CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            }
+            return;
         }
+
+        enableCapsuleCorpse();
         bIsRagdoll = true;
         bMeshRagdoll = false;
+    }
+
+    void ACharacter::ConstrainRagdollToFloor() {
+        if (!bIsRagdoll)
+            return;
+        if (bMeshRagdoll && Mesh && Mesh->IsRagdoll()) {
+            Mesh->ConstrainBodiesToFloor(FloorZ);
+            return;
+        }
+        if (!CapsuleComponent)
+            return;
+        // Lying capsule: keep center above the floor by roughly the radius, not standing height.
+        const float minY = FloorZ + CapsuleComponent->GetUnscaledCapsuleRadius() + 0.02f;
+        glm::vec3 loc = GetActorLocation();
+        if (loc.y >= minY - 0.02f)
+            return;
+        loc.y = minY;
+        SetActorLocation(loc);
+        if (auto* body = CapsuleComponent->GetPhysicsBody()) {
+            glm::vec3 v = body->GetLinearVelocity();
+            if (v.y < 0.0f)
+                v.y = 0.0f;
+            body->SetLinearVelocity(v);
+            const glm::vec3 rot = CapsuleComponent->GetComponentRotation();
+            body->SetTransform(loc, glm::quat(glm::radians(rot)));
+        }
     }
 
     void ACharacter::StopRagdoll() {

@@ -79,6 +79,7 @@ namespace Leon {
 
         FRenderCommand::SetDepthMask(true);
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
     }
 
     // =========================================================================

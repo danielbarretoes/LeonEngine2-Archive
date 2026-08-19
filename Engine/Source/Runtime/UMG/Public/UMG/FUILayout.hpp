@@ -30,11 +30,19 @@ namespace Leon {
         static constexpr float kDesignWidth = 1280.0f;
         static constexpr float kDesignHeight = 720.0f;
 
+        /** Client window size in pixels (falls back to design). */
+        static glm::vec2 ResolveWindowSize();
+
         /** Uniform scale vs the 1280×720 design; clamped so 800×600 stays readable. */
         static float LayoutScale(float InViewportW, float InViewportH) {
             const float sx = InViewportW / kDesignWidth;
             const float sy = InViewportH / kDesignHeight;
             return std::clamp(std::min(sx, sy), 0.7f, 2.25f);
+        }
+
+        static float LayoutScaleForWindow() {
+            const glm::vec2 vp = ResolveWindowSize();
+            return LayoutScale(vp.x, vp.y);
         }
 
         static FMargin BoxTL(float InX, float InY, float InW, float InH);

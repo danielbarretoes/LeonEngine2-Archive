@@ -54,6 +54,8 @@ namespace Leon {
         void AddImpulse(const glm::vec3& InImpulse);
 
         bool FindFloor(float InSweepDistance, struct FHitResult& OutHit) const;
+        /** Accumulate frame Δt and run fixed-step PerformMovement (same clock as physics). */
+        void TickMovement(float InDeltaSeconds);
         void PerformMovement(float DeltaSeconds);
         float GetMaxStepHeight() const { return MaxStepHeight; }
         void SetMaxStepHeight(float InHeight) { MaxStepHeight = std::max(0.0f, InHeight); }
@@ -97,6 +99,7 @@ namespace Leon {
         int32_t JumpCurrentCount = 0;
         bool bPressedJump = false;
         bool bWasFalling = false;
+        float MovementAccumulator = 0.0f;
     };
 
 } // namespace Leon

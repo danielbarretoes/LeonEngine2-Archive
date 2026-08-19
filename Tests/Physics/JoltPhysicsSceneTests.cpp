@@ -11,6 +11,7 @@
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/UProjectileMovementComponent.hpp"
 #include "Physics/IPhysicsScene.hpp"
+#include "Physics/UPhysicalMaterial.hpp"
 #include "Assets/UStaticMesh.hpp"
 
 #include <cmath>
@@ -36,6 +37,7 @@ namespace {
             info.Motion = Leon::EPhysicsMotionType::Dynamic;
             info.bSimulatePhysics = true;
             info.bEnableGravity = true;
+            info.ObjectType = Leon::ECollisionChannel::WorldDynamic;
         } else {
             info.Motion = Leon::EPhysicsMotionType::Static;
             info.bSimulatePhysics = false;
@@ -373,5 +375,349 @@ TEST_SUITE("Jolt physics scene") {
         const float sx = glm::length(glm::vec3(hipsM[0]));
         CHECK(sx == doctest::Approx(0.01f).epsilon(0.25f));
         CHECK(sx < 0.5f);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "body Destroy frees without needing UWorld") {
+        auto world = Leon::UWorld::Create("JoltDestroyApi");
+        auto* scene = world->GetPhysicsScene();
+        REQUIRE(scene);
+        const int32_t before = scene->GetRigidBodyCount();
+        Leon::IPhysicsBody* body = CreateBox(*scene, {0.0f, 2.0f, 0.0f}, {0.5f, 0.5f, 0.5f}, false);
+        REQUIRE(body);
+        body->Destroy();
+        CHECK(scene->GetRigidBodyCount() == before);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "IgnoreCollision pairs re-enable after destroy") {
+        auto world = Leon::UWorld::Create("JoltSubGroupReuse");
+        auto* scene = world->GetPhysicsScene();
+        REQUIRE(scene);
+        const int32_t before = scene->GetRigidBodyCount();
+        for (int round = 0; round < 3; ++round) {
+            Leon::IPhysicsBody* a = CreateBox(*scene, {0.0f, 3.0f, 0.0f}, {0.25f, 0.25f, 0.25f}, true);
+            Leon::IPhysicsBody* b = CreateBox(*scene, {0.6f, 3.0f, 0.0f}, {0.25f, 0.25f, 0.25f}, true);
+            REQUIRE(a);
+            REQUIRE(b);
+            scene->IgnoreCollision(a, b);
+            scene->DestroyRigidBody(a);
+            scene->DestroyRigidBody(b);
+        }
+        CHECK(scene->GetRigidBodyCount() == before);
+        Leon::IPhysicsBody* floor = CreateBox(*scene, {0.0f, 0.0f, 0.0f}, {5.0f, 0.25f, 5.0f}, false);
+        Leon::IPhysicsBody* falling = CreateBox(*scene, {0.0f, 4.0f, 0.0f}, {0.3f, 0.3f, 0.3f}, true);
+        REQUIRE(floor);
+        REQUIRE(falling);
+        const float y = RestingHeightAfter(*scene, *falling, Leon::kPhysicsFixedDeltaSeconds, 2.0f);
+        CHECK(y < 2.0f);
+        scene->DestroyRigidBody(falling);
+        scene->DestroyRigidBody(floor);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "WorldStatic UBox uses Static motion") {
+        auto world = Leon::UWorld::Create("JoltStaticMotion");
+        auto* wall = world->SpawnActor<Leon::AActor>("Wall");
+        wall->SetActorLocation({0.0f, 1.0f, 5.0f});
+        auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
+        box->SetBoxExtent({0.5f, 0.5f, 0.5f});
+        box->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        wall->SetRootComponent(box.get());
+        world->BeginPlay();
+        REQUIRE(box->GetPhysicsBody());
+        CHECK(box->GetPhysicsBody()->GetMotionType() == Leon::EPhysicsMotionType::Static);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "capsule sweep hits WorldStatic wall") {
+        auto world = Leon::UWorld::Create("JoltCapsuleSweep");
+        auto* wall = world->SpawnActor<Leon::AActor>("Wall");
+        wall->SetActorLocation({0.0f, 1.0f, 4.0f});
+        auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
+        box->SetBoxExtent({0.5f, 1.0f, 0.25f});
+        box->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        wall->SetRootComponent(box.get());
+        world->BeginPlay();
+        Leon::FHitResult hit;
+        REQUIRE(world->SweepCapsuleSingleByChannel({0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 8.0f}, 0.4f, 0.9f,
+                                                   Leon::ECollisionChannel::WorldStatic, nullptr, hit));
+        CHECK(hit.bBlockingHit);
+        CHECK(hit.Actor == wall);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "CMC fixed step 30 vs 120 Hz comparable fall distance") {
+        auto run = [](float InFrameDt, float InSeconds) {
+            auto world = Leon::UWorld::Create("JoltCmcFall");
+            auto* ch = world->SpawnActor<Leon::ACharacter>("Faller");
+            ch->SetFloorZ(-1000.0f);
+            ch->SetActorLocation({0.0f, 10.0f, 0.0f});
+            world->BeginPlay();
+            auto move = ch->GetCharacterMovement();
+            REQUIRE(move);
+            move->SetMovementMode(Leon::EMovementMode::Falling);
+            move->SetVelocity({0.0f, 0.0f, 0.0f});
+            float sim = 0.0f;
+            while (sim < InSeconds) {
+                move->TickMovement(InFrameDt);
+                sim += InFrameDt;
+            }
+            return ch->GetActorLocation().y;
+        };
+        const float y30 = run(1.0f / 30.0f, 0.5f);
+        const float y120 = run(1.0f / 120.0f, 0.5f);
+        // 0.5s freefall at g=22 ≈ 10 - 0.5*0.5*22 = 7.25 (with substep clamp).
+        CHECK(std::abs(y30 - y120) < 0.15f);
+        CHECK(y30 < 9.5f);
+        CHECK(y120 < 9.5f);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "WorldStatic pair filter skips Static-Static contacts") {
+        auto world = Leon::UWorld::Create("JoltStaticPair");
+        auto* scene = world->GetPhysicsScene();
+        REQUIRE(scene);
+        Leon::IPhysicsBody* a = CreateBox(*scene, {0.0f, 0.0f, 0.0f}, {1.0f, 0.25f, 1.0f}, false);
+        Leon::IPhysicsBody* b = CreateBox(*scene, {0.5f, 0.0f, 0.0f}, {1.0f, 0.25f, 1.0f}, false);
+        REQUIRE(a);
+        REQUIRE(b);
+        int hits = 0;
+        // No actor/component — DrainContacts would no-op; ensure Tick does not crash overlapping statics.
+        for (int i = 0; i < 10; ++i)
+            scene->Tick(Leon::kPhysicsFixedDeltaSeconds);
+        scene->DrainContacts();
+        CHECK(hits == 0);
+        scene->DestroyRigidBody(a);
+        scene->DestroyRigidBody(b);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "Density material overrides default mass") {
+        auto world = Leon::UWorld::Create("JoltDensity");
+        auto* scene = world->GetPhysicsScene();
+        REQUIRE(scene);
+        Leon::UPhysicalMaterial mat("Dense");
+        mat.Density = 1000.0f;
+        Leon::FPhysicsBodyCreateInfo info;
+        info.Shape = Leon::EPhysicsShapeType::Box;
+        info.BoxHalfExtent = {0.5f, 0.5f, 0.5f}; // volume = 1 m³
+        info.Mass = 1.0f;
+        info.PhysicalMaterial = &mat;
+        info.Motion = Leon::EPhysicsMotionType::Dynamic;
+        info.bSimulatePhysics = true;
+        auto* body = scene->CreateRigidBody(info);
+        REQUIRE(body);
+        CHECK(body->GetMass() == doctest::Approx(1000.0f).epsilon(0.01f));
+        scene->DestroyRigidBody(body);
+
+        Leon::FPhysicsBodyCreateInfo explicitMass = info;
+        explicitMass.Mass = 5.0f;
+        auto* body2 = scene->CreateRigidBody(explicitMass);
+        REQUIRE(body2);
+        CHECK(body2->GetMass() == doctest::Approx(5.0f));
+        scene->DestroyRigidBody(body2);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "SyncDynamic with leftover accumulator stays finite") {
+        auto world = Leon::UWorld::Create("JoltInterp");
+        auto* scene = world->GetPhysicsScene();
+        REQUIRE(scene);
+        Leon::IPhysicsBody* floor = CreateBox(*scene, {0.0f, 0.0f, 0.0f}, {5.0f, 0.25f, 5.0f}, false);
+        Leon::IPhysicsBody* box = CreateBox(*scene, {0.0f, 3.0f, 0.0f}, {0.3f, 0.3f, 0.3f}, true);
+        REQUIRE(floor);
+        REQUIRE(box);
+        for (int i = 0; i < 20; ++i) {
+            scene->Tick(1.0f / 144.0f);
+            scene->SyncDynamicTransforms();
+            glm::vec3 loc;
+            glm::quat rot;
+            box->GetTransform(loc, rot);
+            CHECK(std::isfinite(loc.x));
+            CHECK(std::isfinite(loc.y));
+            CHECK(std::isfinite(loc.z));
+        }
+        scene->DestroyRigidBody(box);
+        scene->DestroyRigidBody(floor);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "QueryOnly overlap enter via DrainContacts") {
+        auto world = Leon::UWorld::Create("JoltOverlapContact");
+        world->InitWorld();
+        auto* sensorActor = world->SpawnActor<Leon::AActor>("Sensor");
+        sensorActor->SetActorLocation({0.0f, 1.0f, 0.0f});
+        auto sensor = sensorActor->AddActorComponent<Leon::USphereComponent>("Sphere");
+        sensor->SetSphereRadius(0.8f);
+        sensor->SetCollisionEnabled(Leon::ECollisionEnabled::QueryOnly);
+        sensor->SetCollisionObjectType(Leon::ECollisionChannel::WorldDynamic);
+        sensor->SetCollisionResponseToAllChannels(Leon::ECollisionResponse::Overlap);
+        sensor->SetGenerateOverlapEvents(true);
+        sensorActor->SetRootComponent(sensor.get());
+        int begins = 0;
+        sensor->OnComponentBeginOverlap.push_back(
+            [&](Leon::UPrimitiveComponent*, Leon::AActor*, Leon::UPrimitiveComponent*, const Leon::FHitResult&) {
+                ++begins;
+            });
+
+        auto* mover = world->SpawnActor<Leon::AActor>("Mover");
+        mover->SetActorLocation({0.0f, 1.0f, 3.0f});
+        auto box = mover->AddActorComponent<Leon::UBoxComponent>("Box");
+        box->SetBoxExtent({0.3f, 0.3f, 0.3f});
+        box->SetCollisionObjectType(Leon::ECollisionChannel::Pawn);
+        box->SetSimulatePhysics(true);
+        box->SetEnableGravity(false);
+        mover->SetRootComponent(box.get());
+        world->BeginPlay();
+
+        REQUIRE(sensor->GetPhysicsBody());
+        REQUIRE(box->GetPhysicsBody());
+        box->GetPhysicsBody()->SetLinearVelocity({0.0f, 0.0f, -6.0f});
+        for (int i = 0; i < 90; ++i) {
+            world->GetPhysicsScene()->SyncKinematicTransforms();
+            world->GetPhysicsScene()->Tick(Leon::kPhysicsFixedDeltaSeconds);
+            world->GetPhysicsScene()->SyncDynamicTransforms();
+            world->GetPhysicsScene()->DrainContacts();
+        }
+        CHECK(begins >= 1);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "PhysicsBody dynamic rests on WorldStatic floor box") {
+        auto world = Leon::UWorld::Create("PhysBodyFloor");
+        world->InitWorld();
+        auto* floorA = world->SpawnActor<Leon::AActor>("Floor");
+        floorA->SetActorLocation({0.0f, -0.25f, 0.0f});
+        auto floorBox = floorA->AddActorComponent<Leon::UBoxComponent>("F");
+        floorBox->SetBoxExtent({10.0f, 0.25f, 10.0f});
+        floorBox->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        floorA->SetRootComponent(floorBox.get());
+
+        auto* bodyA = world->SpawnActor<Leon::AActor>("Body");
+        bodyA->SetActorLocation({0.0f, 2.0f, 0.0f});
+        auto cap = bodyA->AddActorComponent<Leon::UCapsuleComponent>("C");
+        cap->SetCapsuleSize(0.3f, 0.8f);
+        cap->SetCollisionObjectType(Leon::ECollisionChannel::PhysicsBody);
+        cap->SetCollisionResponseToAllChannels(Leon::ECollisionResponse::Block);
+        cap->SetSimulatePhysics(true);
+        cap->SetEnableGravity(true);
+        cap->SetMass(70.0f);
+        bodyA->SetRootComponent(cap.get());
+        world->BeginPlay();
+        REQUIRE(floorBox->GetPhysicsBody());
+        REQUIRE(cap->GetPhysicsBody());
+        for (int i = 0; i < 120; ++i) {
+            world->GetPhysicsScene()->Tick(Leon::kPhysicsFixedDeltaSeconds);
+            world->GetPhysicsScene()->SyncDynamicTransforms();
+        }
+        const float y = bodyA->GetActorLocation().y;
+        CHECK(y > 0.5f);
+        CHECK(y < 3.0f);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "character capsule ragdoll rests on floor") {
+        auto world = Leon::UWorld::Create("CharRagdollFloor");
+        world->InitWorld();
+        auto* floorA = world->SpawnActor<Leon::AActor>("Floor");
+        floorA->SetActorLocation({0.0f, -0.25f, 0.0f});
+        auto floorBox = floorA->AddActorComponent<Leon::UBoxComponent>("F");
+        floorBox->SetBoxExtent({10.0f, 0.25f, 10.0f});
+        floorBox->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        floorA->SetRootComponent(floorBox.get());
+
+        auto* ch = world->SpawnActor<Leon::ACharacter>("Hero");
+        ch->SetActorLocation({0.0f, 1.0f, 0.0f});
+        ch->SetFloorZ(0.0f);
+        world->BeginPlay();
+        if (ch->GetMesh())
+            ch->GetMesh()->SetPhysicsAsset(nullptr);
+        ch->EnableRagdoll({0.0f, 5.0f, 0.0f});
+        CHECK(ch->IsRagdoll());
+        CHECK(ch->GetCapsuleComponent()->IsSimulatingPhysics());
+        for (int i = 0; i < 120; ++i) {
+            world->GetPhysicsScene()->Tick(Leon::kPhysicsFixedDeltaSeconds);
+            world->GetPhysicsScene()->SyncDynamicTransforms();
+        }
+        const float y = ch->GetActorLocation().y;
+        // Capsule rests on floor (y≈0); half-height varies — just prove we did not fall through.
+        CHECK(y > 0.15f);
+        CHECK(y < 3.5f);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "mesh ragdoll hips rest on WorldStatic floor") {
+        auto world = Leon::UWorld::Create("MeshRagdollFloor");
+        world->InitWorld();
+        auto* floorA = world->SpawnActor<Leon::AActor>("Floor");
+        floorA->SetActorLocation({0.0f, -0.25f, 0.0f});
+        auto floorBox = floorA->AddActorComponent<Leon::UBoxComponent>("F");
+        floorBox->SetBoxExtent({10.0f, 0.25f, 10.0f});
+        floorBox->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        floorA->SetRootComponent(floorBox.get());
+
+        auto skel = Leon::USkeleton::Create("Humanoid");
+        Leon::FSkeletonBone hips;
+        hips.Name = "hips";
+        hips.ParentIndex = -1;
+        hips.RestLocal.Translation = {0.0f, 0.9f, 0.0f};
+        Leon::FSkeletonBone spine;
+        spine.Name = "spine";
+        spine.ParentIndex = 0;
+        spine.RestLocal.Translation = {0.0f, 0.25f, 0.0f};
+        Leon::FSkeletonBone head;
+        head.Name = "head";
+        head.ParentIndex = 1;
+        head.RestLocal.Translation = {0.0f, 0.2f, 0.0f};
+        skel->GetBones() = {hips, spine, head};
+        skel->RebuildLookup();
+        auto skm = Leon::USkeletalMesh::Create("HumanoidMesh");
+        skm->SetSkeleton(skel);
+
+        auto* ch = world->SpawnActor<Leon::ACharacter>("Hero");
+        ch->SetActorLocation({0.0f, 1.0f, 0.0f});
+        ch->SetFloorZ(0.0f);
+        REQUIRE(ch->GetMesh());
+        ch->GetMesh()->SetSkeletalMesh(skm);
+        ch->GetMesh()->SetPhysicsAsset(Leon::UPhysicsAsset::CreateHumanoidFromSkeleton(*skel));
+        world->BeginPlay();
+        REQUIRE(ch->GetMesh()->TryEnableRagdoll({0.0f, 1.0f, 0.0f}));
+        CHECK(ch->GetMesh()->IsRagdoll());
+        for (int i = 0; i < 120; ++i) {
+            world->GetPhysicsScene()->Tick(Leon::kPhysicsFixedDeltaSeconds);
+            world->GetPhysicsScene()->SyncDynamicTransforms();
+            ch->GetMesh()->ApplyRagdollPoseFromBodies();
+        }
+        glm::vec3 loc;
+        glm::quat rot;
+        REQUIRE(ch->GetMesh()->GetRagdollRootTransform(loc, rot));
+        // Hips capsule rests near the floor plane (y≈0); allow slight sink.
+        CHECK(loc.y > -0.05f);
+        CHECK(loc.y < 3.0f);
+    }
+
+    TEST_CASE_FIXTURE(FJoltPhysicsFixture, "implicit FMeshComponent floor stops PhysicsBody") {
+        auto world = Leon::UWorld::Create("ImplicitFloor");
+        world->InitWorld();
+        auto* floorA = world->SpawnActor<Leon::AActor>("Floor");
+        floorA->SetActorLocation({0.0f, -0.25f, 0.0f});
+        floorA->SetActorScale({20.0f, 0.5f, 20.0f});
+        auto& mesh = floorA->AddComponent<Leon::FMeshComponent>();
+        mesh.MeshType = "Cube";
+        mesh.MeshSize = 1.0f;
+        mesh.Mobility = Leon::EComponentMobility::Static;
+        auto* scene = world->GetPhysicsScene();
+        world->BeginPlay();
+        CHECK(scene->GetRigidBodyCount() >= 1);
+
+        Leon::FPhysicsBodyCreateInfo info;
+        info.Shape = Leon::EPhysicsShapeType::Capsule;
+        info.CapsuleRadius = 0.3f;
+        info.CapsuleHalfHeight = 0.8f;
+        info.Location = {0.0f, 2.0f, 0.0f};
+        info.Mass = 70.0f;
+        info.Motion = Leon::EPhysicsMotionType::Dynamic;
+        info.bSimulatePhysics = true;
+        info.bEnableGravity = true;
+        info.ObjectType = Leon::ECollisionChannel::PhysicsBody;
+        auto* body = scene->CreateRigidBody(info);
+        REQUIRE(body);
+        for (int i = 0; i < 120; ++i)
+            scene->Tick(Leon::kPhysicsFixedDeltaSeconds);
+        glm::vec3 loc;
+        glm::quat rot;
+        body->GetTransform(loc, rot);
+        CHECK(loc.y > 0.5f);
+        CHECK(loc.y < 3.0f);
+        scene->DestroyRigidBody(body);
     }
 }

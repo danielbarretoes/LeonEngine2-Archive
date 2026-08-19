@@ -8,8 +8,11 @@
 
 namespace Leon {
 
+    class FSimplePhysicsScene;
+
     class FSimplePhysicsBody final : public IPhysicsBody {
     public:
+        FSimplePhysicsScene* Scene = nullptr;
         FPhysicsBodyCreateInfo Info;
         glm::vec3 Location{0.0f};
         glm::quat Rotation{1.0f, 0.0f, 0.0f, 0.0f};
@@ -21,6 +24,7 @@ namespace Leon {
         glm::vec3 PendingAngularImpulse{0.0f};
         bool bSimulating = false;
 
+        void Destroy() override;
         void SetTransform(const glm::vec3& InLocation, const glm::quat& InRotation) override;
         void GetTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const override;
         void AddForce(const glm::vec3& InForce) override;
@@ -42,11 +46,13 @@ namespace Leon {
         void SetRestitution(float InRestitution) override;
         void SetCollisionEnabled(ECollisionEnabled InEnabled) override;
         void SetCollisionResponses(const FCollisionResponseContainer& InResponses) override;
+        void SetObjectType(ECollisionChannel InType) override;
         AActor* GetActor() const override;
         UActorComponent* GetComponent() const override;
         ECollisionChannel GetObjectType() const override;
         ECollisionResponse GetResponseToChannel(ECollisionChannel InChannel) const override;
         ECollisionEnabled GetCollisionEnabled() const override;
+        EPhysicsMotionType GetMotionType() const override;
     };
 
     class FSimplePhysicsConstraint final : public IPhysicsConstraint {
@@ -83,6 +89,12 @@ namespace Leon {
         int32_t SweepMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
                                     ECollisionChannel InChannel, AActor* InIgnore,
                                     std::vector<FHitResult>& OutHits) const override;
+        bool SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                         float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                         FHitResult& OutHit) const override;
+        int32_t SweepCapsuleMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                           float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                           std::vector<FHitResult>& OutHits) const override;
         bool OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent, ECollisionChannel InChannel,
                                      AActor* InIgnore) const override;
         int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,

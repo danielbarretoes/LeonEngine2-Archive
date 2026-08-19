@@ -4,6 +4,7 @@
 #include "Gameplay/APhysicsVolume.hpp"
 #include "Engine/UWorld.hpp"
 #include "Physics/FHitResult.hpp"
+#include "Physics/IPhysicsScene.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -289,6 +290,29 @@ namespace Leon {
         SetMovementMode(EMovementMode::Walking);
     }
 
+    void UCharacterMovementComponent::TickMovement(float InDeltaSeconds) {
+        const float clamped = std::min(std::max(InDeltaSeconds, 0.0f), kPhysicsMaxFrameDeltaSeconds);
+        MovementAccumulator += clamped;
+        // Keep the same wish vector across fixed substeps within one frame.
+        const glm::vec3 savedInput = PendingInputVector;
+        const glm::vec3 savedRequested = RequestedVelocity;
+        const bool bSavedRequested = bHasRequestedVelocity;
+        int32_t steps = 0;
+        while (MovementAccumulator >= kPhysicsFixedDeltaSeconds && steps < kPhysicsMaxSubsteps) {
+            PendingInputVector = savedInput;
+            RequestedVelocity = savedRequested;
+            bHasRequestedVelocity = bSavedRequested;
+            PerformMovement(kPhysicsFixedDeltaSeconds);
+            MovementAccumulator -= kPhysicsFixedDeltaSeconds;
+            ++steps;
+        }
+        if (steps >= kPhysicsMaxSubsteps)
+            MovementAccumulator = 0.0f;
+        ConsumeInputVector();
+        bHasRequestedVelocity = false;
+        RequestedVelocity = glm::vec3(0.0f);
+    }
+
     void UCharacterMovementComponent::PerformMovement(float DeltaSeconds) {
         if (DeltaSeconds <= 0.0f)
             return;
@@ -329,7 +353,7 @@ namespace Leon {
     }
 
     void UCharacterMovementComponent::Tick(float DeltaSeconds) {
-        // ACharacter drives PerformMovement after input so camera/anim see this frame's pose.
+        // ACharacter drives TickMovement after input so camera/anim see this frame's pose.
         if (GetCharacter())
             return;
         auto* pawn = GetPawnOwner();
@@ -337,8 +361,7 @@ namespace Leon {
             return;
         if (!pawn->HasAuthority() && pawn->GetLocalRole() == ENetRole::SimulatedProxy)
             return;
-        PerformMovement(DeltaSeconds);
-        (void)DeltaSeconds;
+        TickMovement(DeltaSeconds);
     }
 
 } // namespace Leon

@@ -1,6 +1,27 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+
 namespace Leon {
+
+    enum class EGPUMemoryCategory : uint8_t {
+        Texture2D = 0,
+        TextureCube,
+        Framebuffer,
+        VertexBuffer,
+        IndexBuffer,
+        UniformBuffer,
+        Swapchain,
+        Count
+    };
+
+    struct FGPUMemoryBucket {
+        size_t Bytes = 0;
+        uint32_t Allocations = 0;
+    };
 
     /**
      * @brief Real-time rendering diagnostic metrics and telemetry.
@@ -16,7 +37,11 @@ namespace Leon {
         unsigned int TextureBinds = 0;
         unsigned int VAOBinds = 0;
         unsigned int FBOSwitches = 0;
+
+        // Persistent across Reset() — GPU resources live longer than a frame.
         size_t AllocatedGPUMemoryBytes = 0;
+        FGPUMemoryBucket GPUMemory[static_cast<size_t>(EGPUMemoryCategory::Count)]{};
+        std::unordered_map<std::string, FGPUMemoryBucket> NamedGPUMemory;
 
         void Reset() {
             DrawCalls = 0;

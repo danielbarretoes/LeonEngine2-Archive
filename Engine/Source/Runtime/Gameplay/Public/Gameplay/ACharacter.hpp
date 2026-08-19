@@ -87,6 +87,8 @@ namespace Leon {
         /** Place the capsule from the ragdoll pelvis and restore Walking. */
         virtual void RecoverFromRagdoll();
         bool IsRagdoll() const { return bIsRagdoll; }
+        /** After physics: keep corpse capsule from falling through the walkable floor plane. */
+        void ConstrainRagdollToFloor();
 
         bool IsFalling() const;
         bool IsMovingOnGround() const;

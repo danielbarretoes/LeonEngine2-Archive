@@ -132,7 +132,15 @@ namespace Leon {
         info.bEnableGravity = bEnableGravity;
         info.bSimulatePhysics = bSimulatePhysics;
         info.bUseCCD = bUseCCD;
-        info.Motion = bSimulatePhysics ? EPhysicsMotionType::Dynamic : EPhysicsMotionType::Kinematic;
+        if (bSimulatePhysics)
+            info.Motion = EPhysicsMotionType::Dynamic;
+        else if (CollisionEnabled == ECollisionEnabled::QueryOnly)
+            // Sensors must be kinematic so the physics scene emits overlap enter/exit.
+            info.Motion = EPhysicsMotionType::Kinematic;
+        else if (ObjectType == ECollisionChannel::WorldStatic)
+            info.Motion = EPhysicsMotionType::Static;
+        else
+            info.Motion = EPhysicsMotionType::Kinematic;
         info.Actor = Owner;
         info.Component = const_cast<UPrimitiveComponent*>(this);
         info.PhysicalMaterial = PhysicalMaterial;
@@ -149,13 +157,10 @@ namespace Leon {
     }
 
     void UPrimitiveComponent::UnregisterPhysics() {
-        if (!PhysicsBody) {
+        // Prefer body->Destroy() so teardown works even if UWorld was already cleared.
+        if (!PhysicsBody)
             return;
-        }
-        if (Owner && Owner->GetWorld()) {
-            if (IPhysicsScene* scene = Owner->GetWorld()->GetPhysicsScene())
-                scene->DestroyRigidBody(PhysicsBody);
-        }
+        PhysicsBody->Destroy();
         PhysicsBody = nullptr;
     }
 
@@ -175,6 +180,8 @@ namespace Leon {
 
     void UPrimitiveComponent::SetCollisionObjectType(ECollisionChannel InType) {
         ObjectType = InType;
+        if (PhysicsBody)
+            PhysicsBody->SetObjectType(InType);
     }
 
     void UPrimitiveComponent::SetCollisionResponseToChannel(ECollisionChannel InChannel,
@@ -317,6 +324,7 @@ namespace Leon {
         info.Shape = EPhysicsShapeType::Capsule;
         info.CapsuleRadius = CapsuleRadius;
         info.CapsuleHalfHeight = CapsuleHalfHeight;
+        // Capsule pawns stay kinematic so CMC drives pose; never Static even if ObjectType changes.
         if (!bSimulatePhysics)
             info.Motion = EPhysicsMotionType::Kinematic;
         return info;

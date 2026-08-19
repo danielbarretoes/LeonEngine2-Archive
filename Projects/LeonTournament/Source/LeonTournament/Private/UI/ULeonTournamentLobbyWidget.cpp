@@ -285,9 +285,8 @@ namespace Leon {
     void ULeonTournamentLobbyWidget::ApplyViewportLayout() {
         if (!Root)
             return;
-        const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
-        AppliedViewport = vp;
-        SetSize(vp);
+        SetSize(FLeonTournamentUILayout::ResolveViewportSize(Root.get()));
+        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport);
         FLeonTournamentUILayout::ApplyMenuRailLayout(*Root, Panel, PrevCharBtn, CharacterLabel, NextCharBtn, true);
     }
 
@@ -403,7 +402,8 @@ namespace Leon {
     void ULeonTournamentLobbyWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
         const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
-        if (glm::length(vp - AppliedViewport) > 1.0f)
+        const float scale = FUILayout::LayoutScale(vp.x, vp.y);
+        if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
             ApplyViewportLayout();
         RefreshCharacterLabel();
         RefreshMapLabel();

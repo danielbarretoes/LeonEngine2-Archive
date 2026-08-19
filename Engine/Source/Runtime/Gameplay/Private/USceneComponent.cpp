@@ -72,4 +72,32 @@ namespace Leon {
         return RelativeScale;
     }
 
+    void USceneComponent::SetWorldLocationAndRotation(const glm::vec3& InLocation,
+                                                      const glm::vec3& InEulerDegrees) {
+        // Flow: physics → component
+        // 1. RootComponent: actor owns world pose (relative stays identity)
+        // 2. Attached: solve relative from parent world inverse
+        // 3. Unattached non-root: relative to actor transform
+        if (!AttachParent && Owner && Owner->GetRootComponent() == this) {
+            Owner->SetActorLocation(InLocation);
+            Owner->SetActorRotation(InEulerDegrees);
+            RelativeLocation = glm::vec3(0.0f);
+            RelativeRotation = glm::vec3(0.0f);
+            return;
+        }
+        if (AttachParent) {
+            const glm::mat4 invParent = glm::inverse(AttachParent->GetComponentWorldMatrix());
+            RelativeLocation = glm::vec3(invParent * glm::vec4(InLocation, 1.0f));
+            RelativeRotation = InEulerDegrees - AttachParent->GetComponentRotation();
+            return;
+        }
+        if (Owner) {
+            RelativeLocation = InLocation - Owner->GetActorLocation();
+            RelativeRotation = InEulerDegrees - Owner->GetActorRotation();
+            return;
+        }
+        RelativeLocation = InLocation;
+        RelativeRotation = InEulerDegrees;
+    }
+
 } // namespace Leon

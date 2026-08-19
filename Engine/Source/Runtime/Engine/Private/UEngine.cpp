@@ -19,6 +19,8 @@
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
+#include "Renderer/FIBLGenerator.hpp"
+#include "Renderer/FMeshPrimitives.hpp"
 #include "RHI/FRenderCommand.hpp"
 #include "Renderer/FWorldRenderer.hpp"
 #include "UMG/FUIRenderer.hpp"
@@ -161,6 +163,23 @@ namespace Leon {
             ActiveWorld->SetNetMode(GameInstance->GetNetMode());
     }
 
+    void UEngine::SetProjectRendererConfig(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
+                                           uint32_t InCascadeCount, float InShadowDistance,
+                                           EPlanarReflectionQuality InPlanarQuality, bool bInSSAOEnabled,
+                                           bool bInBloomEnabled, bool bInFXAAEnabled,
+                                           EShadowFilterMode InShadowFilter) {
+        ProjectShadowMapResolution = InShadowMapResolution > 0 ? InShadowMapResolution : 2048;
+        bProjectEnablePlanarReflection = bInEnablePlanarReflection;
+        ProjectCascadeCount = InCascadeCount > 0 ? std::min(InCascadeCount, 4u) : 4;
+        ProjectShadowDistance = InShadowDistance > 0.0f ? InShadowDistance : 100.0f;
+        ProjectPlanarReflectionQuality = InPlanarQuality;
+        ProjectPlanarReflectionResolutionScale = PlanarReflectionScaleFor(InPlanarQuality);
+        bProjectSSAOEnabled = bInSSAOEnabled;
+        bProjectBloomEnabled = bInBloomEnabled;
+        bProjectFXAAEnabled = bInFXAAEnabled;
+        ProjectShadowFilter = InShadowFilter;
+    }
+
     void UEngine::ApplyGameModeConfig(AGameModeBase* InGameMode) const {
         if (!InGameMode)
             return;
@@ -266,10 +285,10 @@ namespace Leon {
         std::string windowTitle =
             engineConfig.GetString("/Script/Engine.DisplaySettings", "WindowTitle",
                                    projectDesc.ProjectName.empty() ? "LeonEngine2" : projectDesc.ProjectName);
-        uint32_t windowWidth =
-            static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowWidth", 1280));
-        uint32_t windowHeight =
-            static_cast<uint32_t>(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowHeight", 720));
+        uint32_t windowWidth = static_cast<uint32_t>(engineConfig.GetInt(
+            "/Script/Engine.DisplaySettings", "WindowWidth", static_cast<int>(FWindowDisplayPolicy::DefaultWidth)));
+        uint32_t windowHeight = static_cast<uint32_t>(engineConfig.GetInt(
+            "/Script/Engine.DisplaySettings", "WindowHeight", static_cast<int>(FWindowDisplayPolicy::DefaultHeight)));
         bool bVSync = engineConfig.GetBool("/Script/Engine.DisplaySettings", "VSync", true);
         bool bFullscreen = engineConfig.GetBool("/Script/Engine.DisplaySettings", "Fullscreen", false);
 
@@ -293,6 +312,10 @@ namespace Leon {
         ProjectSSAORadius = engineConfig.GetFloat("/Script/Engine.RendererSettings", "SSAORadius", 0.5f);
         ProjectSSAOIntensity = engineConfig.GetFloat("/Script/Engine.RendererSettings", "SSAOIntensity", 1.0f);
         ProjectSSAOBias = engineConfig.GetFloat("/Script/Engine.RendererSettings", "SSAOBias", 0.025f);
+        bProjectBloomEnabled = engineConfig.GetBool("/Script/Engine.RendererSettings", "EnableBloom", true);
+        bProjectFXAAEnabled = engineConfig.GetBool("/Script/Engine.RendererSettings", "EnableFXAA", true);
+        ProjectShadowFilter =
+            ParseShadowFilterMode(engineConfig.GetString("/Script/Engine.RendererSettings", "ShadowFilter", "PCF3x3"));
         if (engineConfig.HasKey("/Script/Engine.RendererSettings", "Exposure") ||
             engineConfig.HasKey("/Script/Engine.RendererSettings", "SunIntensity")) {
             LE_CORE_INFO("UEngine: RendererSettings Exposure/SunIntensity are map-owned; INI values are not applied "
@@ -327,6 +350,13 @@ namespace Leon {
             windowWidth = static_cast<uint32_t>(std::max(1, std::atoi(widthArg.c_str())));
         if (const std::string heightArg = readArgValue("--height=", "--height"); !heightArg.empty())
             windowHeight = static_cast<uint32_t>(std::max(1, std::atoi(heightArg.c_str())));
+        {
+            unsigned int constrainedW = windowWidth;
+            unsigned int constrainedH = windowHeight;
+            FWindowDisplayPolicy::ConstrainClientSize(constrainedW, constrainedH);
+            windowWidth = constrainedW;
+            windowHeight = constrainedH;
+        }
         if (const std::string cascadeArg = readArgValue("--cascade-count=", "--cascade-count"); !cascadeArg.empty())
             ProjectCascadeCount = static_cast<uint32_t>(std::max(0, std::atoi(cascadeArg.c_str())));
         for (int i = 1; i < InArgs.Count; ++i) {
@@ -362,6 +392,8 @@ namespace Leon {
                                                 ProjectPlanarReflectionQuality, ProjectPlanarReflectionResolutionScale);
         ActiveWorld->SetProjectSSAODefaults(bProjectSSAOEnabled, ProjectSSAORadius, ProjectSSAOIntensity,
                                             ProjectSSAOBias);
+        ActiveWorld->SetProjectPostProcessToggles(bProjectBloomEnabled, bProjectFXAAEnabled);
+        ActiveWorld->SetProjectShadowFilter(ProjectShadowFilter);
         GameInstance->SetWorld(ActiveWorld);
         GameInstance->Init();
 
@@ -396,11 +428,21 @@ namespace Leon {
         app->PushLayer(viewportLayer);
         app->Run();
 
-        // 9. Shutdown & Cleanup
+        // 9. Shutdown & Cleanup — release world/GPU while the GL context is still alive
+        if (ViewportLayer)
+            ViewportLayer->SetWorld(nullptr);
         ViewportLayer = nullptr;
         if (ActiveWorld) {
             ActiveWorld->EndPlay();
+            ActiveWorld->Clear();
         }
+        if (GameInstance)
+            GameInstance->SetWorld(nullptr);
+        ActiveWorld = nullptr;
+
+        FIBLGenerator::ReleaseStaticCaches();
+        FMeshPrimitives::ReleaseStaticCaches();
+
         FAudioDevice::Get().Shutdown();
         FUIRenderer::Shutdown();
         if (GameInstance) {

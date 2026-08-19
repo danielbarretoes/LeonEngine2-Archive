@@ -19,6 +19,8 @@ namespace Leon {
         static ALeonTournamentGameState* GS(APlayerController* InPC);
         static bool IsClientWorld(APlayerController* InPC);
         static glm::vec2 ResolveViewportSize(const UCanvasPanel* InRoot);
+        /** Scale root slots/fonts from last AppliedScale to the current window LayoutScale. */
+        static float SyncResolutionScale(UCanvasPanel& InRoot, float& InOutAppliedScale, glm::vec2& InOutAppliedViewport);
         static void ApplyMenuRailLayout(UCanvasPanel& InRoot, const TRef<UWidget>& InPanel, const TRef<UButton>& InPrev,
                                         const TRef<UTextBlock>& InLabel, const TRef<UButton>& InNext, bool bLobby);
     };

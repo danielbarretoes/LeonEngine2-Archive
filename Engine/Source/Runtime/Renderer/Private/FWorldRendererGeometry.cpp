@@ -164,7 +164,7 @@ namespace Leon {
         auto staticMeshView = reg.view<FTransformComponent, FStaticMeshComponent>();
         for (auto entity : staticMeshView) {
             auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
-            if (!staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray())
+            if (!staticMeshComp.bVisible || !staticMeshComp.StaticMesh || !staticMeshComp.StaticMesh->GetVertexArray())
                 continue;
             glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
             if (IsStaticMeshCulled(world, staticMeshComp, camFrustum))

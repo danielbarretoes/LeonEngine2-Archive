@@ -10,6 +10,7 @@
 #include "Renderer/FVertexLayout.hpp"
 #include "Renderer/FIBLMath.hpp"
 #include "Renderer/FPlanarReflectionTypes.hpp"
+#include "Renderer/FShadowTypes.hpp"
 
 TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
 
@@ -161,6 +162,14 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(Leon::PlanarReflectionScaleFor(Leon::EPlanarReflectionQuality::Epic) == doctest::Approx(1.0f));
         CHECK(Leon::PlanarReflectionMipLevelsFor(Leon::EPlanarReflectionQuality::Epic) == 5);
         CHECK(Leon::ClampPlanarReflectionResolutionScale(2.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("Shadow filter tokens default to PCF3x3") {
+        CHECK(Leon::ParseShadowFilterMode("") == Leon::EShadowFilterMode::PCF3x3);
+        CHECK(Leon::ParseShadowFilterMode("PCF3x3") == Leon::EShadowFilterMode::PCF3x3);
+        CHECK(Leon::ParseShadowFilterMode("hard") == Leon::EShadowFilterMode::Hard);
+        CHECK(Leon::ParseShadowFilterMode("PCF5x5") == Leon::EShadowFilterMode::PCF5x5);
+        CHECK(Leon::ParseShadowFilterMode("Poisson") == Leon::EShadowFilterMode::Poisson);
     }
 
     TEST_CASE("Planar sampling VP projects the floor into 0-1 UV") {

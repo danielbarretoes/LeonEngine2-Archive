@@ -151,15 +151,12 @@ namespace Leon {
     }
 
     glm::mat4 USkeletalMeshComponent::GetComponentWorldMatrix() const {
-        glm::mat4 parent(1.0f);
-        if (AttachParent) {
-            parent = glm::translate(glm::mat4(1.0f), AttachParent->GetComponentLocation()) *
-                     glm::toMat4(glm::quat(glm::radians(AttachParent->GetComponentRotation())));
-        } else if (GetOwner()) {
-            parent = glm::translate(glm::mat4(1.0f), GetOwner()->GetActorLocation()) *
-                     glm::toMat4(glm::quat(glm::radians(GetOwner()->GetActorRotation())));
-        }
-        return parent * GetRelativeMatrix();
+        // Match USceneComponent: full parent chain (location, rotation, scale).
+        if (AttachParent)
+            return AttachParent->GetComponentWorldMatrix() * GetRelativeMatrix();
+        if (GetOwner())
+            return GetOwner()->GetTransform().GetTransform() * GetRelativeMatrix();
+        return GetRelativeMatrix();
     }
 
     void USkeletalMeshComponent::EnsureComponentSpace() {
@@ -223,7 +220,12 @@ namespace Leon {
         IPhysicsScene* scene = world ? world->GetPhysicsScene() : nullptr;
         if (!scene || !PhysicsAsset || PhysicsAsset->GetBodies().empty())
             return false;
-        EnsureComponentSpace();
+        // Refresh component-space from the last evaluated pose (do not keep a stale cache).
+        if (SkeletalMesh && SkeletalMesh->GetSkeleton()) {
+            if (EvaluatedPose.LocalTransforms.empty())
+                FAnimRuntime::RestPose(*SkeletalMesh->GetSkeleton(), EvaluatedPose);
+            FAnimRuntime::LocalToComponent(*SkeletalMesh->GetSkeleton(), EvaluatedPose, ComponentSpaceTransforms);
+        }
         StopRagdoll();
 
         auto cleanup = [&]() {
@@ -256,24 +258,30 @@ namespace Leon {
             info.Motion = EPhysicsMotionType::Dynamic;
             info.bSimulatePhysics = true;
             info.bEnableGravity = true;
-            info.ObjectType = ECollisionChannel::PhysicsBody;
+            info.ObjectType = ECollisionChannel::WorldDynamic;
+            info.CollisionEnabled = ECollisionEnabled::QueryAndPhysics;
             info.Mass = desc.Mass > 0.0f ? desc.Mass : 5.0f;
-            info.LinearDamping = 0.4f;
-            info.AngularDamping = 0.4f;
+            info.LinearDamping = 0.35f;
+            info.AngularDamping = 0.35f;
+            info.Friction = 1.0f;
+            info.Restitution = 0.0f;
             info.Location = worldPos + desc.Offset;
             info.Rotation = worldRot;
             info.Component = this;
-            // Leave Actor null so SimplePhysics does not teleport the standing capsule per bone.
+            info.bUseCCD = true;
+            info.bSyncComponentTransform = false;
+            // Slightly larger than authored so thin floors catch the corpse reliably.
+            constexpr float kSizeBoost = 1.15f;
             if (desc.Shape == EPhysicsAssetBodyShape::Sphere) {
                 info.Shape = EPhysicsShapeType::Sphere;
-                info.SphereRadius = desc.Radius;
+                info.SphereRadius = std::max(desc.Radius * kSizeBoost, 0.08f);
             } else if (desc.Shape == EPhysicsAssetBodyShape::Box) {
                 info.Shape = EPhysicsShapeType::Box;
-                info.BoxHalfExtent = desc.BoxExtent;
+                info.BoxHalfExtent = glm::max(desc.BoxExtent * kSizeBoost, glm::vec3(0.08f));
             } else {
                 info.Shape = EPhysicsShapeType::Capsule;
-                info.CapsuleRadius = desc.Radius;
-                info.CapsuleHalfHeight = desc.CapsuleHalfHeight;
+                info.CapsuleRadius = std::max(desc.Radius * kSizeBoost, 0.08f);
+                info.CapsuleHalfHeight = std::max(desc.CapsuleHalfHeight * kSizeBoost, info.CapsuleRadius + 0.04f);
             }
             IPhysicsBody* body = scene->CreateRigidBody(info);
             if (!body) {
@@ -292,26 +300,56 @@ namespace Leon {
         };
 
         std::vector<FPhysicsAssetConstraint> links = PhysicsAsset->GetConstraints();
-        if (links.empty() && SkeletalMesh && SkeletalMesh->GetSkeleton()) {
+        if (SkeletalMesh && SkeletalMesh->GetSkeleton()) {
             const auto& bones = SkeletalMesh->GetSkeleton()->GetBones();
+            auto findBodyIndex = [&](const std::string& InName) -> int32_t {
+                for (size_t i = 0; i < RagdollBoneNames.size(); ++i) {
+                    if (RagdollBoneNames[i] == InName)
+                        return static_cast<int32_t>(i);
+                }
+                return -1;
+            };
+            // Always ensure every body is linked to its nearest simulated ancestor.
+            // Authored constraints often skip limbs when shoulders/etc. have no body.
             for (size_t i = 0; i < RagdollBoneNames.size(); ++i) {
                 const int32_t idx = SkeletalMesh->GetSkeleton()->FindBoneIndex(RagdollBoneNames[i]);
                 if (idx < 0)
                     continue;
-                const int32_t parent = bones[static_cast<size_t>(idx)].ParentIndex;
-                if (parent < 0)
+                int32_t ancestor = bones[static_cast<size_t>(idx)].ParentIndex;
+                int32_t ancestorBody = -1;
+                while (ancestor >= 0 && ancestor < static_cast<int32_t>(bones.size())) {
+                    ancestorBody = findBodyIndex(bones[static_cast<size_t>(ancestor)].Name);
+                    if (ancestorBody >= 0)
+                        break;
+                    ancestor = bones[static_cast<size_t>(ancestor)].ParentIndex;
+                }
+                if (ancestorBody < 0)
                     continue;
-                const std::string& parentName = bones[static_cast<size_t>(parent)].Name;
-                for (size_t j = 0; j < RagdollBoneNames.size(); ++j) {
-                    if (RagdollBoneNames[j] == parentName) {
-                        FPhysicsAssetConstraint c;
-                        c.BoneA = parentName;
-                        c.BoneB = RagdollBoneNames[i];
-                        c.Type = EPhysicsConstraintType::SwingTwist;
-                        links.push_back(c);
+                bool bAlready = false;
+                for (const FPhysicsAssetConstraint& existing : links) {
+                    if ((existing.BoneA == RagdollBoneNames[static_cast<size_t>(ancestorBody)] &&
+                         existing.BoneB == RagdollBoneNames[i]) ||
+                        (existing.BoneB == RagdollBoneNames[static_cast<size_t>(ancestorBody)] &&
+                         existing.BoneA == RagdollBoneNames[i])) {
+                        bAlready = true;
                         break;
                     }
                 }
+                if (bAlready)
+                    continue;
+                FPhysicsAssetConstraint c;
+                c.BoneA = RagdollBoneNames[static_cast<size_t>(ancestorBody)];
+                c.BoneB = RagdollBoneNames[i];
+                c.Type = EPhysicsConstraintType::SwingTwist;
+                links.push_back(c);
+            }
+        }
+
+        // Self-collision between limbs fights Fixed joints and visually tears the corpse apart.
+        for (size_t i = 0; i < RagdollBodies.size(); ++i) {
+            for (size_t j = i + 1; j < RagdollBodies.size(); ++j) {
+                if (RagdollBodies[i] && RagdollBodies[j])
+                    scene->IgnoreCollision(RagdollBodies[i], RagdollBodies[j]);
             }
         }
 
@@ -326,34 +364,60 @@ namespace Leon {
             }
             if (!a || !b)
                 continue;
-            scene->IgnoreCollision(a, b);
+
+            // Fixed joints keep the corpse as one connected body (SwingTwist was tearing limbs off
+            // with our current Jolt pivot setup). Still looks like a ragdoll tumble as a unit.
             FPhysicsConstraintCreateInfo info;
             info.BodyA = a;
             info.BodyB = b;
-            info.Type = link.Type;
-            info.RestLength = link.RestLength;
-            info.Axis = link.Axis;
-            info.Swing1LimitRadians = link.Swing1LimitRadians;
-            info.Swing2LimitRadians = link.Swing2LimitRadians;
-            info.TwistLimitRadians = link.TwistLimitRadians;
+            info.Type = EPhysicsConstraintType::Fixed;
             IPhysicsConstraint* constraint = scene->CreateConstraint(info);
-            if (!constraint) {
-                cleanup();
-                return false;
-            }
+            if (!constraint)
+                continue;
             RagdollConstraints.push_back(constraint);
         }
 
+        if (RagdollConstraints.empty() && RagdollBodies.size() > 1) {
+            cleanup();
+            return false;
+        }
+
         CaptureRagdollRestLocals();
+
+        // Death hit impulse: InImpulse is knockback direction * strength (gameplay units).
+        // Convert to a visible Δv along the last hit direction (slight upward bias).
+        glm::vec3 hitImpulse = InImpulse;
+        float strength = glm::length(hitImpulse);
+        glm::vec3 hitDir(0.0f, 0.25f, 1.0f);
+        if (strength > 1.0e-4f)
+            hitDir = hitImpulse / strength;
+        else
+            strength = 8.0f;
+        hitDir = glm::normalize(hitDir + glm::vec3(0.0f, 0.22f, 0.0f));
+        const float deltaV = std::clamp(strength * 2.5f, 8.0f, 36.0f);
+
         IPhysicsBody* impulseBody = RagdollBodies.empty() ? nullptr : RagdollBodies.front();
         for (size_t i = 0; i < RagdollBoneNames.size(); ++i) {
-            if (nameContains(RagdollBoneNames[i], "hips") || nameContains(RagdollBoneNames[i], "pelvis")) {
+            if (nameContains(RagdollBoneNames[i], "hips") || nameContains(RagdollBoneNames[i], "pelvis") ||
+                nameContains(RagdollBoneNames[i], "spine")) {
                 impulseBody = RagdollBodies[i];
                 break;
             }
         }
-        if (impulseBody)
-            impulseBody->AddImpulse(InImpulse);
+        for (size_t i = 0; i < RagdollBodies.size(); ++i) {
+            IPhysicsBody* body = RagdollBodies[i];
+            if (!body)
+                continue;
+            const float mass = std::max(body->GetMass(), 0.1f);
+            const float weight = (body == impulseBody) ? 1.0f : 0.55f;
+            body->AddImpulse(hitDir * (mass * deltaV * weight));
+        }
+        if (impulseBody) {
+            // Torque so the corpse tumbles away from the shot instead of sliding rigidly.
+            const glm::vec3 side = glm::normalize(glm::cross(hitDir, glm::vec3(0.0f, 1.0f, 0.0f)));
+            if (glm::length(side) > 1.0e-4f)
+                impulseBody->SetAngularVelocity(side * (deltaV * 0.45f));
+        }
         bSimulatingRagdoll = true;
         return true;
     }
@@ -379,6 +443,50 @@ namespace Leon {
         RagdollBoneScale.clear();
         RagdollBoneIsSimulated.clear();
         bSimulatingRagdoll = false;
+    }
+
+    void USkeletalMeshComponent::IgnoreCollisionWith(IPhysicsBody* InBody) {
+        if (!InBody || RagdollBodies.empty())
+            return;
+        AActor* owner = GetOwner();
+        UWorld* world = owner ? owner->GetWorld() : nullptr;
+        IPhysicsScene* scene = world ? world->GetPhysicsScene() : nullptr;
+        if (!scene)
+            return;
+        for (IPhysicsBody* bone : RagdollBodies) {
+            if (bone)
+                scene->IgnoreCollision(InBody, bone);
+        }
+    }
+
+    void USkeletalMeshComponent::ConstrainBodiesToFloor(float InFloorZ) {
+        // Lift the whole ragdoll by one translation — per-body snaps tear Fixed joints apart.
+        constexpr float kSkin = 0.1f;
+        const float minY = InFloorZ + kSkin;
+        float lift = 0.0f;
+        for (IPhysicsBody* body : RagdollBodies) {
+            if (!body)
+                continue;
+            glm::vec3 loc;
+            glm::quat rot;
+            body->GetTransform(loc, rot);
+            lift = std::max(lift, minY - loc.y);
+        }
+        if (lift <= 1.0e-4f)
+            return;
+        for (IPhysicsBody* body : RagdollBodies) {
+            if (!body)
+                continue;
+            glm::vec3 loc;
+            glm::quat rot;
+            body->GetTransform(loc, rot);
+            loc.y += lift;
+            body->SetTransform(loc, rot);
+            glm::vec3 v = body->GetLinearVelocity();
+            if (v.y < 0.0f)
+                v.y = 0.0f;
+            body->SetLinearVelocity(v);
+        }
     }
 
     glm::quat USkeletalMeshComponent::NormalizedMat3Quat(const glm::mat4& InM) {
@@ -455,20 +563,44 @@ namespace Leon {
         if (ComponentSpaceTransforms.size() < bones.size())
             ComponentSpaceTransforms.resize(bones.size(), glm::mat4(1.0f));
 
-        const glm::mat4 meshWorld = GetComponentWorldMatrix();
+        struct FBoneWorld {
+            int32_t Bone = -1;
+            glm::vec3 Loc{0.0f};
+            glm::quat Rot{1.0f, 0.0f, 0.0f, 0.0f};
+        };
+        std::vector<FBoneWorld> worlds;
+        worlds.reserve(RagdollBodies.size());
         for (size_t i = 0; i < RagdollBodies.size() && i < RagdollBoneNames.size(); ++i) {
             if (!RagdollBodies[i])
                 continue;
             const int32_t bone = SkeletalMesh->GetSkeleton()->FindBoneIndex(RagdollBoneNames[i]);
             if (bone < 0 || bone >= static_cast<int32_t>(ComponentSpaceTransforms.size()))
                 continue;
-            glm::vec3 loc;
-            glm::quat rot;
-            RagdollBodies[i]->GetTransform(loc, rot);
-            PhysicsWorldToComponent(meshWorld, loc, rot, ComponentSpaceTransforms[static_cast<size_t>(bone)]);
-            if (static_cast<size_t>(bone) < RagdollBoneScale.size()) {
-                const glm::vec3 s = glm::max(RagdollBoneScale[static_cast<size_t>(bone)], glm::vec3(1.0e-4f));
-                ComponentSpaceTransforms[static_cast<size_t>(bone)] *= glm::scale(glm::mat4(1.0f), s);
+            FBoneWorld w;
+            w.Bone = bone;
+            RagdollBodies[i]->GetTransform(w.Loc, w.Rot);
+            worlds.push_back(w);
+        }
+
+        // Track actor/camera to the hips so the corpse does not float away from the mesh root.
+        glm::vec3 hipsLoc;
+        glm::quat hipsRot;
+        if (GetRagdollRootTransform(hipsLoc, hipsRot)) {
+            if (AActor* owner = GetOwner()) {
+                if (owner->GetLocalRole() != ENetRole::SimulatedProxy) {
+                    const glm::vec3 euler = glm::degrees(glm::eulerAngles(hipsRot));
+                    owner->SetActorLocation(hipsLoc);
+                    owner->SetActorRotation({0.0f, euler.y, 0.0f});
+                }
+            }
+        }
+
+        const glm::mat4 meshWorld = GetComponentWorldMatrix();
+        for (const FBoneWorld& w : worlds) {
+            PhysicsWorldToComponent(meshWorld, w.Loc, w.Rot, ComponentSpaceTransforms[static_cast<size_t>(w.Bone)]);
+            if (static_cast<size_t>(w.Bone) < RagdollBoneScale.size()) {
+                const glm::vec3 s = glm::max(RagdollBoneScale[static_cast<size_t>(w.Bone)], glm::vec3(1.0e-4f));
+                ComponentSpaceTransforms[static_cast<size_t>(w.Bone)] *= glm::scale(glm::mat4(1.0f), s);
             }
         }
 

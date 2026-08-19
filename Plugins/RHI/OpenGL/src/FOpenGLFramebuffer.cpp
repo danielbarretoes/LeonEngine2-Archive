@@ -67,7 +67,8 @@ namespace Leon {
             RendererID = 0;
 
             if (AllocatedBytes > 0) {
-                FRenderer::OnGPUFree(AllocatedBytes);
+                const char* label = Specification.DebugName.empty() ? nullptr : Specification.DebugName.c_str();
+                FRenderer::OnGPUFree(AllocatedBytes, EGPUMemoryCategory::Framebuffer, label);
                 AllocatedBytes = 0;
             }
         }
@@ -203,7 +204,8 @@ namespace Leon {
 
         AllocatedBytes = totalBytes;
         if (AllocatedBytes > 0) {
-            FRenderer::OnGPUAlloc(AllocatedBytes);
+            const char* label = Specification.DebugName.empty() ? nullptr : Specification.DebugName.c_str();
+            FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::Framebuffer, label);
         }
     }
 

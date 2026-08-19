@@ -19,15 +19,33 @@
 
 #include <fstream>
 #include <filesystem>
+#include <cmath>
+#include <glm/glm.hpp>
 
 TEST_SUITE("Physics / Collision") {
+    namespace {
+        Leon::TRef<Leon::UWorld> MakePhysWorld(const char* InName) {
+            auto world = Leon::UWorld::Create(InName);
+            world->InitWorld();
+            return world;
+        }
+
+        void BeginActor(Leon::AActor* InActor) {
+            if (!InActor || InActor->HasBegunPlay())
+                return;
+            InActor->ExecuteBeginPlay();
+            InActor->MarkBegunPlay();
+        }
+    } // namespace
+
     TEST_CASE("UBoxComponent blocks Visibility traces") {
-        auto world = Leon::UWorld::Create("PhysBox");
+        auto world = MakePhysWorld("PhysBox");
         auto* wall = world->SpawnActor<Leon::AActor>("Wall");
         wall->SetActorLocation({0.0f, 1.0f, 10.0f});
         auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
         box->SetBoxExtent({0.5f, 0.5f, 0.5f});
         box->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        BeginActor(wall);
 
         Leon::FHitResult hit;
         CHECK(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
@@ -37,11 +55,12 @@ TEST_SUITE("Physics / Collision") {
     }
 
     TEST_CASE("USphereComponent and UCapsuleComponent traces") {
-        auto world = Leon::UWorld::Create("PhysShapes");
+        auto world = MakePhysWorld("PhysShapes");
         auto* sphereActor = world->SpawnActor<Leon::AActor>("Sphere");
         sphereActor->SetActorLocation({0.0f, 1.0f, 8.0f});
         auto sphere = sphereActor->AddActorComponent<Leon::USphereComponent>("Sphere");
         sphere->SetSphereRadius(0.5f);
+        BeginActor(sphereActor);
 
         Leon::FHitResult hit;
         CHECK(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
@@ -51,17 +70,19 @@ TEST_SUITE("Physics / Collision") {
         capActor->SetActorLocation({5.0f, 1.0f, 8.0f});
         auto cap = capActor->AddActorComponent<Leon::UCapsuleComponent>("Cap");
         cap->SetCapsuleSize(0.4f, 0.9f);
+        BeginActor(capActor);
         CHECK(world->LineTraceSingleByChannel({5, 1, 0}, {5, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
         CHECK(hit.Actor == capActor);
     }
 
     TEST_CASE("Collision responses Ignore vs Block") {
-        auto world = Leon::UWorld::Create("PhysResp");
+        auto world = MakePhysWorld("PhysResp");
         auto* wall = world->SpawnActor<Leon::AActor>("Wall");
         wall->SetActorLocation({0.0f, 1.0f, 10.0f});
         auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
         box->SetBoxExtent({0.5f, 0.5f, 0.5f});
         box->SetCollisionResponseToChannel(Leon::ECollisionChannel::Visibility, Leon::ECollisionResponse::Ignore);
+        BeginActor(wall);
         Leon::FHitResult hit;
         CHECK_FALSE(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr,
                                                     hit));
@@ -70,13 +91,14 @@ TEST_SUITE("Physics / Collision") {
     }
 
     TEST_CASE("SimulatePhysics dynamic body falls") {
-        auto world = Leon::UWorld::Create("PhysDyn");
+        auto world = MakePhysWorld("PhysDyn");
         auto* scene = world->GetPhysicsScene();
         REQUIRE(scene);
         Leon::FPhysicsBodyCreateInfo info;
         info.Motion = Leon::EPhysicsMotionType::Dynamic;
         info.bSimulatePhysics = true;
         info.bEnableGravity = true;
+        info.ObjectType = Leon::ECollisionChannel::WorldDynamic;
         info.Location = {0.0f, 5.0f, 0.0f};
         auto* body = scene->CreateRigidBody(info);
         REQUIRE(body);
@@ -90,11 +112,12 @@ TEST_SUITE("Physics / Collision") {
     }
 
     TEST_CASE("Sweep and overlap by channel") {
-        auto world = Leon::UWorld::Create("PhysSweep");
+        auto world = MakePhysWorld("PhysSweep");
         auto* wall = world->SpawnActor<Leon::AActor>("Wall");
         wall->SetActorLocation({0.0f, 1.0f, 4.0f});
         auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
         box->SetBoxExtent({0.5f, 1.0f, 0.5f});
+        BeginActor(wall);
         Leon::FHitResult hit;
         CHECK(world->SweepSingleByChannel({0, 1, 0}, {0, 1, 8}, 0.2f, Leon::ECollisionChannel::WorldStatic, nullptr, hit));
         CHECK(world->OverlapAnyTestByChannel({0, 1, 4}, {0.6f, 0.6f, 0.6f}, Leon::ECollisionChannel::WorldStatic,
@@ -102,15 +125,17 @@ TEST_SUITE("Physics / Collision") {
     }
 
     TEST_CASE("ABlockingVolume and APhysicsVolume") {
-        auto world = Leon::UWorld::Create("Volumes");
+        auto world = MakePhysWorld("Volumes");
         auto* block = world->SpawnActor<Leon::ABlockingVolume>("Block");
         block->SetActorLocation({0.0f, 1.0f, 6.0f});
         block->SetActorScale({2.0f, 2.0f, 2.0f});
         block->PostInitializeComponents();
+        BeginActor(block);
         Leon::FHitResult hit;
         CHECK(world->LineTraceByChannel({0, 1, 0}, {0, 1, 12}, Leon::ECollisionChannel::Visibility, nullptr, hit));
         auto* vol = world->SpawnActor<Leon::APhysicsVolume>("Water");
         vol->PostInitializeComponents();
+        BeginActor(vol);
         vol->GravityScale = 0.3f;
         CHECK(vol->GravityScale == doctest::Approx(0.3f));
     }
@@ -355,5 +380,50 @@ TEST_SUITE("PhysicsAsset / Ragdoll") {
         CHECK_FALSE(ch->IsRagdoll());
         REQUIRE(ch->GetCharacterMovement());
         CHECK(ch->GetCharacterMovement()->GetMovementMode() == Leon::EMovementMode::Walking);
+    }
+
+    TEST_CASE("SetCollisionObjectType updates live body") {
+        auto world = Leon::UWorld::Create("ObjectTypeRuntime");
+        world->InitWorld();
+        auto* wall = world->SpawnActor<Leon::AActor>("Wall");
+        wall->SetActorLocation({0.0f, 1.0f, 6.0f});
+        auto box = wall->AddActorComponent<Leon::UBoxComponent>("Box");
+        box->SetBoxExtent({0.5f, 0.5f, 0.5f});
+        box->SetCollisionObjectType(Leon::ECollisionChannel::WorldStatic);
+        wall->SetRootComponent(box.get());
+        world->BeginPlay();
+        REQUIRE(box->GetPhysicsBody());
+        CHECK(box->GetPhysicsBody()->GetObjectType() == Leon::ECollisionChannel::WorldStatic);
+        box->SetCollisionObjectType(Leon::ECollisionChannel::WorldDynamic);
+        CHECK(box->GetPhysicsBody()->GetObjectType() == Leon::ECollisionChannel::WorldDynamic);
+    }
+
+    TEST_CASE("two dynamic primitives on one actor sync independently") {
+        auto world = Leon::UWorld::Create("MultiBodySync");
+        world->InitWorld();
+        auto* actor = world->SpawnActor<Leon::AActor>("Prop");
+        actor->SetActorLocation({0.0f, 5.0f, 0.0f});
+        auto root = actor->AddActorComponent<Leon::UBoxComponent>("RootBox");
+        root->SetBoxExtent({0.2f, 0.2f, 0.2f});
+        root->SetSimulatePhysics(true);
+        root->SetCollisionObjectType(Leon::ECollisionChannel::WorldDynamic);
+        actor->SetRootComponent(root.get());
+        auto child = actor->AddActorComponent<Leon::USphereComponent>("ChildSphere");
+        child->SetSphereRadius(0.2f);
+        child->SetRelativeLocation({0.0f, 1.0f, 0.0f});
+        child->SetupAttachment(root.get());
+        child->SetSimulatePhysics(true);
+        child->SetCollisionObjectType(Leon::ECollisionChannel::WorldDynamic);
+        world->BeginPlay();
+        REQUIRE(root->GetPhysicsBody());
+        REQUIRE(child->GetPhysicsBody());
+        const glm::vec3 actorBefore = actor->GetActorLocation();
+        for (int i = 0; i < 30; ++i) {
+            world->GetPhysicsScene()->Tick(Leon::kPhysicsFixedDeltaSeconds);
+            world->GetPhysicsScene()->SyncDynamicTransforms();
+        }
+        // Child relative must not yank the actor to the child's world pose.
+        CHECK(glm::length(actor->GetActorLocation() - actorBefore) < 8.0f);
+        CHECK(child->GetRelativeLocation().y == doctest::Approx(1.0f).epsilon(2.0f));
     }
 }

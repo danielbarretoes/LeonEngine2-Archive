@@ -68,6 +68,18 @@ namespace Leon {
             FRenderCommand::SetBlendFunc(pso.SrcBlend, pso.DstBlend);
     }
 
+    /** Default mesh raster after UI/debug/sky/shadow side-effects. Call at CSM/spot start and HDR bind. */
+    inline void ResetDefaultMeshRasterState() {
+        FRenderCommand::SetDepthTesting(true);
+        FRenderCommand::SetDepthMask(true);
+        FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetBlendState(false);
+        FRenderCommand::SetPolygonOffset(false);
+        FRenderCommand::SetClipDistance(false);
+        FRenderCommand::SetLineWidth(1.0f);
+    }
+
     struct FTransparentDraw {
         TRef<FShader> Shader;
         TRef<FVertexArray> VA;
@@ -125,6 +137,8 @@ namespace Leon {
 
     inline bool IsStaticMeshCulled(const glm::mat4& InWorld, const FStaticMeshComponent& InMesh,
                             const FFrustumPlanes& InFrustum) {
+        if (!InMesh.bVisible)
+            return true;
         if (!InMesh.StaticMesh)
             return false;
         glm::vec3 wMin, wMax;

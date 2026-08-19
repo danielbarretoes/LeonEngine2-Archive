@@ -283,7 +283,7 @@ Runtime path: `UEngine` → viewport layer → `UWorld::OnRender` → `FWorldRen
 
 Implementation is split across `FWorldRenderer.cpp` (frame + FBOs), `FWorldRendererLighting.cpp` (CSM / spot / planar / sky / IBL), `FWorldRendererGeometry.cpp` (opaque / skinned outline / transparent), `FWorldRendererPostProcess.cpp`.
 
-Static lighting (offline): `LeonAssetTool bake_lightmaps` → `FLightmass` / `FLightBaker` → `.llightmap`. Runtime sampling: [STATIC_LIGHTING.md](STATIC_LIGHTING.md). **Source of truth for bake AO:** `FLightBaker` *can* scale stored irradiance `E` when `bAmbientOcclusion` is true (default). [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md) currently contradicts that — prefer the baker and STATIC_LIGHTING.
+Static lighting (offline): `LeonAssetTool bake_lightmaps` → `FLightmass` / `FLightBaker` → `.llightmap`. Runtime sampling: [STATIC_LIGHTING.md](STATIC_LIGHTING.md). Bake AO: when enabled, `FLightBaker` multiplies AO into stored `E` (aligned with [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md)). Renderer docs: [RENDERER.md](RENDERER.md).
 
 ```text
 Gather lights (skip ELightMobility::Static) → Lighting UBO
@@ -291,14 +291,14 @@ UpdateIBL
 PASS 1: Cascaded Shadow (4-slice DEPTH32F array, front-face cull)
 PASS 2: Spot shadow (one 2D DEPTH32F map — `ShadowedSpotIndex` in the runtime spot list)
 PASS 3: Planar reflection (mirrored camera, RGBA16F, shadows disabled, clip plane)
-PASS 4: Opaque HDR geometry RGBA16F — CPU AABB frustum cull, bind cache,
+PASS 4: Opaque HDR geometry RGBA16F — CPU AABB frustum cull,
          GPU instancing (same VA + material, ≤64)
          opaque → skinned inverted-hull outline
 PASS 5: Skybox (z = w, depth LessEqual)
-PASS 6: Transparent Blend (back-to-front, depth write off) → 3D world text + particles
-        optional gameplay debug (depth test on, depth write off)
-PASS 7: SSAO (half-res depth, plane-aware occlusion, bilateral blur) → Bloom → exposure → tone map (ACES default) → IEC sRGB → FXAA
-Restore PreviousFBO
+PASS 6: Transparent Blend (back-to-front, depth write off)
+PASS 7: 3D world text → particles → optional gameplay debug (depth test on, write off)
+PASS 8: SSAO → Bloom → exposure → tone map (ACES default) → IEC sRGB → FXAA
+Restore PreviousFBO → UI / F1 overlay → Present
 ```
 
 **Coordinates (implemented):** right-handed, +Y up, camera forward −Z (default yaw −90°), OpenGL clip $z \in [-1,1]$, front face CCW, `M = T * R * S`, GPU column-major no-transpose. Not reversed-Z. Near 0.1 / far 1000. Actor world pose is `AActor::GetActorWorldMatrix()` (root `USceneComponent` chain, else `FTransformComponent`).

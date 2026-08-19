@@ -1,7 +1,10 @@
 #include "UMG/UCanvasPanel.hpp"
+#include "UMG/UPanelWidget.hpp"
+#include "UMG/UTextBlock.hpp"
 #include "UMG/FUIRenderer.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace Leon {
 
@@ -76,6 +79,32 @@ namespace Leon {
         slot->Offsets = InOffsets;
         ApplySlotLayout(*slot, GetSize());
         return true;
+    }
+
+    void UCanvasPanel::ScaleLayout(float InFactor) {
+        if (!std::isfinite(InFactor) || std::abs(InFactor - 1.0f) < 1.0e-4f)
+            return;
+        auto scaleFonts = [&](auto&& self, UWidget* widget) -> void {
+            if (!widget)
+                return;
+            if (auto* text = dynamic_cast<UTextBlock*>(widget)) {
+                text->SetFontScale(text->GetFontScale() * InFactor);
+                const glm::vec2 sz = text->GetSize();
+                text->SetSize({sz.x * InFactor, sz.y * InFactor});
+            }
+            if (auto* panel = dynamic_cast<UPanelWidget*>(widget)) {
+                for (const auto& child : panel->GetAllChildren())
+                    self(self, child.get());
+            }
+        };
+        for (auto& slot : Slots) {
+            slot.Offsets.Left *= InFactor;
+            slot.Offsets.Top *= InFactor;
+            slot.Offsets.Right *= InFactor;
+            slot.Offsets.Bottom *= InFactor;
+            scaleFonts(scaleFonts, slot.Content.get());
+        }
+        PerformLayout(GetSize());
     }
 
     void UCanvasPanel::Paint(const FGeometry& InAllottedGeometry) {

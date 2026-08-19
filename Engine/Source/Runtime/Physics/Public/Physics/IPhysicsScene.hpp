@@ -27,6 +27,8 @@ namespace Leon {
         bool bTraceComplex = true;
     };
 
+    enum class EPhysicsContactKind : uint8_t { Hit = 0, OverlapEnter = 1, OverlapExit = 2 };
+
     struct FPhysicsContact {
         AActor* ActorA = nullptr;
         AActor* ActorB = nullptr;
@@ -34,6 +36,7 @@ namespace Leon {
         UActorComponent* ComponentB = nullptr;
         glm::vec3 Location{0.0f};
         glm::vec3 Normal{0.0f, 1.0f, 0.0f};
+        EPhysicsContactKind Kind = EPhysicsContactKind::Hit;
         bool bEnter = true;
     };
 
@@ -58,6 +61,11 @@ namespace Leon {
         bool bEnableGravity = true;
         bool bSimulatePhysics = false;
         bool bUseCCD = false;
+        /**
+         * When true (default), SyncDynamicTransforms writes this body pose to Component/Actor.
+         * Ragdoll bone bodies keep Component for queries but apply pose via ApplyRagdollPoseFromBodies.
+         */
+        bool bSyncComponentTransform = true;
         AActor* Actor = nullptr;
         UActorComponent* Component = nullptr;
         UPhysicalMaterial* PhysicalMaterial = nullptr;
@@ -66,9 +74,36 @@ namespace Leon {
         glm::mat4 CollisionMeshWorld{1.0f};
     };
 
+    /** Approximate volume (m³) for Mass = Density * volume when Mass is left at default 1. */
+    inline float ApproximatePhysicsShapeVolume(const FPhysicsBodyCreateInfo& InInfo) {
+        constexpr float kPi = 3.14159265358979323846f;
+        if (InInfo.Shape == EPhysicsShapeType::Sphere) {
+            const float r = InInfo.SphereRadius > 0.01f ? InInfo.SphereRadius : 0.01f;
+            return (4.0f / 3.0f) * kPi * r * r * r;
+        }
+        if (InInfo.Shape == EPhysicsShapeType::Capsule) {
+            const float r = InInfo.CapsuleRadius > 0.01f ? InInfo.CapsuleRadius : 0.01f;
+            const float half = InInfo.CapsuleHalfHeight > r ? InInfo.CapsuleHalfHeight : r;
+            const float cyl = half > r ? half - r : 0.0f;
+            return kPi * r * r * (2.0f * cyl) + (4.0f / 3.0f) * kPi * r * r * r;
+        }
+        if (InInfo.Shape == EPhysicsShapeType::Box) {
+            const float hx = InInfo.BoxHalfExtent.x > 0.01f ? InInfo.BoxHalfExtent.x : 0.01f;
+            const float hy = InInfo.BoxHalfExtent.y > 0.01f ? InInfo.BoxHalfExtent.y : 0.01f;
+            const float hz = InInfo.BoxHalfExtent.z > 0.01f ? InInfo.BoxHalfExtent.z : 0.01f;
+            return 8.0f * hx * hy * hz;
+        }
+        return 1.0f;
+    }
+
     class IPhysicsBody {
     public:
         virtual ~IPhysicsBody() = default;
+        /**
+         * Destroy this body via its owning scene. Safe when UWorld is already gone;
+         * UPrimitiveComponent::UnregisterPhysics must call this so bodies are never orphaned.
+         */
+        virtual void Destroy() = 0;
         /** Teleport the body (Unreal FBodyInstance::SetBodyTransform). */
         virtual void SetTransform(const glm::vec3& InLocation, const glm::quat& InRotation) = 0;
         virtual void GetTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const = 0;
@@ -91,11 +126,13 @@ namespace Leon {
         virtual void SetRestitution(float InRestitution) = 0;
         virtual void SetCollisionEnabled(ECollisionEnabled InEnabled) = 0;
         virtual void SetCollisionResponses(const FCollisionResponseContainer& InResponses) = 0;
+        virtual void SetObjectType(ECollisionChannel InType) = 0;
         virtual AActor* GetActor() const = 0;
         virtual UActorComponent* GetComponent() const = 0;
         virtual ECollisionChannel GetObjectType() const = 0;
         virtual ECollisionResponse GetResponseToChannel(ECollisionChannel InChannel) const = 0;
         virtual ECollisionEnabled GetCollisionEnabled() const = 0;
+        virtual EPhysicsMotionType GetMotionType() const = 0;
     };
 
     class IPhysicsConstraint {
@@ -150,6 +187,13 @@ namespace Leon {
         virtual int32_t SweepMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
                                             ECollisionChannel InChannel, AActor* InIgnore,
                                             std::vector<FHitResult>& OutHits) const = 0;
+        /** Unreal-style capsule: InHalfHeight is half of total height including hemispheres. */
+        virtual bool SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                                 float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                                 FHitResult& OutHit) const = 0;
+        virtual int32_t SweepCapsuleMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                                   float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                                   std::vector<FHitResult>& OutHits) const = 0;
         virtual bool OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,
                                              ECollisionChannel InChannel, AActor* InIgnore) const = 0;
         virtual int32_t OverlapMultiByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,

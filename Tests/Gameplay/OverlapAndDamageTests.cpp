@@ -43,18 +43,25 @@ namespace Leon {
             FOverlapDamageFixture f;
             AActor* a = f.World->SpawnActor<AActor>("A");
             AActor* b = f.World->SpawnActor<AActor>("B");
-            a->ExecuteBeginPlay();
-            b->ExecuteBeginPlay();
-
+            // Configure collision before BeginPlay so RegisterPhysics creates QueryOnly sensors.
             auto boxA = a->AddActorComponent<UBoxComponent>("BoxA");
             auto boxB = b->AddActorComponent<UBoxComponent>("BoxB");
+            // Spawn after world BeginPlay auto-runs actor BeginPlay; recreate bodies after config.
+            boxA->UnregisterPhysics();
+            boxB->UnregisterPhysics();
+            a->SetRootComponent(boxA.get());
+            b->SetRootComponent(boxB.get());
             boxA->SetBoxExtent({0.5f, 0.5f, 0.5f});
             boxB->SetBoxExtent({0.5f, 0.5f, 0.5f});
             boxA->SetGenerateOverlapEvents(true);
             boxA->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+            boxA->SetCollisionResponseToAllChannels(ECollisionResponse::Overlap);
             boxB->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+            boxB->SetCollisionResponseToAllChannels(ECollisionResponse::Overlap);
             a->SetActorLocation({0.0f, 0.0f, 0.0f});
             b->SetActorLocation({0.4f, 0.0f, 0.0f});
+            boxA->RegisterPhysics();
+            boxB->RegisterPhysics();
 
             int begins = 0;
             int ends = 0;
@@ -69,12 +76,14 @@ namespace Leon {
                         ++ends;
                 });
 
-            f.World->UpdateComponentOverlaps();
+            for (int i = 0; i < 3; ++i)
+                f.World->Tick(FTimestep(1.0f / 60.0f));
             CHECK(begins == 1);
             CHECK(ends == 0);
 
             b->SetActorLocation({5.0f, 0.0f, 0.0f});
-            f.World->UpdateComponentOverlaps();
+            for (int i = 0; i < 3; ++i)
+                f.World->Tick(FTimestep(1.0f / 60.0f));
             CHECK(ends == 1);
         }
 

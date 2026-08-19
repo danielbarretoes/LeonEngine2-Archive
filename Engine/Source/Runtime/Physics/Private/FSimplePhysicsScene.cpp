@@ -15,6 +15,11 @@
 
 namespace Leon {
 
+    void FSimplePhysicsBody::Destroy() {
+        if (Scene)
+            Scene->DestroyRigidBody(this);
+    }
+
     void FSimplePhysicsBody::SetTransform(const glm::vec3& InLocation, const glm::quat& InRotation) {
         Location = InLocation;
         Rotation = InRotation;
@@ -57,6 +62,10 @@ namespace Leon {
         Info.bSimulatePhysics = bSimulate;
         if (bSimulate)
             Info.Motion = EPhysicsMotionType::Dynamic;
+        else if (Info.ObjectType == ECollisionChannel::WorldStatic)
+            Info.Motion = EPhysicsMotionType::Static;
+        else
+            Info.Motion = EPhysicsMotionType::Kinematic;
     }
     void FSimplePhysicsBody::SetMass(float InMass) {
         Info.Mass = std::max(InMass, 0.001f);
@@ -85,6 +94,9 @@ namespace Leon {
     void FSimplePhysicsBody::SetCollisionResponses(const FCollisionResponseContainer& InResponses) {
         Info.Responses = InResponses;
     }
+    void FSimplePhysicsBody::SetObjectType(ECollisionChannel InType) {
+        Info.ObjectType = InType;
+    }
     AActor* FSimplePhysicsBody::GetActor() const {
         return Info.Actor;
     }
@@ -99,6 +111,9 @@ namespace Leon {
     }
     ECollisionEnabled FSimplePhysicsBody::GetCollisionEnabled() const {
         return Info.CollisionEnabled;
+    }
+    EPhysicsMotionType FSimplePhysicsBody::GetMotionType() const {
+        return Info.Motion;
     }
 
     void FSimplePhysicsScene::RebuildStaticColliderCache() const {
@@ -237,6 +252,8 @@ namespace Leon {
         for (auto& body : Bodies) {
             if (!body || body->bSimulating)
                 continue;
+            if (body->Info.Motion == EPhysicsMotionType::Static)
+                continue;
             auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component);
             if (!prim)
                 continue;
@@ -249,17 +266,23 @@ namespace Leon {
 
     void FSimplePhysicsScene::SyncDynamicTransforms() {
         for (auto& body : Bodies) {
-            if (!body || !body->bSimulating || !body->Info.Actor)
+            if (!body || !body->bSimulating)
                 continue;
-            if (body->Info.Actor->GetLocalRole() == ENetRole::SimulatedProxy)
+            if (body->Info.Actor && body->Info.Actor->GetLocalRole() == ENetRole::SimulatedProxy)
                 continue;
-            glm::vec3 actorLoc = body->Location;
-            glm::vec3 relative(0.0f);
-            if (auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component))
-                relative = prim->GetRelativeLocation();
-            actorLoc -= relative;
-            body->Info.Actor->SetActorLocation(actorLoc);
-            body->Info.Actor->SetActorRotation(glm::degrees(glm::eulerAngles(body->Rotation)));
+            if (!body->Info.bSyncComponentTransform)
+                continue;
+            glm::vec3 loc = body->Location;
+            const glm::vec3 euler = glm::degrees(glm::eulerAngles(body->Rotation));
+            auto* prim = dynamic_cast<UPrimitiveComponent*>(body->Info.Component);
+            if (prim) {
+                prim->SetWorldLocationAndRotation(loc, euler);
+                continue;
+            }
+            if (!body->Info.Actor)
+                continue;
+            body->Info.Actor->SetActorLocation(loc);
+            body->Info.Actor->SetActorRotation(euler);
         }
     }
 
@@ -269,10 +292,15 @@ namespace Leon {
 
     IPhysicsBody* FSimplePhysicsScene::CreateRigidBody(const FPhysicsBodyCreateInfo& InInfo) {
         auto body = std::make_unique<FSimplePhysicsBody>();
+        body->Scene = this;
         body->Info = InInfo;
         if (InInfo.PhysicalMaterial) {
             body->Info.Friction = InInfo.PhysicalMaterial->Friction;
             body->Info.Restitution = InInfo.PhysicalMaterial->Restitution;
+            if (InInfo.Mass == 1.0f && InInfo.Shape != EPhysicsShapeType::TriangleMesh) {
+                body->Info.Mass =
+                    std::max(0.001f, InInfo.PhysicalMaterial->Density * ApproximatePhysicsShapeVolume(body->Info));
+            }
         }
         body->Location = InInfo.Location;
         body->Rotation = InInfo.Rotation;
@@ -389,6 +417,51 @@ namespace Leon {
         }
         std::sort(OutHits.begin(), OutHits.end(),
                   [](const FHitResult& a, const FHitResult& b) { return a.Distance < b.Distance; });
+        return static_cast<int32_t>(OutHits.size());
+    }
+
+    bool FSimplePhysicsScene::SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
+                                                          float InRadius, float InHalfHeight, ECollisionChannel InChannel,
+                                                          AActor* InIgnore, FHitResult& OutHit) const {
+        OutHit = {};
+        std::vector<FHitResult> hits;
+        if (SweepCapsuleMultiByChannel(InStart, InEnd, InRadius, InHalfHeight, InChannel, InIgnore, hits) <= 0)
+            return false;
+        OutHit = hits.front();
+        return true;
+    }
+
+    int32_t FSimplePhysicsScene::SweepCapsuleMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
+                                                            float InRadius, float InHalfHeight,
+                                                            ECollisionChannel InChannel, AActor* InIgnore,
+                                                            std::vector<FHitResult>& OutHits) const {
+        // Approximate Y-up capsule as three sphere sweeps (center + hemisphere centers).
+        OutHits.clear();
+        const float radius = std::max(InRadius, 0.01f);
+        const float cyl = std::max(InHalfHeight - radius, 0.0f);
+        const glm::vec3 offsets[3] = {{0.0f, 0.0f, 0.0f}, {0.0f, cyl, 0.0f}, {0.0f, -cyl, 0.0f}};
+        for (const glm::vec3& off : offsets) {
+            std::vector<FHitResult> slice;
+            SweepMultiByChannel(InStart + off, InEnd + off, radius, InChannel, InIgnore, slice);
+            OutHits.insert(OutHits.end(), slice.begin(), slice.end());
+        }
+        std::sort(OutHits.begin(), OutHits.end(),
+                  [](const FHitResult& a, const FHitResult& b) { return a.Distance < b.Distance; });
+        // Deduplicate by actor+component keeping earliest hit.
+        std::vector<FHitResult> unique;
+        unique.reserve(OutHits.size());
+        for (const FHitResult& hit : OutHits) {
+            bool bFound = false;
+            for (FHitResult& existing : unique) {
+                if (existing.Actor == hit.Actor && existing.Component == hit.Component) {
+                    bFound = true;
+                    break;
+                }
+            }
+            if (!bFound)
+                unique.push_back(hit);
+        }
+        OutHits = std::move(unique);
         return static_cast<int32_t>(OutHits.size());
     }
 

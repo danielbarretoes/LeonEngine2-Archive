@@ -37,10 +37,12 @@ namespace Leon {
         AActor* IgnoreActor = nullptr;
 
     private:
+        void IntegrateStep(float InDeltaSeconds);
         bool SweepStep(const glm::vec3& InStart, const glm::vec3& InEnd, FHitResult& OutHit) const;
 
         glm::vec3 Velocity{0.0f};
         AActor* UpdatedActor = nullptr;
+        float MovementAccumulator = 0.0f;
     };
 
 } // namespace Leon

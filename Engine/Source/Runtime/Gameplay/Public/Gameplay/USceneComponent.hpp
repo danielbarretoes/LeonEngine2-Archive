@@ -40,6 +40,12 @@ namespace Leon {
         virtual glm::vec3 GetComponentRotation() const;
         virtual glm::vec3 GetComponentScale() const;
 
+        /**
+         * Drive this component from a simulated physics pose.
+         * RootComponent updates the actor transform; attached components update relative only.
+         */
+        void SetWorldLocationAndRotation(const glm::vec3& InLocation, const glm::vec3& InEulerDegrees);
+
         /** Relative T*R*S (GLM, same convention as FTransformComponent). */
         glm::mat4 GetRelativeMatrix() const;
         /** Parent world * relative, or actor pose * relative when unattached. */

@@ -51,6 +51,9 @@ namespace Leon {
             PostProcessSettings.SSAORadius = InWorld->GetPendingSSAORadius();
             PostProcessSettings.SSAOIntensity = InWorld->GetPendingSSAOIntensity();
             PostProcessSettings.SSAOBias = InWorld->GetPendingSSAOBias();
+            PostProcessSettings.bBloomEnabled = InWorld->GetPendingBloomEnabled();
+            PostProcessSettings.bFXAAEnabled = InWorld->GetPendingFXAAEnabled();
+            ShadowSettings.FilterMode = InWorld->GetPendingShadowFilter();
         }
 
         // -----------------------------------------------------------------------
@@ -61,31 +64,37 @@ namespace Leon {
         csmSpec.Height = ShadowSettings.CascadeResolution;
         csmSpec.ArrayLayers = 4;
         csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
+        csmSpec.DebugName = "CSM";
         CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
 
         FFramebufferSpecification spotSpec;
         spotSpec.Width = ShadowSettings.SpotResolution;
         spotSpec.Height = ShadowSettings.SpotResolution;
         spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_SHADOW};
+        spotSpec.DebugName = "SpotShadow";
         SpotShadowFramebuffer = FFramebuffer::Create(spotSpec);
 
         // -----------------------------------------------------------------------
         // 2. Offscreen framebuffers
         // -----------------------------------------------------------------------
-        FFramebufferSpecification planarSpec;
-        planarSpec.Width = PlanarCaptureWidth();
-        planarSpec.Height = PlanarCaptureHeight();
-        // Must be HDR: PBR_Lit + Skybox write linear radiance > 1. RGBA8 clamps to white blobs on mirrors/wet floors.
-        // ColorMipLevels follow quality (Epic = 5 → roughness * 4.0 LOD, matches prefilter).
-        planarSpec.ColorMipLevels = PlanarReflectionMipLevelsFor(PlanarQuality);
-        planarSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
-        PlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
-        WallPlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
+        if (bEnablePlanarReflection) {
+            FFramebufferSpecification planarSpec;
+            planarSpec.Width = PlanarCaptureWidth();
+            planarSpec.Height = PlanarCaptureHeight();
+            // Must be HDR: PBR_Lit + Skybox write linear radiance > 1. RGBA8 clamps to white blobs on mirrors/wet
+            // floors. ColorMipLevels follow quality (Epic = 5 → roughness * 4.0 LOD, matches prefilter).
+            planarSpec.ColorMipLevels = PlanarReflectionMipLevelsFor(PlanarQuality);
+            planarSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
+            planarSpec.DebugName = "Planar";
+            PlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
+            WallPlanarReflectionFramebuffer = FFramebuffer::Create(planarSpec);
+        }
 
         FFramebufferSpecification hdrSpec;
         hdrSpec.Width = 1280;
         hdrSpec.Height = 720;
         hdrSpec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
+        hdrSpec.DebugName = "HDR";
         HDRSceneFramebuffer = FFramebuffer::Create(hdrSpec);
 
         // -----------------------------------------------------------------------
@@ -150,6 +159,7 @@ namespace Leon {
         csmSpec.Height = ShadowSettings.CascadeResolution;
         csmSpec.ArrayLayers = 4;
         csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
+        csmSpec.DebugName = "CSM";
         CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
     }
 
@@ -175,6 +185,11 @@ namespace Leon {
     }
 
     void FWorldRenderer::EnsurePlanarFramebuffers() {
+        if (!bEnablePlanarReflection) {
+            PlanarReflectionFramebuffer.reset();
+            WallPlanarReflectionFramebuffer.reset();
+            return;
+        }
         const uint32_t w = PlanarCaptureWidth();
         const uint32_t h = PlanarCaptureHeight();
         const uint32_t mips = PlanarReflectionMipLevelsFor(PlanarQuality);
@@ -185,6 +200,7 @@ namespace Leon {
                 spec.Height = h;
                 spec.ColorMipLevels = mips;
                 spec.Attachments = {EFramebufferTextureFormat::RGBA16F, EFramebufferTextureFormat::DEPTH24STENCIL8};
+                spec.DebugName = "Planar";
                 InTarget = FFramebuffer::Create(spec);
                 return;
             }
@@ -280,7 +296,8 @@ namespace Leon {
         }
         int shadowedSpotIndex = 0;
         if (bHasSpotLight) {
-            shadowedSpotIndex = std::clamp(ShadowSettings.ShadowedSpotIndex, 0, static_cast<int>(spotLights.size()) - 1);
+            shadowedSpotIndex =
+                std::clamp(ShadowSettings.ShadowedSpotIndex, 0, static_cast<int>(spotLights.size()) - 1);
             shadowedSpotComp = spotComps[static_cast<size_t>(shadowedSpotIndex)];
             shadowedSpotPos = spotLights[static_cast<size_t>(shadowedSpotIndex)].Position;
         }
@@ -332,8 +349,7 @@ namespace Leon {
             lightingData.SpotLights[i].Position = glm::vec4(spotLights[i].Position, 1.0f);
             lightingData.SpotLights[i].Direction =
                 glm::vec4(glm::normalize(spotLights[i].Direction), std::cos(glm::radians(innerDeg)));
-            lightingData.SpotLights[i].Color =
-                glm::vec4(spotLights[i].Color, std::cos(glm::radians(outerDeg)));
+            lightingData.SpotLights[i].Color = glm::vec4(spotLights[i].Color, std::cos(glm::radians(outerDeg)));
             lightingData.SpotLights[i].Params = glm::vec4(spotLights[i].Radius, spotLights[i].Intensity, 0.0f, 0.0f);
         }
 
@@ -383,9 +399,7 @@ namespace Leon {
         FRenderCommand::SetViewport(0, 0, vpWidth, vpHeight);
         FRenderCommand::SetClearColor(0.04f, 0.05f, 0.07f, 1.0f);
         FRenderCommand::Clear();
-        FRenderCommand::SetDepthTesting(true);
-        FRenderCommand::SetDepthMask(true);
-        FRenderCommand::SetDepthFunc(EDepthFunc::Less);
+        ResetDefaultMeshRasterState();
 
         if (CameraUBO)
             CameraUBO->SetData(&mainCamData, sizeof(FCameraBufferData), 0);

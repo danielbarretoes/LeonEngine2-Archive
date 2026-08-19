@@ -275,6 +275,8 @@ namespace Leon {
                 AActor* actor = actorRef.get();
                 if (!actor || actor->IsPendingKill())
                     continue;
+                if (auto* character = dynamic_cast<ACharacter*>(actor))
+                    character->ConstrainRagdollToFloor();
                 for (const auto& compRef : actor->GetActorComponents()) {
                     auto* skel = dynamic_cast<USkeletalMeshComponent*>(compRef.get());
                     if (skel && skel->IsRagdoll())
@@ -515,6 +517,22 @@ namespace Leon {
         }
     }
 
+    void UWorld::SetProjectPostProcessToggles(bool bInBloomEnabled, bool bInFXAAEnabled) {
+        bPendingBloomEnabled = bInBloomEnabled;
+        bPendingFXAAEnabled = bInFXAAEnabled;
+        if (Renderer) {
+            auto& pp = Renderer->GetPostProcessSettings();
+            pp.bBloomEnabled = bPendingBloomEnabled;
+            pp.bFXAAEnabled = bPendingFXAAEnabled;
+        }
+    }
+
+    void UWorld::SetProjectShadowFilter(EShadowFilterMode InFilter) {
+        PendingShadowFilter = InFilter;
+        if (Renderer)
+            Renderer->GetShadowSettings().FilterMode = PendingShadowFilter;
+    }
+
     void UWorld::OnRender(const FPerspectiveCamera& InCamera) {
         GetWorldRenderer()->RenderScene(InCamera);
     }
@@ -591,6 +609,27 @@ namespace Leon {
         return PhysicsScene->SweepMultiByChannel(InStart, InEnd, InRadius, InChannel, InIgnore, OutHits);
     }
 
+    bool UWorld::SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                             float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                             FHitResult& OutHit) const {
+        OutHit = {};
+        if (!PhysicsScene)
+            return false;
+        return PhysicsScene->SweepCapsuleSingleByChannel(InStart, InEnd, InRadius, InHalfHeight, InChannel, InIgnore,
+                                                         OutHit);
+    }
+
+    int32_t UWorld::SweepCapsuleMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
+                                               float InHalfHeight, ECollisionChannel InChannel, AActor* InIgnore,
+                                               std::vector<FHitResult>& OutHits) const {
+        if (!PhysicsScene) {
+            OutHits.clear();
+            return 0;
+        }
+        return PhysicsScene->SweepCapsuleMultiByChannel(InStart, InEnd, InRadius, InHalfHeight, InChannel, InIgnore,
+                                                        OutHits);
+    }
+
     bool UWorld::OverlapAnyTestByChannel(const glm::vec3& InPos, const glm::vec3& InHalfExtent,
                                          ECollisionChannel InChannel, AActor* InIgnore) const {
         return PhysicsScene && PhysicsScene->OverlapAnyTestByChannel(InPos, InHalfExtent, InChannel, InIgnore);
@@ -621,7 +660,8 @@ namespace Leon {
                 if (!prim || prim->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
                     continue;
                 candidates.push_back(prim);
-                if (prim->GetGenerateOverlapEvents())
+                // Physics-backed overlaps come from DrainContacts; AABB is fallback only.
+                if (prim->GetGenerateOverlapEvents() && !prim->GetPhysicsBody())
                     generators.push_back(prim);
             }
         }

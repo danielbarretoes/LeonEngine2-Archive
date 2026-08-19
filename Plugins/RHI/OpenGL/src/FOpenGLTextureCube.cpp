@@ -32,7 +32,7 @@ namespace Leon {
         glTextureParameteri(RendererID, GL_TEXTURE_MAX_LEVEL, 0);
 
         bIsLoaded = true;
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::TextureCube);
     }
 
     FOpenGLTextureCube::FOpenGLTextureCube(const std::vector<std::string>& InFacePaths) {
@@ -82,13 +82,13 @@ namespace Leon {
             bIsLoaded = true;
 
             AllocatedBytes = totalBytes;
-            FRenderer::OnGPUAlloc(AllocatedBytes);
+            FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::TextureCube);
         }
     }
 
     FOpenGLTextureCube::~FOpenGLTextureCube() {
         if (RendererID) {
-            FRenderer::OnGPUFree(AllocatedBytes);
+            FRenderer::OnGPUFree(AllocatedBytes, EGPUMemoryCategory::TextureCube);
             glDeleteTextures(1, &RendererID);
             RendererID = 0;
         }

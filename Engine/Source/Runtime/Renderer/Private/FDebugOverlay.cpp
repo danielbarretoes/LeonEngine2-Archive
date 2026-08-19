@@ -3,9 +3,11 @@
 #include "Core/FLog.hpp"
 #include "RHI/FRenderCommand.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <fstream>
+#include <utility>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -27,6 +29,22 @@ namespace Leon {
 
     static stbtt_bakedchar BakedChars[96];
     static bool bInterFontLoaded = false;
+
+    static float BytesToMB(size_t InBytes) {
+        return static_cast<float>(InBytes) / (1024.0f * 1024.0f);
+    }
+
+    static const FGPUMemoryBucket& GPUCategory(const FRenderStats& InStats, EGPUMemoryCategory InCategory) {
+        return InStats.GPUMemory[static_cast<size_t>(InCategory)];
+    }
+
+    static void AppendMB(std::string& InOut, const char* InLabel, size_t InBytes) {
+        if (InBytes == 0)
+            return;
+        if (!InOut.empty())
+            InOut += "  ";
+        InOut += std::format("{} {:.1f}", InLabel, BytesToMB(InBytes));
+    }
 
     void FDebugOverlay::Init() {
         LE_CORE_INFO("Initializing DebugOverlay HUD Subsystem...");
@@ -72,8 +90,8 @@ namespace Leon {
         VertexArray = FVertexArray::Create();
         VertexBuffer = FVertexBuffer::Create(MaxOverlayVertices * sizeof(FOverlayVertex));
         VertexBuffer->SetLayout({{EShaderDataType::Float2, "aPos"},
-                                   {EShaderDataType::Float2, "aTexCoord"},
-                                   {EShaderDataType::Float4, "aColor"}});
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float4, "aColor"}});
         VertexArray->AddVertexBuffer(VertexBuffer);
 
         Vertices.reserve(2048);
@@ -137,8 +155,7 @@ namespace Leon {
         if (FontTexture)
             FontTexture->Bind(0);
 
-        VertexBuffer->SetData(Vertices.data(),
-                                static_cast<unsigned int>(Vertices.size() * sizeof(FOverlayVertex)));
+        VertexBuffer->SetData(Vertices.data(), static_cast<unsigned int>(Vertices.size() * sizeof(FOverlayVertex)));
 
         VertexArray->Bind();
         FRenderCommand::DrawArrays(VertexArray, static_cast<unsigned int>(Vertices.size()));
@@ -191,9 +208,9 @@ namespace Leon {
 
         Vertices.clear();
 
-        // 1. Draw Glassmorphism Dark HUD Panel Background (Width: 440px, Height: 185px)
+        // 1. Draw Glassmorphism Dark HUD Panel Background
         glm::vec2 boxMin(16.0f, 16.0f);
-        glm::vec2 boxMax(520.0f, 280.0f);
+        glm::vec2 boxMax(600.0f, 330.0f);
 
         // Backdrop quad (untextured solid)
         Shader->Bind();
@@ -208,8 +225,7 @@ namespace Leon {
 
         // Flush panel geometry
         if (!Vertices.empty()) {
-            VertexBuffer->SetData(Vertices.data(),
-                                    static_cast<unsigned int>(Vertices.size() * sizeof(FOverlayVertex)));
+            VertexBuffer->SetData(Vertices.data(), static_cast<unsigned int>(Vertices.size() * sizeof(FOverlayVertex)));
             VertexArray->Bind();
             FRenderCommand::DrawArrays(VertexArray, static_cast<unsigned int>(Vertices.size()));
             Vertices.clear();
@@ -227,9 +243,8 @@ namespace Leon {
         // FPS and Frame Time
         glm::vec4 fpsColor = (SmoothedFPS >= 55.0f)   ? glm::vec4(0.2f, 1.0f, 0.4f, 1.0f)
                              : (SmoothedFPS >= 30.0f) ? glm::vec4(1.0f, 0.8f, 0.2f, 1.0f)
-                                                        : glm::vec4(1.0f, 0.3f, 0.3f, 1.0f);
-        DrawString(textX, textY, std::format("FPS: {:.1f} ({:.2f} ms)", SmoothedFPS, SmoothedFrameTimeMs),
-                   fpsColor);
+                                                      : glm::vec4(1.0f, 0.3f, 0.3f, 1.0f);
+        DrawString(textX, textY, std::format("FPS: {:.1f} ({:.2f} ms)", SmoothedFPS, SmoothedFrameTimeMs), fpsColor);
         textY += lineHeight;
 
         // RAM (Engine Process)
@@ -237,10 +252,51 @@ namespace Leon {
                    glm::vec4(0.92f, 0.92f, 0.92f, 1.0f));
         textY += lineHeight;
 
-        // VRAM (Engine GPU Resources)
-        float engineVramMB = static_cast<float>(InRenderStats.AllocatedGPUMemoryBytes) / (1024.0f * 1024.0f);
-        DrawString(textX, textY, std::format("VRAM: {:.2f} MB", engineVramMB), glm::vec4(0.92f, 0.92f, 0.92f, 1.0f));
+        // VRAM (engine-tracked GPU resources vs DXGI/GL used)
+        float engineVramMB = BytesToMB(InRenderStats.AllocatedGPUMemoryBytes);
+        if (vramTotalMB > 0.0f) {
+            DrawString(textX, textY,
+                       std::format("VRAM: {:.1f} MB  GPU {:.0f}/{:.0f} MB", engineVramMB, vramUsedMB, vramTotalMB),
+                       glm::vec4(0.92f, 0.92f, 0.92f, 1.0f));
+        } else {
+            DrawString(textX, textY, std::format("VRAM: {:.1f} MB", engineVramMB),
+                       glm::vec4(0.92f, 0.92f, 0.92f, 1.0f));
+        }
         textY += lineHeight;
+
+        const size_t meshBytes = GPUCategory(InRenderStats, EGPUMemoryCategory::VertexBuffer).Bytes +
+                                 GPUCategory(InRenderStats, EGPUMemoryCategory::IndexBuffer).Bytes;
+        std::string categoryLine;
+        AppendMB(categoryLine, "Tex", GPUCategory(InRenderStats, EGPUMemoryCategory::Texture2D).Bytes);
+        AppendMB(categoryLine, "Cube", GPUCategory(InRenderStats, EGPUMemoryCategory::TextureCube).Bytes);
+        AppendMB(categoryLine, "FBO", GPUCategory(InRenderStats, EGPUMemoryCategory::Framebuffer).Bytes);
+        AppendMB(categoryLine, "Mesh", meshBytes);
+        AppendMB(categoryLine, "UBO", GPUCategory(InRenderStats, EGPUMemoryCategory::UniformBuffer).Bytes);
+        AppendMB(categoryLine, "Swap", GPUCategory(InRenderStats, EGPUMemoryCategory::Swapchain).Bytes);
+        if (!categoryLine.empty()) {
+            DrawString(textX, textY, categoryLine, glm::vec4(0.72f, 0.78f, 0.86f, 1.0f));
+            textY += lineHeight;
+        }
+
+        if (!InRenderStats.NamedGPUMemory.empty()) {
+            std::vector<std::pair<std::string, size_t>> named;
+            named.reserve(InRenderStats.NamedGPUMemory.size());
+            for (const auto& [label, bucket] : InRenderStats.NamedGPUMemory) {
+                if (bucket.Bytes > 0)
+                    named.emplace_back(label, bucket.Bytes);
+            }
+            std::sort(named.begin(), named.end(),
+                      [](const auto& InA, const auto& InB) { return InA.second > InB.second; });
+
+            std::string namedLine;
+            constexpr size_t kMaxNamed = 6;
+            for (size_t i = 0; i < named.size() && i < kMaxNamed; ++i)
+                AppendMB(namedLine, named[i].first.c_str(), named[i].second);
+            if (!namedLine.empty()) {
+                DrawString(textX, textY, namedLine, glm::vec4(0.62f, 0.70f, 0.80f, 1.0f));
+                textY += lineHeight;
+            }
+        }
 
         // GPU & Driver
         DrawString(textX, textY, std::format("GPU: {}", CachedGPUInfo.Renderer), glm::vec4(0.85f, 0.9f, 1.0f, 1.0f));
@@ -266,11 +322,12 @@ namespace Leon {
                                timing.AnimationMs),
                    glm::vec4(0.85f, 0.95f, 1.0f, 1.0f));
         textY += lineHeight;
-        DrawString(textX, textY,
-                   std::format("Shadow {:.1f}  Opaque {:.1f}  Planar {:.1f}  Sky {:.1f}  PP {:.1f}  UI {:.1f}  Present {:.1f}",
-                               timing.ShadowMs, timing.OpaqueMs, timing.PlanarMs, timing.SkyMs, timing.PostProcessMs,
-                               timing.UIMs, timing.PresentMs),
-                   glm::vec4(0.75f, 0.85f, 0.95f, 1.0f));
+        DrawString(
+            textX, textY,
+            std::format("Shadow {:.1f}  Opaque {:.1f}  Planar {:.1f}  Sky {:.1f}  PP {:.1f}  UI {:.1f}  Present {:.1f}",
+                        timing.ShadowMs, timing.OpaqueMs, timing.PlanarMs, timing.SkyMs, timing.PostProcessMs,
+                        timing.UIMs, timing.PresentMs),
+            glm::vec4(0.75f, 0.85f, 0.95f, 1.0f));
         textY += lineHeight;
         DrawString(textX, textY,
                    std::format("GPU sh {:.1f} op {:.1f} pl {:.1f} pp {:.1f}  Tick A/C {}/{}  Paths {}  ShDraw {}",
@@ -286,9 +343,10 @@ namespace Leon {
 
         Flush(ortho);
 
-        // Restore depth testing / culling for subsequent frames
+        // Restore defaults so the next frame does not inherit overlay blend
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetBlendState(false);
     }
 
 } // namespace Leon

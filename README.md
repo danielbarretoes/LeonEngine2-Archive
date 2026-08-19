@@ -45,7 +45,7 @@ Reference game with two maps. Default boot is `/Game/Maps/ShowcaseLevel` (proced
 - [Testing architecture](Docs/TESTING_ARCHITECTURE.md)
 - [Naming](Docs/NAMING.md)
 - [Asset pipeline](Docs/ASSET_PIPELINE.md)
-- [Renderer feature audit](Docs/RENDERER_FEATURE_AUDIT.md)
+- [Renderer](Docs/RENDERER.md)
 
 ## Naming note
 

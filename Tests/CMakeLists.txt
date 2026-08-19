@@ -74,6 +74,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Renderer/ViewportResizeTests.cpp
     Renderer/GoldenSceneTests.cpp
     Core/FrameProfilerTests.cpp
+    Core/WindowDisplayPolicyTests.cpp
     Performance/ScalingBenchmarkTests.cpp
 )
 
@@ -87,6 +88,7 @@ set(LEON_TOURNAMENT_TEST_SOURCES
     LeonTournament/AnimLabTests.cpp
     LeonTournament/SkeletalImportTests.cpp
     LeonTournament/NamingConventionTests.cpp
+    LeonTournament/GraphicsQualityTests.cpp
 )
 
 set(LEON_TOURNAMENT_RUNTIME_SOURCES
@@ -108,6 +110,7 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentGraphicsQuality.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp

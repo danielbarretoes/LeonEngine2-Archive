@@ -148,10 +148,22 @@ namespace Leon {
         SetWidgetTree(Root);
         SetSize({1280, 720});
         SetVisibility(ESlateVisibility::Collapsed);
+        ApplyViewportLayout();
+    }
+
+    void ULeonTournamentPauseWidget::ApplyViewportLayout() {
+        if (!Root)
+            return;
+        SetSize(FLeonTournamentUILayout::ResolveViewportSize(Root.get()));
+        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport);
     }
 
     void ULeonTournamentPauseWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
+        const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
+        const float scale = FUILayout::LayoutScale(vp.x, vp.y);
+        if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
+            ApplyViewportLayout();
         if (GamepadEdge(GamepadButton::A, bPadAWasDown))
             OnResume();
         if (GamepadEdge(GamepadButton::B, bPadBWasDown))

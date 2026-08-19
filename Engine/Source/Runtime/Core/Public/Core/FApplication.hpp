@@ -19,8 +19,8 @@ namespace Leon {
 
     struct FApplicationProps {
         std::string Name = "LeonEngine App";
-        unsigned int WindowWidth = 1280;
-        unsigned int WindowHeight = 720;
+        unsigned int WindowWidth = FWindowDisplayPolicy::DefaultWidth;
+        unsigned int WindowHeight = FWindowDisplayPolicy::DefaultHeight;
         FApplicationCommandLineArgs CommandLineArgs;
     };
 

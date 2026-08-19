@@ -1,6 +1,6 @@
 # LeonEngine2 — Engine Architecture
 
-This document describes the reusable engine layer. Product games live under `Projects/` and must not be referenced from `Engine/`. Companion docs: [GAMEPLAY_FRAMEWORK.md](GAMEPLAY_FRAMEWORK.md), [ENGINE_GAME_BOUNDARY.md](ENGINE_GAME_BOUNDARY.md), [TESTING_ARCHITECTURE.md](TESTING_ARCHITECTURE.md), [ARCHITECTURE.md](ARCHITECTURE.md), [NAMING.md](NAMING.md).
+This document describes the reusable engine layer. Product games live under `Projects/` and must not be referenced from `Engine/`. Companion docs: [GAMEPLAY_FRAMEWORK.md](GAMEPLAY_FRAMEWORK.md), [ENGINE_GAME_BOUNDARY.md](ENGINE_GAME_BOUNDARY.md), [TESTING_ARCHITECTURE.md](TESTING_ARCHITECTURE.md), [ARCHITECTURE.md](ARCHITECTURE.md), [NAMING.md](NAMING.md), [RENDERER.md](RENDERER.md).
 
 ## High-level tree
 

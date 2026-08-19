@@ -14,6 +14,8 @@ namespace Leon {
 
         std::unordered_map<std::string, TRef<FVertexArray>> GPrimitiveCache;
 
+        void ClearPrimitiveCache() { GPrimitiveCache.clear(); }
+
         TRef<FVertexArray> CachePrimitive(const std::string& InKey, TRef<FVertexArray> InVA) {
             if (InVA)
                 GPrimitiveCache[InKey] = InVA;
@@ -57,6 +59,8 @@ namespace Leon {
         }
 
     } // namespace
+
+    void FMeshPrimitives::ReleaseStaticCaches() { ClearPrimitiveCache(); }
 
     TRef<FVertexArray> FMeshPrimitives::CreateCube(float InSize) {
         const std::string key = "cube:" + std::to_string(InSize);

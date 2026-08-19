@@ -1,10 +1,10 @@
-# LeonEngine2 — Post-Processing & Anti-Aliasing Architecture
+# Post-Processing & Anti-Aliasing
 
-## 1. Overview & Pipeline Flow
+Transforms linear HDR radiance from the forward PBR path into LDR display output. Order matches `FPostProcessPipeline::Render`. Index: [RENDERER.md](RENDERER.md).
 
-The post-processing and anti-aliasing subsystem in `LeonEngine2` transforms linear high dynamic range (HDR) radiance produced by the forward Cook-Torrance PBR + IBL pipeline into perceptually tone-mapped, anti-aliased low dynamic range (LDR) display imagery ready for presentation on standard sRGB displays.
+## Pipeline flow
 
-The pipeline executes SSAO, then bloom, then tone map / FXAA:
+Order: **SSAO → Bloom → Tone map (exposure) → FXAA**.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -98,10 +98,10 @@ $$\text{ReinhardExtended}(x) = \frac{x \left(1 + \frac{x}{W^2}\right)}{1 + x}, \
 ### 3.3 Uncharted 2 (John Hable) Operator
 Filmic curve offering independent toe, shoulder, and linear control points.
 
-### 3.4 Neutral Clamp & Forensic Debug Modes
-- **Neutral Clamp**: Direct linear clamp to $[0, 1]$ for diagnostic inspection.
-- **Gamma Correction**: Linear color converted to sRGB space via $C_{\text{sRGB}} = C_{\text{linear}}^{1 / \gamma}$ ($\gamma = 2.2$).
-- **Perceptual Luma in Alpha**: Rec. 601 luma encoded into the Alpha channel:
+### 3.4 Neutral / encode
+- **Neutral Clamp**: Direct linear clamp to $[0, 1]$ for diagnostics.
+- **Display encode**: IEC piecewise `LinearToSRGB` after the tone operator (not a blind `pow(1/2.2)`).
+- **Perceptual luma in alpha**: Rec. 601 luma for FXAA:
   $$L = 0.299 R + 0.587 G + 0.114 B$$
 
 ---

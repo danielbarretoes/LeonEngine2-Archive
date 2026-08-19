@@ -9,7 +9,6 @@
 #include "Engine/UEngine.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/FControlInput.hpp"
-#include "Assets/UPhysicsAsset.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Assets/USkeleton.hpp"
 #include "Assets/FAnimRuntime.hpp"
@@ -214,10 +213,6 @@ namespace Leon {
         CachedBindPoseFeetY = skm ? BindPoseFeetY(*skm) : 0.0f;
         bCachedBindPoseFeetY = true;
         PlantMeshFeetOnCapsule();
-        if (skm && skm->GetSkeleton())
-            GetMesh()->SetPhysicsAsset(UPhysicsAsset::CreateHumanoidFromSkeleton(*skm->GetSkeleton()));
-        else
-            GetMesh()->SetPhysicsAsset(nullptr);
     }
 
     void ALeonTournamentCharacter::BeginPlay() {
@@ -486,8 +481,6 @@ namespace Leon {
     void ALeonTournamentCharacter::ApplyDamageFrom(const FDamageInfo& InInfo) {
         if (!IsNetworkAuthority())
             return;
-        if (glm::length(InInfo.Impulse) > 0.1f)
-            PendingDeathImpulse = InInfo.Impulse;
         if (Health)
             Health->ApplyDamage(InInfo);
         PendingDamageFlash = 1;
@@ -555,20 +548,12 @@ namespace Leon {
         skel.OutlineWidth = 0.038f;
     }
 
-    void ALeonTournamentCharacter::BeginDeathRagdoll() {
-        EnableRagdoll(PendingDeathImpulse);
-    }
-
-    void ALeonTournamentCharacter::StopDeathRagdoll() {
-        StopRagdoll();
-    }
-
     void ALeonTournamentCharacter::OnServerDeath(const FDamageInfo& InInfo) {
         bDeadFrozen = true;
         // Flow: death presentation
         // 1. Always third-person + free look orbit (control yaw does not spin the corpse)
         // 2. Pull spring arm out for a readable spectator view
-        // 3. Stop movement; ragdoll if PhysicsAsset is valid, otherwise death montage
+        // 3. Stop movement; play death montage
         // 4. Authority notifies GameMode for scoring / respawn
         bDeathForcedThirdPerson = !IsThirdPerson();
         SetThirdPerson(true);
@@ -590,8 +575,7 @@ namespace Leon {
             Weapon->SetFireHeld(false);
         if (auto mesh = GetMesh())
             mesh->SetComponentTickEnabled(true);
-        BeginDeathRagdoll();
-        if (AnimInst && !(GetMesh() && GetMesh()->IsRagdoll()))
+        if (AnimInst)
             AnimInst->PlayDeathMontage();
         UpdatePresentationVisibility();
         if (IsLocallyControlled()) {
@@ -607,9 +591,10 @@ namespace Leon {
     void ALeonTournamentCharacter::OnServerRespawn(const glm::vec3& InLocation) {
         bDeadFrozen = false;
         DodgeCooldownRemaining = 0.0f;
-        PendingDeathImpulse = {0.0f, 4.0f, 0.0f};
         bAimingDownSights = false;
-        StopDeathRagdoll();
+        if (AnimInst)
+            AnimInst->ClearOverrideSequence();
+        PlantMeshFeetOnCapsule();
         if (bDeathCamArmOverride) {
             if (auto arm = GetSpringArm()) {
                 arm->TargetArmLength = DeathCamArmLengthRestore;

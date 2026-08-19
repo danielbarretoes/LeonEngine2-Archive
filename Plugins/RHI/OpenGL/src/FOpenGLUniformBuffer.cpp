@@ -9,12 +9,12 @@ namespace Leon {
         glNamedBufferData(RendererID, InSize, nullptr, GL_DYNAMIC_DRAW);
         glBindBufferBase(GL_UNIFORM_BUFFER, InBinding, RendererID);
 
-        FRenderer::OnGPUAlloc(AllocatedBytes);
+        FRenderer::OnGPUAlloc(AllocatedBytes, EGPUMemoryCategory::UniformBuffer);
     }
 
     FOpenGLUniformBuffer::~FOpenGLUniformBuffer() {
         if (RendererID) {
-            FRenderer::OnGPUFree(AllocatedBytes);
+            FRenderer::OnGPUFree(AllocatedBytes, EGPUMemoryCategory::UniformBuffer);
             glDeleteBuffers(1, &RendererID);
         }
     }

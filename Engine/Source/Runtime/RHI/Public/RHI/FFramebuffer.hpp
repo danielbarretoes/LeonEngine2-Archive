@@ -48,6 +48,8 @@ namespace Leon {
         // Color attachment mip count (1 = single level). Use >1 for roughness-blurred planar reflections.
         uint32_t ColorMipLevels = 1;
         bool bSwapChainTarget = false;
+        // Optional F1 HUD label. Identical names aggregate (e.g. all bloom mips as "Bloom").
+        std::string DebugName;
     };
 
     class FFramebuffer {

@@ -303,9 +303,10 @@ namespace Leon {
             TextVertices.clear();
         }
 
-        // Restore default state
+        // Restore default state so the next frame does not inherit UI blend
         FRenderCommand::SetDepthTesting(true);
         FRenderCommand::SetCulling(true, ECullMode::Back);
+        FRenderCommand::SetBlendState(false);
     }
 
 } // namespace Leon

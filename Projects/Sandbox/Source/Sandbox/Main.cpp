@@ -4,7 +4,7 @@
 #include "ASandboxHUD.hpp"
 #include "ASandboxDemoPickup.hpp"
 #include "FOpenGLRenderDriver.hpp"
-#include "FJoltPhysicsDriver.hpp"
+#include "FJoltPhysicsDriver.hpp" // link Leon::Jolt — auto-registers IPhysicsScene factory
 
 #include <cstdlib>
 #include <filesystem>
@@ -63,7 +63,6 @@ namespace {
 
 int main(int argc, char** argv) {
     Leon::FOpenGLRenderDriver::Register();
-    Leon::FJoltPhysicsDriver::Register();
 
     auto& registry = Leon::UClassRegistry::Get();
     registry.RegisterClass<Leon::ASandboxGameMode>("ASandboxGameMode");

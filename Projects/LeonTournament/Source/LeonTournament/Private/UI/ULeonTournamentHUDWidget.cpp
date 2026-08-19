@@ -243,6 +243,10 @@ namespace Leon {
             const glm::vec2 e = MeasurePadded(HintText->GetText(), HintText->GetFontScale());
             place(HintText, FAnchors::TopLeft(), BoxTL(36.0f * s, topBarH + 12.0f * s, std::max(900.0f * s, e.x), e.y));
         }
+        if (CrosshairDot) {
+            const float d = 3.0f * s;
+            place(CrosshairDot, FAnchors::Center(), BoxC(0.0f, 0.0f, d, d));
+        }
     }
 
     void ULeonTournamentHUDWidget::Build() {
@@ -283,9 +287,9 @@ namespace Leon {
         CrosshairText->SetColor({0.95f, 0.97f, 1.0f, 0.0f});
         CrosshairText->SetJustification(ETextAlignment::Center);
 
-        auto centerDot = std::make_shared<UImage>("CrosshairDot");
-        centerDot->SetTintColor({0.95f, 0.97f, 1.0f, 0.95f});
-        Root->AddChild(centerDot, FAnchors::Center(), BoxC(0.0f, 0.0f, 3.0f, 3.0f));
+        CrosshairDot = std::make_shared<UImage>("CrosshairDot");
+        CrosshairDot->SetTintColor({0.95f, 0.97f, 1.0f, 0.95f});
+        Root->AddChild(CrosshairDot, FAnchors::Center(), BoxC(0.0f, 0.0f, 3.0f, 3.0f));
 
         auto makeBar = [&](const char* name) {
             auto bar = std::make_shared<UImage>(name);
@@ -385,8 +389,9 @@ namespace Leon {
         UUserWidget::Tick(InDeltaTime);
         const glm::vec2 vp = ResolveViewportSize();
         const float layoutScale = FUILayout::LayoutScale(vp.x, vp.y);
-        if (std::abs(layoutScale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
-            ApplyViewportLayout(layoutScale);
+        // Re-layout every frame so dynamic text (HP/ammo/timer) keeps measured boxes and fonts in sync
+        // with the current resolution (720p vs 1080p).
+        ApplyViewportLayout(layoutScale);
 
         auto* gs = GS(OwningPlayer);
         UWorld* world = OwningPlayer ? OwningPlayer->GetWorld() : nullptr;

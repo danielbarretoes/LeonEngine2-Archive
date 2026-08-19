@@ -33,9 +33,15 @@ Engine tests must not include `Projects/LeonTournament` headers or compile game 
 
 `Scripts/run_tests.py` treats `skipped > 0` as failure.
 
-## GPU tests
+## GPU / renderer tests
 
-`Tests/GPU/HeadlessGLContext.hpp` creates a hidden GLFW 4.5 core context. Shader tests compile production GLSL from `Engine/Assets/Shaders/`. Mutation scripts still invoke `build/Tests/RendererTests.exe`.
+`Tests/GPU/HeadlessGLContext.hpp` creates a hidden GLFW 4.5 core context. Shader suites under `Tests/Shader/` compile production GLSL from `Engine/Assets/Shaders/` (PBR, shadows, post-process). CPU math / IBL / cache suites live under `Tests/Math`, `Tests/IBL`, `Tests/PBR`, `Tests/Cache`, `Tests/HDR`. Mutation scripts still invoke `build/Tests/RendererTests.exe`.
+
+Renderer contracts: [RENDERER.md](RENDERER.md). Known coverage gaps (see [RENDERER_REMEDIATION.md](RENDERER_REMEDIATION.md) P2):
+
+- GL state after UI / debug overlays
+- `FStaticMeshComponent.bVisible` (code fixed; add regression test)
+- Map travel / `UnloadUnused` VRAM (dual-key cache)
 
 ## Behavioral bar
 

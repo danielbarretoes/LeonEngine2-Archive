@@ -20,6 +20,7 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
     Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
     Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
+    Source/LeonTournament/Private/Game/FLeonTournamentGraphicsQuality.cpp
     Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
     Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
     Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp

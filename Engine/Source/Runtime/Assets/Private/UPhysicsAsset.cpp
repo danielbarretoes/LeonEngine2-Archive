@@ -51,54 +51,63 @@ namespace Leon {
         auto asset = MakeRef<UPhysicsAsset>("HumanoidRagdoll");
         std::unordered_set<int32_t> used;
 
-        AddCapsuleBody(*asset, InSkeleton, "hips", 0.12f, 0.14f, 12.0f, used);
+        AddCapsuleBody(*asset, InSkeleton, "hips", 0.15f, 0.18f, 14.0f, used);
         if (asset->GetBodies().empty())
-            AddCapsuleBody(*asset, InSkeleton, "pelvis", 0.12f, 0.14f, 12.0f, used);
+            AddCapsuleBody(*asset, InSkeleton, "pelvis", 0.15f, 0.18f, 14.0f, used);
 
-        AddCapsuleBody(*asset, InSkeleton, "spine", 0.11f, 0.16f, 14.0f, used);
-        AddCapsuleBody(*asset, InSkeleton, "neck", 0.06f, 0.08f, 3.0f, used);
-        AddCapsuleBody(*asset, InSkeleton, "head", 0.10f, 0.10f, 5.0f, used);
+        AddCapsuleBody(*asset, InSkeleton, "spine", 0.13f, 0.18f, 16.0f, used);
+        AddCapsuleBody(*asset, InSkeleton, "neck", 0.07f, 0.09f, 3.0f, used);
+        AddCapsuleBody(*asset, InSkeleton, "head", 0.11f, 0.11f, 5.0f, used);
 
-        AddCapsuleBody(*asset, InSkeleton, "leftarm", 0.06f, 0.14f, 3.0f, used);
-        AddCapsuleBody(*asset, InSkeleton, "leftforearm", 0.05f, 0.14f, 2.5f, used);
-        AddCapsuleBody(*asset, InSkeleton, "rightarm", 0.06f, 0.14f, 3.0f, used);
-        AddCapsuleBody(*asset, InSkeleton, "rightforearm", 0.05f, 0.14f, 2.5f, used);
+        AddCapsuleBody(*asset, InSkeleton, "leftarm", 0.07f, 0.15f, 3.5f, used);
+        AddCapsuleBody(*asset, InSkeleton, "leftforearm", 0.06f, 0.15f, 2.5f, used);
+        AddCapsuleBody(*asset, InSkeleton, "rightarm", 0.07f, 0.15f, 3.5f, used);
+        AddCapsuleBody(*asset, InSkeleton, "rightforearm", 0.06f, 0.15f, 2.5f, used);
 
-        if (!AddCapsuleBody(*asset, InSkeleton, "leftupleg", 0.08f, 0.18f, 8.0f, used))
-            AddCapsuleBody(*asset, InSkeleton, "leftthigh", 0.08f, 0.18f, 8.0f, used);
-        AddCapsuleBody(*asset, InSkeleton, "leftleg", 0.07f, 0.18f, 5.0f, used);
+        if (!AddCapsuleBody(*asset, InSkeleton, "leftupleg", 0.10f, 0.20f, 9.0f, used))
+            AddCapsuleBody(*asset, InSkeleton, "leftthigh", 0.10f, 0.20f, 9.0f, used);
+        AddCapsuleBody(*asset, InSkeleton, "leftleg", 0.08f, 0.20f, 6.0f, used);
 
-        if (!AddCapsuleBody(*asset, InSkeleton, "rightupleg", 0.08f, 0.18f, 8.0f, used))
-            AddCapsuleBody(*asset, InSkeleton, "rightthigh", 0.08f, 0.18f, 8.0f, used);
-        AddCapsuleBody(*asset, InSkeleton, "rightleg", 0.07f, 0.18f, 5.0f, used);
+        if (!AddCapsuleBody(*asset, InSkeleton, "rightupleg", 0.10f, 0.20f, 9.0f, used))
+            AddCapsuleBody(*asset, InSkeleton, "rightthigh", 0.10f, 0.20f, 9.0f, used);
+        AddCapsuleBody(*asset, InSkeleton, "rightleg", 0.08f, 0.20f, 6.0f, used);
 
         if (asset->GetBodies().size() < 2)
             return nullptr;
 
         const auto& bones = InSkeleton.GetBones();
         const auto& bodies = asset->GetBodies();
+        // Walk past intermediate skeleton bones that have no physics body (e.g. shoulder
+        // between spine and upper arm) so every limb is still parented in the ragdoll graph.
         for (size_t i = 0; i < bodies.size(); ++i) {
             const int32_t idx = InSkeleton.FindBoneIndex(bodies[i].BoneName);
             if (idx < 0)
                 continue;
-            const int32_t parent = bones[static_cast<size_t>(idx)].ParentIndex;
-            if (parent < 0)
-                continue;
-            const std::string& parentName = bones[static_cast<size_t>(parent)].Name;
-            for (size_t j = 0; j < bodies.size(); ++j) {
-                if (bodies[j].BoneName != parentName)
-                    continue;
-                FPhysicsAssetConstraint c;
-                c.BoneA = parentName;
-                c.BoneB = bodies[i].BoneName;
-                c.Type = EPhysicsConstraintType::SwingTwist;
-                c.Axis = glm::vec3(0.0f, 1.0f, 0.0f);
-                c.Swing1LimitRadians = 0.8f;
-                c.Swing2LimitRadians = 0.6f;
-                c.TwistLimitRadians = 0.4f;
-                asset->AddConstraint(c);
-                break;
+            int32_t ancestor = bones[static_cast<size_t>(idx)].ParentIndex;
+            const std::string* ancestorBodyName = nullptr;
+            while (ancestor >= 0 && ancestor < static_cast<int32_t>(bones.size())) {
+                const std::string& candidate = bones[static_cast<size_t>(ancestor)].Name;
+                for (size_t j = 0; j < bodies.size(); ++j) {
+                    if (bodies[j].BoneName == candidate) {
+                        ancestorBodyName = &bodies[j].BoneName;
+                        break;
+                    }
+                }
+                if (ancestorBodyName)
+                    break;
+                ancestor = bones[static_cast<size_t>(ancestor)].ParentIndex;
             }
+            if (!ancestorBodyName)
+                continue;
+            FPhysicsAssetConstraint c;
+            c.BoneA = *ancestorBodyName;
+            c.BoneB = bodies[i].BoneName;
+            c.Type = EPhysicsConstraintType::SwingTwist;
+            c.Axis = glm::vec3(0.0f, 1.0f, 0.0f);
+            c.Swing1LimitRadians = 0.55f;
+            c.Swing2LimitRadians = 0.45f;
+            c.TwistLimitRadians = 0.35f;
+            asset->AddConstraint(c);
         }
         return asset;
     }

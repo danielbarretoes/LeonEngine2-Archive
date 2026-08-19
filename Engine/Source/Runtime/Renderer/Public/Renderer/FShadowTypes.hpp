@@ -1,7 +1,9 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <cctype>
 #include <cstdint>
+#include <string>
 
 namespace Leon {
 
@@ -50,6 +52,20 @@ namespace Leon {
         uint32_t SpotResolution = 1024;    ///< Spotlight shadow map resolution
         int32_t ShadowedSpotIndex = 0;     ///< Runtime spot list index that receives the single spot shadow map
     };
+
+    /** INI / console tokens: Hard, PCF3x3, PCF5x5, Poisson. Default PCF3x3. */
+    inline EShadowFilterMode ParseShadowFilterMode(const std::string& InValue) {
+        std::string v = InValue;
+        for (char& c : v)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (v == "hard" || v == "0")
+            return EShadowFilterMode::Hard;
+        if (v == "pcf5x5" || v == "pcf5" || v == "2")
+            return EShadowFilterMode::PCF5x5;
+        if (v == "poisson" || v == "3")
+            return EShadowFilterMode::Poisson;
+        return EShadowFilterMode::PCF3x3;
+    }
 
     /**
      * @brief Runtime state representing a single shadow cascade partition.

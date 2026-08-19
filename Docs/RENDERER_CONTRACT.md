@@ -2,7 +2,8 @@
 
 Canonical rendering contracts for LeonEngine2. This document describes the **implemented** pipeline, not a wishlist.
 
-Source of truth: `Engine/Source/Runtime` and `Engine/Assets/Shaders`.
+Source of truth: `Engine/Source/Runtime` and `Engine/Assets/Shaders`.  
+Doc index: [RENDERER.md](RENDERER.md). Remediation backlog: [RENDERER_REMEDIATION.md](RENDERER_REMEDIATION.md).
 
 ## Coordinate system
 
@@ -19,6 +20,10 @@ Source of truth: `Engine/Source/Runtime` and `Engine/Assets/Shaders`.
 World scale: scenes on the order of meters. Near/far is sufficient for that range.
 
 Planar reflections are **mirrored-camera captures of registered planes**, not cubemap probes. See [Planar reflections](#planar-reflections).
+
+## Visibility
+
+`bVisible` on `FMeshComponent`, `FStaticMeshComponent`, and `FSkinnedMeshRenderState` must skip main draws and shadow casting when false. Planar capture also requires `bVisibleInReflection` and non-`Movable` mobility.
 
 ## Vertex layout
 
@@ -89,6 +94,7 @@ Energy check: uniform `Li = 1` ⇒ `E = π`. Albedo `1` ⇒ `Lo_diffuse = 1` (`u
 - Spotlight: **one** shadowed spot (`FShadowSettings.ShadowedSpotIndex`, default `0`). Viewport uses `SpotResolution`.
 - Contact shadows: **removed**.
 - Depth: classical `GL_LEQUAL` compare. Bias: constant + slope + normal offset.
+- Opaque geometry uses camera frustum AABB cull; **shadow passes do not yet cull** (see remediation P1).
 
 ## Lightmaps
 
@@ -109,7 +115,7 @@ When a lightmap is bound, diffuse IBL is replaced by the lightmap; specular IBL 
 - `NumIndirectBounces == 0` disables GI (direct + environment miss still apply).
 - GI estimator: cosine hemisphere sampling, `E += π * Lo_hit`, throughput `albedo` per extra bounce. Environment miss on later bounces adds `throughput * L_env`.
 - Receptor **emissive is runtime-only**. Other surfaces contribute emissive through GI `Li`.
-- Bake AO **is multiplied into stored `E`** when `bAmbientOcclusion` is true (`FLightBaker`). Material AO remains a runtime artistic term and is **not** applied to baked Lambert.
+- Bake AO: when `bAmbientOcclusion` is true, `FLightBaker` **multiplies AO into stored `E`**. Material AO remains a runtime artistic term and is **not** applied again to baked Lambert.
 - Spotlight angular factor is the same Hermite smoothstep as `PBR_Lit.glsl` (`FLightAttenuation.hpp`).
 
 `.llightmap` version **2**. Cache key includes baker algorithm version `5`, geometry, transforms, lights, skybox/HDR **file content** hash, materials, resolution, bounces, samples, AO settings. At play, `FLightmass::RefreshRuntimeLightmapTrust` skips sampling if `LightmapBakeHash` is missing or stale.
@@ -208,11 +214,12 @@ Post-process `FPostProcessSettings::DebugMode` 5 visualizes SSAO (grayscale) bef
 
 ## Limitations
 
-- Forward renderer. Opaque draws with the same VA + material instance together (≤64). No clustered lights, VSM, or GPU-driven path.
-- At most 16 point lights and 8 spot lights in the UBO; one shadowed spotlight.
+- Forward renderer. Opaque draws with the same VA + material instance batch together (GPU instancing ≤64). No clustered lights, VSM, or GPU-driven path.
+- At most 16 point lights and 8 spot lights in the UBO; one shadowed spotlight (excess lights are dropped — warn planned in remediation P1).
+- Opaque: camera frustum AABB cull. Shadow passes: no light-frustum cull yet (P1).
+- Alpha-masked shadow casters: supported for procedural `FMeshComponent`; static/skinned CSM currently force opaque alpha (P1).
 - No local cubemap / sphere reflection probes. Planar is for registered planes; curved metals use IBL.
 - SSAO is depth-only at half resolution (view-space normals from depth derivatives). No G-buffer. Occlusion ignores coplanar hits so open floors do not get a camera-facing AO band; composite keeps high-luminance specular.
-- No OIT.
+- No OIT. Transparent sort uses model origin distance (AABB center planned in P1).
 - No reversed-Z.
-- Bake AO settings may still appear on maps; they do not modulate stored irradiance.
 - Golden PNG references are not shipped; GPU tests check mathematical constraints (energy, sRGB, resize).

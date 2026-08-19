@@ -69,6 +69,9 @@ namespace Leon {
          * @param InDepth Depth along the Z axis.
          */
         static TRef<FVertexArray> CreatePyramid(float InWidth = 1.0f, float InHeight = 1.0f, float InDepth = 1.0f);
+
+        /** Drop cached procedural VAOs (call while GL context is alive). */
+        static void ReleaseStaticCaches();
     };
 
 } // namespace Leon

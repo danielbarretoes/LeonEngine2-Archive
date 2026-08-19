@@ -61,6 +61,10 @@ namespace Leon {
         bool IsRagdoll() const { return bSimulatingRagdoll; }
         void ApplyRagdollPoseFromBodies();
         bool GetRagdollRootTransform(glm::vec3& OutLocation, glm::quat& OutRotation) const;
+        /** Disable collision between an external body (e.g. corpse capsule) and ragdoll bones. */
+        void IgnoreCollisionWith(IPhysicsBody* InBody);
+        /** Keep simulated bone bodies from sinking below the walkable floor plane. */
+        void ConstrainBodiesToFloor(float InFloorZ);
 
     private:
         void EnsureRenderComponent();

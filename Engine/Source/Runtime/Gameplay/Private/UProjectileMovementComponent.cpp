@@ -2,6 +2,7 @@
 #include "Gameplay/AProjectile.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Engine/UWorld.hpp"
+#include "Physics/IPhysicsScene.hpp"
 #include "Renderer/FRenderingMath.hpp"
 
 #include <algorithm>
@@ -27,12 +28,12 @@ namespace Leon {
                                                        IgnoreActor, OutHit);
     }
 
-    void UProjectileMovementComponent::Tick(float DeltaSeconds) {
+    void UProjectileMovementComponent::IntegrateStep(float InDeltaSeconds) {
         AActor* owner = UpdatedActor ? UpdatedActor : GetOwner();
         if (!owner || owner->IsPendingKill() || !owner->GetWorld())
             return;
 
-        Velocity.y -= GravityZ * ProjectileGravityScale * DeltaSeconds;
+        Velocity.y -= GravityZ * ProjectileGravityScale * InDeltaSeconds;
         if (MaxSpeed > 1e-3f) {
             const float speed = glm::length(Velocity);
             if (speed > MaxSpeed)
@@ -40,7 +41,7 @@ namespace Leon {
         }
 
         const glm::vec3 start = owner->GetActorLocation();
-        const glm::vec3 remaining = Velocity * DeltaSeconds;
+        const glm::vec3 remaining = Velocity * InDeltaSeconds;
         const float remainLen = glm::length(remaining);
         const float maxStep = std::max(2.0f * ProjectileRadius, 0.08f);
         int32_t steps = 1;
@@ -79,6 +80,25 @@ namespace Leon {
         owner->SetActorLocation(pos);
         if (bRotationFollowsVelocity && glm::length(Velocity) > 1e-4f)
             owner->SetActorRotation(Leon::EulerAligningLocalY(glm::normalize(Velocity)));
+    }
+
+    void UProjectileMovementComponent::Tick(float DeltaSeconds) {
+        AActor* owner = UpdatedActor ? UpdatedActor : GetOwner();
+        if (!owner || owner->IsPendingKill() || !owner->GetWorld())
+            return;
+
+        const float clamped = std::min(std::max(DeltaSeconds, 0.0f), kPhysicsMaxFrameDeltaSeconds);
+        MovementAccumulator += clamped;
+        int32_t steps = 0;
+        while (MovementAccumulator >= kPhysicsFixedDeltaSeconds && steps < kPhysicsMaxSubsteps) {
+            IntegrateStep(kPhysicsFixedDeltaSeconds);
+            MovementAccumulator -= kPhysicsFixedDeltaSeconds;
+            ++steps;
+            if (owner->IsPendingKill())
+                return;
+        }
+        if (steps >= kPhysicsMaxSubsteps)
+            MovementAccumulator = 0.0f;
     }
 
 } // namespace Leon
