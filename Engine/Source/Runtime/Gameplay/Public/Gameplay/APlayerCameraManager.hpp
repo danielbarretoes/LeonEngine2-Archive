@@ -23,8 +23,9 @@ namespace Leon {
 
         void InitializeFor(APlayerController* InPC);
         APlayerController* GetPlayerController() const { return PlayerController; }
-        void SetViewTarget(AActor* InNewTarget);
+        void SetViewTarget(AActor* InNewTarget, float InBlendTime = 0.0f);
         AActor* GetViewTarget() const { return ViewTarget; }
+        bool IsBlendingViewTarget() const { return bBlending; }
 
         void UpdateCamera(float DeltaSeconds);
 
@@ -37,6 +38,10 @@ namespace Leon {
         APlayerController* PlayerController = nullptr;
         AActor* ViewTarget = nullptr;
         FPerspectiveCamera Camera{45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f};
+        FPerspectiveCamera BlendFrom{45.0f, 1280.0f / 720.0f, 0.1f, 1000.0f};
+        float BlendDuration = 0.0f;
+        float BlendElapsed = 0.0f;
+        bool bBlending = false;
     };
 
 } // namespace Leon

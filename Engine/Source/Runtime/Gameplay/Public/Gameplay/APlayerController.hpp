@@ -23,6 +23,7 @@ namespace Leon {
 
         void PostInitializeComponents() override;
         void Tick(float DeltaSeconds) override;
+        bool IsPlayerController() const override { return true; }
 
         APlayerCameraManager* GetPlayerCameraManager() const { return PlayerCameraManager; }
         void SetPlayerCameraManager(APlayerCameraManager* InManager) { PlayerCameraManager = InManager; }
@@ -51,6 +52,7 @@ namespace Leon {
         }
 
         void SetViewTarget(AActor* InNewTarget);
+        void SetViewTargetWithBlend(AActor* InNewTarget, float InBlendTime);
         AActor* GetViewTarget() const;
 
         void UpdateCameraManager(float DeltaSeconds);

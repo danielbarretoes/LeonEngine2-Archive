@@ -26,9 +26,12 @@ namespace Leon {
     }
 
     void APlayerController::SetViewTarget(AActor* InNewTarget) {
-        if (PlayerCameraManager) {
-            PlayerCameraManager->SetViewTarget(InNewTarget);
-        }
+        SetViewTargetWithBlend(InNewTarget, 0.0f);
+    }
+
+    void APlayerController::SetViewTargetWithBlend(AActor* InNewTarget, float InBlendTime) {
+        if (PlayerCameraManager)
+            PlayerCameraManager->SetViewTarget(InNewTarget, InBlendTime);
     }
 
     AActor* APlayerController::GetViewTarget() const {

@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 namespace Leon {
 
@@ -526,8 +527,18 @@ namespace Leon {
 
     void UAssetManager::UnloadUnused() {
         auto dropIfOnlyCached = [](auto& cache) {
+            std::unordered_map<const void*, int> aliasCount;
+            for (const auto& [key, value] : cache) {
+                if (value)
+                    aliasCount[value.get()]++;
+            }
             for (auto it = cache.begin(); it != cache.end();) {
-                if (!it->second || it->second.use_count() <= 1)
+                if (!it->second) {
+                    it = cache.erase(it);
+                    continue;
+                }
+                const int aliases = aliasCount[it->second.get()];
+                if (it->second.use_count() <= aliases)
                     it = cache.erase(it);
                 else
                     ++it;

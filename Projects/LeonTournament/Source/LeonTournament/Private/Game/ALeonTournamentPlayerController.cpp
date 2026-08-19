@@ -2,6 +2,7 @@
 #include "ALeonTournamentGameState.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FInputSettings.hpp"
+#include "ALeonTournamentGameMode.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 
@@ -29,8 +30,13 @@ namespace Leon {
             gs ? gs->GetMatchState() : ELeonTournamentMatchState::MainMenu;
         const bool bInMatch =
             state == ELeonTournamentMatchState::Playing || state == ELeonTournamentMatchState::Starting;
+        auto* gm = World ? dynamic_cast<ALeonTournamentGameMode*>(World->GetGameMode()) : nullptr;
+        const bool bUICursor = gm && gm->WantsUICursor();
 
-        if (bPauseMenuOpen && bInMatch) {
+        if (bUICursor) {
+            SetInputModeUIOnly();
+            SetShowMouseCursor(true);
+        } else if (bPauseMenuOpen && bInMatch) {
             SetInputModeUIOnly();
             SetShowMouseCursor(true);
         } else if (bInMatch) {

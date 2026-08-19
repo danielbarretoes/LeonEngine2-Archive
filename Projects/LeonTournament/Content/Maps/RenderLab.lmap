@@ -1,0 +1,140 @@
+# LeonEngine2 Map Asset File (.lmap)
+# Graphics A/B lab — spheres/character spawn from ALeonTournamentRenderLabGameMode.
+Map:
+  Name: "RenderLab"
+  Version: "2.1"
+
+Environment:
+  WorldSettings:
+    StaticLighting: false
+    LightingBuildQuality: Draft
+    LightmapResolution: 64
+    NumIndirectBounces: 0
+    SamplesPerTexel: 4
+    IndirectIntensity: 1
+    AmbientOcclusion: false
+    AOIntensity: 1
+    AORadius: 0.35
+    TexelPadding: 2
+    WorldScale: 1
+  Skybox:
+    Enabled: true
+    Exposure: 0.85
+    SunIntensity: 3.4
+    EnvironmentIntensity: 0.62
+    UseHDREnvironmentMap: true
+    HDREnvironmentMap: "/Game/HDR/DaySky1k.lhdr"
+    SkyZenithColor: [0.16, 0.38, 0.78]
+    HorizonColor: [0.72, 0.80, 0.92]
+    GroundColor: [0.18, 0.20, 0.24]
+    SunColor: [1, 0.98, 0.92]
+
+Actors:
+  - Name: "PlayerStart"
+    Class: "APlayerStart"
+    GUID: "4c454f4e00000000c0ffee00rlab0001"
+    Transform:
+      Translation: [0, 1.0, 9]
+      Rotation: [0, -180, 0]
+      Scale: [1, 1, 1]
+  - Name: "Lab Camera"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0002"
+    Transform:
+      Translation: [0.35, 2.25, 8.05]
+      Rotation: [-16, -90, 0]
+      Scale: [1, 1, 1]
+    Camera:
+      Primary: true
+      FOV: 54
+      NearClip: 0.1
+      FarClip: 1000
+  - Name: "Lab Camera B"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0007"
+    Transform:
+      Translation: [6.45, 1.52, 1.05]
+      Rotation: [-14, 180, 0]
+      Scale: [1, 1, 1]
+    Camera:
+      Primary: false
+      FOV: 48
+      NearClip: 0.1
+      FarClip: 1000
+  - Name: "Lab Camera C"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0008"
+    Transform:
+      Translation: [-3.05, 1.32, 3.55]
+      Rotation: [-12, -122, 0]
+      Scale: [1, 1, 1]
+    Camera:
+      Primary: false
+      FOV: 50
+      NearClip: 0.1
+      FarClip: 1000
+  - Name: "Lab Sun"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0003"
+    Transform:
+      Translation: [0, 6, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    DirectionalLight:
+      Enabled: true
+      Direction: [-0.42, -1, -0.28]
+      Color: [1, 0.98, 0.92]
+      Intensity: 4.2
+      Mobility: Movable
+  - Name: "Lab Point"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0004"
+    Transform:
+      Translation: [2.8, 2.1, 1.2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.65, 0.35]
+      Intensity: 10
+      Radius: 14
+      Mobility: Movable
+  - Name: "Lab Spot"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0005"
+    Transform:
+      Translation: [-2.4, 4.2, 2.4]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [0.25, -1, -0.35]
+      Color: [0.35, 0.75, 1]
+      Intensity: 22
+      Radius: 20
+      CutOff: 14
+      OuterCutOff: 22
+      Mobility: Movable
+  - Name: "Lab Ground"
+    Class: "AActor"
+    GUID: "4c454f4e00000000c0ffee00rlab0006"
+    Transform:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Plane"
+      Size: 1
+      Width: 24
+      Height: 1
+      Depth: 16
+      Radius: 0.5
+      SubdivisionsX: 12
+      SubdivisionsZ: 8
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: false
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Movable
+    Material:
+      Asset: "/Game/Materials/M_LabFloor.lmat"

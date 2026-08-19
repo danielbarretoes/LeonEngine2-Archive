@@ -37,6 +37,7 @@ namespace Leon {
         bool OnMouseWheel(float InWheelDelta, const glm::vec2& InMousePos) override;
 
         int32_t GetZOrder() const { return ZOrder; }
+        void SetZOrder(int32_t InZOrder) { ZOrder = InZOrder; }
 
         template <typename T, typename... TArgs>
         static TRef<T> CreateWidget(APlayerController* InOwningPlayer, TArgs&&... InArgs) {

@@ -25,6 +25,7 @@ namespace Leon {
         TRef<ULeonTournamentScoreboardWidget> ScoreboardWidget;
         TRef<ULeonTournamentPauseWidget> PauseWidget;
         TRef<ULeonTournamentMatchEndWidget> EndWidget;
+        TRef<ULeonTournamentRenderLabWidget> RenderLabWidget;
         ELeonTournamentMatchState ShownState = ELeonTournamentMatchState::MainMenu;
         ELeonTournamentMatchState PrevState = ELeonTournamentMatchState::MainMenu;
         bool bScoreboardVisible = false;

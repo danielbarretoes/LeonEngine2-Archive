@@ -17,6 +17,7 @@
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "RHI/FRenderCommand.hpp"
 #include "Renderer/FWorldRenderer.hpp"
+#include "Renderer/FRenderDebugHotkeys.hpp"
 #include "UMG/FUIRenderer.hpp"
 #include "Audio/FAudioDevice.hpp"
 #include "Engine/Components.hpp"
@@ -119,98 +120,11 @@ namespace Leon {
                 if (e.IsRepeat() || !World)
                     return false;
 
-                // F1/F2 are owned by FApplication (diagnostics HUD / gizmo toggle).
-                // F3-F12 remain render debug views on the scene renderer.
+                // F1/F2 and Shift+F* are owned by FApplication. F3–F12: FRenderDebugHotkeys.
                 auto* renderer = World->GetWorldRenderer();
                 if (!renderer)
                     return false;
-
-                switch (e.GetKeyCode()) {
-                case Key::F3: {
-                    bool bWire = !renderer->IsWireframeEnabled();
-                    renderer->SetWireframeEnabled(bWire);
-                    LE_CORE_INFO("[RENDER DEBUG] Wireframe: {0}", bWire ? "ENABLED" : "DISABLED");
-                    return true;
-                }
-                case Key::F4: {
-                    renderer->SetDebugMode(14);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Unlit / Albedo (Base Color)");
-                    return true;
-                }
-                case Key::F5: {
-                    renderer->SetDebugMode(11);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: World Normals (TBN Perturbed)");
-                    return true;
-                }
-                case Key::F6: {
-                    int currentMode = renderer->GetDebugMode();
-                    int nextMode = 16;
-                    const char* name = "Roughness";
-                    if (currentMode == 16) {
-                        nextMode = 15;
-                        name = "Metallic";
-                    } else if (currentMode == 15) {
-                        nextMode = 18;
-                        name = "Ambient Occlusion (AO)";
-                    }
-                    renderer->SetDebugMode(nextMode);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Material Channel ({0})", name);
-                    return true;
-                }
-                case Key::F7: {
-                    // Cycle lighting isolation: Dynamic → Baked → Lightmap → LM UV → Dyn+Baked
-                    int currentMode = renderer->GetDebugMode();
-                    int nextMode = 10;
-                    const char* name = "Dynamic Lighting Only (Lo)";
-                    if (currentMode == 10) {
-                        nextMode = 31;
-                        name = "Baked Lighting Only";
-                    } else if (currentMode == 31) {
-                        nextMode = 32;
-                        name = "Lightmap Irradiance (raw)";
-                    } else if (currentMode == 32) {
-                        nextMode = 33;
-                        name = "Lightmap UV (atlas)";
-                    } else if (currentMode == 33) {
-                        nextMode = 34;
-                        name = "Dynamic + Baked (no IBL)";
-                    } else if (currentMode == 34) {
-                        nextMode = 10;
-                        name = "Dynamic Lighting Only (Lo)";
-                    }
-                    renderer->SetDebugMode(nextMode);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: {0}", name);
-                    return true;
-                }
-                case Key::F8: {
-                    renderer->SetDebugMode(9);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Specular IBL & Environment Reflections");
-                    return true;
-                }
-                case Key::F9: {
-                    renderer->SetDebugMode(25);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Cascaded Shadow Maps (CSM) False-Color Slices");
-                    return true;
-                }
-                case Key::F10: {
-                    renderer->SetDebugMode(24);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Shadow Occlusion Mask");
-                    return true;
-                }
-                case Key::F11: {
-                    renderer->SetDebugMode(13);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Real-Time Planar Reflections Buffer");
-                    return true;
-                }
-                case Key::F12: {
-                    renderer->SetDebugMode(0);
-                    LE_CORE_INFO("[RENDER DEBUG] Mode: Lit / Standard PBR Composite");
-                    return true;
-                }
-                default:
-                    break;
-                }
-                return false;
+                return FRenderDebugHotkeys::ApplyKey(*renderer, e.GetKeyCode());
             });
         }
 

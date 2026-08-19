@@ -1002,6 +1002,15 @@ namespace Leon {
             UGameplayStatics::OpenLevel(World, "/Game/Maps/AnimLab");
     }
 
+    void ALeonTournamentGameMode::OpenRenderLab() {
+        if (!IsNetworkAuthority() || !UEngine::HasInstance())
+            return;
+        DestroyMenuShowcase();
+        SetTravelGameModeClass("ALeonTournamentRenderLabGameMode");
+        if (World)
+            UGameplayStatics::OpenLevel(World, "/Game/Maps/RenderLab");
+    }
+
     void ALeonTournamentGameMode::OpenNightArena() {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;

@@ -2,14 +2,14 @@
 Material:
   Type: "PBR_Lit"
   AlbedoColor: [1.0, 1.0, 1.0]
-  Metallic: 0.04
-  Roughness: 0.22
+  Metallic: 0.22
+  Roughness: 0.07
   AO: 1.0
   AlbedoMap: "/Game/Textures/T_StudioFloor_Color.ltex"
   NormalMap: "/Game/Textures/T_StudioFloor_Normal.ltex"
   RoughnessMap: "/Game/Textures/T_StudioFloor_Roughness.ltex"
-  NormalScale: 1.0
+  NormalScale: 1.35
   OcclusionStrength: 1.0
-  UVTiling: [1.0, 1.0]
+  UVTiling: [8.0, 5.5]
   UVOffset: [0.0, 0.0]
   UsePlanarReflection: true

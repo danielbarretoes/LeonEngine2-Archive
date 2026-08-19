@@ -2,6 +2,7 @@
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentGameState.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
+#include "ALeonTournamentRenderLabGameMode.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerState.hpp"
@@ -53,19 +54,15 @@ namespace Leon {
         void HandleAIDebugInput(UWorld* InWorld) {
             if (!InWorld || !FGameplayDebugger::ShowAI())
                 return;
-            static bool bComma = false, bPeriod = false, bF7 = false, bF8 = false;
+            static bool bComma = false, bPeriod = false;
             const bool comma = FInput::IsKeyPressed(Key::Comma);
             const bool period = FInput::IsKeyPressed(Key::Period);
-            const bool f7 = FInput::IsKeyPressed(Key::F7);
-            const bool f8 = FInput::IsKeyPressed(Key::F8);
-            if ((comma && !bComma) || (f7 && !bF7))
+            if (comma && !bComma)
                 FGameplayDebugger::CycleSelectedAI(1);
-            if ((period && !bPeriod) || (f8 && !bF8))
+            if (period && !bPeriod)
                 FGameplayDebugger::CycleSelectedAI(-1);
             bComma = comma;
             bPeriod = period;
-            bF7 = f7;
-            bF8 = f8;
         }
 
         void DrawAITelemetry(UWorld* InWorld) {
@@ -119,7 +116,7 @@ namespace Leon {
                           "AI  Bots:%d  Active BT:%d  Moving:%d  Searching:%d  Combat:%d  Reloading:%d  Dead:%d", bots,
                           activeBt, moving, searching, combat, reloading, dead);
             put(line);
-            std::snprintf(line, sizeof(line), "Paths valid:%d  failed:%d  [Shift+F5 AI] [, / F7 next] [. / F8 prev]",
+            std::snprintf(line, sizeof(line), "Paths valid:%d  failed:%d  [Shift+F5 AI] [, next] [. prev]",
                           pathsValid, pathsFailed);
             put(line);
 
@@ -139,17 +136,16 @@ namespace Leon {
             auto brain = selected->GetBrainComponent();
             auto board = selected->GetBlackboardComponent();
             glm::vec3 dest = selected->GetMoveDestination();
-            glm::vec3 vel = pawn && pawn->GetCharacterMovement() ? pawn->GetCharacterMovement()->GetVelocity()
-                                                                : glm::vec3(0.0f);
-            std::snprintf(line, sizeof(line),
-                          "SEL[%d] team=%s state=%s node=%s tgt=%s dist=%.1f los=%s hp=%.0f ammo=%d",
-                          ps ? ps->GetPlayerId() : idx, ps ? LeonTournamentTeamName(ps->GetTeam()) : "-",
-                          LeonTournamentBotStateName(selected->GetBotState()), brain ? brain->GetActiveNodeName().c_str() : "-",
-                          tgt ? tgt->GetName().c_str() : "-",
-                          board ? board->GetValueAsFloat("DistanceToTarget") : 0.0f,
-                          board && board->GetValueAsBool("HasLineOfSight") ? "yes" : "no",
-                          pawn && pawn->GetHealthComponent() ? pawn->GetHealthComponent()->GetHealth() : 0.0f,
-                          pawn && pawn->GetWeapon() ? pawn->GetWeapon()->GetCurrentAmmo() : 0);
+            glm::vec3 vel =
+                pawn && pawn->GetCharacterMovement() ? pawn->GetCharacterMovement()->GetVelocity() : glm::vec3(0.0f);
+            std::snprintf(
+                line, sizeof(line), "SEL[%d] team=%s state=%s node=%s tgt=%s dist=%.1f los=%s hp=%.0f ammo=%d",
+                ps ? ps->GetPlayerId() : idx, ps ? LeonTournamentTeamName(ps->GetTeam()) : "-",
+                LeonTournamentBotStateName(selected->GetBotState()), brain ? brain->GetActiveNodeName().c_str() : "-",
+                tgt ? tgt->GetName().c_str() : "-", board ? board->GetValueAsFloat("DistanceToTarget") : 0.0f,
+                board && board->GetValueAsBool("HasLineOfSight") ? "yes" : "no",
+                pawn && pawn->GetHealthComponent() ? pawn->GetHealthComponent()->GetHealth() : 0.0f,
+                pawn && pawn->GetWeapon() ? pawn->GetWeapon()->GetCurrentAmmo() : 0);
             put(line);
             std::snprintf(line, sizeof(line), "move=%s path=%s len=%.1f dest=(%.1f,%.1f,%.1f) v=%.2f",
                           PathFollowingStatusName(selected->GetMoveStatus()),
@@ -221,6 +217,7 @@ namespace Leon {
         ScoreboardWidget = UUserWidget::CreateWidget<ULeonTournamentScoreboardWidget>(PlayerController);
         PauseWidget = UUserWidget::CreateWidget<ULeonTournamentPauseWidget>(PlayerController);
         EndWidget = UUserWidget::CreateWidget<ULeonTournamentMatchEndWidget>(PlayerController);
+        RenderLabWidget = UUserWidget::CreateWidget<ULeonTournamentRenderLabWidget>(PlayerController);
 
         MenuWidget->AddToViewport(10);
         LobbyWidget->AddToViewport(10);
@@ -228,12 +225,14 @@ namespace Leon {
         ScoreboardWidget->AddToViewport(15);
         PauseWidget->AddToViewport(40);
         EndWidget->AddToViewport(20);
+        RenderLabWidget->AddToViewport(30);
 
         LobbyWidget->SetVisibility(ESlateVisibility::Collapsed);
         HudWidget->SetVisibility(ESlateVisibility::Collapsed);
         ScoreboardWidget->SetVisibility(ESlateVisibility::Collapsed);
         PauseWidget->SetVisibility(ESlateVisibility::Collapsed);
         EndWidget->SetVisibility(ESlateVisibility::Collapsed);
+        RenderLabWidget->SetVisibility(ESlateVisibility::Collapsed);
         ShownState = ELeonTournamentMatchState::MainMenu;
         PrevState = ShownState;
     }
@@ -257,10 +256,16 @@ namespace Leon {
             else
                 w->SetVisibility(bHit ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
         };
-        show(MenuWidget, state == ELeonTournamentMatchState::MainMenu);
+        const bool bRenderLab =
+            World && dynamic_cast<ALeonTournamentRenderLabGameMode*>(World->GetGameMode()) != nullptr;
+        show(MenuWidget, state == ELeonTournamentMatchState::MainMenu && !bRenderLab);
         show(LobbyWidget, state == ELeonTournamentMatchState::Lobby);
-        show(HudWidget, state == ELeonTournamentMatchState::Playing || state == ELeonTournamentMatchState::Starting, false);
+        show(HudWidget,
+             !bRenderLab &&
+                 (state == ELeonTournamentMatchState::Playing || state == ELeonTournamentMatchState::Starting),
+             false);
         show(EndWidget, state == ELeonTournamentMatchState::Finished);
+        show(RenderLabWidget, bRenderLab && state == ELeonTournamentMatchState::Playing, true);
     }
 
     void ALeonTournamentHUD::Tick(float DeltaSeconds) {
@@ -270,17 +275,18 @@ namespace Leon {
         auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(PlayerController);
         const bool bInMatch =
             ShownState == ELeonTournamentMatchState::Playing || ShownState == ELeonTournamentMatchState::Starting;
-        const bool bAnimLab =
-            World && dynamic_cast<ALeonTournamentAnimLabGameMode*>(World->GetGameMode()) != nullptr;
-        if (spc && bInMatch && !bAnimLab && spc->ConsumeEscapePressed())
+        const bool bAnimLab = World && dynamic_cast<ALeonTournamentAnimLabGameMode*>(World->GetGameMode()) != nullptr;
+        const bool bRenderLab =
+            World && dynamic_cast<ALeonTournamentRenderLabGameMode*>(World->GetGameMode()) != nullptr;
+        if (spc && bInMatch && !bAnimLab && !bRenderLab && spc->ConsumeEscapePressed())
             spc->TogglePauseMenu();
 
         if (PauseWidget) {
-            const bool bPause = spc && spc->IsPauseMenuOpen() && bInMatch;
+            const bool bPause = spc && !bRenderLab && spc->IsPauseMenuOpen() && bInMatch;
             PauseWidget->SetVisibility(bPause ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
         }
 
-        const bool bWantSb = spc && !spc->IsPauseMenuOpen() && spc->IsScoreboardHeld() && bInMatch;
+        const bool bWantSb = spc && !spc->IsPauseMenuOpen() && spc->IsScoreboardHeld() && bInMatch && !bRenderLab;
         if (ScoreboardWidget) {
             ScoreboardWidget->SetVisibility(bWantSb ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
             bScoreboardVisible = bWantSb;

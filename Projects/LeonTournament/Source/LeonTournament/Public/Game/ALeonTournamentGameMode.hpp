@@ -41,12 +41,15 @@ namespace Leon {
 
         bool PrefersThirdPerson() const { return bPreferThirdPerson; }
         void SetPreferThirdPerson(bool bEnabled) { bPreferThirdPerson = bEnabled; }
+        /** Menu-like labs: visible free cursor, no look capture. */
+        virtual bool WantsUICursor() const { return false; }
         void ApplyCameraPreference(ALeonTournamentCharacter* InCharacter);
 
         void EnterMainMenu();
         void EnterLobby();
         void RequestStartMatch();
         void OpenAnimLab();
+        void OpenRenderLab();
         void OpenNightArena();
         void OpenPlayableMap(ELeonTournamentPlayableMap InMap);
         void NotifySelectedCharacterChanged();

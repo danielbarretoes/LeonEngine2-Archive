@@ -89,6 +89,7 @@ namespace Leon {
         }
 
         UAssetManager::UnloadUnused();
+        FRenderCommand::InvalidateShaderBindingCache();
 
         AGameModeBase* gameMode = nullptr;
         if (ActiveWorld->GetNetMode() != ENetMode::Client) {

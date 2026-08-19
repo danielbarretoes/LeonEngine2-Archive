@@ -2,8 +2,56 @@
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/Components.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <glm/glm.hpp>
 
 namespace Leon {
+
+    namespace {
+        float WrapDeltaDegrees(float InFrom, float InTo) {
+            float d = InTo - InFrom;
+            while (d > 180.0f)
+                d -= 360.0f;
+            while (d < -180.0f)
+                d += 360.0f;
+            return d;
+        }
+
+        FPerspectiveCamera LerpCameraPose(const FPerspectiveCamera& InFrom, const FPerspectiveCamera& InTo, float InT) {
+            const float t = std::clamp(InT, 0.0f, 1.0f);
+            FPerspectiveCamera out = InTo;
+            out.SetPosition(glm::mix(InFrom.GetPosition(), InTo.GetPosition(), t));
+            out.SetRotation(glm::mix(InFrom.GetPitch(), InTo.GetPitch(), t),
+                            InFrom.GetYaw() + WrapDeltaDegrees(InFrom.GetYaw(), InTo.GetYaw()) * t);
+            out.SetProjection(glm::mix(InFrom.GetFOV(), InTo.GetFOV(), t), InTo.GetAspectRatio(), InTo.GetNearClip(),
+                              InTo.GetFarClip());
+            return out;
+        }
+
+        FPerspectiveCamera ResolveIdealCamera(APlayerCameraManager& InMgr, APlayerController* InPC, UWorld* InWorld,
+                                              AActor* InViewTarget, const FPerspectiveCamera& InFallback) {
+            if (InViewTarget && InViewTarget->HasComponent<FCameraComponent>())
+                return InViewTarget->GetComponent<FCameraComponent>().Camera;
+            if (InPC) {
+                APawn* pawn = InPC->GetPawn();
+                if (pawn && pawn->HasComponent<FCameraComponent>())
+                    return pawn->GetComponent<FCameraComponent>().Camera;
+            }
+            if (InWorld) {
+                auto view = InWorld->GetRegistry().view<FCameraComponent, FTransformComponent>();
+                for (auto entity : view) {
+                    const auto& camComp = view.get<FCameraComponent>(entity);
+                    if (camComp.bPrimary)
+                        return camComp.Camera;
+                }
+            }
+            (void)InMgr;
+            return InFallback;
+        }
+    } // namespace
 
     APlayerCameraManager::APlayerCameraManager(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : AActor(InHandle, InWorld, InName) {
@@ -16,7 +64,17 @@ namespace Leon {
         PlayerController = InPC;
     }
 
-    void APlayerCameraManager::SetViewTarget(AActor* InNewTarget) {
+    void APlayerCameraManager::SetViewTarget(AActor* InNewTarget, float InBlendTime) {
+        if (InBlendTime > 0.0f && InNewTarget && InNewTarget != ViewTarget) {
+            BlendFrom = Camera;
+            BlendDuration = InBlendTime;
+            BlendElapsed = 0.0f;
+            bBlending = true;
+        } else {
+            bBlending = false;
+            BlendDuration = 0.0f;
+            BlendElapsed = 0.0f;
+        }
         ViewTarget = InNewTarget;
     }
 
@@ -25,36 +83,20 @@ namespace Leon {
     }
 
     void APlayerCameraManager::UpdateCamera(float DeltaSeconds) {
-        // Priority 1: Explicit ViewTarget set on CameraManager
-        if (ViewTarget && ViewTarget->HasComponent<FCameraComponent>()) {
-            const auto& camComp = ViewTarget->GetComponent<FCameraComponent>();
-            Camera = camComp.Camera;
+        const FPerspectiveCamera ideal =
+            ResolveIdealCamera(*this, PlayerController, World, ViewTarget, Camera);
+
+        if (!bBlending || BlendDuration <= 0.0f) {
+            Camera = ideal;
             return;
         }
 
-        // Priority 2: Possessed Pawn of the PlayerController
-        if (PlayerController) {
-            APawn* pawn = PlayerController->GetPawn();
-            if (pawn && pawn->HasComponent<FCameraComponent>()) {
-                const auto& camComp = pawn->GetComponent<FCameraComponent>();
-                Camera = camComp.Camera;
-                return;
-            }
-        }
-
-        // Priority 3: Search World for an Actor with a primary FCameraComponent
-        if (World) {
-            auto view = World->GetRegistry().view<FCameraComponent, FTransformComponent>();
-            for (auto entity : view) {
-                const auto& camComp = view.get<FCameraComponent>(entity);
-                if (camComp.bPrimary) {
-                    Camera = camComp.Camera;
-                    return;
-                }
-            }
-        }
-
-        // Priority 4: Maintain fallback camera parameters
+        BlendElapsed += std::max(DeltaSeconds, 0.0f);
+        float t = std::clamp(BlendElapsed / BlendDuration, 0.0f, 1.0f);
+        t = t * t * (3.0f - 2.0f * t);
+        Camera = LerpCameraPose(BlendFrom, ideal, t);
+        if (BlendElapsed >= BlendDuration)
+            bBlending = false;
     }
 
 } // namespace Leon
