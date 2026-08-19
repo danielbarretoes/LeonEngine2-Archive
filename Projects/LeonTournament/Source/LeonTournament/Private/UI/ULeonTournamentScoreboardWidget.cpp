@@ -16,13 +16,12 @@
 #include "Core/FInput.hpp"
 #include "Core/FInputSettings.hpp"
 #include "UMG/FUIRenderer.hpp"
+#include "UMG/UTableView.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
-#include <sstream>
-#include <glm/glm.hpp>
+#include <vector>
 
 namespace Leon {
 
@@ -108,12 +107,17 @@ namespace Leon {
         Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.45f});
 
         const float titleH = MeasurePadded("SCOREBOARD", kFsTitle).y;
-        const float headerH = MeasurePadded("PLAYER                   SCORE   K    D    A", kFsCaption).y;
-        const float rowsH = MeasurePadded(std::string(16, '\n') + "x", kFsBody).y;
+        const float tableHeaderH = FUIRenderer::MeasureString("PLAYER", kFsCaption).y + 6.0f;
+        const float tableRowH = FUIRenderer::MeasureString("X", kFsBody).y + 2.0f;
+        const float tableSectionH = FUIRenderer::MeasureString("TEAM", kFsCaption).y + 4.0f;
+        constexpr int kEstimatedDataRows = 10;
+        constexpr int kEstimatedSections = 2;
+        const float tableH =
+            tableHeaderH + kEstimatedSections * tableSectionH + kEstimatedDataRows * tableRowH + 8.0f;
         const float footerH = MeasurePadded("T1  99     T2  99", kFsCaption).y;
         const float panelPad = 28.0f;
         const float panelW = 880.0f;
-        const float panelH = panelPad * 2.0f + titleH + 12.0f + headerH + 8.0f + rowsH + 12.0f + footerH;
+        const float panelH = panelPad * 2.0f + titleH + 12.0f + tableH + 12.0f + footerH;
 
         Panel = std::make_shared<UImage>("SBPanel");
         Panel->SetTintColor({0.04f, 0.05f, 0.09f, 0.92f});
@@ -128,19 +132,20 @@ namespace Leon {
         PlaceTextC(*Root, TitleText, 0.0f, y + titleH * 0.5f, 360.0f);
         y += titleH + 12.0f;
 
-        HeaderText = std::make_shared<UTextBlock>("SBHeader");
-        HeaderText->SetText("PLAYER                   SCORE   K    D    A");
-        HeaderText->SetFontScale(kFsCaption);
-        HeaderText->SetColor({0.65f, 0.74f, 0.90f, 0.95f});
-        PlaceTextC(*Root, HeaderText, 0.0f, y + headerH * 0.5f, panelW - panelPad * 2.0f);
-        y += headerH + 8.0f;
-
-        RowsText = std::make_shared<UTextBlock>("SBRows");
-        RowsText->SetFontScale(kFsBody);
-        RowsText->SetColor({0.94f, 0.95f, 0.98f, 1.0f});
-        RowsText->SetText(" ");
-        Root->AddChild(RowsText, FAnchors::Center(), BoxC(0.0f, y + rowsH * 0.5f, panelW - panelPad * 2.0f, rowsH));
-        y += rowsH + 12.0f;
+        ScoreTable = std::make_shared<UTableView>("SBTable");
+        ScoreTable->SetFontScale(kFsBody);
+        ScoreTable->SetHeaderFontScale(kFsCaption);
+        ScoreTable->SetRowHeight(tableRowH);
+        ScoreTable->SetHeaderHeight(tableHeaderH);
+        ScoreTable->SetSectionHeight(tableSectionH);
+        ScoreTable->SetColumns({{"PLAYER", 3.2f, ETextAlignment::Left},
+                                {"SCORE", 1.0f, ETextAlignment::Right},
+                                {"K", 0.7f, ETextAlignment::Center},
+                                {"D", 0.7f, ETextAlignment::Center},
+                                {"A", 0.7f, ETextAlignment::Center}});
+        Root->AddChild(ScoreTable, FAnchors::Center(),
+                       BoxC(0.0f, y + tableH * 0.5f, panelW - panelPad * 2.0f, tableH));
+        y += tableH + 12.0f;
 
         FooterText = std::make_shared<UTextBlock>("SBFooter");
         FooterText->SetText("HOLD  TAB");
@@ -170,31 +175,35 @@ namespace Leon {
             ApplyViewportLayout();
         // Unreal: scoreboard is a HUD view of GameState.PlayerArray + PlayerState (not GameMode).
         auto* gs = GS(OwningPlayer);
-        if (!gs || !RowsText)
+        if (!gs || !ScoreTable)
             return;
 
         auto* localPs = OwningPlayer ? dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState()) : nullptr;
         const auto ranked = gs->GetSortedScoreboard();
 
-        std::ostringstream ss;
+        std::vector<FTableRow> rows;
         auto appendGroup = [&](ELeonTournamentTeam team, const char* title) {
-            ss << title << "\n";
-            ss << "  PLAYER                   SCORE   K    D    A\n";
+            rows.push_back({ETableRowKind::SectionHeader, {}, title, false});
             bool any = false;
             for (auto* ps : ranked) {
                 if (!ps || ps->GetTeam() != team)
                     continue;
                 any = true;
                 const bool bYou = localPs && ps == localPs;
-                char line[160];
-                std::snprintf(line, sizeof(line), "%s %-22s  %5.0f  %3d  %3d  %3d\n", bYou ? ">" : " ",
-                              ps->GetPlayerName().c_str(), ps->GetScore(), ps->GetKills(), ps->GetDeaths(),
-                              ps->GetAssists());
-                ss << line;
+                char player[96];
+                char score[16];
+                char kills[8];
+                char deaths[8];
+                char assists[8];
+                std::snprintf(player, sizeof(player), "%s%s", bYou ? "> " : "", ps->GetPlayerName().c_str());
+                std::snprintf(score, sizeof(score), "%.0f", ps->GetScore());
+                std::snprintf(kills, sizeof(kills), "%d", ps->GetKills());
+                std::snprintf(deaths, sizeof(deaths), "%d", ps->GetDeaths());
+                std::snprintf(assists, sizeof(assists), "%d", ps->GetAssists());
+                rows.push_back({ETableRowKind::Data, {player, score, kills, deaths, assists}, {}, bYou});
             }
             if (!any)
-                ss << "  --\n";
-            ss << "\n";
+                rows.push_back({ETableRowKind::Data, {"--", "-", "-", "-", "-"}, {}, false});
         };
         appendGroup(ELeonTournamentTeam::Team1, "TEAM 1");
         appendGroup(ELeonTournamentTeam::Team2, "TEAM 2");
@@ -207,7 +216,7 @@ namespace Leon {
         }
         if (anyNone)
             appendGroup(ELeonTournamentTeam::None, "UNASSIGNED");
-        RowsText->SetText(ss.str());
+        ScoreTable->SetRows(rows);
         if (FooterText) {
             char foot[64];
             std::snprintf(foot, sizeof(foot), "T1  %d     T2  %d", gs->GetTeam1Kills(), gs->GetTeam2Kills());

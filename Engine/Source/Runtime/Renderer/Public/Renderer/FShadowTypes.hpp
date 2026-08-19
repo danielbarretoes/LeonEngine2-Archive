@@ -45,7 +45,7 @@ namespace Leon {
 
         float ConstantBias = 0.0010f; ///< Constant depth offset subtracted from light depth
         float SlopeBias = 0.0035f;    ///< Multiplier for tan(θ) slope-scale (clamped grazing)
-        float NormalBias = 0.040f;    ///< Face-normal offset scaling in world space
+        float NormalBias = 0.055f;    ///< Face-normal offset scaling in world space
 
         uint32_t CascadeResolution = 2048; ///< Width and height per cascade layer
         uint32_t SpotResolution = 1024;    ///< Spotlight shadow map resolution

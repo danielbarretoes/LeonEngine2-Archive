@@ -1,0 +1,37 @@
+# LeonEngine2 Map Asset File (.lmap)
+Map:
+  Name: "Transition"
+  Version: "2.1"
+
+Environment:
+  WorldSettings:
+    StaticLighting: false
+    LightingBuildQuality: Preview
+    LightmapResolution: 64
+    NumIndirectBounces: 1
+    SamplesPerTexel: 4
+    IndirectIntensity: 1
+    AmbientOcclusion: false
+    AOIntensity: 1
+    AORadius: 1
+    TexelPadding: 2
+    WorldScale: 1
+  Skybox:
+    Enabled: true
+    Exposure: 0.55
+    SunIntensity: 1.2
+    EnvironmentIntensity: 0.35
+    UseHDREnvironmentMap: false
+    SkyZenithColor: [0.02, 0.03, 0.06]
+    HorizonColor: [0.04, 0.05, 0.08]
+    GroundColor: [0.01, 0.01, 0.02]
+    SunColor: [0.6, 0.65, 0.75]
+
+Actors:
+  - Name: "PlayerStart"
+    Class: "APlayerStart"
+    GUID: "4c454f4e00000000c0ffee0000000201"
+    Transform:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]

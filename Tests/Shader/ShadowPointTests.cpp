@@ -58,5 +58,18 @@ TEST_SUITE("Shader GPU - Point cubemap shadows") {
             glClearTexImage(gl.GetDefaultPointCubeArrayTex(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, &oneDepth);
             CHECK(pix.r == doctest::Approx(0.0f).epsilon(0.05f));
         }
+
+        SUBCASE("Linear bias prevents self-hit acne when stored equals raw depth") {
+            // Fragment at z=0, light at z=2, radius=10 → raw linear depth = 0.2.
+            // Stored 0.195 mimics a self-hit without polygon offset; bias must keep it lit.
+            float storedDepth = 0.195f;
+            glClearTexImage(gl.GetDefaultPointCubeArrayTex(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, &storedDepth);
+            gl.DrawQuad();
+            glm::vec4 pix = gl.ReadPixel(0, 0);
+
+            float oneDepth = 1.0f;
+            glClearTexImage(gl.GetDefaultPointCubeArrayTex(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, &oneDepth);
+            CHECK(pix.r == doctest::Approx(1.0f).epsilon(0.08f));
+        }
     }
 }

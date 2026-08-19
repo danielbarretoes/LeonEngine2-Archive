@@ -19,6 +19,9 @@
 #include "Physics/FHitResult.hpp"
 #include "ALeonTournamentBotController.hpp"
 #include "ULeonTournamentGameInstance.hpp"
+#include "FLeonTournamentCrosshairTextures.hpp"
+#include "FLeonTournamentWeaponPresets.hpp"
+#include "UMG/UImage.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Assets/USkeleton.hpp"
 #include "Core/FWorldUnits.hpp"
@@ -834,6 +837,28 @@ namespace Leon {
             glm::vec3 origin, dir;
             ch->GetAimRay(origin, dir);
             CHECK(dir.z == doctest::Approx(1.0f).epsilon(0.02f));
+        }
+    }
+
+    TEST_SUITE("LeonTournament loading / travel") {
+
+        TEST_CASE("GameInstance loading overlay state") {
+            ULeonTournamentGameInstance gi("TestGI");
+            CHECK(gi.GetTransitionMapPath() == "/Game/Maps/Transition");
+            gi.SetLoadingOverlayActive(true, "CONNECTING...");
+            CHECK(gi.IsLoadingOverlayActive());
+            CHECK(gi.GetLoadingOverlayLabel() == "CONNECTING...");
+            gi.SetLoadingOverlayActive(false);
+            CHECK_FALSE(gi.IsLoadingOverlayActive());
+        }
+        TEST_CASE("LeonTournament crosshair brush API") {
+            UImage image("CH");
+            const auto rocketCfg = LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rocket);
+            CHECK(rocketCfg.CrosshairStyle == ELeonTournamentCrosshairStyle::Cross);
+            LeonTournamentApplyCrosshairBrush(image, ELeonTournamentWeaponId::Rocket, rocketCfg);
+            const auto tex = LeonTournamentGetCrosshairTexture(ELeonTournamentWeaponId::Rocket);
+            if (tex)
+                CHECK(image.GetBrushTexture() == tex);
         }
     }
 

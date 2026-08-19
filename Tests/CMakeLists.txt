@@ -112,17 +112,21 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentRenderLabGameMode.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentTransitionGameMode.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentCrosshairTextures.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentHUDWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentScoreboardWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentPauseWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMatchEndWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLoadingOverlayWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentRenderLabWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ALeonTournamentTransitionHUD.cpp
 )
 
 function(leon_configure_test_exe TargetName)

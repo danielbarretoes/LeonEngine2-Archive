@@ -308,6 +308,8 @@ namespace Leon {
         /** Extra world-surface reflections after the first hitscan impact (characters stop the ray). */
         int32_t RicochetBounces = 0;
         ELeonTournamentCrosshairStyle CrosshairStyle = ELeonTournamentCrosshairStyle::Cross;
+        /** Optional virtual asset path (/Game/...). Empty = built-in procedural crosshair per weapon. */
+        std::string CrosshairTexturePath;
         glm::vec3 VisualColor{0.12f, 0.12f, 0.14f};
         float VisualRadius = 0.035f;
         float VisualLength = 0.42f;

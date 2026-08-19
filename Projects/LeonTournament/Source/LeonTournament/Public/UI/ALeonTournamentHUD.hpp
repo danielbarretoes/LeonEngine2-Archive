@@ -16,6 +16,9 @@ namespace Leon {
         TRef<ULeonTournamentHUDWidget> GetHudWidget() const { return HudWidget; }
         bool IsScoreboardVisible() const { return bScoreboardVisible; }
 
+        void ShowLoadingOverlay(const std::string& InLabel);
+        void HideLoadingOverlay();
+
     private:
         void SyncWidgets();
 
@@ -26,6 +29,7 @@ namespace Leon {
         TRef<ULeonTournamentPauseWidget> PauseWidget;
         TRef<ULeonTournamentMatchEndWidget> EndWidget;
         TRef<ULeonTournamentRenderLabWidget> RenderLabWidget;
+        TRef<ULeonTournamentLoadingOverlayWidget> LoadingOverlay;
         ELeonTournamentMatchState ShownState = ELeonTournamentMatchState::MainMenu;
         ELeonTournamentMatchState PrevState = ELeonTournamentMatchState::MainMenu;
         bool bScoreboardVisible = false;

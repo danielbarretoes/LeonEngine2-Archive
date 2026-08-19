@@ -1,6 +1,7 @@
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentGameState.hpp"
+#include "ALeonTournamentTransitionGameMode.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentRenderLabGameMode.hpp"
 #include "ALeonTournamentBotController.hpp"
@@ -16,6 +17,8 @@
 #include "Core/FApplication.hpp"
 #include "Core/FInput.hpp"
 #include "UMG/UUserWidget.hpp"
+#include "ULeonTournamentGameInstance.hpp"
+#include "Engine/UEngine.hpp"
 #include "AI/UNavigationSystem.hpp"
 #include "AI/FNavTypes.hpp"
 #include "Renderer/FDebugRenderer.hpp"
@@ -218,6 +221,7 @@ namespace Leon {
         PauseWidget = UUserWidget::CreateWidget<ULeonTournamentPauseWidget>(PlayerController);
         EndWidget = UUserWidget::CreateWidget<ULeonTournamentMatchEndWidget>(PlayerController);
         RenderLabWidget = UUserWidget::CreateWidget<ULeonTournamentRenderLabWidget>(PlayerController);
+        LoadingOverlay = UUserWidget::CreateWidget<ULeonTournamentLoadingOverlayWidget>(PlayerController);
 
         MenuWidget->AddToViewport(10);
         LobbyWidget->AddToViewport(10);
@@ -226,6 +230,10 @@ namespace Leon {
         PauseWidget->AddToViewport(40);
         EndWidget->AddToViewport(20);
         RenderLabWidget->AddToViewport(30);
+        if (LoadingOverlay) {
+            LoadingOverlay->AddToViewport(100);
+            LoadingOverlay->SetVisibility(ESlateVisibility::Collapsed);
+        }
 
         LobbyWidget->SetVisibility(ESlateVisibility::Collapsed);
         HudWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -266,6 +274,41 @@ namespace Leon {
              false);
         show(EndWidget, state == ELeonTournamentMatchState::Finished);
         show(RenderLabWidget, bRenderLab && state == ELeonTournamentMatchState::Playing, true);
+
+        if (LoadingOverlay && LoadingOverlay->IsVisible()) {
+            if (state == ELeonTournamentMatchState::Lobby || state == ELeonTournamentMatchState::Starting ||
+                state == ELeonTournamentMatchState::Playing)
+                HideLoadingOverlay();
+            else if (state == ELeonTournamentMatchState::MainMenu && World &&
+                     dynamic_cast<ALeonTournamentTransitionGameMode*>(World->GetGameMode()) == nullptr) {
+                if (UEngine::HasInstance()) {
+                    if (auto* gi = dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get())) {
+                        if (!gi->IsLoadingOverlayActive())
+                            HideLoadingOverlay();
+                    }
+                }
+            }
+        }
+    }
+
+    void ALeonTournamentHUD::ShowLoadingOverlay(const std::string& InLabel) {
+        if (!LoadingOverlay)
+            return;
+        LoadingOverlay->SetStatusText(InLabel);
+        LoadingOverlay->SetVisibility(ESlateVisibility::HitTestInvisible);
+        if (UEngine::HasInstance()) {
+            if (auto* gi = dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get()))
+                gi->SetLoadingOverlayActive(true, InLabel);
+        }
+    }
+
+    void ALeonTournamentHUD::HideLoadingOverlay() {
+        if (LoadingOverlay)
+            LoadingOverlay->SetVisibility(ESlateVisibility::Collapsed);
+        if (UEngine::HasInstance()) {
+            if (auto* gi = dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get()))
+                gi->SetLoadingOverlayActive(false);
+        }
     }
 
     void ALeonTournamentHUD::Tick(float DeltaSeconds) {

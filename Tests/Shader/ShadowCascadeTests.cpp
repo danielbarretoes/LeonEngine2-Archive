@@ -116,6 +116,24 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
 
         glm::mat4 proj = ShadowMath::PointCubeFaceProjection(0.1f, 25.0f);
         CHECK(proj[1][1] == doctest::Approx(1.0f).epsilon(0.001f));
+        CHECK(proj[0][0] == doctest::Approx(proj[1][1]).epsilon(0.001f));
+    }
+
+    TEST_CASE("ShadowMath - point cube faces look toward OpenGL axis centers") {
+        const glm::vec3 lightPos(2.0f, -1.0f, 0.5f);
+        const glm::vec3 faceTargets[6] = {
+            {1.0f, 0.0f, 0.0f},  {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+            {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f},  {0.0f, 0.0f, -1.0f},
+        };
+        for (uint32_t face = 0; face < 6; ++face) {
+            glm::mat4 view = ShadowMath::PointCubeFaceView(lightPos, face);
+            glm::vec4 targetInView = view * glm::vec4(lightPos + faceTargets[face], 1.0f);
+            // Camera looks down -Z; face center must lie in front of the cubemap capture.
+            CHECK(targetInView.z < 0.0f);
+            glm::vec3 forward = glm::normalize(glm::vec3(view[0][2], view[1][2], view[2][2]));
+            glm::vec3 expected = glm::normalize(faceTargets[face]);
+            CHECK(glm::dot(forward, -expected) == doctest::Approx(1.0f).epsilon(0.01f));
+        }
     }
 
     TEST_CASE("ShadowMath - cascade slice range overlaps the blend zone") {

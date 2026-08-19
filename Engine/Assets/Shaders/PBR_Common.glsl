@@ -405,7 +405,7 @@ float CalculateSpotShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
     return SampleSpotShadowMap(u_SpotShadowMap, fragPos, normal, lightDir);
 }
 
-float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth) {
+float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth, float compareBias) {
     int filterMode = u_ShadowSettings.x;
     vec3 nDir = SafeNormalize3(dir, vec3(0.0, 0.0, 1.0));
     vec3 up = abs(nDir.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
@@ -414,6 +414,7 @@ float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth) {
     float occluded = 0.0;
     float valid = 0.0;
     float disk = 0.012;
+    float depthEps = compareBias;
 
     int radius = 0;
     if (filterMode == 1)
@@ -423,7 +424,7 @@ float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth) {
 
     if (filterMode == 0) {
         float stored = texture(u_PointShadowMap, vec4(nDir, float(cubeIndex))).r;
-        return refDepth > stored + 0.002 ? 1.0 : 0.0;
+        return refDepth > stored + depthEps ? 1.0 : 0.0;
     }
     if (filterMode == 3) {
         float noise = InterleavedGradientNoise(gl_FragCoord.xy);
@@ -433,7 +434,7 @@ float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth) {
             vec2 off = rot * POISSON_DISK[i] * disk * 1.75;
             vec3 sdir = SafeNormalize3(nDir + T * off.x + B * off.y, nDir);
             float stored = texture(u_PointShadowMap, vec4(sdir, float(cubeIndex))).r;
-            occluded += refDepth > stored + 0.002 ? 1.0 : 0.0;
+            occluded += refDepth > stored + depthEps ? 1.0 : 0.0;
             valid += 1.0;
         }
         return occluded / max(valid, 1.0);
@@ -442,7 +443,7 @@ float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth) {
         for (int y = -radius; y <= radius; ++y) {
             vec3 sdir = SafeNormalize3(nDir + T * (float(x) * disk) + B * (float(y) * disk), nDir);
             float stored = texture(u_PointShadowMap, vec4(sdir, float(cubeIndex))).r;
-            occluded += refDepth > stored + 0.002 ? 1.0 : 0.0;
+            occluded += refDepth > stored + depthEps ? 1.0 : 0.0;
             valid += 1.0;
         }
     }
@@ -464,10 +465,12 @@ float CalculatePointShadow(vec3 fragPos, vec3 vertexN, int lightIndex) {
     vec3 normal = ShadowFaceNormal(fragPos, vertexN);
     vec3 L = SafeNormalize3(lightPos - fragPos, vec3(0.0, 1.0, 0.0));
     float NdotL = max(dot(normal, L), 0.0);
-    float tanTheta = ShadowSlopeTan(normal, L);
-    float bias = (u_ShadowParams.x + u_ShadowParams.y * tanTheta) * 1.5;
-    float refDepth = clamp(dist / radius - bias, 0.0, 1.0);
-    float shadow = FilterPointCubeShadow(toFrag, int(cubeSlot + 0.5), refDepth);
+    // Cubemap depth is linear in [0,1] over radius — do not reuse NDC-scale CSM bias constants.
+    float slopeFactor = max(1.0 - NdotL, 0.0);
+    float linearBias = 0.004 + 0.028 * slopeFactor;
+    float refDepth = clamp(dist / radius - linearBias, 0.0, 1.0);
+    float compareBias = 0.003 + 0.006 * slopeFactor;
+    float shadow = FilterPointCubeShadow(toFrag, int(cubeSlot + 0.5), refDepth, compareBias);
     shadow *= smoothstep(0.0, 0.22, NdotL);
     return shadow;
 }

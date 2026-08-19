@@ -11,6 +11,8 @@
 #include "UMG/UCheckBox.hpp"
 #include "UMG/UWidgetSwitcher.hpp"
 #include "UMG/UScrollBox.hpp"
+#include "UMG/UTableView.hpp"
+#include "UMG/ULoadingSpinner.hpp"
 #include "FLeonTournamentTypes.hpp"
 #include "Engine/FGraphicsQuality.hpp"
 
@@ -127,7 +129,11 @@ namespace Leon {
         ULeonTournamentHUDWidget(const std::string& InName = "LeonTournamentHUD");
         void Construct() override;
         void Tick(float InDeltaTime) override;
-        bool IsCrosshairVisible() const { return CrosshairText && CrosshairText->IsVisible() && IsVisible(); }
+        bool IsCrosshairVisible() const {
+            return IsVisible() &&
+                   ((CrosshairImage && CrosshairImage->IsVisible()) ||
+                    (CrosshairText && CrosshairText->IsVisible()));
+        }
         const std::string& GetCrosshairGlyph() const {
             static const std::string empty;
             return CrosshairText ? CrosshairText->GetText() : empty;
@@ -154,6 +160,7 @@ namespace Leon {
         TRef<UTextBlock> WeaponSlotsText;
         TRef<UTextBlock> StatusText;
         TRef<UTextBlock> CrosshairText;
+        TRef<UImage> CrosshairImage;
         TRef<UImage> CrosshairDot;
         TRef<UImage> CrosshairBarT;
         TRef<UImage> CrosshairBarB;
@@ -172,6 +179,24 @@ namespace Leon {
         bool bPlayedFightBanner = false;
         float AppliedLayoutScale = 0.0f;
         glm::vec2 AppliedViewport{0.0f, 0.0f};
+        ELeonTournamentWeaponId LastCrosshairWeaponId = ELeonTournamentWeaponId::Count;
+    };
+
+    class ULeonTournamentLoadingOverlayWidget : public UUserWidget {
+    public:
+        ULeonTournamentLoadingOverlayWidget(const std::string& InName = "LeonTournamentLoadingOverlay");
+        void Construct() override;
+        void Tick(float InDeltaTime) override;
+        void SetStatusText(const std::string& InText);
+
+    private:
+        void Build();
+        void ApplyViewportLayout();
+        TRef<UCanvasPanel> Root;
+        TRef<ULoadingSpinner> Spinner;
+        TRef<UTextBlock> StatusText;
+        float AppliedLayoutScale = 0.0f;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
     };
 
     class ULeonTournamentScoreboardWidget : public UUserWidget {
@@ -186,8 +211,7 @@ namespace Leon {
         TRef<UCanvasPanel> Root;
         TRef<UImage> Panel;
         TRef<UTextBlock> TitleText;
-        TRef<UTextBlock> HeaderText;
-        TRef<UTextBlock> RowsText;
+        TRef<UTableView> ScoreTable;
         TRef<UTextBlock> FooterText;
         float AppliedLayoutScale = 0.0f;
         glm::vec2 AppliedViewport{0.0f, 0.0f};

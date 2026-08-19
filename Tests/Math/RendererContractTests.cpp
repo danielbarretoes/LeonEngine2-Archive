@@ -329,6 +329,62 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(paddedMin.x == doctest::Approx(-1.35f));
     }
 
+    TEST_CASE("Point cubemap linear depth shadow contract matches PBR_Common.glsl") {
+        // Keep in sync with CalculatePointShadow / FilterPointCubeShadow in PBR_Common.glsl.
+        auto linearBias = [](float NdotL) {
+            const float slope = std::max(1.0f - NdotL, 0.0f);
+            return 0.004f + 0.028f * slope;
+        };
+        auto compareBias = [](float NdotL) {
+            const float slope = std::max(1.0f - NdotL, 0.0f);
+            return 0.003f + 0.006f * slope;
+        };
+        auto occluded = [](float refDepth, float stored, float eps) { return refDepth > stored + eps; };
+
+        CHECK(linearBias(1.0f) == doctest::Approx(0.004f));
+        CHECK(linearBias(0.0f) == doctest::Approx(0.032f));
+        CHECK(compareBias(1.0f) == doctest::Approx(0.003f));
+        CHECK(compareBias(0.0f) == doctest::Approx(0.009f));
+
+        const float radius = 14.0f;
+        const float dist = 7.0f;
+        const float rawDepth = dist / radius;
+        CHECK(rawDepth == doctest::Approx(0.5f));
+
+        const float ndotl = 1.0f;
+        const float refDepth = std::clamp(rawDepth - linearBias(ndotl), 0.0f, 1.0f);
+        const float eps = compareBias(ndotl);
+
+        // Empty cubemap texel (cleared to 1.0) never occludes.
+        CHECK_FALSE(occluded(refDepth, 1.0f, eps));
+
+        // Self-hit without depth bias: stored ~= rawDepth falsely occludes.
+        CHECK(occluded(rawDepth, rawDepth - 0.004f, eps));
+        CHECK_FALSE(occluded(refDepth, rawDepth - 0.004f, eps));
+
+        // ShadowDepth.glsl linear write contract: length(world - light) / farPlane.
+        const glm::vec3 lightPos(4.5f, 1.8f, 1.5f);
+        const glm::vec3 frag(0.0f, 0.0f, 0.0f);
+        const float farPlane = radius;
+        const float writtenDepth = glm::length(frag - lightPos) / farPlane;
+        CHECK(writtenDepth == doctest::Approx(glm::length(frag - lightPos) / radius));
+        CHECK(writtenDepth > 0.0f);
+        CHECK(writtenDepth < 1.0f);
+    }
+
+    TEST_CASE("CSM PCF reports lit when all taps are out of UV bounds") {
+        // FilterShadowArray returns 0.0 occlusion (fully lit) when valid tap count is 0.
+        auto filterWithValidCount = [](int validCount, float accumulatedLitTaps, int totalTaps) -> float {
+            if (validCount == 0)
+                return 0.0f;
+            const float visibility = accumulatedLitTaps / static_cast<float>(validCount);
+            return 1.0f - visibility;
+        };
+        CHECK(filterWithValidCount(0, 0.0f, 25) == doctest::Approx(0.0f));
+        CHECK(filterWithValidCount(9, 9.0f, 9) == doctest::Approx(0.0f));
+        CHECK(filterWithValidCount(9, 0.0f, 9) == doctest::Approx(1.0f));
+    }
+
     TEST_CASE("Transparent sort uses world AABB center not model origin") {
         glm::mat4 model(1.0f);
         glm::vec3 cam(0.0f);

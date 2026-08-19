@@ -20,7 +20,7 @@ namespace Leon {
         glm::vec2 p1 = p0 + InAllottedGeometry.Size;
 
         if (Texture) {
-            FUIRenderer::DrawTexturedQuad(p0, p1, Texture, Tint);
+            FUIRenderer::DrawTexturedQuad(p0, p1, Texture, Tint, UVMin, UVMax);
         } else {
             FUIRenderer::DrawQuad(p0, p1, Tint);
         }

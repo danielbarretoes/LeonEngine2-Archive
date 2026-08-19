@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -454,9 +455,13 @@ namespace Leon {
         UWorld* world = OwningPlayer ? OwningPlayer->GetWorld() : nullptr;
         if (world && world->GetNetMode() == ENetMode::Client)
             return;
+        auto* gi = GI();
+        const auto map = gi ? gi->GetSelectedPlayableMap() : ELeonTournamentPlayableMap::Arena;
+        if (auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr) {
+            hud->ShowLoadingOverlay(map == ELeonTournamentPlayableMap::Arena ? "STARTING MATCH..."
+                                                                             : "LOADING MAP...");
+        }
         if (auto* gm = GM(OwningPlayer)) {
-            auto* gi = GI();
-            const auto map = gi ? gi->GetSelectedPlayableMap() : ELeonTournamentPlayableMap::Arena;
             if (map == ELeonTournamentPlayableMap::Arena)
                 gm->RequestStartMatch();
             else

@@ -507,6 +507,132 @@ TEST_CASE("Lighting quality presets change hash") {
     CHECK(FLightmass::ComputeBakeInputHash(*world, preview) != FLightmass::ComputeBakeInputHash(*world, production));
 }
 
+namespace {
+
+    FLightmapChart MakeUnitChart(uint32_t InResolution, glm::vec2 InBias) {
+        FLightmapChart chart;
+        chart.Resolution = InResolution;
+        chart.PackedWidth = InResolution;
+        chart.PackedHeight = InResolution;
+        chart.Scale = {1.0f / 2.0f, 1.0f};
+        chart.Bias = InBias;
+        return chart;
+    }
+
+    void PushBakeTriangle(FLightBakerScene& InOutScene, const glm::vec3& InA, const glm::vec3& InB,
+                          const glm::vec3& InC, const glm::vec3& InNormal, uint32_t InChart) {
+        const uint32_t base = static_cast<uint32_t>(InOutScene.Vertices.size());
+        FBakeVertex v0, v1, v2;
+        v0.Position = InA;
+        v1.Position = InB;
+        v2.Position = InC;
+        v0.Normal = v1.Normal = v2.Normal = InNormal;
+        v0.LightmapUV = {0.0f, 0.0f};
+        v1.LightmapUV = {1.0f, 0.0f};
+        v2.LightmapUV = {0.5f, 1.0f};
+        v0.Albedo = v1.Albedo = v2.Albedo = {1.0f, 1.0f, 1.0f};
+        InOutScene.Vertices.push_back(v0);
+        InOutScene.Vertices.push_back(v1);
+        InOutScene.Vertices.push_back(v2);
+        InOutScene.Triangles.push_back({base, base + 1, base + 2, InChart, false});
+    }
+
+    float MeanCoveredChannel(const std::vector<float>& InRGBA, uint32_t InWidth, uint32_t InHeight,
+                             uint32_t InX0, uint32_t InY0, uint32_t InW, uint32_t InH) {
+        float sum = 0.0f;
+        int count = 0;
+        for (uint32_t y = InY0; y < InY0 + InH && y < InHeight; ++y) {
+            for (uint32_t x = InX0; x < InX0 + InW && x < InWidth; ++x) {
+                const size_t i = (static_cast<size_t>(y) * InWidth + x) * 4;
+                if (InRGBA[i + 3] <= 0.0f)
+                    continue;
+                sum += InRGBA[i];
+                ++count;
+            }
+        }
+        return count > 0 ? sum / static_cast<float>(count) : 0.0f;
+    }
+
+} // namespace
+
+TEST_CASE("Sun-facing hemisphere stores more irradiance than the back") {
+    // Two charts in a 16x8 atlas: left = +Y (lit), right = -Y (back). Direct only, no AO/GI.
+    FLightBakerScene scene;
+    scene.AtlasWidth = 16;
+    scene.AtlasHeight = 8;
+    scene.Charts.push_back(MakeUnitChart(8, {0.0f, 0.0f}));
+    scene.Charts.push_back(MakeUnitChart(8, {0.5f, 0.0f}));
+
+    PushBakeTriangle(scene, {-1, 0, -1}, {1, 0, -1}, {0, 0, 1}, {0, 1, 0}, 0);
+    PushBakeTriangle(scene, {-1, 0, -1}, {1, 0, -1}, {0, 0, 1}, {0, -1, 0}, 1);
+    scene.DirectionalLights.push_back({FDirectionalLight{{0.f, -1.f, 0.f}, {1, 1, 1}, 3.5f}, true});
+
+    FLightBakerSettings settings;
+    settings.SamplesPerTexel = 1;
+    settings.NumIndirectBounces = 0;
+    settings.bAmbientOcclusion = false;
+    settings.Seed = 11;
+
+    std::vector<float> baked;
+    FLightBaker::Bake(scene, settings, baked);
+    REQUIRE(baked.size() == 16 * 8 * 4);
+
+    const float litE = MeanCoveredChannel(baked, 16, 8, 0, 0, 8, 8);
+    const float backE = MeanCoveredChannel(baked, 16, 8, 8, 0, 8, 8);
+    CHECK(litE == doctest::Approx(3.5f).epsilon(0.08f));
+    CHECK(backE == doctest::Approx(0.0f).epsilon(1e-4f));
+    CHECK(litE > backE);
+}
+
+TEST_CASE("Bake irradiance is not inverted versus NdotL") {
+    FLightBakerScene scene;
+    scene.AtlasWidth = 16;
+    scene.AtlasHeight = 8;
+    scene.Charts.push_back(MakeUnitChart(8, {0.0f, 0.0f}));
+    scene.Charts.push_back(MakeUnitChart(8, {0.5f, 0.0f}));
+
+    const glm::vec3 facing{0.0f, 1.0f, 0.0f};
+    const glm::vec3 grazing = glm::normalize(glm::vec3(0.0f, 1.0f, 1.0f));
+    PushBakeTriangle(scene, {-1, 0, -1}, {1, 0, -1}, {0, 0, 1}, facing, 0);
+    PushBakeTriangle(scene, {-1, 0, -1}, {1, 0, -1}, {0, 0, 1}, grazing, 1);
+    scene.DirectionalLights.push_back({FDirectionalLight{{0.f, -1.f, 0.f}, {1, 1, 1}, 2.0f}, true});
+
+    FLightBakerSettings settings;
+    settings.SamplesPerTexel = 1;
+    settings.NumIndirectBounces = 0;
+    settings.bAmbientOcclusion = false;
+    settings.Seed = 3;
+
+    std::vector<float> baked;
+    FLightBaker::Bake(scene, settings, baked);
+
+    const float eFacing = MeanCoveredChannel(baked, 16, 8, 0, 0, 8, 8);
+    const float eGrazing = MeanCoveredChannel(baked, 16, 8, 8, 0, 8, 8);
+    const glm::vec3 L = glm::normalize(-glm::vec3(0.f, -1.f, 0.f));
+    CHECK(eFacing == doctest::Approx(2.0f * LambertNdotL(facing, L)).epsilon(0.08f));
+    CHECK(eGrazing == doctest::Approx(2.0f * LambertNdotL(grazing, L)).epsilon(0.08f));
+    CHECK(eFacing > eGrazing);
+    CHECK(eGrazing > 0.4f);
+}
+
+TEST_CASE("Runtime Lo_diffuse uses E not one-minus-E") {
+    constexpr float kPI = 3.14159265358979323846f;
+    const glm::vec3 albedo(1.0f);
+    const float metallic = 0.0f;
+    const float kD = 1.0f - metallic;
+    const glm::vec3 ELit(3.5f);
+    const glm::vec3 EBack(0.0f);
+
+    const glm::vec3 loLit = kD * (albedo / kPI) * ELit;
+    const glm::vec3 loBack = kD * (albedo / kPI) * EBack;
+    const glm::vec3 invertedLit = kD * (albedo / kPI) * (glm::vec3(1.0f) - ELit);
+
+    CHECK(loLit.r > loBack.r);
+    CHECK(loBack.r == doctest::Approx(0.0f));
+    CHECK(loLit.r == doctest::Approx(3.5f / kPI).epsilon(1e-5f));
+    CHECK(invertedLit.r < 0.0f);
+}
+
 TEST_CASE("Skip cache requires both atlas and world hashes non-zero") {
     // OR skip was the bug: a matching atlas hash alone must not skip when world hash is 0.
     FLightmassSettings settings;

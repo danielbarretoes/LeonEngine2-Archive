@@ -83,6 +83,12 @@ namespace Leon {
             UEngine::Get().SetGameModeConfig(cfg);
         }
 
+        void TravelToMapWithTransition(UWorld* InWorld, const std::string& InMap, const std::string& InGameModeClass,
+                                       const std::string& InLoadingLabel) {
+            if (auto* gi = GetLeonTournamentGameInstance())
+                gi->BeginTravelWithTransition(InWorld, InMap, InGameModeClass, InLoadingLabel);
+        }
+
         void FaceIntoArena(ALeonTournamentCharacter& InCharacter, ELeonTournamentTeam InTeam) {
             InCharacter.SetControlYaw(InTeam == ELeonTournamentTeam::Team2 ? 180.0f : 0.0f);
             InCharacter.SetControlPitch(0.0f);
@@ -185,6 +191,8 @@ namespace Leon {
     void ALeonTournamentGameMode::StartPlay() {
         if (World && World->GetNetMode() == ENetMode::Client)
             return;
+        if (auto* gi = GetLeonTournamentGameInstance())
+            gi->SetLoadingOverlayActive(false);
         AGameModeBase::StartPlay();
 
         // Flow: match start after world BeginPlay
@@ -1056,27 +1064,26 @@ namespace Leon {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
         DestroyMenuShowcase();
-        SetTravelGameModeClass("ALeonTournamentAnimLabGameMode");
         if (World)
-            UGameplayStatics::OpenLevel(World, "/Game/Maps/AnimLab");
+            TravelToMapWithTransition(World, "/Game/Maps/AnimLab", "ALeonTournamentAnimLabGameMode", "LOADING ANIM LAB");
     }
 
     void ALeonTournamentGameMode::OpenRenderLab() {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
         DestroyMenuShowcase();
-        SetTravelGameModeClass("ALeonTournamentRenderLabGameMode");
         if (World)
-            UGameplayStatics::OpenLevel(World, "/Game/Maps/RenderLab");
+            TravelToMapWithTransition(World, "/Game/Maps/RenderLab", "ALeonTournamentRenderLabGameMode",
+                                      "LOADING RENDER LAB");
     }
 
     void ALeonTournamentGameMode::OpenNightArena() {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
         DestroyMenuShowcase();
-        SetTravelGameModeClass("ALeonTournamentGameMode");
         if (World)
-            UGameplayStatics::OpenLevel(World, "/Game/Maps/TournamentArenaNight");
+            TravelToMapWithTransition(World, "/Game/Maps/TournamentArenaNight", "ALeonTournamentGameMode",
+                                      "LOADING ARENA");
     }
 
     void ALeonTournamentGameMode::OpenPlayableMap(ELeonTournamentPlayableMap InMap) {
@@ -1087,9 +1094,9 @@ namespace Leon {
             return;
         }
         DestroyMenuShowcase();
-        SetTravelGameModeClass("ALeonTournamentGameMode");
         if (World)
-            UGameplayStatics::OpenLevel(World, LeonTournamentPlayableMapPath(InMap));
+            TravelToMapWithTransition(World, LeonTournamentPlayableMapPath(InMap), "ALeonTournamentGameMode",
+                                      "LOADING MAP");
     }
 
     void ALeonTournamentGameMode::StartMatch() {
@@ -1226,10 +1233,8 @@ namespace Leon {
             return;
         if (auto* gi = GetLeonTournamentGameInstance())
             gi->ShutdownSession();
-        EnterMainMenu();
-        SetTravelGameModeClass("ALeonTournamentGameMode");
         if (World)
-            UGameplayStatics::OpenLevel(World, "/Game/Maps/MainMenu");
+            TravelToMapWithTransition(World, "/Game/Maps/MainMenu", "ALeonTournamentGameMode", "RETURNING TO MENU");
     }
 
     bool ALeonTournamentGameMode::CanDamage(const ALeonTournamentCharacter& InInstigator,

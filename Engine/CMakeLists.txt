@@ -77,6 +77,8 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/UMG/Private/UCheckBox.cpp
     Source/Runtime/UMG/Private/UWidgetSwitcher.cpp
     Source/Runtime/UMG/Private/UScrollBox.cpp
+    Source/Runtime/UMG/Private/UTableView.cpp
+    Source/Runtime/UMG/Private/ULoadingSpinner.cpp
     # Audio
     Source/Runtime/Audio/Private/FAudioDevice.cpp
     Source/Runtime/Audio/Private/USoundWave.cpp

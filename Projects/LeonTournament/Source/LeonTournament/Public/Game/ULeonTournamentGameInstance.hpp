@@ -7,6 +7,13 @@
 
 namespace Leon {
 
+    struct FLeonTournamentPendingTravel {
+        std::string DestinationMap;
+        std::string GameModeClass = "ALeonTournamentGameMode";
+        std::string LoadingLabel = "LOADING...";
+        bool bValid = false;
+    };
+
     /**
      * Session / application lifetime. Survives menu → lobby → match → menu.
      * Does not own match scores, health, ammo, or pawn state.
@@ -87,6 +94,16 @@ namespace Leon {
         void Init() override;
         void Shutdown() override;
 
+        const std::string& GetTransitionMapPath() const { return TransitionMapPath; }
+        void BeginTravelWithTransition(UWorld* InWorld, const std::string& InDestinationMap,
+                                       const std::string& InGameModeClass, const std::string& InLoadingLabel);
+        bool ConsumePendingTravel(FLeonTournamentPendingTravel& OutTravel);
+        bool HasPendingTravel() const { return PendingTravel.bValid; }
+
+        void SetLoadingOverlayActive(bool bActive, const std::string& InLabel = "LOADING...");
+        bool IsLoadingOverlayActive() const { return bLoadingOverlayActive; }
+        const std::string& GetLoadingOverlayLabel() const { return LoadingOverlayLabel; }
+
     private:
         ELeonTournamentSessionMode SessionMode = ELeonTournamentSessionMode::Offline;
         ELeonTournamentCharacterSkin SelectedCharacterSkin = ELeonTournamentCharacterSkin::YBot;
@@ -101,6 +118,10 @@ namespace Leon {
         std::string AutoReportPath;
         bool bPendingMatchStart = false;
         EGraphicsQuality GraphicsQuality = EGraphicsQuality::High;
+        std::string TransitionMapPath = "/Game/Maps/Transition";
+        FLeonTournamentPendingTravel PendingTravel;
+        bool bLoadingOverlayActive = false;
+        std::string LoadingOverlayLabel = "LOADING...";
     };
 
 } // namespace Leon

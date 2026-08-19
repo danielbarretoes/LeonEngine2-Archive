@@ -22,6 +22,8 @@
 #include "UMG/UCheckBox.hpp"
 #include "UMG/UWidgetSwitcher.hpp"
 #include "UMG/UScrollBox.hpp"
+#include "UMG/UTableView.hpp"
+#include "UMG/ULoadingSpinner.hpp"
 #include "Engine/FMapSerializer.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -480,6 +482,51 @@ Actors:
             CHECK(d->GetPosition().y == doctest::Approx(14.0f));
             CHECK(v->GetSize().x == doctest::Approx(30.0f));
             CHECK(v->GetSize().y == doctest::Approx(19.0f));
+        }
+
+        TEST_CASE("UTableView columns rows and section headers") {
+            UTableView table("Stats");
+            table.SetColumns({{"PLAYER", 2.0f, ETextAlignment::Left},
+                              {"SCORE", 1.0f, ETextAlignment::Right},
+                              {"K", 0.5f, ETextAlignment::Center}});
+            table.SetRows({{ETableRowKind::SectionHeader, {}, "TEAM 1", false},
+                           {ETableRowKind::Data, {"> Alpha", "120", "4"}, {}, true},
+                           {ETableRowKind::Data, {"Bravo", "80", "2"}, {}, false}});
+            CHECK(table.GetColumns().size() == 3);
+            CHECK(table.GetRows().size() == 3);
+            CHECK(table.GetRows()[0].Kind == ETableRowKind::SectionHeader);
+            CHECK(table.GetRows()[1].bHighlighted);
+
+            FGeometry geom;
+            geom.Size = {420.0f, 180.0f};
+            geom.AbsolutePosition = {0.0f, 0.0f};
+            table.Paint(geom);
+
+            table.ClearRows();
+            CHECK(table.GetRows().empty());
+        }
+
+        TEST_CASE("UImage brush UV and texture helpers") {
+            UImage image("Icon");
+            image.SetSize({32.0f, 32.0f});
+            image.SetBrushUV({0.25f, 0.25f}, {0.75f, 0.75f});
+            CHECK(image.GetBrushUVMin().x == doctest::Approx(0.25f));
+            CHECK(image.GetBrushUVMax().y == doctest::Approx(0.75f));
+            CHECK_FALSE(image.HasBrushTexture());
+        }
+
+        TEST_CASE("ULoadingSpinner advances phase and paints") {
+            ULoadingSpinner spinner("Load");
+            spinner.SetSegmentCount(8);
+            spinner.SetSpinSpeed(2.0f);
+            const float phase0 = spinner.GetPhase();
+            spinner.Tick(0.25f);
+            CHECK(spinner.GetPhase() > phase0);
+
+            FGeometry geom;
+            geom.Size = {64.0f, 64.0f};
+            geom.AbsolutePosition = {100.0f, 100.0f};
+            spinner.Paint(geom);
         }
 
         TEST_CASE("USlider UCheckBox UWidgetSwitcher UScrollBox") {

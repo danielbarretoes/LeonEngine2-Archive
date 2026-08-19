@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -180,6 +181,8 @@ namespace Leon {
         if (IsClientWorld(OwningPlayer))
             return;
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        if (auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr)
+            hud->ShowLoadingOverlay("RETURNING TO MENU...");
         if (auto* gm = GM(OwningPlayer))
             gm->ReturnToMenu();
     }

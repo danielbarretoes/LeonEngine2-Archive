@@ -13,6 +13,8 @@
 #include "ALeonTournamentDummy.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentRenderLabGameMode.hpp"
+#include "ALeonTournamentTransitionGameMode.hpp"
+#include "ALeonTournamentTransitionHUD.hpp"
 #include "ULeonTournamentGameInstance.hpp"
 #include "Engine/UIpNetDriver.hpp"
 #include "FOpenGLRenderDriver.hpp"
@@ -95,6 +97,8 @@ int main(int argc, char** argv) {
     registry.RegisterClass<Leon::ALeonTournamentDummy>("ALeonTournamentDummy");
     registry.RegisterClass<Leon::ALeonTournamentAnimLabGameMode>("ALeonTournamentAnimLabGameMode");
     registry.RegisterClass<Leon::ALeonTournamentRenderLabGameMode>("ALeonTournamentRenderLabGameMode");
+    registry.RegisterClass<Leon::ALeonTournamentTransitionGameMode>("ALeonTournamentTransitionGameMode");
+    registry.RegisterClass<Leon::ALeonTournamentTransitionHUD>("ALeonTournamentTransitionHUD");
 
     bool autoOffline = false;
     bool animLab = false;

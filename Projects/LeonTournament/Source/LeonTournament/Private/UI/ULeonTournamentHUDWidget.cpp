@@ -17,6 +17,8 @@
 #include "Core/FInputSettings.hpp"
 #include "UMG/FUIRenderer.hpp"
 #include "UMG/UProgressBar.hpp"
+#include "FLeonTournamentCrosshairTextures.hpp"
+#include "FLeonTournamentWeaponPresets.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 
 #include <algorithm>
@@ -287,8 +289,15 @@ namespace Leon {
         CrosshairText->SetColor({0.95f, 0.97f, 1.0f, 0.0f});
         CrosshairText->SetJustification(ETextAlignment::Center);
 
+        CrosshairImage = std::make_shared<UImage>("CrosshairImage");
+        CrosshairImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+        LeonTournamentApplyCrosshairBrush(*CrosshairImage, ELeonTournamentWeaponId::Rifle,
+                                          LeonTournamentWeaponPreset(ELeonTournamentWeaponId::Rifle));
+        Root->AddChild(CrosshairImage, FAnchors::Center(), BoxC(0.0f, 0.0f, 40.0f, 40.0f));
+
         CrosshairDot = std::make_shared<UImage>("CrosshairDot");
         CrosshairDot->SetTintColor({0.95f, 0.97f, 1.0f, 0.95f});
+        CrosshairDot->SetVisibility(ESlateVisibility::Collapsed);
         Root->AddChild(CrosshairDot, FAnchors::Center(), BoxC(0.0f, 0.0f, 3.0f, 3.0f));
 
         auto makeBar = [&](const char* name) {
@@ -571,10 +580,26 @@ namespace Leon {
         const float barLen = 12.0f * AppliedLayoutScale;
         const float barThick = 2.0f * AppliedLayoutScale;
         const auto center = FAnchors::Center();
+        const ELeonTournamentWeaponId activeWeaponId = ch ? ch->GetActiveWeaponId() : ELeonTournamentWeaponId::Rifle;
+        const FLeonTournamentWeaponConfig* weaponCfg = ch && ch->GetWeapon() ? &ch->GetWeapon()->GetConfig() : nullptr;
+        if (CrosshairImage && weaponCfg && activeWeaponId != LastCrosshairWeaponId) {
+            LastCrosshairWeaponId = activeWeaponId;
+            LeonTournamentApplyCrosshairBrush(*CrosshairImage, activeWeaponId, *weaponCfg);
+        }
+        const float spreadScale = 1.0f + (gap / std::max(4.0f * AppliedLayoutScale, 1.0f)) * 0.18f;
+        const float crosshairSize = 40.0f * AppliedLayoutScale * spreadScale;
+        if (Root && CrosshairImage) {
+            Root->SetChildLayout(CrosshairImage, center, BoxC(0.0f, 0.0f, crosshairSize, crosshairSize));
+            if (weaponCfg) {
+                const glm::vec3& c = weaponCfg->VisualColor;
+                CrosshairImage->SetTintColor({c.x, c.y, c.z, 0.95f});
+            }
+            CrosshairImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+        }
         const bool bCircle =
-            ch && ch->GetWeapon() &&
-            ch->GetWeapon()->GetConfig().CrosshairStyle == ELeonTournamentCrosshairStyle::Circle;
-        if (Root) {
+            weaponCfg && weaponCfg->CrosshairStyle == ELeonTournamentCrosshairStyle::Circle;
+        const bool bUseLegacyBars = !CrosshairImage || !CrosshairImage->HasBrushTexture();
+        if (Root && bUseLegacyBars) {
             if (CrosshairBarT)
                 Root->SetChildLayout(CrosshairBarT, center,
                                      FMargin(-(barLen * 0.5f), -(gap + barThick), -(barLen * 0.5f), gap));
@@ -613,8 +638,9 @@ namespace Leon {
             Root->SetChildLayout(HitMarkBR, center,
                                  FMargin(d, d - hitThick, -(d + hitLen), -(d + hitThick)));
         }
-        const auto barVis = (!bCircle) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-        const auto ringVis = bCircle ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+        const auto barVis =
+            (!bCircle && bUseLegacyBars) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+        const auto ringVis = (bCircle && bUseLegacyBars) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
         const auto hitVis = bHit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
         if (CrosshairBarT)
             CrosshairBarT->SetVisibility(barVis);

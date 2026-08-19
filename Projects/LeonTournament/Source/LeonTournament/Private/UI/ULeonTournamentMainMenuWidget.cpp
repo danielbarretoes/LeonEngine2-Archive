@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -324,6 +325,9 @@ namespace Leon {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (IsClientWorld(OwningPlayer))
             return;
+        auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr;
+        if (hud)
+            hud->ShowLoadingOverlay("ENTERING LOBBY...");
         if (auto* gi = GI())
             gi->SetSessionMode(ELeonTournamentSessionMode::Offline);
         if (auto* gm = GM(OwningPlayer))
@@ -334,6 +338,8 @@ namespace Leon {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (IsClientWorld(OwningPlayer))
             return;
+        if (auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr)
+            hud->ShowLoadingOverlay("LOADING ANIM LAB...");
         if (auto* gm = GM(OwningPlayer))
             gm->OpenAnimLab();
     }
@@ -342,15 +348,22 @@ namespace Leon {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (IsClientWorld(OwningPlayer))
             return;
+        if (auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr)
+            hud->ShowLoadingOverlay("LOADING RENDER LAB...");
         if (auto* gm = GM(OwningPlayer))
             gm->OpenRenderLab();
     }
 
     void ULeonTournamentMainMenuWidget::OnHostLan() {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr;
+        if (hud)
+            hud->ShowLoadingOverlay("HOSTING...");
         if (auto* gi = GI()) {
-            if (OwningPlayer && OwningPlayer->GetWorld())
-                gi->HostLan(OwningPlayer->GetWorld());
+            if (OwningPlayer && OwningPlayer->GetWorld()) {
+                if (!gi->HostLan(OwningPlayer->GetWorld()) && hud)
+                    hud->HideLoadingOverlay();
+            }
         }
         if (auto* gm = GM(OwningPlayer))
             gm->EnterLobby();
@@ -358,9 +371,14 @@ namespace Leon {
 
     void ULeonTournamentMainMenuWidget::OnJoinLan() {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr;
+        if (hud)
+            hud->ShowLoadingOverlay("CONNECTING...");
         if (auto* gi = GI()) {
-            if (OwningPlayer && OwningPlayer->GetWorld())
-                gi->JoinLan(OwningPlayer->GetWorld(), gi->GetJoinAddress());
+            if (OwningPlayer && OwningPlayer->GetWorld()) {
+                if (!gi->JoinLan(OwningPlayer->GetWorld(), gi->GetJoinAddress()) && hud)
+                    hud->HideLoadingOverlay();
+            }
         }
     }
 

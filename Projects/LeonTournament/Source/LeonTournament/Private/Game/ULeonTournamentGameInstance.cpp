@@ -1,10 +1,12 @@
 #include "ULeonTournamentGameInstance.hpp"
 #include "Engine/FGraphicsQuality.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/UEngine.hpp"
 #include "FENetTransport.hpp"
 #include "Assets/FAssetPath.hpp"
 #include "Core/FConfigFile.hpp"
 #include "Core/FProjectPaths.hpp"
+#include "Gameplay/UGameplayStatics.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -41,11 +43,15 @@ namespace Leon {
         FConfigFile config;
         const std::string iniPath = FAssetPath::Combine(FProjectPaths::ProjectConfigDir(), "DefaultEngine.ini");
         const bool bLoaded = !iniPath.empty() && config.Load(iniPath);
-        if (bLoaded && config.HasKey("/Script/Engine.RendererSettings", "GraphicsQuality")) {
-            GraphicsQuality = FGraphicsQuality::Parse(
-                config.GetString("/Script/Engine.RendererSettings", "GraphicsQuality", "High"));
-            FGraphicsQuality::ApplyToWorld(*world, GraphicsQuality);
-            return;
+        if (bLoaded) {
+            TransitionMapPath =
+                config.GetString("/Script/EngineSettings.GameMapsSettings", "TransitionMap", TransitionMapPath.c_str());
+            if (config.HasKey("/Script/Engine.RendererSettings", "GraphicsQuality")) {
+                GraphicsQuality = FGraphicsQuality::Parse(
+                    config.GetString("/Script/Engine.RendererSettings", "GraphicsQuality", "High"));
+                FGraphicsQuality::ApplyToWorld(*world, GraphicsQuality);
+                return;
+            }
         }
         GraphicsQuality = FGraphicsQuality::InferFromWorld(*world);
     }
@@ -94,6 +100,42 @@ namespace Leon {
     void ULeonTournamentGameInstance::Shutdown() {
         ShutdownSession();
         UGameInstance::Shutdown();
+    }
+
+    void ULeonTournamentGameInstance::BeginTravelWithTransition(UWorld* InWorld, const std::string& InDestinationMap,
+                                                                const std::string& InGameModeClass,
+                                                                const std::string& InLoadingLabel) {
+        if (!InWorld || InDestinationMap.empty())
+            return;
+
+        PendingTravel.DestinationMap = InDestinationMap;
+        PendingTravel.GameModeClass = InGameModeClass.empty() ? "ALeonTournamentGameMode" : InGameModeClass;
+        PendingTravel.LoadingLabel = InLoadingLabel.empty() ? "LOADING..." : InLoadingLabel;
+        PendingTravel.bValid = true;
+        SetLoadingOverlayActive(true, PendingTravel.LoadingLabel);
+
+        if (!UEngine::HasInstance())
+            return;
+        FGameModeConfig cfg = UEngine::Get().GetGameModeConfig();
+        cfg.GameModeClass = "ALeonTournamentTransitionGameMode";
+        UEngine::Get().SetGameModeConfig(cfg);
+        UGameplayStatics::OpenLevel(InWorld, TransitionMapPath);
+    }
+
+    bool ULeonTournamentGameInstance::ConsumePendingTravel(FLeonTournamentPendingTravel& OutTravel) {
+        if (!PendingTravel.bValid)
+            return false;
+        OutTravel = PendingTravel;
+        PendingTravel = {};
+        return true;
+    }
+
+    void ULeonTournamentGameInstance::SetLoadingOverlayActive(bool bActive, const std::string& InLabel) {
+        bLoadingOverlayActive = bActive;
+        if (!InLabel.empty())
+            LoadingOverlayLabel = InLabel;
+        if (!bActive)
+            LoadingOverlayLabel = "LOADING...";
     }
 
 } // namespace Leon

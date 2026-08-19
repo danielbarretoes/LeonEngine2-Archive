@@ -229,7 +229,6 @@ namespace Leon {
         PointShadowFramebuffer->Bind();
         FRenderCommand::SetViewport(0, 0, ShadowSettings.PointShadowResolution, ShadowSettings.PointShadowResolution);
         ResetDefaultMeshRasterState();
-        FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
         glm::mat4 faceProj = ShadowMath::PointCubeFaceProjection(0.05f, 1.0f);
         for (uint32_t i = 0; i < InCount && i < FShadowSettings::kMaxShadowedPointLights; ++i) {
             float farPlane = std::max(InRadii[i], 1.0f);
@@ -241,7 +240,6 @@ namespace Leon {
                 DrawShadowCasters(faceProj * view, false, farPlane, InPositions[i]);
             }
         }
-        FRenderCommand::SetPolygonOffset(false);
         ResetDefaultMeshRasterState();
         PointShadowFramebuffer->Unbind();
     }
