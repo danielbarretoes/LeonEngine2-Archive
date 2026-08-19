@@ -313,6 +313,35 @@ namespace Leon {
             CHECK(pc->GetPlayerCameraManager()->IsBlendingViewTarget());
         }
 
+        TEST_CASE("12d. Spectator mode uses view target character") {
+            auto world = UWorld::Create("SpectatorWorld");
+            auto pc = world->SpawnActor<APlayerController>("PC");
+            world->AddPlayerController(pc);
+
+            auto localPawn = world->SpawnActor<ACharacter>("LocalPawn");
+            localPawn->SetActorLocation({0.0f, 1.7f, 0.0f});
+            auto targetPawn = world->SpawnActor<ACharacter>("TargetPawn");
+            targetPawn->SetActorLocation({12.0f, 1.7f, 4.0f});
+            targetPawn->SetControlPitch(-5.0f);
+            targetPawn->SetControlYaw(45.0f);
+            pc->Possess(localPawn);
+
+            pc->EnterSpectatorMode(targetPawn);
+            CHECK(pc->IsSpectating());
+            CHECK(pc->GetViewTarget() == targetPawn);
+
+            pc->UpdateCameraManager(0.016f);
+            FPerspectiveCamera viewCam;
+            pc->GetPlayerViewPoint(viewCam);
+            CHECK(viewCam.GetPosition().x == doctest::Approx(12.0f).epsilon(0.5f));
+            CHECK(viewCam.GetPitch() == doctest::Approx(-5.0f).epsilon(0.1f));
+            CHECK(viewCam.GetYaw() == doctest::Approx(45.0f).epsilon(0.1f));
+
+            pc->LeaveSpectatorMode();
+            CHECK_FALSE(pc->IsSpectating());
+            CHECK(pc->GetViewTarget() == localPawn);
+        }
+
         TEST_CASE("12b. AProjectile movement") {
             auto world = UWorld::Create("ProjectileWorld");
             auto* proj = world->SpawnActor<AProjectile>("Rocket");

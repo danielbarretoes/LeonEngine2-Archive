@@ -252,13 +252,16 @@ namespace Leon {
         void Build();
         void ApplyViewportLayout();
         void OnReturn();
+        void OnRematch();
         TRef<UCanvasPanel> Root;
         TRef<UTextBlock> ResultText;
         TRef<UTextBlock> StatsText;
+        TRef<UButton> RematchButton;
         float AppliedLayoutScale = 0.0f;
         glm::vec2 AppliedViewport{0.0f, 0.0f};
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;
+        bool bPadBWasDown = false;
     };
 
     /** Fixed-camera graphics lab overlay: presets + per-category knobs. */

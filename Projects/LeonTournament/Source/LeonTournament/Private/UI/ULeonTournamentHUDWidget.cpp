@@ -462,6 +462,7 @@ namespace Leon {
 
         auto* gm = world ? dynamic_cast<ALeonTournamentGameMode*>(world->GetGameMode()) : nullptr;
         const bool bFFA = gm && gm->GetActiveGameMode() == ELeonTournamentGameModeId::FreeForAll;
+        const bool bCTF = gm && gm->GetActiveGameMode() == ELeonTournamentGameModeId::CaptureTheFlag;
         auto* localPs = dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer ? OwningPlayer->GetPlayerState() : nullptr);
 
         if (Team1Text && Team2Text && TimerText) {
@@ -478,7 +479,7 @@ namespace Leon {
                     else if (gs->GetMatchState() == ELeonTournamentMatchState::Finished)
                         MatchLabel->SetText("MATCH OVER");
                     else
-                        MatchLabel->SetText(bFFA ? "FREE FOR ALL" : "TEAM DEATHMATCH");
+                        MatchLabel->SetText(bFFA ? "FREE FOR ALL" : (bCTF ? "CAPTURE THE FLAG" : "TEAM DEATHMATCH"));
                 }
                 if (bFFA) {
                     const int localKills = localPs ? localPs->GetKills() : 0;
@@ -591,15 +592,23 @@ namespace Leon {
                 float respawn = 0.0f;
                 if (gm && OwningPlayer)
                     respawn = gm->GetRespawnRemaining(OwningPlayer);
-                char buf[48];
-                if (respawn > 0.05f)
-                    std::snprintf(buf, sizeof(buf), "RESPAWN IN %.1fs  -  FREE LOOK", respawn);
-                else
-                    std::snprintf(buf, sizeof(buf), "RESPAWNING  -  FREE LOOK");
+                char buf[96];
+                if (spc && spc->IsSpectating() && !spc->GetSpectatorTargetName().empty()) {
+                    if (respawn > 0.05f)
+                        std::snprintf(buf, sizeof(buf), "SPECTATING: %s  -  Q/E CYCLE  -  RESPAWN IN %.1fs",
+                                      spc->GetSpectatorTargetName().c_str(), respawn);
+                    else
+                        std::snprintf(buf, sizeof(buf), "SPECTATING: %s  -  Q/E CYCLE  -  RESPAWNING",
+                                      spc->GetSpectatorTargetName().c_str());
+                } else if (respawn > 0.05f) {
+                    std::snprintf(buf, sizeof(buf), "RESPAWN IN %.1fs  -  Q/E SPECTATE", respawn);
+                } else {
+                    std::snprintf(buf, sizeof(buf), "RESPAWNING  -  Q/E SPECTATE");
+                }
                 StatusText->SetText(buf);
             } else if (gs && gs->GetMatchState() == ELeonTournamentMatchState::Starting) {
                 StatusText->SetVisibility(ESlateVisibility::HitTestInvisible);
-                StatusText->SetText("ROUND STARTING");
+                StatusText->SetText("WARMUP  -  SCORE FROZEN");
             } else {
                 StatusText->SetVisibility(ESlateVisibility::Collapsed);
             }
@@ -623,6 +632,7 @@ namespace Leon {
                     LastCountdownSecond = -1;
                     spc->PushBanner("FIGHT!", 1.4f, {1.0f, 0.9f, 0.35f, 1.0f});
                     UGameplayStatics::PlaySound2D("/Game/Audio/SFX_MatchStart", 0.85f);
+                    UGameplayStatics::PlaySound2D("/Game/Audio/SFX_Announce", 0.65f);
                 }
             } else {
                 LastCountdownSecond = -1;

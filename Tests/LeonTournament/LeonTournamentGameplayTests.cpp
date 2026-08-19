@@ -12,8 +12,11 @@
 #include "ALeonTournamentWeapon.hpp"
 #include "ALeonTournamentProjectile.hpp"
 #include "ALeonTournamentPickup.hpp"
+#include "ALeonTournamentFlag.hpp"
+#include "ALeonTournamentFlagBase.hpp"
 #include "ALeonTournamentHUD.hpp"
 #include "FLeonTournamentWeaponPresets.hpp"
+#include "FLeonTournamentWeaponAudio.hpp"
 #include "FLeonTournamentArenaBuilder.hpp"
 #include "FLeonTournamentDamageRules.hpp"
 #include "Physics/FHitResult.hpp"
@@ -28,6 +31,7 @@
 #include "Core/FWorldUnits.hpp"
 #include "Engine/ECollisionChannel.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/UEngine.hpp"
 #include "LeonTournamentTestSetup.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 
@@ -50,6 +54,8 @@ namespace Leon {
             r.RegisterClass<ALeonTournamentHUD>("ALeonTournamentHUD");
             r.RegisterClass<ALeonTournamentBotController>("ALeonTournamentBotController");
             r.RegisterClass<ALeonTournamentRifle>("ALeonTournamentRifle");
+            r.RegisterClass<ALeonTournamentFlag>("ALeonTournamentFlag");
+            r.RegisterClass<ALeonTournamentFlagBase>("ALeonTournamentFlagBase");
         }
 
         struct FMatchWorld {
@@ -510,8 +516,43 @@ namespace Leon {
             CHECK(gi.GetJoinAddress() == "192.168.1.50");
             CHECK(gi.GetLanPort() == 7777);
             gi.CycleSelectedGameMode(1);
-            CHECK(gi.GetSelectedGameMode() == ELeonTournamentGameModeId::TeamDeathmatch);
-            CHECK(std::string(LeonTournamentGameModeName(gi.GetSelectedGameMode())) == "TDM");
+            CHECK(gi.GetSelectedGameMode() == ELeonTournamentGameModeId::FreeForAll);
+            CHECK(std::string(LeonTournamentGameModeName(gi.GetSelectedGameMode())) == "FFA");
+            gi.CycleSelectedGameMode(1);
+            CHECK(gi.GetSelectedGameMode() == ELeonTournamentGameModeId::CaptureTheFlag);
+            CHECK(std::string(LeonTournamentGameModeName(gi.GetSelectedGameMode())) == "CTF");
+        }
+
+        TEST_CASE("CTF flag pickup and capture score team") {
+            FMatchWorld f;
+            UEngine engine;
+            TRef<ULeonTournamentGameInstance> gi = MakeRef<ULeonTournamentGameInstance>("CTFTestGI");
+            gi->SetSelectedGameMode(ELeonTournamentGameModeId::CaptureTheFlag);
+            engine.BindSession(gi, f.World);
+            f.GM->StartMatch();
+            f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
+
+            auto* carrier = f.World->SpawnActor<ALeonTournamentCharacter>("Carrier");
+            auto* ps = f.World->SpawnActor<ALeonTournamentPlayerState>("CarrierPS");
+            ps->SetTeam(ELeonTournamentTeam::Team1);
+            auto* pc = f.World->SpawnActor<ALeonTournamentPlayerController>("CarrierPC");
+            pc->SetPlayerState(ps);
+            pc->Possess(carrier);
+
+            ALeonTournamentFlag* enemyFlag = f.GM->GetTeamFlag(ELeonTournamentTeam::Team2);
+            ALeonTournamentFlagBase* homeBase = f.GM->GetTeamFlagBase(ELeonTournamentTeam::Team1);
+            REQUIRE(enemyFlag);
+            REQUIRE(homeBase);
+
+            carrier->SetActorLocation(enemyFlag->GetActorLocation());
+            f.World->Tick(FTimestep(0.05f));
+            CHECK(carrier->GetCarriedFlag() == enemyFlag);
+
+            carrier->SetActorLocation(homeBase->GetActorLocation());
+            f.World->Tick(FTimestep(0.05f));
+            CHECK(f.GS->GetTeam1Kills() == 1);
+            CHECK(carrier->GetCarriedFlag() == nullptr);
+            CHECK(enemyFlag->GetFlagStatus() == ELeonTournamentFlagStatus::AtBase);
         }
 
         TEST_CASE("bind-pose feet ignore loose AABB and keep tight AABB") {
@@ -964,6 +1005,59 @@ namespace Leon {
             CHECK(cfg.MatchDurationSeconds == doctest::Approx(420.0f));
             CHECK(cfg.RespawnDelaySeconds == doctest::Approx(1.0f));
             CHECK(cfg.SpawnProtectionSeconds == doctest::Approx(2.5f));
+            CHECK(cfg.StartCountdownSeconds == doctest::Approx(5.0f));
+        }
+
+        TEST_CASE("warmup allows combat without scoring") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Starting);
+            auto* killer = f.World->SpawnActor<ALeonTournamentCharacter>("K");
+            auto* victim = f.World->SpawnActor<ALeonTournamentCharacter>("V");
+            auto* psk = f.World->SpawnActor<ALeonTournamentPlayerState>("PSK");
+            auto* psv = f.World->SpawnActor<ALeonTournamentPlayerState>("PSV");
+            psk->SetPlayerName("Alpha");
+            psv->SetPlayerName("Bravo");
+            psk->SetTeam(ELeonTournamentTeam::Team1);
+            psv->SetTeam(ELeonTournamentTeam::Team2);
+            auto* pck = f.World->SpawnActor<ALeonTournamentPlayerController>("PCK");
+            auto* pcv = f.World->SpawnActor<ALeonTournamentPlayerController>("PCV");
+            pck->SetPlayerState(psk);
+            pcv->SetPlayerState(psv);
+            pck->Possess(killer);
+            pcv->Possess(victim);
+            CHECK(f.GM->IsCombatAllowed());
+            CHECK_FALSE(f.GM->IsScoringAllowed());
+            FDamageInfo info;
+            info.DamageAmount = 200.0f;
+            info.Instigator = killer;
+            REQUIRE(f.GM->ApplyAuthoritativeDamage(*killer, *victim, info));
+            f.GM->NotifyDeath(*victim, info);
+            CHECK(psk->GetKills() == 0);
+            CHECK(psv->GetDeaths() == 0);
+            CHECK(f.GM->GetKillFeed().GetCount() == 0);
+        }
+
+        TEST_CASE("request rematch restarts from finished") {
+            FMatchWorld f;
+            f.GS->SetMatchState(ELeonTournamentMatchState::Finished);
+            f.GM->RequestRematch();
+            CHECK(f.GS->GetMatchState() == ELeonTournamentMatchState::Starting);
+        }
+
+        TEST_CASE("arena map path resolves to authored TournamentArena") {
+            CHECK(std::string(LeonTournamentPlayableMapPath(ELeonTournamentPlayableMap::Arena)) ==
+                  "/Game/Maps/TournamentArena");
+            CHECK(std::string(LeonTournamentPlayableMapName(ELeonTournamentPlayableMap::Arena)) ==
+                  "TOURNAMENT ARENA");
+        }
+
+        TEST_CASE("weapon audio presets use dedicated fire paths") {
+            CHECK(LeonTournamentWeaponAudioPreset(ELeonTournamentWeaponId::Shotgun).FirePath ==
+                  std::string("/Game/Audio/SFX_ShotgunFire"));
+            CHECK(LeonTournamentWeaponAudioPreset(ELeonTournamentWeaponId::Rocket).FirePath ==
+                  std::string("/Game/Audio/SFX_RocketFire"));
+            CHECK(LeonTournamentWeaponAudioPreset(ELeonTournamentWeaponId::Laser).FirePath ==
+                  std::string("/Game/Audio/SFX_LaserFire"));
         }
 
         TEST_CASE("weapon id count is five without grenade") {

@@ -2,6 +2,8 @@
 #include "ALeonTournamentBotController.hpp"
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentPickup.hpp"
+#include "ALeonTournamentFlag.hpp"
+#include "ALeonTournamentFlagBase.hpp"
 #include "FLeonTournamentArenaBuilder.hpp"
 #include "FLeonTournamentDamageRules.hpp"
 #include "ULeonTournamentGameInstance.hpp"
@@ -101,16 +103,18 @@ namespace Leon {
             return UEngine::Get().GetCurrentMapName().find("Night") != std::string::npos;
         }
 
-        bool IsOrbitalPrismMap() {
+        bool IsTournamentArenaMap() {
             if (!UEngine::HasInstance())
                 return false;
-            return UEngine::Get().GetCurrentMapName().find("OrbitalPrism") != std::string::npos;
+            const std::string& mapName = UEngine::Get().GetCurrentMapName();
+            return mapName.find("TournamentArena") != std::string::npos &&
+                   mapName.find("Night") == std::string::npos;
         }
 
         bool IsAuthoredPlayableMap() {
             // Night uses procedural cubes in the .lmap (not FStaticMeshComponent), but lighting
             // and geometry are authored — do not rebuild them at match start.
-            return IsNightArenaMap() || IsOrbitalPrismMap();
+            return IsNightArenaMap() || IsTournamentArenaMap();
         }
 
         bool WorldHasImportedStaticMeshes(UWorld* InWorld) {
@@ -201,7 +205,7 @@ namespace Leon {
         // 3. If still deferring, schedule StartMatch for the next tick (timer rate 0).
         auto* gi = GetLeonTournamentGameInstance();
         const bool bShouldStartMatch =
-            (gi && gi->ConsumePendingMatchStart()) || IsNightArenaMap() || IsOrbitalPrismMap();
+            (gi && gi->ConsumePendingMatchStart()) || IsNightArenaMap() || IsTournamentArenaMap();
         if (!bShouldStartMatch) {
             EnterMainMenu();
             return;
@@ -271,6 +275,14 @@ namespace Leon {
     }
 
     bool ALeonTournamentGameMode::IsCombatAllowed() const {
+        auto* gs = GetGameState();
+        if (!gs)
+            return false;
+        const auto state = gs->GetMatchState();
+        return state == ELeonTournamentMatchState::Starting || state == ELeonTournamentMatchState::Playing;
+    }
+
+    bool ALeonTournamentGameMode::IsScoringAllowed() const {
         auto* gs = GetGameState();
         return gs && gs->GetMatchState() == ELeonTournamentMatchState::Playing;
     }
@@ -1116,7 +1128,10 @@ namespace Leon {
     void ALeonTournamentGameMode::RequestStartMatch() {
         if (World && World->GetNetMode() == ENetMode::Client)
             return;
-        StartMatch();
+        if (auto* gi = GetLeonTournamentGameInstance())
+            OpenPlayableMap(gi->GetSelectedPlayableMap());
+        else
+            OpenPlayableMap(ELeonTournamentPlayableMap::Arena);
     }
 
     void ALeonTournamentGameMode::OpenAnimLab() {
@@ -1148,10 +1163,15 @@ namespace Leon {
     void ALeonTournamentGameMode::OpenPlayableMap(ELeonTournamentPlayableMap InMap) {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
-        if (InMap == ELeonTournamentPlayableMap::Arena) {
+        const bool bAlreadyThere =
+            (InMap == ELeonTournamentPlayableMap::Arena && IsTournamentArenaMap()) ||
+            (InMap == ELeonTournamentPlayableMap::NightArena && IsNightArenaMap());
+        if (bAlreadyThere) {
             StartMatch();
             return;
         }
+        if (auto* gi = GetLeonTournamentGameInstance())
+            gi->SetPendingMatchStart(true);
         DestroyMenuShowcase();
         if (World)
             TravelToMapWithTransition(World, LeonTournamentPlayableMapPath(InMap), "ALeonTournamentGameMode",
@@ -1162,7 +1182,7 @@ namespace Leon {
         // Flow: start TDM
         // 1. Build arena once; assign human teams; fill remaining slots with bots.
         // 2. Reset scores; RestartPlayer every human PC and bot (new pawn, same PlayerState).
-        // 3. Enter Starting countdown — combat is rejected until Playing.
+        // 3. Enter Starting warmup — combat allowed, scoring blocked until Playing.
         if (!IsNetworkAuthority())
             return;
         auto* gs = GetGameState();
@@ -1272,6 +1292,8 @@ namespace Leon {
         RefreshTeamCounts();
         DamageLog.clear();
         RespawnTimerHandles.clear();
+        if (IsCaptureTheFlagMode())
+            SetupCaptureTheFlag();
     }
 
     void ALeonTournamentGameMode::EndMatch(ELeonTournamentMatchWinner InWinner) {
@@ -1282,6 +1304,15 @@ namespace Leon {
             gs->SetMatchState(ELeonTournamentMatchState::Finished);
             gs->SetMatchWinner(InWinner);
         }
+    }
+
+    void ALeonTournamentGameMode::RequestRematch() {
+        if (!IsNetworkAuthority())
+            return;
+        auto* gs = GetGameState();
+        if (!gs || gs->GetMatchState() != ELeonTournamentMatchState::Finished)
+            return;
+        StartMatch();
     }
 
     void ALeonTournamentGameMode::RestartGame() {
@@ -1333,45 +1364,56 @@ namespace Leon {
         auto* gs = GetGameState();
         if (gs && gs->GetMatchState() == ELeonTournamentMatchState::Finished)
             return;
+
+        const bool bScore = IsScoringAllowed();
         auto* victimPs = InVictim.GetPlayerState();
-        if (victimPs)
+        if (bScore && victimPs)
             victimPs->AddDeath();
 
         ALeonTournamentPlayerState* killerPs = nullptr;
         if (auto* inst = dynamic_cast<ALeonTournamentCharacter*>(InInfo.Instigator))
             killerPs = inst->GetPlayerState();
 
-        if (killerPs && killerPs != victimPs) {
+        if (bScore && killerPs && killerPs != victimPs) {
             killerPs->AddKill();
-            if (gs && ActiveGameMode != ELeonTournamentGameModeId::FreeForAll)
+            if (gs && ActiveGameMode != ELeonTournamentGameModeId::FreeForAll &&
+                ActiveGameMode != ELeonTournamentGameModeId::CaptureTheFlag)
                 gs->AddTeamKill(killerPs->GetTeam());
         }
 
-        FLeonTournamentKillFeedEntry feedEntry;
-        feedEntry.Kind = ELeonTournamentKillFeedKind::Kill;
-        feedEntry.TimeRemaining = 4.0f;
-        if (killerPs)
-            feedEntry.InstigatorName = killerPs->GetPlayerName();
-        if (victimPs)
-            feedEntry.VictimName = victimPs->GetPlayerName();
-        KillFeed.Push(feedEntry);
+        if (IsCaptureTheFlagMode())
+            DropCarriedFlag(InVictim);
 
-        const float now = gs ? gs->GetElapsedTime() : 0.0f;
-        auto& credits = DamageLog[&InVictim];
-        for (const auto& credit : credits) {
-            if (!credit.Attacker || credit.Attacker == killerPs || credit.Attacker == victimPs)
-                continue;
-            if (now - credit.TimeSeconds <= Config.AssistWindowSeconds) {
-                credit.Attacker->AddAssist();
-                FLeonTournamentKillFeedEntry assist;
-                assist.Kind = ELeonTournamentKillFeedKind::Assist;
-                assist.InstigatorName = credit.Attacker->GetPlayerName();
-                assist.VictimName = victimPs ? victimPs->GetPlayerName() : "Unknown";
-                assist.TimeRemaining = 3.5f;
-                KillFeed.Push(assist);
+        if (bScore) {
+            FLeonTournamentKillFeedEntry feedEntry;
+            feedEntry.Kind = ELeonTournamentKillFeedKind::Kill;
+            feedEntry.TimeRemaining = 4.0f;
+            if (killerPs)
+                feedEntry.InstigatorName = killerPs->GetPlayerName();
+            if (victimPs)
+                feedEntry.VictimName = victimPs->GetPlayerName();
+            KillFeed.Push(feedEntry);
+
+            const float now = gs ? gs->GetElapsedTime() : 0.0f;
+            auto& credits = DamageLog[&InVictim];
+            for (const auto& credit : credits) {
+                if (!credit.Attacker || credit.Attacker == killerPs || credit.Attacker == victimPs)
+                    continue;
+                if (now - credit.TimeSeconds <= Config.AssistWindowSeconds) {
+                    credit.Attacker->AddAssist();
+                    FLeonTournamentKillFeedEntry assist;
+                    assist.Kind = ELeonTournamentKillFeedKind::Assist;
+                    assist.InstigatorName = credit.Attacker->GetPlayerName();
+                    assist.VictimName = victimPs ? victimPs->GetPlayerName() : "Unknown";
+                    assist.TimeRemaining = 3.5f;
+                    KillFeed.Push(assist);
+                }
             }
+            credits.clear();
+            CheckScoreLimitWin(killerPs);
+        } else {
+            DamageLog[&InVictim].clear();
         }
-        credits.clear();
         if (World) {
             if (AController* ctrl = InVictim.GetController()) {
                 FTimerHandle handle;
@@ -1382,12 +1424,10 @@ namespace Leon {
                             RestartPlayer(ctrl);
                         RespawnTimerHandles.erase(ctrl);
                     },
-                    Config.RespawnDelaySeconds, false);
+                    bScore ? Config.RespawnDelaySeconds : 0.35f, false);
                 RespawnTimerHandles[ctrl] = handle;
             }
         }
-
-        CheckScoreLimitWin(killerPs);
     }
 
     void ALeonTournamentGameMode::RespawnCharacter(ALeonTournamentCharacter& InCharacter) {
@@ -1421,6 +1461,9 @@ namespace Leon {
         }
         if (gs->GetMatchState() != ELeonTournamentMatchState::Playing)
             return;
+
+        if (IsCaptureTheFlagMode())
+            TickCaptureTheFlag(DeltaSeconds);
 
         // GameMode ticks before GameState, so treat this frame's remaining as already consumed.
         if (Config.MatchDurationSeconds > 0.0f && gs->GetRemainingTime() <= DeltaSeconds) {
@@ -1691,6 +1734,175 @@ namespace Leon {
                 LE_CORE_WARN("Spawn validation: '{0}' overlaps '{1}'", InCharacter.GetName(),
                              hit.Actor ? hit.Actor->GetName() : "unknown");
         }
+    }
+
+    ALeonTournamentFlag* ALeonTournamentGameMode::GetTeamFlag(ELeonTournamentTeam InTeam) const {
+        if (InTeam == ELeonTournamentTeam::Team1)
+            return Team1Flag;
+        if (InTeam == ELeonTournamentTeam::Team2)
+            return Team2Flag;
+        return nullptr;
+    }
+
+    ALeonTournamentFlagBase* ALeonTournamentGameMode::GetTeamFlagBase(ELeonTournamentTeam InTeam) const {
+        if (InTeam == ELeonTournamentTeam::Team1)
+            return Team1FlagBase;
+        if (InTeam == ELeonTournamentTeam::Team2)
+            return Team2FlagBase;
+        return nullptr;
+    }
+
+    bool ALeonTournamentGameMode::IsTeamFlagAtHome(ELeonTournamentTeam InTeam) const {
+        if (auto* flag = GetTeamFlag(InTeam))
+            return flag->GetFlagStatus() == ELeonTournamentFlagStatus::AtBase;
+        return false;
+    }
+
+    void ALeonTournamentGameMode::SetupCaptureTheFlag() {
+        if (!World)
+            return;
+        TeardownCaptureTheFlag();
+
+        const glm::vec3 team1Home{-28.0f, 2.0f, 0.0f};
+        const glm::vec3 team2Home{28.0f, 2.0f, 0.0f};
+
+        Team1FlagBase = World->SpawnActor<ALeonTournamentFlagBase>("CTF_Base_Team1");
+        Team2FlagBase = World->SpawnActor<ALeonTournamentFlagBase>("CTF_Base_Team2");
+        Team1Flag = World->SpawnActor<ALeonTournamentFlag>("CTF_Flag_Team1");
+        Team2Flag = World->SpawnActor<ALeonTournamentFlag>("CTF_Flag_Team2");
+
+        if (Team1FlagBase) {
+            Team1FlagBase->SetTeam(ELeonTournamentTeam::Team1);
+            Team1FlagBase->SetActorLocation(team1Home);
+        }
+        if (Team2FlagBase) {
+            Team2FlagBase->SetTeam(ELeonTournamentTeam::Team2);
+            Team2FlagBase->SetActorLocation(team2Home);
+        }
+        if (Team1Flag) {
+            Team1Flag->SetOwnerTeam(ELeonTournamentTeam::Team1);
+            Team1Flag->SetHomeLocation(team1Home + glm::vec3(0.0f, 0.9f, 0.0f));
+        }
+        if (Team2Flag) {
+            Team2Flag->SetOwnerTeam(ELeonTournamentTeam::Team2);
+            Team2Flag->SetHomeLocation(team2Home + glm::vec3(0.0f, 0.9f, 0.0f));
+        }
+    }
+
+    void ALeonTournamentGameMode::TeardownCaptureTheFlag() {
+        if (!World)
+            return;
+        if (Team1Flag && !Team1Flag->IsPendingKill())
+            World->DestroyActor(Team1Flag);
+        if (Team2Flag && !Team2Flag->IsPendingKill())
+            World->DestroyActor(Team2Flag);
+        if (Team1FlagBase && !Team1FlagBase->IsPendingKill())
+            World->DestroyActor(Team1FlagBase);
+        if (Team2FlagBase && !Team2FlagBase->IsPendingKill())
+            World->DestroyActor(Team2FlagBase);
+        Team1Flag = nullptr;
+        Team2Flag = nullptr;
+        Team1FlagBase = nullptr;
+        Team2FlagBase = nullptr;
+    }
+
+    void ALeonTournamentGameMode::DropCarriedFlag(ALeonTournamentCharacter& InCharacter) {
+        if (!IsNetworkAuthority())
+            return;
+        if (auto* flag = InCharacter.GetCarriedFlag())
+            flag->DropAt(InCharacter.GetActorLocation());
+    }
+
+    void ALeonTournamentGameMode::TryPickupFlags(ALeonTournamentCharacter& InCharacter) {
+        if (!IsScoringAllowed() || InCharacter.GetCarriedFlag())
+            return;
+        for (ALeonTournamentFlag* flag : {Team1Flag, Team2Flag}) {
+            if (!flag || !flag->CanBePickedUpBy(InCharacter))
+                continue;
+            flag->AttachToCarrier(InCharacter);
+            FLeonTournamentKillFeedEntry entry;
+            entry.Kind = ELeonTournamentKillFeedKind::Streak;
+            entry.TimeRemaining = 3.5f;
+            if (auto* ps = InCharacter.GetPlayerState())
+                entry.InstigatorName = ps->GetPlayerName();
+            entry.VictimName = flag->GetOwnerTeam() == ELeonTournamentTeam::Team1 ? "TEAM1 FLAG" : "TEAM2 FLAG";
+            KillFeed.Push(entry);
+            break;
+        }
+    }
+
+    void ALeonTournamentGameMode::ScoreFlagCapture(ELeonTournamentTeam InTeam, ALeonTournamentCharacter& InScorer) {
+        auto* gs = GetGameState();
+        if (!gs || !IsScoringAllowed())
+            return;
+        gs->AddTeamKill(InTeam);
+        if (Team1Flag)
+            Team1Flag->ReturnToBase();
+        if (Team2Flag)
+            Team2Flag->ReturnToBase();
+        InScorer.SetCarriedFlag(nullptr);
+
+        FLeonTournamentKillFeedEntry entry;
+        entry.Kind = ELeonTournamentKillFeedKind::Streak;
+        entry.TimeRemaining = 5.0f;
+        if (auto* ps = InScorer.GetPlayerState())
+            entry.InstigatorName = ps->GetPlayerName();
+        entry.VictimName = "CAPTURE!";
+        KillFeed.Push(entry);
+        UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_Announce", InScorer.GetActorLocation(), 1.0f, 4000.0f);
+
+        ALeonTournamentPlayerState* scorerPs = InScorer.GetPlayerState();
+        CheckScoreLimitWin(scorerPs);
+    }
+
+    void ALeonTournamentGameMode::TryScoreCapture(ALeonTournamentCharacter& InCharacter) {
+        if (!IsScoringAllowed())
+            return;
+        ALeonTournamentFlag* carried = InCharacter.GetCarriedFlag();
+        if (!carried)
+            return;
+        const ELeonTournamentTeam team = InCharacter.GetTeam();
+        ALeonTournamentFlagBase* homeBase = GetTeamFlagBase(team);
+        if (!homeBase || !homeBase->IsCharacterInside(InCharacter))
+            return;
+        if (!IsTeamFlagAtHome(team))
+            return;
+        ScoreFlagCapture(team, InCharacter);
+    }
+
+    void ALeonTournamentGameMode::TickCaptureTheFlag(float DeltaSeconds) {
+        (void)DeltaSeconds;
+        if (!World || !IsCaptureTheFlagMode())
+            return;
+        for (const auto& ref : World->GetAllActors()) {
+            auto* character = dynamic_cast<ALeonTournamentCharacter*>(ref.get());
+            if (!character || character->IsDeadFrozen())
+                continue;
+            if (auto health = character->GetHealthComponent(); health && health->IsDead())
+                continue;
+            TryPickupFlags(*character);
+            TryScoreCapture(*character);
+        }
+    }
+
+    glm::vec3 ALeonTournamentGameMode::GetCtfBotObjective(const ALeonTournamentCharacter& InSelf) const {
+        const ELeonTournamentTeam team = InSelf.GetTeam();
+        if (team == ELeonTournamentTeam::None)
+            return InSelf.GetActorLocation();
+        if (auto* carried = InSelf.GetCarriedFlag()) {
+            (void)carried;
+            if (auto* base = GetTeamFlagBase(team))
+                return base->GetActorLocation();
+        }
+        const ELeonTournamentTeam enemy =
+            team == ELeonTournamentTeam::Team1 ? ELeonTournamentTeam::Team2 : ELeonTournamentTeam::Team1;
+        if (auto* enemyFlag = GetTeamFlag(enemy)) {
+            if (enemyFlag->GetFlagStatus() != ELeonTournamentFlagStatus::Carried)
+                return enemyFlag->GetActorLocation();
+        }
+        if (!Waypoints.empty())
+            return Waypoints[static_cast<size_t>(InSelf.GetActorGuid().Low % Waypoints.size())];
+        return InSelf.GetActorLocation();
     }
 
 } // namespace Leon

@@ -78,6 +78,9 @@ namespace Leon {
         void BotSetFireHeld(bool bHeld);
         void BotRequestReload();
 
+        class ALeonTournamentFlag* GetCarriedFlag() const { return CarriedFlag; }
+        void SetCarriedFlag(class ALeonTournamentFlag* InFlag) { CarriedFlag = InFlag; }
+
         void ApplyCharacterSkin(ELeonTournamentCharacterSkin InSkin);
         ELeonTournamentCharacterSkin GetCharacterSkin() const { return CharacterSkin; }
 
@@ -119,6 +122,7 @@ namespace Leon {
         TRef<ULeonTournamentAnimInstance> AnimInst;
         TRef<UFootstepComponent> Footsteps;
         ALeonTournamentWeapon* Weapon = nullptr;
+        ALeonTournamentFlag* CarriedFlag = nullptr;
         bool bBot = false;
         bool bMenuShowcase = false;
         bool bDeadFrozen = false;

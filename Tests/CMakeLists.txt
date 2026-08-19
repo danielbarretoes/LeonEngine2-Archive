@@ -60,6 +60,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Gameplay/GameplayLifecycleTests.cpp
     Gameplay/ProjectBootTests.cpp
     Gameplay/UIHUDTests.cpp
+    Gameplay/GameplayTagTests.cpp
     Gameplay/InputSettingsTests.cpp
     Gameplay/CharacterComponentFrustumTests.cpp
     Gameplay/NetDriverTests.cpp
@@ -109,6 +110,9 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/FLeonTournamentWeaponVfx.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentProjectile.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentPickup.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentFlag.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentFlagBase.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentCaptureTheFlagGameMode.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ALeonTournamentHUD.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp

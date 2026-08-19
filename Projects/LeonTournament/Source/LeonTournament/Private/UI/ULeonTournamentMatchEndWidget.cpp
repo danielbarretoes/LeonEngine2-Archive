@@ -128,6 +128,10 @@ namespace Leon {
         back->OnClicked.AddLambda([this]() { OnReturn(); });
         PlaceButtonTL(*Root, back, leftX, y);
 
+        RematchButton = MakeButton("Rematch", "PLAY AGAIN", kFsButton, 280.0f);
+        RematchButton->OnClicked.AddLambda([this]() { OnRematch(); });
+        PlaceButtonTL(*Root, RematchButton, leftX + 300.0f, y);
+
         SetWidgetTree(Root);
         SetSize({1280, 720});
         ApplyViewportLayout();
@@ -147,6 +151,8 @@ namespace Leon {
         if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
             ApplyViewportLayout();
         if (GamepadEdge(GamepadButton::A, bPadAWasDown) || GamepadEdge(GamepadButton::Start, bPadStartWasDown))
+            OnRematch();
+        if (GamepadEdge(GamepadButton::B, bPadBWasDown))
             OnReturn();
         auto* gs = GS(OwningPlayer);
         if (!gs || !ResultText)
@@ -185,6 +191,14 @@ namespace Leon {
             hud->ShowLoadingOverlay("RETURNING TO MENU...");
         if (auto* gm = GM(OwningPlayer))
             gm->ReturnToMenu();
+    }
+
+    void ULeonTournamentMatchEndWidget::OnRematch() {
+        if (IsClientWorld(OwningPlayer))
+            return;
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        if (auto* gm = GM(OwningPlayer))
+            gm->RequestRematch();
     }
 
 

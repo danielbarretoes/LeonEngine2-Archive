@@ -1,4 +1,5 @@
 #include "Gameplay/FOnScreenDebugMessage.hpp"
+#include "UMG/FUITypeScale.hpp"
 #include "UMG/FUIRenderer.hpp"
 
 #include <algorithm>
@@ -46,7 +47,8 @@ namespace Leon {
         (void)InViewportWidth;
         constexpr float StartX = 16.0f;
         constexpr float StartY = 16.0f;
-        constexpr float LineStep = 22.0f;
+        constexpr float FontScale = FUITypeScale::P;
+        constexpr float LineStep = 16.0f;
 
         float autoY = StartY;
         for (const auto& msg : Messages) {
@@ -59,7 +61,7 @@ namespace Leon {
                 color.a *= std::max(0.0f, msg.TimeRemaining / 0.5f);
             }
 
-            FUIRenderer::DrawString(x, y, msg.Text, color, 1.0f);
+            FUIRenderer::DrawString(x, y, msg.Text, color, FontScale);
 
             if (msg.Position.y < 0.0f) {
                 autoY += LineStep;

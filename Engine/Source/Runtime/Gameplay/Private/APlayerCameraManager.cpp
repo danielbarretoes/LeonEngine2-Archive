@@ -1,6 +1,7 @@
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APawn.hpp"
+#include "Gameplay/ACharacter.hpp"
 #include "Engine/UWorld.hpp"
 #include "Engine/Components.hpp"
 
@@ -33,8 +34,19 @@ namespace Leon {
 
         FPerspectiveCamera ResolveIdealCamera(APlayerCameraManager& InMgr, APlayerController* InPC, UWorld* InWorld,
                                               AActor* InViewTarget, const FPerspectiveCamera& InFallback) {
-            if (InViewTarget && InViewTarget->HasComponent<FCameraComponent>())
-                return InViewTarget->GetComponent<FCameraComponent>().Camera;
+            if (InViewTarget) {
+                if (auto* character = dynamic_cast<ACharacter*>(InViewTarget)) {
+                    glm::vec3 loc, fwd;
+                    character->GetViewPoint(loc, fwd);
+                    (void)fwd;
+                    FPerspectiveCamera cam = InFallback;
+                    cam.SetPosition(loc);
+                    cam.SetRotation(character->GetControlPitch(), character->GetControlYaw());
+                    return cam;
+                }
+                if (InViewTarget->HasComponent<FCameraComponent>())
+                    return InViewTarget->GetComponent<FCameraComponent>().Camera;
+            }
             if (InPC) {
                 APawn* pawn = InPC->GetPawn();
                 if (pawn && pawn->HasComponent<FCameraComponent>())

@@ -1,4 +1,6 @@
 #include "ALeonTournamentWeapon.hpp"
+#include "FLeonTournamentWeaponAudio.hpp"
+#include "FLeonTournamentWeaponVisual.hpp"
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentProjectile.hpp"
@@ -8,10 +10,14 @@
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/UParticleComponent.hpp"
+#include "Gameplay/ACharacter.hpp"
+#include "Gameplay/APlayerState.hpp"
+#include "Gameplay/AGameStateBase.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
+#include "Engine/UNetDriver.hpp"
 #include "Core/FApplication.hpp"
 #include "Renderer/FRenderingMath.hpp"
 #include "Renderer/FDebugRenderer.hpp"
@@ -20,6 +26,7 @@
 #include <cmath>
 #include <functional>
 #include <random>
+#include <vector>
 
 namespace Leon {
 
@@ -29,33 +36,110 @@ namespace Leon {
             return rng;
         }
 
-        void EnsureWeaponMesh(AActor& InActor, const FLeonTournamentWeaponConfig& InConfig) {
+        void EnsureWeaponMesh(AActor& InActor, ELeonTournamentWeaponId InWeaponId,
+                              const FLeonTournamentWeaponConfig& InConfig) {
+            const FLeonTournamentWeaponVisual visual = LeonTournamentWeaponVisualPreset(InWeaponId);
+            const std::string meshTag = LeonTournamentWeaponMeshTag(InWeaponId);
             if (InActor.HasComponent<FMeshComponent>()) {
-                if (InActor.HasComponent<FMaterialComponent>()) {
-                    if (auto mat = InActor.GetComponent<FMaterialComponent>().MaterialInstance)
-                        mat->SetAlbedoColor(InConfig.VisualColor);
+                auto& mesh = InActor.GetComponent<FMeshComponent>();
+                if (mesh.MeshType == meshTag) {
+                    if (InActor.HasComponent<FMaterialComponent>()) {
+                        if (auto mat = InActor.GetComponent<FMaterialComponent>().MaterialInstance)
+                            mat->SetAlbedoColor(InConfig.VisualColor);
+                    }
+                    return;
                 }
-                return;
+                mesh.bVisible = false;
             }
             if (!FApplication::HasInstance())
                 return;
-            auto va = FMeshPrimitives::CreateCylinder(InConfig.VisualRadius, InConfig.VisualRadius * 0.7f,
-                                                      InConfig.VisualLength, 10, true);
+
+            TRef<FVertexArray> va;
+            switch (visual.MeshKind) {
+            case ELeonTournamentWeaponMeshKind::Cube:
+                va = FMeshPrimitives::CreateCube(visual.CubeSize);
+                break;
+            case ELeonTournamentWeaponMeshKind::Sphere:
+                va = FMeshPrimitives::CreateSphere(visual.Radius, 12, 8);
+                break;
+            case ELeonTournamentWeaponMeshKind::Cylinder:
+            default:
+                va = FMeshPrimitives::CreateCylinder(visual.Radius, visual.TopRadius, visual.Length, 12, true);
+                break;
+            }
             auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
             if (!va || !shader)
                 return;
-            auto& mesh = InActor.AddComponent<FMeshComponent>(va, shader);
-            mesh.MeshType = "Cylinder";
-            mesh.MeshRadius = InConfig.VisualRadius;
-            mesh.MeshHeight = InConfig.VisualLength;
-            mesh.Mobility = EComponentMobility::Movable;
-            mesh.bCastShadows = false;
-            if (auto parent = UAssetManager::GetDefaultMaterial()) {
-                auto inst = parent->CreateInstance("WeaponMat");
-                inst->SetAlbedoColor(InConfig.VisualColor);
-                InActor.AddComponent<FMaterialComponent>(inst);
+
+            FMeshComponent* meshPtr = nullptr;
+            if (InActor.HasComponent<FMeshComponent>())
+                meshPtr = &InActor.GetComponent<FMeshComponent>();
+            else
+                meshPtr = &InActor.AddComponent<FMeshComponent>(va, shader);
+
+            meshPtr->VertexArray = va;
+            meshPtr->Shader = shader;
+            meshPtr->MeshType = meshTag;
+            meshPtr->MeshRadius = visual.Radius;
+            meshPtr->MeshHeight = visual.Length;
+            meshPtr->Mobility = EComponentMobility::Movable;
+            meshPtr->bCastShadows = false;
+            meshPtr->bVisible = true;
+
+            if (!InActor.HasComponent<FMaterialComponent>()) {
+                if (auto parent = UAssetManager::GetDefaultMaterial()) {
+                    auto inst = parent->CreateInstance("WeaponMat");
+                    inst->SetAlbedoColor(InConfig.VisualColor);
+                    InActor.AddComponent<FMaterialComponent>(inst);
+                }
+            } else if (auto mat = InActor.GetComponent<FMaterialComponent>().MaterialInstance) {
+                mat->SetAlbedoColor(InConfig.VisualColor);
             }
         }
+
+        float ComputeLagCompensationSeconds(UWorld* InWorld, const ALeonTournamentCharacter* InShooter) {
+            if (!InWorld || !InShooter || InWorld->GetNetMode() == ENetMode::Standalone)
+                return 0.0f;
+            UNetDriver* driver = InWorld->GetNetDriver();
+            if (!driver)
+                return 0.0f;
+            int32_t playerId = -1;
+            if (APlayerState* ps = InShooter->GetPlayerState())
+                playerId = ps->GetPlayerId();
+            const float pingMs = driver->GetPingMsForPlayer(playerId);
+            return std::max(0.0f, pingMs * 0.5f / 1000.0f);
+        }
+
+        /** Rewind all authority characters except the shooter for hitscan lag compensation. */
+        class FHitscanLagCompScope {
+        public:
+            FHitscanLagCompScope(UWorld* InWorld, ACharacter* InShooter, float InRewindSeconds)
+                : World(InWorld), Shooter(InShooter) {
+                if (!World || InRewindSeconds <= 0.001f)
+                    return;
+                AGameStateBase* gs = World->GetGameState();
+                if (!gs)
+                    return;
+                const float targetTime = gs->GetElapsedTime() - InRewindSeconds;
+                for (const auto& ref : World->GetAllActors()) {
+                    ACharacter* character = dynamic_cast<ACharacter*>(ref.get());
+                    if (!character || character == InShooter || !character->HasAuthority())
+                        continue;
+                    if (character->RewindToTime(targetTime))
+                        Rewound.push_back(character);
+                }
+            }
+
+            ~FHitscanLagCompScope() {
+                for (ACharacter* character : Rewound)
+                    character->RestoreNetPoseAfterRewind();
+            }
+
+        private:
+            UWorld* World = nullptr;
+            ACharacter* Shooter = nullptr;
+            std::vector<ACharacter*> Rewound;
+        };
     } // namespace
 
     ALeonTournamentWeapon::ALeonTournamentWeapon(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
@@ -142,7 +226,7 @@ namespace Leon {
     }
 
     void ALeonTournamentWeapon::AttachVisual() {
-        EnsureWeaponMesh(*this, Config);
+        EnsureWeaponMesh(*this, WeaponId, Config);
         bVisualReady = HasComponent<FMeshComponent>();
         SetVisualHidden(bVisualHidden);
     }
@@ -225,6 +309,9 @@ namespace Leon {
         OutTraceEnd = InOrigin + InDir * Config.Range;
         if (!World)
             return false;
+
+        const float rewindSeconds = ComputeLagCompensationSeconds(World, OwnerCharacter);
+        FHitscanLagCompScope lagComp(World, OwnerCharacter, rewindSeconds);
 
         glm::vec3 origin = InOrigin;
         glm::vec3 dir = glm::length(InDir) > 1e-5f ? glm::normalize(InDir) : glm::vec3(0.0f, 0.0f, 1.0f);
@@ -435,7 +522,8 @@ namespace Leon {
             return false;
         if (!AWeaponBase::StartReload())
             return false;
-        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleReload", 0.7f);
+        const FLeonTournamentWeaponAudio audio = LeonTournamentWeaponAudioPreset(WeaponId);
+        UGameplayStatics::PlaySound2D(audio.ReloadPath, audio.ReloadVolume);
         return true;
     }
 

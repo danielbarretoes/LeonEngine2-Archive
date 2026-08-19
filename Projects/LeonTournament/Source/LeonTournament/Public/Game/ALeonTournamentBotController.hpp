@@ -43,6 +43,7 @@ namespace Leon {
         glm::vec3 PickPatrolLocation(ALeonTournamentCharacter& InSelf) const;
         void SelectCombatWeapon(ALeonTournamentCharacter& InSelf, float InDistance);
         void TickPickupScan();
+        void TickCtfObjective();
         void DrawDebug() const;
 
         TRef<UBehaviorTree> Tree;

@@ -7,6 +7,8 @@
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerState.hpp"
 #include "ALeonTournamentGameState.hpp"
+#include "ALeonTournamentFlag.hpp"
+#include "ALeonTournamentFlagBase.hpp"
 #include "Engine/FTimerManager.hpp"
 
 #include <unordered_map>
@@ -46,6 +48,9 @@ namespace Leon {
         float GetRespawnRemaining(AController* InController) const;
         const FLeonTournamentKillFeed& GetKillFeed() const { return KillFeed; }
 
+        bool IsCombatAllowed() const;
+        bool IsScoringAllowed() const;
+
         bool PrefersThirdPerson() const { return bPreferThirdPerson; }
         void SetPreferThirdPerson(bool bEnabled) { bPreferThirdPerson = bEnabled; }
         /** Menu-like labs: visible free cursor, no look capture. */
@@ -62,12 +67,13 @@ namespace Leon {
         void NotifySelectedCharacterChanged();
         void StartMatch() override;
         void EndMatch(ELeonTournamentMatchWinner InWinner);
+        void RequestRematch();
         void RestartGame() override;
         void ReturnToMenu();
 
         bool ApplyAuthoritativeDamage(ALeonTournamentCharacter& InInstigator, ALeonTournamentCharacter& InTarget,
                                       const FDamageInfo& InInfo);
-        void NotifyDeath(ALeonTournamentCharacter& InVictim, const FDamageInfo& InInfo);
+        virtual void NotifyDeath(ALeonTournamentCharacter& InVictim, const FDamageInfo& InInfo);
         void RespawnCharacter(ALeonTournamentCharacter& InCharacter);
 
         ELeonTournamentTeam AssignTeam();
@@ -88,22 +94,41 @@ namespace Leon {
         void TryApplyCachedArenaLightmaps();
         void TryBakeArenaLighting();
 
-    private:
+        bool IsCaptureTheFlagMode() const {
+            return ActiveGameMode == ELeonTournamentGameModeId::CaptureTheFlag;
+        }
+        ALeonTournamentFlag* GetTeamFlag(ELeonTournamentTeam InTeam) const;
+        ALeonTournamentFlagBase* GetTeamFlagBase(ELeonTournamentTeam InTeam) const;
+        glm::vec3 GetCtfBotObjective(const ALeonTournamentCharacter& InSelf) const;
+
+    protected:
+        virtual void CheckScoreLimitWin(ALeonTournamentPlayerState* InRecentKiller = nullptr);
+        virtual void TickMatch(float DeltaSeconds);
+        void SetupCaptureTheFlag();
+        void TeardownCaptureTheFlag();
+        void TickCaptureTheFlag(float DeltaSeconds);
+        void TryPickupFlags(ALeonTournamentCharacter& InCharacter);
+        void TryScoreCapture(ALeonTournamentCharacter& InCharacter);
+        void DropCarriedFlag(ALeonTournamentCharacter& InCharacter);
+        void ScoreFlagCapture(ELeonTournamentTeam InTeam, ALeonTournamentCharacter& InScorer);
+        bool IsTeamFlagAtHome(ELeonTournamentTeam InTeam) const;
+
+        ALeonTournamentFlag* Team1Flag = nullptr;
+        ALeonTournamentFlag* Team2Flag = nullptr;
+        ALeonTournamentFlagBase* Team1FlagBase = nullptr;
+        ALeonTournamentFlagBase* Team2FlagBase = nullptr;
         void RefreshTeamCounts();
-        void TickMatch(float DeltaSeconds);
         void TickAutoPlay(float DeltaSeconds);
         void WriteAutoPlayReport();
         ALeonTournamentBotController* SpawnBot(ELeonTournamentTeam InTeam, const std::string& InName);
         void PossessHumanPawns();
         bool ShouldFillBotsOnEnterLobby() const;
-        bool IsCombatAllowed() const;
         void ValidateSpawnedCharacter(ALeonTournamentCharacter& InCharacter, ELeonTournamentTeam InTeam);
         void ApplyMatchCapacityFromLobby();
         void EnsureMenuShowcase();
         void DestroyMenuShowcase();
         void PlaceMenuShowcase(ALeonTournamentCharacter& InCharacter);
         void RefreshMenuShowcasePlacement();
-        void CheckScoreLimitWin(ALeonTournamentPlayerState* InRecentKiller = nullptr);
         ALeonTournamentPlayerState* FindLeadingPlayerState() const;
 
         FLeonTournamentMatchConfig Config;

@@ -15,6 +15,9 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/Combat/FLeonTournamentWeaponVfx.cpp
     Source/LeonTournament/Private/Combat/ALeonTournamentProjectile.cpp
     Source/LeonTournament/Private/Combat/ALeonTournamentPickup.cpp
+    Source/LeonTournament/Private/Game/ALeonTournamentFlag.cpp
+    Source/LeonTournament/Private/Game/ALeonTournamentFlagBase.cpp
+    Source/LeonTournament/Private/Game/ALeonTournamentCaptureTheFlagGameMode.cpp
     Source/LeonTournament/Private/UI/ALeonTournamentHUD.cpp
     Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
     Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp

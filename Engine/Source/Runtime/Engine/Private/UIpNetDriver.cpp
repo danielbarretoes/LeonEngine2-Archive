@@ -120,6 +120,8 @@ namespace Leon {
                 conn = Connections.front().get();
             if (!conn)
                 continue;
+            if (Transport)
+                conn->PingMs = Transport->GetPeerPingMs(packet.ConnectionId);
             if (UNetDriver::IsRPCBatch(packet.Bytes))
                 conn->IncomingRPC = std::move(packet.Bytes);
             else if (bListening)

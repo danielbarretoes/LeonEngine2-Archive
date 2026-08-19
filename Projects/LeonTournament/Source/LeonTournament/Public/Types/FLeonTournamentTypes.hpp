@@ -16,17 +16,15 @@ namespace Leon {
 
     enum class ELeonTournamentSessionMode : uint8_t { Offline = 0, LanHost = 1, LanClient = 2 };
 
-    enum class ELeonTournamentPlayableMap : uint8_t { Arena = 0, NightArena = 1, OrbitalPrism = 2, Count = 3 };
+    enum class ELeonTournamentPlayableMap : uint8_t { Arena = 0, NightArena = 1, Count = 2 };
 
     inline const char* LeonTournamentPlayableMapName(ELeonTournamentPlayableMap InMap) {
         switch (InMap) {
         case ELeonTournamentPlayableMap::NightArena:
             return "NIGHT ARENA";
-        case ELeonTournamentPlayableMap::OrbitalPrism:
-            return "ORBITAL PRISM";
         case ELeonTournamentPlayableMap::Arena:
         default:
-            return "ARENA";
+            return "TOURNAMENT ARENA";
         }
     }
 
@@ -34,11 +32,9 @@ namespace Leon {
         switch (InMap) {
         case ELeonTournamentPlayableMap::NightArena:
             return "/Game/Maps/TournamentArenaNight";
-        case ELeonTournamentPlayableMap::OrbitalPrism:
-            return "/Game/Maps/OrbitalPrism";
         case ELeonTournamentPlayableMap::Arena:
         default:
-            return "/Game/Maps/MainMenu";
+            return "/Game/Maps/TournamentArena";
         }
     }
 
@@ -62,17 +58,38 @@ namespace Leon {
         return static_cast<ELeonTournamentPlayableMap>((cur + count - 1) % count);
     }
 
-    enum class ELeonTournamentGameModeId : uint8_t { TeamDeathmatch = 0, FreeForAll = 1, Count = 2 };
+    enum class ELeonTournamentGameModeId : uint8_t { TeamDeathmatch = 0, FreeForAll = 1, CaptureTheFlag = 2, Count = 3 };
 
     inline const char* LeonTournamentGameModeName(ELeonTournamentGameModeId InMode) {
         switch (InMode) {
         case ELeonTournamentGameModeId::FreeForAll:
             return "FFA";
+        case ELeonTournamentGameModeId::CaptureTheFlag:
+            return "CTF";
         case ELeonTournamentGameModeId::TeamDeathmatch:
         default:
             return "TDM";
         }
     }
+
+    enum class ELeonTournamentFlagStatus : uint8_t { AtBase = 0, Carried = 1, Dropped = 2 };
+
+    inline const char* LeonTournamentFlagStatusName(ELeonTournamentFlagStatus InStatus) {
+        switch (InStatus) {
+        case ELeonTournamentFlagStatus::Carried:
+            return "CARRIED";
+        case ELeonTournamentFlagStatus::Dropped:
+            return "DROPPED";
+        case ELeonTournamentFlagStatus::AtBase:
+        default:
+            return "AT BASE";
+        }
+    }
+
+    struct FLeonTournamentFlagState {
+        ELeonTournamentTeam OwnerTeam = ELeonTournamentTeam::None;
+        ELeonTournamentFlagStatus Status = ELeonTournamentFlagStatus::AtBase;
+    };
 
     inline ELeonTournamentGameModeId LeonTournamentClampGameModeId(ELeonTournamentGameModeId InMode) {
         const uint8_t count = static_cast<uint8_t>(ELeonTournamentGameModeId::Count);
@@ -252,7 +269,8 @@ namespace Leon {
         int32_t MaxPlayers = 12;
         float AssistWindowSeconds = 5.0f;
         float RespawnDelaySeconds = 1.0f;
-        float StartCountdownSeconds = 2.0f;
+        /** UT-style warmup: combat allowed, scoring blocked until Playing. */
+        float StartCountdownSeconds = 5.0f;
         float SpawnProtectionSeconds = 2.5f;
         bool bFriendlyFire = false;
     };

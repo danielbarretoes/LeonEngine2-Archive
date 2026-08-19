@@ -6,6 +6,8 @@
 #include "Gameplay/APlayerState.hpp"
 #include "Gameplay/APawn.hpp"
 
+#include <vector>
+
 namespace Leon {
 
     class AHUD;
@@ -55,6 +57,12 @@ namespace Leon {
         void SetViewTargetWithBlend(AActor* InNewTarget, float InBlendTime);
         AActor* GetViewTarget() const;
 
+        bool IsSpectating() const { return bSpectating; }
+        void EnterSpectatorMode(AActor* InInitialTarget = nullptr);
+        void LeaveSpectatorMode();
+        void CycleSpectatorTarget(int InDirection);
+        virtual void CollectSpectatorTargets(std::vector<APawn*>& OutTargets) const;
+
         void UpdateCameraManager(float DeltaSeconds);
         void GetPlayerViewPoint(FPerspectiveCamera& OutCamera) const;
 
@@ -63,6 +71,7 @@ namespace Leon {
         AHUD* MyHUD = nullptr;
         EInputMode InputMode = EInputMode::GameAndUI;
         bool bShowMouseCursor = true;
+        bool bSpectating = false;
     };
 
 } // namespace Leon

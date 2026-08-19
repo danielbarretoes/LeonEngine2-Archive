@@ -30,12 +30,14 @@ namespace Leon {
         std::vector<uint8_t> OutgoingRPC;
         /** PlayerId of the remote pawn this connection drives. -1 = unbound. */
         int32_t BoundPlayerId = -1;
+        /** Last measured RTT for this peer (ms). Updated by UIpNetDriver on receive. */
+        float PingMs = 0.0f;
     };
 
     /**
      * @brief Minimal listen-server snapshot driver (+ framed Server/Client/Multicast RPCs).
      * Replicates GameState, PlayerState, pawns, and other bReplicates actors (relevancy lite).
-     * NetGUID = Actor GUID. No prediction yet.
+     * NetGUID = Actor GUID. AutonomousProxy keeps local movement; server pose is corrected softly.
      */
     class UNetDriver {
     public:
@@ -43,6 +45,9 @@ namespace Leon {
 
         void SetWorld(UWorld* InWorld) { World = InWorld; }
         UWorld* GetWorld() const { return World; }
+
+        /** RTT (ms) for the connection bound to InPlayerId, or 0 if unknown (host / offline). */
+        float GetPingMsForPlayer(int32_t InPlayerId) const;
 
         virtual void Tick(float InDeltaSeconds);
         virtual void ConsumeIncomingInput();

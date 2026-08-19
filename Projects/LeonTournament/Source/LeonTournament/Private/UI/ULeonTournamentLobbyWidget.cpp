@@ -506,16 +506,10 @@ namespace Leon {
             return;
         auto* gi = GI();
         const auto map = gi ? gi->GetSelectedPlayableMap() : ELeonTournamentPlayableMap::Arena;
-        if (auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr) {
-            hud->ShowLoadingOverlay(map == ELeonTournamentPlayableMap::Arena ? "STARTING MATCH..."
-                                                                             : "LOADING MAP...");
-        }
-        if (auto* gm = GM(OwningPlayer)) {
-            if (map == ELeonTournamentPlayableMap::Arena)
-                gm->RequestStartMatch();
-            else
-                gm->OpenPlayableMap(map);
-        }
+        if (auto* hud = OwningPlayer ? dynamic_cast<ALeonTournamentHUD*>(OwningPlayer->GetHUD()) : nullptr)
+            hud->ShowLoadingOverlay("LOADING MAP...");
+        if (auto* gm = GM(OwningPlayer))
+            gm->OpenPlayableMap(map);
     }
 
     void ULeonTournamentLobbyWidget::OnBack() {

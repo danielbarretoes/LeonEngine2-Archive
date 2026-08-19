@@ -4,6 +4,7 @@
 
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
 
 namespace Leon {
 
@@ -22,6 +23,10 @@ namespace Leon {
         void NotifyLocalDeath();
         void PushBanner(const std::string& InText, float InSeconds, const glm::vec4& InColor);
         void ClearBanner();
+
+        bool IsSpectating() const { return APlayerController::IsSpectating(); }
+        const std::string& GetSpectatorTargetName() const { return SpectatorTargetName; }
+        void CollectSpectatorTargets(std::vector<APawn*>& OutTargets) const override;
 
         float GetDamageIndicatorYawDeg() const { return DamageIndicatorYawDeg; }
         float GetDamageIndicatorRemaining() const { return DamageIndicatorRemaining; }
@@ -56,6 +61,9 @@ namespace Leon {
         std::string KillFeedText;
         float DamageIndicatorYawDeg = 0.0f;
         float DamageIndicatorRemaining = 0.0f;
+        bool bSpectatorPrevWasDown = false;
+        bool bSpectatorNextWasDown = false;
+        std::string SpectatorTargetName;
     };
 
 } // namespace Leon

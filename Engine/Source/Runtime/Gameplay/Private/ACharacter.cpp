@@ -1,6 +1,7 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/AController.hpp"
+#include "Gameplay/AGameStateBase.hpp"
 #include "Gameplay/APhysicsVolume.hpp"
 #include "Gameplay/UAnimInstance.hpp"
 #include "Gameplay/FGameplayDebugger.hpp"
@@ -230,8 +231,12 @@ namespace Leon {
     }
 
     void ACharacter::Tick(float DeltaSeconds) {
-        if (GetLocalRole() == ENetRole::SimulatedProxy)
+        if (GetLocalRole() == ENetRole::SimulatedProxy) {
+            SmoothSimulatedProxy(DeltaSeconds);
+            UpdateAnimFromMovement(DeltaSeconds);
+            UpdateMeshVisibility();
             return;
+        }
         FlushPendingControlInput(DeltaSeconds);
         if (IsLocallyControlled())
             SetupPlayerInputComponent(DeltaSeconds);
@@ -244,6 +249,8 @@ namespace Leon {
         UpdateCameraFromView();
         UpdateMeshVisibility();
         DrawCharacterDebug();
+        if (HasAuthority())
+            RecordNetPoseHistory(DeltaSeconds);
     }
 
     float ACharacter::GetControlYaw() const {
@@ -793,6 +800,98 @@ namespace Leon {
                       IsFalling() ? "true" : "false", IsMovingOnGround() ? "true" : "false", GetControlPitch(),
                       GetControlYaw(), GetActorRotation().x);
         PrintString(line, 0.12f, glm::vec4(0.85f, 1.0f, 0.7f, 1.0f), 9300);
+    }
+
+    void ACharacter::SetNetServerTransform(const glm::vec3& InLocation, const glm::vec3& InRotation) {
+        NetServerLocation = InLocation;
+        NetServerRotation = InRotation;
+        bHasNetServerTransform = true;
+    }
+
+    void ACharacter::SetNetTargetTransform(const glm::vec3& InLocation, const glm::vec3& InRotation) {
+        NetTargetLocation = InLocation;
+        NetTargetRotation = InRotation;
+        if (!bHasNetTargetTransform) {
+            SetActorLocation(InLocation);
+            SetActorRotation(InRotation);
+        }
+        bHasNetTargetTransform = true;
+    }
+
+    void ACharacter::SnapToNetTarget() {
+        if (!bHasNetTargetTransform)
+            return;
+        SetActorLocation(NetTargetLocation);
+        SetActorRotation(NetTargetRotation);
+    }
+
+    void ACharacter::SmoothSimulatedProxy(float DeltaSeconds) {
+        if (!bHasNetTargetTransform)
+            return;
+        const float alpha = std::min(1.0f, DeltaSeconds * 15.0f);
+        SetActorLocation(glm::mix(GetActorLocation(), NetTargetLocation, alpha));
+        SetActorRotation(glm::mix(GetActorRotation(), NetTargetRotation, alpha));
+    }
+
+    void ACharacter::RecordNetPoseHistory(float InDeltaSeconds) {
+        (void)InDeltaSeconds;
+        if (bIsRagdoll || bNetPoseRewound || !World)
+            return;
+        AGameStateBase* gs = World->GetGameState();
+        if (!gs)
+            return;
+        const float sampleTime = gs->GetElapsedTime();
+        FNetPoseSample sample;
+        sample.Time = sampleTime;
+        sample.Location = GetActorLocation();
+        sample.Rotation = GetActorRotation();
+        NetPoseHistory[NetPoseHistoryHead] = sample;
+        NetPoseHistoryHead = (NetPoseHistoryHead + 1) % kNetPoseHistorySize;
+        NetPoseHistoryCount = std::min(NetPoseHistoryCount + 1, kNetPoseHistorySize);
+        NetPoseClock = sampleTime;
+    }
+
+    bool ACharacter::SampleNetPoseAtTime(float InTargetTime, glm::vec3& OutLocation, glm::vec3& OutRotation) const {
+        if (NetPoseHistoryCount <= 0)
+            return false;
+        const FNetPoseSample* best = nullptr;
+        for (int32_t i = 0; i < NetPoseHistoryCount; ++i) {
+            const int32_t idx = (NetPoseHistoryHead - 1 - i + kNetPoseHistorySize * 2) % kNetPoseHistorySize;
+            const FNetPoseSample& sample = NetPoseHistory[idx];
+            if (sample.Time <= InTargetTime) {
+                best = &sample;
+                break;
+            }
+            best = &sample;
+        }
+        if (!best)
+            return false;
+        OutLocation = best->Location;
+        OutRotation = best->Rotation;
+        return true;
+    }
+
+    bool ACharacter::RewindToTime(float InTargetTime) {
+        if (!HasAuthority() || bNetPoseRewound)
+            return false;
+        glm::vec3 location;
+        glm::vec3 rotation;
+        if (!SampleNetPoseAtTime(InTargetTime, location, rotation))
+            return false;
+        SavedRewindLocation = GetActorLocation();
+        SavedRewindRotation = GetActorRotation();
+        SetActorLocation(location);
+        SetActorRotation(rotation);
+        bNetPoseRewound = true;
+        return true;
+    }
+
+    void ACharacter::RestoreNetPoseAfterRewind() {
+        if (!bNetPoseRewound)
+            return;
+        SetActorLocation(SavedRewindLocation);
+        SetActorRotation(SavedRewindRotation);
+        bNetPoseRewound = false;
     }
 
 } // namespace Leon

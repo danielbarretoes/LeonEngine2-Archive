@@ -11,6 +11,7 @@
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerState.hpp"
+#include "Gameplay/ACharacter.hpp"
 
 #include <memory>
 
@@ -235,6 +236,87 @@ namespace Leon {
 
             CHECK(clientWorld->FindActorByGuid(nearGuid) != nullptr);
             CHECK(clientWorld->FindActorByGuid(farGuid) == nullptr);
+        }
+
+        TEST_CASE("AutonomousProxy keeps predicted location when snapshot arrives") {
+            auto serverWorld = UWorld::Create("ServerPred");
+            auto clientWorld = UWorld::Create("ClientPred");
+            serverWorld->SetNetMode(ENetMode::ListenServer);
+            clientWorld->SetNetMode(ENetMode::Client);
+
+            ULoopbackNetDriver serverDriver;
+            ULoopbackNetDriver clientDriver;
+            serverDriver.SetWorld(serverWorld.get());
+            clientDriver.SetWorld(clientWorld.get());
+            ULoopbackNetDriver::Pair(serverDriver, clientDriver);
+            serverWorld->SetNetDriver(&serverDriver);
+            clientWorld->SetNetDriver(&clientDriver);
+
+            auto* gm = serverWorld->SpawnActor<AGameModeBase>("GameMode");
+            gm->DefaultPawnClass = "ACharacter";
+            serverWorld->SetGameMode(gm);
+            serverWorld->InitWorld();
+            serverWorld->BeginPlay();
+            REQUIRE(serverWorld->GetGameMode()->Login("Host"));
+            REQUIRE(serverWorld->GetGameMode()->Login("Client"));
+
+            clientWorld->InitWorld();
+            clientWorld->BeginPlay();
+
+            APlayerState* clientPs = serverWorld->GetPlayerControllers()[1]->GetPlayerState();
+            REQUIRE(clientPs);
+            clientDriver.SetLocalPlayerId(clientPs->GetPlayerId());
+
+            APawn* serverClientPawn = serverWorld->GetPlayerControllers()[1]->GetPawn();
+            REQUIRE(serverClientPawn);
+            REQUIRE(dynamic_cast<ACharacter*>(serverClientPawn));
+            serverClientPawn->SetActorLocation({0.0f, 0.0f, 0.0f});
+
+            for (int i = 0; i < 3; ++i) {
+                serverWorld->Tick(FTimestep(0.05f));
+                clientWorld->Tick(FTimestep(0.05f));
+            }
+
+            AActor* clientPawn = clientWorld->FindActorByGuid(serverClientPawn->GetActorGuid());
+            REQUIRE(clientPawn);
+            CHECK(clientPawn->GetLocalRole() == ENetRole::AutonomousProxy);
+
+            clientPawn->SetActorLocation({5.0f, 0.0f, 0.0f});
+            serverClientPawn->SetActorLocation({0.0f, 0.0f, 0.0f});
+
+            for (int i = 0; i < 2; ++i) {
+                serverWorld->Tick(FTimestep(0.05f));
+                clientWorld->Tick(FTimestep(0.05f));
+            }
+
+            CHECK(clientPawn->GetActorLocation().x == doctest::Approx(5.0f).epsilon(0.01f));
+        }
+
+        TEST_CASE("ACharacter pose history rewinds and restores on authority") {
+            auto world = UWorld::Create("PoseHistory");
+            world->SetNetMode(ENetMode::ListenServer);
+            world->InitWorld();
+            world->BeginPlay();
+
+            auto* gs = world->SpawnActor<AGameStateBase>("GameState");
+            world->SetGameState(gs);
+
+            auto* character = world->SpawnActor<ACharacter>("PoseChar");
+            REQUIRE(character);
+            character->SetLocalRole(ENetRole::Authority);
+            character->SetActorLocation({0.0f, 0.0f, 0.0f});
+
+            for (int i = 0; i < 5; ++i) {
+                character->SetActorLocation({static_cast<float>(i), 0.0f, 0.0f});
+                world->Tick(FTimestep(0.05f));
+            }
+
+            const float rewindTime = gs->GetElapsedTime() - 0.1f;
+            const glm::vec3 before = character->GetActorLocation();
+            REQUIRE(character->RewindToTime(rewindTime));
+            CHECK(character->GetActorLocation().x < before.x);
+            character->RestoreNetPoseAfterRewind();
+            CHECK(character->GetActorLocation().x == doctest::Approx(before.x));
         }
     }
 

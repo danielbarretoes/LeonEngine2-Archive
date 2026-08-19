@@ -111,6 +111,19 @@ namespace Leon {
             InSelf.SelectWeapon(ELeonTournamentWeaponId::Rifle);
     }
 
+    void ALeonTournamentBotController::TickCtfObjective() {
+        if (!Blackboard)
+            return;
+        auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World ? World->GetGameMode() : nullptr);
+        auto* pawn = GetPawn<ALeonTournamentCharacter>();
+        if (!gm || !pawn || !gm->IsCaptureTheFlagMode()) {
+            Blackboard->SetValueAsBool("WantsCtf", false);
+            return;
+        }
+        Blackboard->SetValueAsBool("WantsCtf", true);
+        Blackboard->SetValueAsVector("CtfObjective", gm->GetCtfBotObjective(*pawn));
+    }
+
     void ALeonTournamentBotController::TickPickupScan() {
         auto board = Blackboard;
         auto* self = GetPawn<ALeonTournamentCharacter>();
@@ -377,6 +390,8 @@ namespace Leon {
         BoardAsset->AddKey({"WantsPickup", EBlackboardKeyType::Bool, false});
         BoardAsset->AddKey({"PickupLocation", EBlackboardKeyType::Vector, glm::vec3(0.0f)});
         BoardAsset->AddKey({"PickupKind", EBlackboardKeyType::Int, 0});
+        BoardAsset->AddKey({"WantsCtf", EBlackboardKeyType::Bool, false});
+        BoardAsset->AddKey({"CtfObjective", EBlackboardKeyType::Vector, glm::vec3(0.0f)});
 
         auto perception =
             MakeRef<UBTService_Native>("Perception", [this](UBehaviorTreeComponent&, float) { TickPerception(); });
@@ -385,6 +400,8 @@ namespace Leon {
 
         auto pickupScan =
             MakeRef<UBTService_Native>("PickupScan", [this](UBehaviorTreeComponent&, float) { TickPickupScan(); });
+        auto ctfScan =
+            MakeRef<UBTService_Native>("CtfScan", [this](UBehaviorTreeComponent&, float) { TickCtfObjective(); });
         pickupScan->Interval = 0.25f;
         pickupScan->TimeAccumulator = pickupScan->Interval;
 
@@ -523,6 +540,23 @@ namespace Leon {
             return EBTNodeResult::InProgress;
         });
 
+        auto ctfMove = MakeRef<UBTTask_Native>("CtfMove", [this](UBehaviorTreeComponent& owner, float) {
+            auto board = owner.GetBlackboard();
+            auto* pawn = GetPawn<ALeonTournamentCharacter>();
+            if (!board || !pawn || !board->GetValueAsBool("WantsCtf"))
+                return EBTNodeResult::Failed;
+            if (board->GetValueAsBool("HasTarget") && board->GetValueAsFloat("DistanceToTarget") < 10.0f &&
+                !pawn->GetCarriedFlag())
+                return EBTNodeResult::Failed;
+            CachedState = ELeonTournamentBotState::MoveToTarget;
+            pawn->BotSetFireHeld(false);
+            const glm::vec3 dest = board->GetValueAsVector("CtfObjective");
+            MoveToLocation(dest, 1.05f);
+            if (PlanarDistance(pawn->GetActorLocation(), dest) <= 1.6f)
+                return EBTNodeResult::Succeeded;
+            return EBTNodeResult::InProgress;
+        });
+
         auto search = MakeRef<UBTTask_Native>("Search", [this](UBehaviorTreeComponent& owner, float dt) {
             auto board = owner.GetBlackboard();
             auto* pawn = GetPawn<ALeonTournamentCharacter>();
@@ -573,13 +607,19 @@ namespace Leon {
         pickupSeq->Decorators.push_back(MakeRef<UBTDecorator_Blackboard>("WantsPickup", true));
         pickupSeq->AddChild(pickup);
 
+        auto ctfSeq = MakeRef<UBTComposite_Sequence>("WantCtf");
+        ctfSeq->Decorators.push_back(MakeRef<UBTDecorator_Blackboard>("WantsCtf", true));
+        ctfSeq->AddChild(ctfMove);
+
         auto root = MakeRef<UBTComposite_Selector>("Selector");
         root->Services.push_back(perception);
         root->Services.push_back(pickupScan);
+        root->Services.push_back(ctfScan);
         root->AddChild(dead);
         root->AddChild(reloadSeq);
         root->AddChild(coverSeq);
         root->AddChild(combat);
+        root->AddChild(ctfSeq);
         root->AddChild(pickupSeq);
         root->AddChild(search);
         root->AddChild(patrol);

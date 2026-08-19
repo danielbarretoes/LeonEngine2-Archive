@@ -25,6 +25,7 @@ namespace Leon {
         int32_t GetConnectionCount() const override;
         bool IsServer() const override { return bListening; }
         bool IsOpen() const override { return Host != nullptr; }
+        float GetPeerPingMs(int32_t InConnectionId) const override;
 
     private:
         struct FPeerSlot {

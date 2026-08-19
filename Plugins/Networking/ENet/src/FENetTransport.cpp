@@ -173,4 +173,13 @@ namespace Leon {
 
     int32_t FENetTransport::GetConnectionCount() const { return static_cast<int32_t>(Peers.size()); }
 
+    float FENetTransport::GetPeerPingMs(int32_t InConnectionId) const {
+        for (const auto& slot : Peers) {
+            if (slot.ConnectionId != InConnectionId || !slot.Peer)
+                continue;
+            return static_cast<float>(static_cast<ENetPeer*>(slot.Peer)->roundTripTime);
+        }
+        return 0.0f;
+    }
+
 } // namespace Leon

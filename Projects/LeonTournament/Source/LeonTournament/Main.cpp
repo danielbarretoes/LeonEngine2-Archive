@@ -15,6 +15,9 @@
 #include "ALeonTournamentRenderLabGameMode.hpp"
 #include "ALeonTournamentTransitionGameMode.hpp"
 #include "ALeonTournamentTransitionHUD.hpp"
+#include "ALeonTournamentCaptureTheFlagGameMode.hpp"
+#include "ALeonTournamentFlag.hpp"
+#include "ALeonTournamentFlagBase.hpp"
 #include "ULeonTournamentGameInstance.hpp"
 #include "Engine/UIpNetDriver.hpp"
 #include "FOpenGLRenderDriver.hpp"
@@ -96,6 +99,9 @@ int main(int argc, char** argv) {
     registry.RegisterClass<Leon::ALeonTournamentDummy>("ALeonTournamentDummy");
     registry.RegisterClass<Leon::ALeonTournamentAnimLabGameMode>("ALeonTournamentAnimLabGameMode");
     registry.RegisterClass<Leon::ALeonTournamentRenderLabGameMode>("ALeonTournamentRenderLabGameMode");
+    registry.RegisterClass<Leon::ALeonTournamentCaptureTheFlagGameMode>("ALeonTournamentCaptureTheFlagGameMode");
+    registry.RegisterClass<Leon::ALeonTournamentFlag>("ALeonTournamentFlag");
+    registry.RegisterClass<Leon::ALeonTournamentFlagBase>("ALeonTournamentFlagBase");
     registry.RegisterClass<Leon::ALeonTournamentTransitionGameMode>("ALeonTournamentTransitionGameMode");
     registry.RegisterClass<Leon::ALeonTournamentTransitionHUD>("ALeonTournamentTransitionHUD");
 

@@ -348,8 +348,24 @@ namespace Leon {
     }
 
     void UCharacterMovementComponent::SmoothClientPosition(float DeltaSeconds) {
-        // Extension point for client correction / smoothing. Authority currently simulates fully.
-        (void)DeltaSeconds;
+        ACharacter* character = GetCharacter();
+        if (!character || !character->IsLocallyControlled() || !character->HasNetServerTransform())
+            return;
+
+        const glm::vec3 serverLoc = character->GetNetServerLocation();
+        const glm::vec3 clientLoc = character->GetActorLocation();
+        const glm::vec3 delta = serverLoc - clientLoc;
+        const float errSq = glm::dot(delta, delta);
+        constexpr float kHardSnapSq = 0.25f * 0.25f;
+        constexpr float kSoftCorrectSq = 0.05f * 0.05f;
+
+        if (errSq > kHardSnapSq) {
+            character->SetActorLocation(serverLoc);
+            character->SetActorRotation(character->GetNetServerRotation());
+        } else if (errSq > kSoftCorrectSq) {
+            const float alpha = std::min(1.0f, DeltaSeconds * 12.0f);
+            character->SetActorLocation(glm::mix(clientLoc, serverLoc, alpha));
+        }
     }
 
     void UCharacterMovementComponent::Tick(float DeltaSeconds) {

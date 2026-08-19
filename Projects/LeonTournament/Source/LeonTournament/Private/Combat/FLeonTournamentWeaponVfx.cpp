@@ -1,4 +1,5 @@
 #include "FLeonTournamentWeaponVfx.hpp"
+#include "FLeonTournamentWeaponAudio.hpp"
 #include "ALeonTournamentCharacter.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 #include "Gameplay/UParticleComponent.hpp"
@@ -7,6 +8,17 @@
 #include <cmath>
 
 namespace Leon {
+
+    namespace {
+        void PlayWeaponFireSound(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle) {
+            const FLeonTournamentWeaponAudio audio = LeonTournamentWeaponAudioPreset(Ctx.WeaponId);
+            if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
+                UGameplayStatics::PlaySound2D(audio.FirePath, audio.FireVolume);
+            else
+                UGameplayStatics::PlaySoundAtLocation(audio.FirePath, InMuzzle, audio.FireVolume,
+                                                      audio.FireAttenuationRadius);
+        }
+    } // namespace
 
     int FLeonTournamentWeaponVfx::SpawnFireEffects(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle,
                          const glm::vec3& InTracerStart, const glm::vec3& InTraceEnd, bool bHitWorld,
@@ -60,10 +72,7 @@ namespace Leon {
                 ++spawnCount;
         }
 
-        if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
-            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 0.95f);
-        else
-            UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_RifleFire", InMuzzle, 0.9f, 4500.0f);
+        PlayWeaponFireSound(Ctx, InMuzzle);
         if (bHitCharacter)
             UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_HitConfirm", InTraceEnd, 0.8f, 2800.0f);
         return spawnCount;
@@ -101,10 +110,7 @@ namespace Leon {
         if (UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, smoke, InMuzzle))
             ++spawnCount;
 
-        if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
-            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 1.0f);
-        else
-            UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_RifleFire", InMuzzle, 1.0f, 5000.0f);
+        PlayWeaponFireSound(Ctx, InMuzzle);
         return spawnCount;
     }
 
@@ -152,10 +158,7 @@ namespace Leon {
         if (UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, impact, InTraceEnd))
             ++spawnCount;
 
-        if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
-            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 1.15f);
-        else
-            UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_RifleFire", InMuzzle, 1.1f, 5200.0f);
+        PlayWeaponFireSound(Ctx, InMuzzle);
         if (bHitCharacter)
             UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_HitConfirm", InTraceEnd, 0.9f, 3000.0f);
         return spawnCount;
@@ -212,10 +215,7 @@ namespace Leon {
             }
         }
 
-        if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
-            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 1.05f);
-        else
-            UGameplayStatics::PlaySoundAtLocation("/Game/Audio/SFX_RifleFire", InMuzzle, 1.0f, 4800.0f);
+        PlayWeaponFireSound(Ctx, InMuzzle);
         return spawnCount;
     }
 
@@ -263,8 +263,7 @@ namespace Leon {
         if (UGameplayStatics::SpawnEmitterAtLocation(Ctx.World, smoke, InMuzzle + n * 0.35f))
             ++spawnCount;
 
-        if (Ctx.OwnerCharacter && Ctx.OwnerCharacter->IsLocallyControlled())
-            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_RifleFire", 0.35f);
+        PlayWeaponFireSound(Ctx, InMuzzle);
         return spawnCount;
     }
 

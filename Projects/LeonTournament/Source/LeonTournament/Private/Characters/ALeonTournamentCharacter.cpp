@@ -8,6 +8,7 @@
 #include "Engine/Components.hpp"
 #include "Engine/UEngine.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Gameplay/APlayerController.hpp"
 #include "Gameplay/FControlInput.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Assets/USkeleton.hpp"
@@ -620,6 +621,10 @@ namespace Leon {
     }
 
     void ALeonTournamentCharacter::OnServerRespawn(const glm::vec3& InLocation) {
+        if (IsLocallyControlled()) {
+            if (auto* pc = dynamic_cast<ALeonTournamentPlayerController*>(GetController()))
+                pc->LeaveSpectatorMode();
+        }
         bDeadFrozen = false;
         bSpawnProtected = false;
         SpawnProtectionRemaining = 0.0f;
@@ -662,8 +667,12 @@ namespace Leon {
             if (!pc->IsGameInputAllowed())
                 return;
         }
-        // Free death camera: orbit look only (actor yaw frozen via ShouldApplyControlYawToActor).
+        // Free death camera: orbit look only when not spectating a teammate.
         if (bDeadFrozen) {
+            if (auto* pc = dynamic_cast<APlayerController*>(GetController())) {
+                if (pc->IsSpectating())
+                    return;
+            }
             if (!IsBotControlled())
                 ApplyLookInput(DeltaSeconds, false);
             return;

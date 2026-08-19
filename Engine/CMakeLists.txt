@@ -114,6 +114,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/AWorldSettings.cpp
     Source/Runtime/Gameplay/Private/UGameplayStatics.cpp
     Source/Runtime/Gameplay/Private/FOnScreenDebugMessage.cpp
+    Source/Runtime/Gameplay/Private/FGameplayTag.cpp
     Source/Runtime/Gameplay/Private/UActorComponent.cpp
     Source/Runtime/Gameplay/Private/USceneComponent.cpp
     Source/Runtime/Gameplay/Private/UHealthComponent.cpp

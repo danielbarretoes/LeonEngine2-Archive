@@ -35,6 +35,16 @@ namespace Leon {
         return conn.get();
     }
 
+    float UNetDriver::GetPingMsForPlayer(int32_t InPlayerId) const {
+        if (InPlayerId < 0)
+            return 0.0f;
+        for (const auto& conn : Connections) {
+            if (conn && conn->BoundPlayerId == InPlayerId)
+                return conn->PingMs;
+        }
+        return 0.0f;
+    }
+
     bool UNetDriver::IsRPCBatch(const std::vector<uint8_t>& InBytes) {
         if (InBytes.size() < 4)
             return false;
@@ -302,8 +312,16 @@ namespace Leon {
                     pc->Possess(pawn);
             }
             pawn->SetLocalRole(bOwnPawn ? ENetRole::AutonomousProxy : ENetRole::SimulatedProxy);
-            pawn->SetActorLocation({x, y, z});
-            pawn->SetActorRotation({rx, ry, rz});
+            if (auto* character = dynamic_cast<ACharacter*>(pawn)) {
+                if (bOwnPawn) {
+                    character->SetNetServerTransform({x, y, z}, {rx, ry, rz});
+                } else {
+                    character->SetNetTargetTransform({x, y, z}, {rx, ry, rz});
+                }
+            } else {
+                pawn->SetActorLocation({x, y, z});
+                pawn->SetActorRotation({rx, ry, rz});
+            }
             if (auto* character = dynamic_cast<ACharacter*>(pawn)) {
                 FAnimRepState anim;
                 anim.Speed = speed;

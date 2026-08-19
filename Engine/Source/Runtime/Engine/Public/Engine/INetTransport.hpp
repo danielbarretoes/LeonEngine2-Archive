@@ -39,6 +39,12 @@ namespace Leon {
         uint32_t BytesSent = 0;
         uint32_t BytesReceived = 0;
         float PingMs = 0.0f;
+
+        /** Per-peer RTT when the transport tracks multiple connections (ENet server). */
+        virtual float GetPeerPingMs(int32_t InConnectionId) const {
+            (void)InConnectionId;
+            return PingMs;
+        }
     };
 
 } // namespace Leon

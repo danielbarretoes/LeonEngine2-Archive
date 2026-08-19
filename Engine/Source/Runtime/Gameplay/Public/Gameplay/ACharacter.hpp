@@ -13,6 +13,8 @@
 #include "Physics/FHitResult.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
 
 namespace Leon {
 
@@ -138,6 +140,22 @@ namespace Leon {
         void SetMeshHiddenInGame(bool bHidden);
         bool IsMeshHiddenInGame() const { return bMeshHiddenInGame; }
 
+        /** Server snapshot pose for AutonomousProxy correction (client prediction). */
+        void SetNetServerTransform(const glm::vec3& InLocation, const glm::vec3& InRotation);
+        bool HasNetServerTransform() const { return bHasNetServerTransform; }
+        const glm::vec3& GetNetServerLocation() const { return NetServerLocation; }
+        const glm::vec3& GetNetServerRotation() const { return NetServerRotation; }
+
+        /** Interpolation target for remote SimulatedProxy pawns. */
+        void SetNetTargetTransform(const glm::vec3& InLocation, const glm::vec3& InRotation);
+        void SnapToNetTarget();
+
+        /** Authority-only pose ring buffer for hitscan lag compensation. */
+        void RecordNetPoseHistory(float InDeltaSeconds);
+        bool RewindToTime(float InTargetTime);
+        void RestoreNetPoseAfterRewind();
+        float GetNetPoseClock() const { return NetPoseClock; }
+
     protected:
         /** When false, look still drives the camera but does not yaw the pawn (death free-cam). */
         virtual bool ShouldApplyControlYawToActor() const { return true; }
@@ -147,6 +165,8 @@ namespace Leon {
         FControlInput BuildLocalControlInput() const;
         void ApplyControlSchema(const FControlInput& InInput);
         void FlushPendingControlInput(float DeltaSeconds);
+        void SmoothSimulatedProxy(float DeltaSeconds);
+        bool SampleNetPoseAtTime(float InTargetTime, glm::vec3& OutLocation, glm::vec3& OutRotation) const;
 
     private:
         void SnapToFloor();
@@ -186,6 +206,28 @@ namespace Leon {
         glm::vec3 LastLocation{0.0f};
         glm::vec3 LastMoveDir{0.0f, 0.0f, 1.0f};
         bool bHasLastLocation = false;
+
+        struct FNetPoseSample {
+            float Time = 0.0f;
+            glm::vec3 Location{0.0f};
+            glm::vec3 Rotation{0.0f};
+        };
+        static constexpr int32_t kNetPoseHistorySize = 16;
+        std::array<FNetPoseSample, kNetPoseHistorySize> NetPoseHistory{};
+        int32_t NetPoseHistoryCount = 0;
+        int32_t NetPoseHistoryHead = 0;
+        float NetPoseClock = 0.0f;
+        bool bNetPoseRewound = false;
+        glm::vec3 SavedRewindLocation{0.0f};
+        glm::vec3 SavedRewindRotation{0.0f};
+
+        glm::vec3 NetServerLocation{0.0f};
+        glm::vec3 NetServerRotation{0.0f};
+        bool bHasNetServerTransform = false;
+
+        glm::vec3 NetTargetLocation{0.0f};
+        glm::vec3 NetTargetRotation{0.0f};
+        bool bHasNetTargetTransform = false;
     };
 
 } // namespace Leon

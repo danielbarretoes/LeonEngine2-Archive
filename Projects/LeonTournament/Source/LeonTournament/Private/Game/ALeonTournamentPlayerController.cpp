@@ -3,8 +3,12 @@
 #include "Core/FInput.hpp"
 #include "Core/FInputSettings.hpp"
 #include "ALeonTournamentGameMode.hpp"
+#include "ALeonTournamentCharacter.hpp"
+#include "ALeonTournamentPlayerState.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
+#include "Gameplay/APawn.hpp"
+#include "Gameplay/AController.hpp"
 
 #include <algorithm>
 
@@ -15,6 +19,18 @@ namespace Leon {
         constexpr float kKillConfirmSeconds = 1.15f;
         constexpr float kDamageFlashSeconds = 0.22f;
         constexpr float kKillStreakWindow = 3.25f;
+
+        std::string SpectatorDisplayNameForPawn(const APawn* InPawn) {
+            if (!InPawn)
+                return "Unknown";
+            if (const auto* ch = dynamic_cast<const ALeonTournamentCharacter*>(InPawn)) {
+                if (const AController* ctrl = ch->GetController()) {
+                    if (const auto* ps = dynamic_cast<const ALeonTournamentPlayerState*>(ctrl->GetPlayerState()))
+                        return ps->GetPlayerName();
+                }
+            }
+            return InPawn->GetName();
+        }
     } // namespace
 
     ALeonTournamentPlayerController::ALeonTournamentPlayerController(entt::entity InHandle, UWorld* InWorld,
@@ -74,6 +90,27 @@ namespace Leon {
             KillFeedText.clear();
         if (BannerRemaining <= 0.0f)
             BannerText.clear();
+
+        if (IsSpectating() && bInMatch && !bPauseMenuOpen && IsGameInputAllowed()) {
+            const bool bPrev = FInput::IsKeyPressed(Key::Q);
+            const bool bNext = FInput::IsKeyPressed(Key::E);
+            if (bPrev && !bSpectatorPrevWasDown)
+                CycleSpectatorTarget(-1);
+            if (bNext && !bSpectatorNextWasDown)
+                CycleSpectatorTarget(1);
+            bSpectatorPrevWasDown = bPrev;
+            bSpectatorNextWasDown = bNext;
+
+            if (auto* target = dynamic_cast<APawn*>(GetViewTarget()))
+                SpectatorTargetName = SpectatorDisplayNameForPawn(target);
+            else
+                SpectatorTargetName.clear();
+        } else {
+            bSpectatorPrevWasDown = false;
+            bSpectatorNextWasDown = false;
+            if (!IsSpectating())
+                SpectatorTargetName.clear();
+        }
     }
 
     bool ALeonTournamentPlayerController::ConsumeEscapePressed() {
@@ -113,6 +150,16 @@ namespace Leon {
             return;
         }
 
+        bool bScoreKill = true;
+        if (UWorld* world = GetWorld()) {
+            if (auto* gs = dynamic_cast<ALeonTournamentGameState*>(world->GetGameState()))
+                bScoreKill = gs->GetMatchState() == ELeonTournamentMatchState::Playing;
+        }
+        if (!bScoreKill) {
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_HitConfirm", bHeadshot ? 0.75f : 0.55f);
+            return;
+        }
+
         if (KillStreakWindowRemaining > 0.0f)
             ++KillStreak;
         else
@@ -124,14 +171,18 @@ namespace Leon {
             KillFeedText = "TRIPLE KILL";
             PushBanner("TRIPLE KILL", 1.6f, {1.0f, 0.55f, 0.15f, 1.0f});
             UGameplayStatics::PlaySound2D("/Game/Audio/SFX_TripleKill", 0.9f);
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_Announce", 0.55f);
         } else if (KillStreak == 2) {
             KillFeedText = "DOUBLE KILL";
             PushBanner("DOUBLE KILL", 1.4f, {1.0f, 0.75f, 0.2f, 1.0f});
             UGameplayStatics::PlaySound2D("/Game/Audio/SFX_DoubleKill", 0.85f);
+            UGameplayStatics::PlaySound2D("/Game/Audio/SFX_Announce", 0.5f);
         } else {
             KillFeedText = "KILL";
             PushBanner("KILL", 1.0f, {1.0f, 0.85f, 0.25f, 1.0f});
             UGameplayStatics::PlaySound2D("/Game/Audio/SFX_KillConfirm", 0.8f);
+            if (bHeadshot)
+                UGameplayStatics::PlaySound2D("/Game/Audio/SFX_Announce", 0.45f);
         }
     }
 
@@ -148,6 +199,40 @@ namespace Leon {
         KillFeedText.clear();
         PushBanner("YOU DIED", 2.2f, {1.0f, 0.35f, 0.3f, 1.0f});
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_YouDied", 0.85f);
+
+        std::vector<APawn*> targets;
+        CollectSpectatorTargets(targets);
+        AActor* initial = targets.empty() ? nullptr : targets.front();
+        EnterSpectatorMode(initial);
+        SpectatorTargetName = initial ? SpectatorDisplayNameForPawn(dynamic_cast<APawn*>(initial)) : "";
+    }
+
+    void ALeonTournamentPlayerController::CollectSpectatorTargets(std::vector<APawn*>& OutTargets) const {
+        OutTargets.clear();
+        if (!World)
+            return;
+
+        const auto* localChar = GetPawn<ALeonTournamentCharacter>();
+        const auto* localPs = dynamic_cast<const ALeonTournamentPlayerState*>(GetPlayerState());
+        const ELeonTournamentTeam localTeam = localPs ? localPs->GetTeam() : ELeonTournamentTeam::None;
+
+        ELeonTournamentGameModeId mode = ELeonTournamentGameModeId::TeamDeathmatch;
+        if (const auto* gm = dynamic_cast<const ALeonTournamentGameMode*>(World->GetGameMode()))
+            mode = gm->GetActiveGameMode();
+        const bool bTeamMode = mode != ELeonTournamentGameModeId::FreeForAll;
+
+        for (const auto& actor : World->GetAllActors()) {
+            auto* ch = dynamic_cast<ALeonTournamentCharacter*>(actor.get());
+            if (!ch || ch == localChar || ch->IsPendingKill() || ch->IsDeadFrozen())
+                continue;
+            if (bTeamMode && localTeam != ELeonTournamentTeam::None && ch->GetTeam() != localTeam)
+                continue;
+            OutTargets.push_back(ch);
+        }
+
+        std::sort(OutTargets.begin(), OutTargets.end(), [](const APawn* a, const APawn* b) {
+            return SpectatorDisplayNameForPawn(a) < SpectatorDisplayNameForPawn(b);
+        });
     }
 
 } // namespace Leon
