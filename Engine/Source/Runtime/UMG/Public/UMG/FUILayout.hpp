@@ -1,5 +1,6 @@
 #pragma once
 
+#include "UMG/FUITypeScale.hpp"
 #include "UMG/UButton.hpp"
 #include "UMG/UTextBlock.hpp"
 #include "UMG/UCanvasPanel.hpp"
@@ -16,17 +17,17 @@ namespace Leon {
      * Game-specific GI/GM accessors stay in the project wrapper.
      */
     struct FUILayout {
-        static constexpr float kFsCaption = 0.32f;
-        static constexpr float kFsBody = 0.38f;
-        static constexpr float kFsLabel = 0.42f;
-        static constexpr float kFsButton = 0.42f;
-        static constexpr float kFsSub = 0.48f;
-        static constexpr float kFsTitle = 0.65f;
-        static constexpr float kFsHero = 0.78f;
-        static constexpr float kFsScore = 0.72f;
-        static constexpr float kFsTimer = 0.78f;
-        static constexpr float kFsVital = 0.85f;
-        static constexpr float kFsBanner = 1.05f;
+        static constexpr float kFsCaption = FUITypeScale::Small;
+        static constexpr float kFsBody = FUITypeScale::P;
+        static constexpr float kFsLabel = FUITypeScale::H3;
+        static constexpr float kFsButton = FUITypeScale::Button;
+        static constexpr float kFsSub = FUITypeScale::H3;
+        static constexpr float kFsTitle = FUITypeScale::H2;
+        static constexpr float kFsHero = FUITypeScale::H1;
+        static constexpr float kFsScore = FUITypeScale::Score;
+        static constexpr float kFsTimer = FUITypeScale::Timer;
+        static constexpr float kFsVital = FUITypeScale::Vital;
+        static constexpr float kFsBanner = FUITypeScale::Banner;
         static constexpr float kDesignWidth = 1280.0f;
         static constexpr float kDesignHeight = 720.0f;
 
@@ -40,10 +41,37 @@ namespace Leon {
             return std::clamp(std::min(sx, sy), 0.7f, 2.25f);
         }
 
+        /**
+         * Like LayoutScale, but never grows taller than the viewport for a given design stack height.
+         * Prevents menus from pushing buttons off-screen at 1080p (or dense 720p layouts).
+         */
+        static float LayoutScaleFit(float InViewportW, float InViewportH, float InDesignContentHeight,
+                                    float InVerticalMargin = 96.0f) {
+            float scale = LayoutScale(InViewportW, InViewportH);
+            if (InDesignContentHeight > 1.0f) {
+                const float avail = std::max(InViewportH - InVerticalMargin, 120.0f);
+                scale = std::min(scale, avail / InDesignContentHeight);
+            }
+            return std::clamp(scale, 0.55f, 2.25f);
+        }
+
         static float LayoutScaleForWindow() {
             const glm::vec2 vp = ResolveWindowSize();
             return LayoutScale(vp.x, vp.y);
         }
+
+        /** Prefer window size; fall back to canvas size then design. */
+        static glm::vec2 ResolveViewportSize(const UCanvasPanel* InRoot);
+
+        /**
+         * Scale root slots/fonts from last AppliedScale to the current window scale.
+         * When InDesignContentHeight > 0, uses LayoutScaleFit so tall menus stay on-screen.
+         */
+        static float SyncResolutionScale(UCanvasPanel& InRoot, float& InOutAppliedScale, glm::vec2& InOutAppliedViewport,
+                                         float InDesignContentHeight = 0.0f, float InVerticalMargin = 96.0f);
+
+        /** True on rising edge of a gamepad button (respects FInputSettings). */
+        static bool GamepadEdge(int InButton, bool& InOutWasDown);
 
         static FMargin BoxTL(float InX, float InY, float InW, float InH);
         static FMargin BoxBL(float InX, float InBottom, float InW, float InH);

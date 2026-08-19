@@ -50,6 +50,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Asset/TextureImportTests.cpp
     Asset/HDRAssetTests.cpp
     Asset/MeshImportTests.cpp
+    Asset/AssetCacheUnloadTests.cpp
     Physics/TriangleMeshCollisionTests.cpp
     Physics/JoltPhysicsSceneTests.cpp
     Asset/SkeletalAnimationTests.cpp
@@ -72,6 +73,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Gameplay/AudioDeviceTests.cpp
     Lightmass/StaticLightingTests.cpp
     Renderer/ViewportResizeTests.cpp
+    Renderer/RenderDebugHotkeysTests.cpp
     Renderer/GoldenSceneTests.cpp
     Core/FrameProfilerTests.cpp
     Core/WindowDisplayPolicyTests.cpp
@@ -89,6 +91,7 @@ set(LEON_TOURNAMENT_TEST_SOURCES
     LeonTournament/SkeletalImportTests.cpp
     LeonTournament/NamingConventionTests.cpp
     LeonTournament/GraphicsQualityTests.cpp
+    LeonTournament/RenderLabTests.cpp
 )
 
 set(LEON_TOURNAMENT_RUNTIME_SOURCES
@@ -107,10 +110,10 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ALeonTournamentHUD.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentRenderLabGameMode.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
-    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentGraphicsQuality.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp
@@ -118,6 +121,7 @@ set(LEON_TOURNAMENT_RUNTIME_SOURCES
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentScoreboardWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentPauseWidget.cpp
     ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMatchEndWidget.cpp
+    ${CMAKE_SOURCE_DIR}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentRenderLabWidget.cpp
 )
 
 function(leon_configure_test_exe TargetName)

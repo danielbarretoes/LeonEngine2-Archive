@@ -12,7 +12,7 @@
 #include "UMG/UWidgetSwitcher.hpp"
 #include "UMG/UScrollBox.hpp"
 #include "FLeonTournamentTypes.hpp"
-#include "FLeonTournamentGraphicsQuality.hpp"
+#include "Engine/FGraphicsQuality.hpp"
 
 #include <array>
 #include <cstdint>
@@ -33,12 +33,13 @@ namespace Leon {
         void NotifyCharacterCycled();
         void OnOffline();
         void OnAnimLab();
+        void OnRenderLab();
         void OnHostLan();
         void OnJoinLan();
         void OnQuit();
         void OnOpenSettings();
         void OnCloseSettings();
-        void OnSelectGraphicsQuality(ELeonTournamentGraphicsQuality InQuality);
+        void OnSelectGraphicsQuality(EGraphicsQuality InQuality);
         void SetSettingsPageVisible(bool bInSettings);
         void RefreshSettingsQualityButtons();
         uint32_t ViewportWidth() const;
@@ -61,6 +62,7 @@ namespace Leon {
         std::vector<TRef<UWidget>> SettingsPageWidgets;
         glm::vec2 AppliedViewport{0.0f, 0.0f};
         float AppliedLayoutScale = 0.0f;
+        float DesignContentHeight = 0.0f;
         bool bInSettings = false;
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;
@@ -102,6 +104,7 @@ namespace Leon {
         TRef<UTextBlock> CharacterLabel;
         glm::vec2 AppliedViewport{0.0f, 0.0f};
         float AppliedLayoutScale = 0.0f;
+        float DesignContentHeight = 0.0f;
         TRef<UTextBlock> MapLabel;
         TRef<UTextBlock> GameModeLabel;
         TRef<UTextBlock> TitleText;
@@ -225,6 +228,60 @@ namespace Leon {
         glm::vec2 AppliedViewport{0.0f, 0.0f};
         bool bPadAWasDown = false;
         bool bPadStartWasDown = false;
+    };
+
+    /** Fixed-camera graphics lab overlay: presets + per-category knobs. */
+    class ULeonTournamentRenderLabWidget : public UUserWidget {
+    public:
+        ULeonTournamentRenderLabWidget(const std::string& InName = "LeonTournamentRenderLab");
+        void Construct() override;
+        void Tick(float InDeltaTime) override;
+
+    private:
+        void Build();
+        void ApplyViewportLayout();
+        void RefreshLabels();
+        void RefreshDebugStatus();
+        void ApplyPreset(EGraphicsQuality InQuality);
+        void CycleShadowResolution();
+        void CycleCascadeCount();
+        void CycleShadowDistance();
+        void CycleShadowFilter();
+        void CyclePlanarQuality();
+        void TogglePlanar();
+        void ToggleSSAO();
+        void ToggleBloom();
+        void ToggleFXAA();
+        void OnCycleCamera();
+        void OnBack();
+        void SyncGiQualityFromWorld();
+        void CommitLabKnobs();
+        FGraphicsPreset ReadCurrent() const;
+
+        TRef<UCanvasPanel> Root;
+        TRef<UImage> Panel;
+        TRef<UImage> DebugPanel;
+        TRef<UTextBlock> StatusText;
+        TRef<UTextBlock> DebugTitle;
+        TRef<UTextBlock> DebugViewLine;
+        std::array<TRef<UTextBlock>, 12> DebugKeyLines;
+        TRef<UButton> PresetLowBtn;
+        TRef<UButton> PresetMedBtn;
+        TRef<UButton> PresetHighBtn;
+        TRef<UButton> ShadowResBtn;
+        TRef<UButton> CascadeBtn;
+        TRef<UButton> ShadowDistBtn;
+        TRef<UButton> ShadowFilterBtn;
+        TRef<UButton> PlanarToggleBtn;
+        TRef<UButton> PlanarQualityBtn;
+        TRef<UButton> SsaoBtn;
+        TRef<UButton> BloomBtn;
+        TRef<UButton> FxaaBtn;
+        TRef<UButton> CameraBtn;
+        TRef<UButton> BackBtn;
+        float AppliedLayoutScale = 0.0f;
+        glm::vec2 AppliedViewport{0.0f, 0.0f};
+        bool bPadBWasDown = false;
     };
 
 } // namespace Leon

@@ -278,6 +278,7 @@ namespace Leon {
         NextCharBtn->OnClicked.AddLambda([this]() { OnNextCharacter(); });
 
         RefreshBotLabels();
+        DesignContentHeight = y + std::max(start->GetSize().y, back->GetSize().y) + 8.0f;
         SetWidgetTree(Root);
         ApplyViewportLayout();
     }
@@ -286,8 +287,10 @@ namespace Leon {
         if (!Root)
             return;
         SetSize(FLeonTournamentUILayout::ResolveViewportSize(Root.get()));
-        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport);
-        FLeonTournamentUILayout::ApplyMenuRailLayout(*Root, Panel, PrevCharBtn, CharacterLabel, NextCharBtn, true);
+        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport, DesignContentHeight,
+                                                     100.0f);
+        FLeonTournamentUILayout::ApplyMenuRailLayout(*Root, Panel, PrevCharBtn, CharacterLabel, NextCharBtn, true,
+                                                     AppliedLayoutScale);
     }
 
     void ULeonTournamentLobbyWidget::RefreshBotLabels() {
@@ -402,7 +405,7 @@ namespace Leon {
     void ULeonTournamentLobbyWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
         const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
-        const float scale = FUILayout::LayoutScale(vp.x, vp.y);
+        const float scale = FUILayout::LayoutScaleFit(vp.x, vp.y, DesignContentHeight, 100.0f);
         if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
             ApplyViewportLayout();
         RefreshCharacterLabel();

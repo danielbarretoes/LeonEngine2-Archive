@@ -130,50 +130,57 @@ namespace Leon {
                        FUILayout::BoxLeftStretch(0.0f, kLeonTournamentMenuPanelDesignWidth));
 
         constexpr float leftX = 48.0f;
-        float y = 48.0f;
+        float y = 36.0f;
 
         auto title = std::make_shared<UTextBlock>("Title");
         title->SetText("LEON TOURNAMENT");
         title->SetFontScale(kFsHero);
         title->SetColor({0.90f, 0.93f, 1.0f, 1.0f});
         PlaceTextTL(*Root, title, leftX, y);
-        y += MeasurePadded(title->GetText(), title->GetFontScale()).y + 4.0f;
+        y += MeasurePadded(title->GetText(), title->GetFontScale()).y + 2.0f;
 
         Subtitle = std::make_shared<UTextBlock>("Sub");
         Subtitle->SetText("2v2 Team Deathmatch");
         Subtitle->SetFontScale(kFsBody);
         Subtitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
         PlaceTextTL(*Root, Subtitle, leftX, y);
-        y += MeasurePadded(Subtitle->GetText(), Subtitle->GetFontScale()).y + 28.0f;
+        y += MeasurePadded(Subtitle->GetText(), Subtitle->GetFontScale()).y + 16.0f;
 
         const float stackY = y;
+        constexpr float btnGap = 8.0f;
+        constexpr float btnMinH = 40.0f;
 
-        auto play = MakeButton("Play", "PLAY", kFsButton, 300.0f);
+        auto play = MakeButton("Play", "PLAY", kFsButton, 300.0f, btnMinH);
         play->OnClicked.AddLambda([this]() { OnOffline(); });
         PlaceButtonTL(*Root, play, leftX, y);
-        y += play->GetSize().y + 12.0f;
+        y += play->GetSize().y + btnGap;
 
-        auto training = MakeButton("Training", "TRAINING", kFsButton, 300.0f);
+        auto training = MakeButton("Training", "TRAINING", kFsButton, 300.0f, btnMinH);
         training->OnClicked.AddLambda([this]() { OnAnimLab(); });
         PlaceButtonTL(*Root, training, leftX, y);
-        y += training->GetSize().y + 12.0f;
+        y += training->GetSize().y + btnGap;
 
-        auto host = MakeButton("Host", "HOST LAN", kFsButton, 300.0f);
+        auto renderLab = MakeButton("RenderLab", "RENDER LAB", kFsButton, 300.0f, btnMinH);
+        renderLab->OnClicked.AddLambda([this]() { OnRenderLab(); });
+        PlaceButtonTL(*Root, renderLab, leftX, y);
+        y += renderLab->GetSize().y + btnGap;
+
+        auto host = MakeButton("Host", "HOST LAN", kFsButton, 300.0f, btnMinH);
         host->OnClicked.AddLambda([this]() { OnHostLan(); });
         PlaceButtonTL(*Root, host, leftX, y);
-        y += host->GetSize().y + 12.0f;
+        y += host->GetSize().y + btnGap;
 
-        auto join = MakeButton("Join", "JOIN LAN", kFsButton, 300.0f);
+        auto join = MakeButton("Join", "JOIN LAN", kFsButton, 300.0f, btnMinH);
         join->OnClicked.AddLambda([this]() { OnJoinLan(); });
         PlaceButtonTL(*Root, join, leftX, y);
-        y += join->GetSize().y + 16.0f;
+        y += join->GetSize().y + 10.0f;
 
         auto ipLabel = std::make_shared<UTextBlock>("IpLabel");
         ipLabel->SetText("IP Address");
         ipLabel->SetFontScale(kFsCaption);
         ipLabel->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
         PlaceTextTL(*Root, ipLabel, leftX, y);
-        y += MeasurePadded(ipLabel->GetText(), ipLabel->GetFontScale()).y + 4.0f;
+        y += MeasurePadded(ipLabel->GetText(), ipLabel->GetFontScale()).y + 2.0f;
 
         AddressField = std::make_shared<UEditableText>("JoinAddress");
         auto* session = GI();
@@ -184,20 +191,21 @@ namespace Leon {
             if (auto* inst = GI())
                 inst->SetJoinAddress(InText.empty() ? "127.0.0.1" : InText);
         };
-        const float fieldH = 44.0f;
+        const float fieldH = 36.0f;
         const float fieldW = 300.0f;
         AddressField->SetSize({fieldW, fieldH});
         Root->AddChild(AddressField, FAnchors::TopLeft(), BoxTL(leftX, y, fieldW, fieldH));
-        y += fieldH + 24.0f;
+        y += fieldH + 12.0f;
 
-        auto settings = MakeButton("Settings", "SETTINGS", kFsButton, 300.0f);
+        auto settings = MakeButton("Settings", "SETTINGS", kFsButton, 300.0f, btnMinH);
         settings->OnClicked.AddLambda([this]() { OnOpenSettings(); });
         PlaceButtonTL(*Root, settings, leftX, y);
-        y += settings->GetSize().y + 12.0f;
+        y += settings->GetSize().y + btnGap;
 
-        auto quit = MakeButton("Quit", "QUIT", kFsButton, 300.0f);
+        auto quit = MakeButton("Quit", "QUIT", kFsButton, 300.0f, btnMinH);
         quit->OnClicked.AddLambda([this]() { OnQuit(); });
         PlaceButtonTL(*Root, quit, leftX, y);
+        DesignContentHeight = y + quit->GetSize().y + 8.0f;
 
         float settingsY = stackY;
         SettingsHint = std::make_shared<UTextBlock>("SettingsHint");
@@ -205,30 +213,31 @@ namespace Leon {
         SettingsHint->SetFontScale(kFsCaption);
         SettingsHint->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
         PlaceTextTL(*Root, SettingsHint, leftX, settingsY);
-        settingsY += MeasurePadded(SettingsHint->GetText(), SettingsHint->GetFontScale()).y + 12.0f;
+        settingsY += MeasurePadded(SettingsHint->GetText(), SettingsHint->GetFontScale()).y + 10.0f;
 
-        SettingsLowBtn = MakeButton("QualityLow", "LOW", kFsButton, 300.0f);
-        SettingsLowBtn->OnClicked.AddLambda([this]() { OnSelectGraphicsQuality(ELeonTournamentGraphicsQuality::Low); });
+        SettingsLowBtn = MakeButton("QualityLow", "LOW", kFsButton, 300.0f, btnMinH);
+        SettingsLowBtn->OnClicked.AddLambda([this]() { OnSelectGraphicsQuality(EGraphicsQuality::Low); });
         PlaceButtonTL(*Root, SettingsLowBtn, leftX, settingsY);
-        settingsY += SettingsLowBtn->GetSize().y + 12.0f;
+        settingsY += SettingsLowBtn->GetSize().y + btnGap;
 
-        SettingsMediumBtn = MakeButton("QualityMedium", "MEDIUM", kFsButton, 300.0f);
+        SettingsMediumBtn = MakeButton("QualityMedium", "MEDIUM", kFsButton, 300.0f, btnMinH);
         SettingsMediumBtn->OnClicked.AddLambda(
-            [this]() { OnSelectGraphicsQuality(ELeonTournamentGraphicsQuality::Medium); });
+            [this]() { OnSelectGraphicsQuality(EGraphicsQuality::Medium); });
         PlaceButtonTL(*Root, SettingsMediumBtn, leftX, settingsY);
-        settingsY += SettingsMediumBtn->GetSize().y + 12.0f;
+        settingsY += SettingsMediumBtn->GetSize().y + btnGap;
 
-        SettingsHighBtn = MakeButton("QualityHigh", "HIGH", kFsButton, 300.0f);
+        SettingsHighBtn = MakeButton("QualityHigh", "HIGH", kFsButton, 300.0f, btnMinH);
         SettingsHighBtn->OnClicked.AddLambda(
-            [this]() { OnSelectGraphicsQuality(ELeonTournamentGraphicsQuality::High); });
+            [this]() { OnSelectGraphicsQuality(EGraphicsQuality::High); });
         PlaceButtonTL(*Root, SettingsHighBtn, leftX, settingsY);
-        settingsY += SettingsHighBtn->GetSize().y + 24.0f;
+        settingsY += SettingsHighBtn->GetSize().y + 16.0f;
 
-        SettingsBackBtn = MakeButton("SettingsBack", "BACK", kFsButton, 300.0f);
+        SettingsBackBtn = MakeButton("SettingsBack", "BACK", kFsButton, 300.0f, btnMinH);
         SettingsBackBtn->OnClicked.AddLambda([this]() { OnCloseSettings(); });
         PlaceButtonTL(*Root, SettingsBackBtn, leftX, settingsY);
+        DesignContentHeight = std::max(DesignContentHeight, settingsY + SettingsBackBtn->GetSize().y + 8.0f);
 
-        MainPageWidgets = {play, training, host, join, ipLabel, AddressField, settings, quit};
+        MainPageWidgets = {play, training, renderLab, host, join, ipLabel, AddressField, settings, quit};
         SettingsPageWidgets = {SettingsHint, SettingsLowBtn, SettingsMediumBtn, SettingsHighBtn, SettingsBackBtn};
         SetSettingsPageVisible(false);
 
@@ -253,14 +262,16 @@ namespace Leon {
         if (!Root)
             return;
         SetSize(FLeonTournamentUILayout::ResolveViewportSize(Root.get()));
-        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport);
-        FLeonTournamentUILayout::ApplyMenuRailLayout(*Root, Panel, PrevCharBtn, CharacterLabel, NextCharBtn, false);
+        FLeonTournamentUILayout::SyncResolutionScale(*Root, AppliedLayoutScale, AppliedViewport, DesignContentHeight,
+                                                     100.0f);
+        FLeonTournamentUILayout::ApplyMenuRailLayout(*Root, Panel, PrevCharBtn, CharacterLabel, NextCharBtn, false,
+                                                     AppliedLayoutScale);
     }
 
     void ULeonTournamentMainMenuWidget::Tick(float InDeltaTime) {
         UUserWidget::Tick(InDeltaTime);
         const glm::vec2 vp = FLeonTournamentUILayout::ResolveViewportSize(Root.get());
-        const float scale = FUILayout::LayoutScale(vp.x, vp.y);
+        const float scale = FUILayout::LayoutScaleFit(vp.x, vp.y, DesignContentHeight, 100.0f);
         if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f) {
             ApplyViewportLayout();
             if (bInSettings)
@@ -327,6 +338,14 @@ namespace Leon {
             gm->OpenAnimLab();
     }
 
+    void ULeonTournamentMainMenuWidget::OnRenderLab() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
+        if (IsClientWorld(OwningPlayer))
+            return;
+        if (auto* gm = GM(OwningPlayer))
+            gm->OpenRenderLab();
+    }
+
     void ULeonTournamentMainMenuWidget::OnHostLan() {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (auto* gi = GI()) {
@@ -378,21 +397,21 @@ namespace Leon {
     void ULeonTournamentMainMenuWidget::RefreshSettingsQualityButtons() {
         const uint32_t w = ViewportWidth();
         const uint32_t h = ViewportHeight();
-        const auto quality = GI() ? GI()->GetGraphicsQuality() : ELeonTournamentGraphicsQuality::High;
+        const auto quality = GI() ? GI()->GetGraphicsQuality() : EGraphicsQuality::High;
         const glm::vec4 selected{0.16f, 0.42f, 0.72f, 1.0f};
         const glm::vec4 idle{0.12f, 0.18f, 0.30f, 0.95f};
-        auto apply = [&](const TRef<UButton>& btn, ELeonTournamentGraphicsQuality q) {
+        auto apply = [&](const TRef<UButton>& btn, EGraphicsQuality q) {
             if (!btn)
                 return;
             if (auto label = std::dynamic_pointer_cast<UTextBlock>(btn->GetContent())) {
-                label->SetText(FLeonTournamentGraphicsQuality::FormatVRAMLabel(q, w, h));
+                label->SetText(FGraphicsQuality::FormatVRAMLabel(q, w, h));
                 label->SetSize(FUIRenderer::MeasureString(label->GetText(), label->GetFontScale()));
             }
             btn->SetNormalColor(q == quality ? selected : idle);
         };
-        apply(SettingsLowBtn, ELeonTournamentGraphicsQuality::Low);
-        apply(SettingsMediumBtn, ELeonTournamentGraphicsQuality::Medium);
-        apply(SettingsHighBtn, ELeonTournamentGraphicsQuality::High);
+        apply(SettingsLowBtn, EGraphicsQuality::Low);
+        apply(SettingsMediumBtn, EGraphicsQuality::Medium);
+        apply(SettingsHighBtn, EGraphicsQuality::High);
     }
 
     void ULeonTournamentMainMenuWidget::OnOpenSettings() {
@@ -406,14 +425,14 @@ namespace Leon {
         SetSettingsPageVisible(false);
     }
 
-    void ULeonTournamentMainMenuWidget::OnSelectGraphicsQuality(ELeonTournamentGraphicsQuality InQuality) {
+    void ULeonTournamentMainMenuWidget::OnSelectGraphicsQuality(EGraphicsQuality InQuality) {
         UGameplayStatics::PlaySound2D("/Game/Audio/SFX_UIClick", 0.5f);
         if (auto* gi = GI()) {
             gi->SetGraphicsQuality(InQuality);
             if (auto world = gi->GetWorld())
-                FLeonTournamentGraphicsQuality::ApplyToWorld(*world, InQuality);
+                FGraphicsQuality::ApplyToWorld(*world, InQuality);
         }
-        FLeonTournamentGraphicsQuality::PersistToEngineIni(InQuality);
+        FGraphicsQuality::PersistToEngineIni(InQuality);
         RefreshSettingsQualityButtons();
     }
 

@@ -103,6 +103,10 @@ namespace Leon {
             OverrideSequence->LinkSkeleton(Skeleton);
     }
 
+    void UAnimInstance::PlayOneShotOverride(const TRef<UAnimSequence>& InSeq, bool bLoop) {
+        SetOverrideSequence(InSeq, bLoop);
+    }
+
     void UAnimInstance::ClearOverrideSequence() {
         OverrideSequence = nullptr;
     }

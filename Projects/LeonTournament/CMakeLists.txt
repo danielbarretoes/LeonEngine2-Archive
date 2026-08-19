@@ -17,10 +17,10 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/UI/ALeonTournamentHUD.cpp
     Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
     Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp
+    Source/LeonTournament/Private/Game/ALeonTournamentRenderLabGameMode.cpp
     Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
     Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
     Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
-    Source/LeonTournament/Private/Game/FLeonTournamentGraphicsQuality.cpp
     Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
     Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
     Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp
@@ -28,6 +28,7 @@ add_executable(LeonTournament
     Source/LeonTournament/Private/UI/ULeonTournamentScoreboardWidget.cpp
     Source/LeonTournament/Private/UI/ULeonTournamentPauseWidget.cpp
     Source/LeonTournament/Private/UI/ULeonTournamentMatchEndWidget.cpp
+    Source/LeonTournament/Private/UI/ULeonTournamentRenderLabWidget.cpp
 )
 
 target_include_directories(LeonTournament PRIVATE

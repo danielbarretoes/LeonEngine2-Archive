@@ -6,12 +6,9 @@
 #include "Gameplay/APlayerController.hpp"
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
-#include "Core/FApplication.hpp"
-#include "Core/FInputSettings.hpp"
 #include "UMG/UWidget.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <glm/glm.hpp>
 
 namespace Leon {
@@ -20,18 +17,6 @@ namespace Leon {
         return UEngine::HasInstance()
                    ? dynamic_cast<ULeonTournamentGameInstance*>(UEngine::Get().GetGameInstance().get())
                    : nullptr;
-    }
-
-    bool FLeonTournamentUILayout::GamepadEdge(int InButton, bool& InOutWasDown) {
-        const FInputSettings& input = FInputSettings::Get();
-        if (!input.bEnableGamepad || !FInput::IsGamepadConnected(input.GamepadId)) {
-            InOutWasDown = false;
-            return false;
-        }
-        const bool down = FInput::IsGamepadButtonPressed(InButton, input.GamepadId);
-        const bool edge = down && !InOutWasDown;
-        InOutWasDown = down;
-        return edge;
     }
 
     ALeonTournamentGameMode* FLeonTournamentUILayout::GM(APlayerController* InPC) {
@@ -49,38 +34,12 @@ namespace Leon {
         return world && world->GetNetMode() == ENetMode::Client;
     }
 
-    glm::vec2 FLeonTournamentUILayout::ResolveViewportSize(const UCanvasPanel* InRoot) {
-        const glm::vec2 window = ResolveWindowSize();
-        if (window.x > 1.0f && window.y > 1.0f)
-            return window;
-        if (InRoot && InRoot->GetSize().x > 1.0f && InRoot->GetSize().y > 1.0f)
-            return InRoot->GetSize();
-        return {kDesignWidth, kDesignHeight};
-    }
-
-    float FLeonTournamentUILayout::SyncResolutionScale(UCanvasPanel& InRoot, float& InOutAppliedScale,
-                                                       glm::vec2& InOutAppliedViewport) {
-        const glm::vec2 vp = ResolveViewportSize(&InRoot);
-        const float target = LayoutScale(vp.x, vp.y);
-        InRoot.SetSize(vp);
-        if (InOutAppliedScale <= 1.0e-4f)
-            InOutAppliedScale = 1.0f;
-        const float factor = target / InOutAppliedScale;
-        if (std::abs(factor - 1.0f) > 0.001f || glm::length(vp - InOutAppliedViewport) > 1.0f) {
-            if (std::abs(factor - 1.0f) > 0.001f)
-                InRoot.ScaleLayout(factor);
-            InOutAppliedScale = target;
-            InOutAppliedViewport = vp;
-        }
-        return target;
-    }
-
     void FLeonTournamentUILayout::ApplyMenuRailLayout(UCanvasPanel& InRoot, const TRef<UWidget>& InPanel,
                                                       const TRef<UButton>& InPrev, const TRef<UTextBlock>& InLabel,
-                                                      const TRef<UButton>& InNext, bool bLobby) {
+                                                      const TRef<UButton>& InNext, bool bLobby, float InScale) {
         const glm::vec2 vp = ResolveViewportSize(&InRoot);
         InRoot.SetSize(vp);
-        const float s = LayoutScale(vp.x, vp.y);
+        const float s = InScale > 1.0e-4f ? InScale : LayoutScale(vp.x, vp.y);
         const float designPanel = bLobby ? kLeonTournamentLobbyPanelDesignWidth : kLeonTournamentMenuPanelDesignWidth;
         const float panelW = std::min(designPanel * s, vp.x * 0.62f);
         auto place = [&](const TRef<UWidget>& widget, const FAnchors& anchors, const FMargin& offsets) {

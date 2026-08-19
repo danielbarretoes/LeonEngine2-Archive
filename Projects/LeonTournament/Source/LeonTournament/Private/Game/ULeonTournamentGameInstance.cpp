@@ -1,5 +1,5 @@
 #include "ULeonTournamentGameInstance.hpp"
-#include "FLeonTournamentGraphicsQuality.hpp"
+#include "Engine/FGraphicsQuality.hpp"
 #include "Engine/UWorld.hpp"
 #include "FENetTransport.hpp"
 #include "Assets/FAssetPath.hpp"
@@ -42,12 +42,12 @@ namespace Leon {
         const std::string iniPath = FAssetPath::Combine(FProjectPaths::ProjectConfigDir(), "DefaultEngine.ini");
         const bool bLoaded = !iniPath.empty() && config.Load(iniPath);
         if (bLoaded && config.HasKey("/Script/Engine.RendererSettings", "GraphicsQuality")) {
-            GraphicsQuality = FLeonTournamentGraphicsQuality::Parse(
+            GraphicsQuality = FGraphicsQuality::Parse(
                 config.GetString("/Script/Engine.RendererSettings", "GraphicsQuality", "High"));
-            FLeonTournamentGraphicsQuality::ApplyToWorld(*world, GraphicsQuality);
+            FGraphicsQuality::ApplyToWorld(*world, GraphicsQuality);
             return;
         }
-        GraphicsQuality = FLeonTournamentGraphicsQuality::InferFromWorld(*world);
+        GraphicsQuality = FGraphicsQuality::InferFromWorld(*world);
     }
 
     void ULeonTournamentGameInstance::SetDesiredBotsTeam1(int32_t InCount) {

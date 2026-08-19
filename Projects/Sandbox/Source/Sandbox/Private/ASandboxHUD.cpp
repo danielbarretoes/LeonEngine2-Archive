@@ -1,8 +1,7 @@
 #include "ASandboxHUD.hpp"
-#include "USandboxMainMenuWidget.hpp"
+#include "USandboxRenderLabWidget.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FLog.hpp"
-#include "Engine/UEngine.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/UGameplayStatics.hpp"
 
@@ -15,48 +14,34 @@ namespace Leon {
         AHUD::BeginPlay();
 
         if (!PlayerController) {
-            LE_CORE_ERROR("ASandboxHUD::BeginPlay: PlayerController is null — menu cannot be created");
+            LE_CORE_ERROR("ASandboxHUD::BeginPlay: PlayerController is null");
             return;
         }
 
-        PlayerController->SetInputModeGameAndUI();
-        PlayerController->SetShowMouseCursor(true);
-
-        PrintString("Welcome to LeonEngine — fly into the spinning pickup; look down at the floor.", 5.0f);
-        CreateMainMenuIfNeeded();
-    }
-
-    void ASandboxHUD::CreateMainMenuIfNeeded() {
-        if (!PlayerController)
-            return;
-
-        const std::string& mapName = UEngine::Get().GetCurrentMapName();
-        const bool bIsShowcase = mapName.empty() || mapName.find("ShowcaseLevel") != std::string::npos;
-
-        auto widget = std::make_shared<USandboxMainMenuWidget>("SandboxMainMenu");
-        widget->SetIsShowcaseLayout(bIsShowcase);
-        widget->SetOwningPlayer(PlayerController);
-        widget->Construct();
-
-        MainMenuWidget = widget;
-        MainMenuWidget->AddToViewport(0);
-
-        if (!bIsShowcase) {
-            PrintString("Night Level — wet street uses the floor planar capture.", 4.0f);
+        RenderLabWidget = UUserWidget::CreateWidget<USandboxRenderLabWidget>(PlayerController);
+        if (RenderLabWidget) {
+            RenderLabWidget->AddToViewport(30);
+            RenderLabWidget->SetLabVisible(true);
+        } else {
+            PlayerController->SetInputModeGameOnly();
+            PlayerController->SetShowMouseCursor(false);
         }
 
-        LE_CORE_INFO("ASandboxHUD: Menu widget on viewport (map='{0}', widgets={1})", mapName,
-                     GetViewportWidgets().size());
+        PrintString("Sandbox Render Lab — H toggles panel; P reprints welcome.", 5.0f);
     }
 
     void ASandboxHUD::Tick(float DeltaSeconds) {
         AHUD::Tick(DeltaSeconds);
 
         const bool bPDown = FInput::IsKeyPressed(Key::P);
-        if (bPDown && !bPrintKeyWasDown) {
+        if (bPDown && !bPrintKeyWasDown)
             PrintString("Hello from LeonEngine!", 2.0f);
-        }
         bPrintKeyWasDown = bPDown;
+
+        const bool bHDown = FInput::IsKeyPressed(Key::H);
+        if (bHDown && !bHideKeyWasDown && RenderLabWidget)
+            RenderLabWidget->SetLabVisible(!RenderLabWidget->IsLabVisible());
+        bHideKeyWasDown = bHDown;
     }
 
 } // namespace Leon

@@ -53,6 +53,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Renderer/Private/FPerspectiveCamera.cpp
     Source/Runtime/Renderer/Private/FPostProcessPipeline.cpp
     Source/Runtime/Renderer/Private/FIBLGenerator.cpp
+    Source/Runtime/Renderer/Private/FRenderDebugHotkeys.cpp
     Source/Runtime/Renderer/Private/FDebugOverlay.cpp
     Source/Runtime/Renderer/Private/FDebugRenderer.cpp
     Source/Runtime/Renderer/Private/FParticleRenderer.cpp
@@ -92,6 +93,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Engine/Private/UNetDriver.cpp
     Source/Runtime/Engine/Private/ULoopbackNetDriver.cpp
     Source/Runtime/Engine/Private/UIpNetDriver.cpp
+    Source/Runtime/Engine/Private/FGraphicsQuality.cpp
     Source/Runtime/Gameplay/Private/AActor.cpp
     Source/Runtime/Gameplay/Private/ACameraActor.cpp
     Source/Runtime/Gameplay/Private/ACharacter.cpp

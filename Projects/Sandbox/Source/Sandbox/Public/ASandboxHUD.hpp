@@ -5,9 +5,9 @@
 
 namespace Leon {
 
-    /**
-     * @brief Sandbox HUD — scene-switch chip (Showcase ↔ Night) and PrintString demo.
-     */
+    class USandboxRenderLabWidget;
+
+    /** Sandbox HUD — Render Lab overlay (H to toggle) + PrintString demo (P). */
     class ASandboxHUD : public AHUD {
     public:
         ASandboxHUD() = default;
@@ -17,10 +17,9 @@ namespace Leon {
         void Tick(float DeltaSeconds) override;
 
     private:
-        void CreateMainMenuIfNeeded();
-
-        TRef<UUserWidget> MainMenuWidget;
+        TRef<USandboxRenderLabWidget> RenderLabWidget;
         bool bPrintKeyWasDown = false;
+        bool bHideKeyWasDown = false;
     };
 
 } // namespace Leon

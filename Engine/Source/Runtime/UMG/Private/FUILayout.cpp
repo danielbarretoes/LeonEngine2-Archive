@@ -1,5 +1,9 @@
 #include "UMG/FUILayout.hpp"
 #include "Core/FApplication.hpp"
+#include "Core/FInput.hpp"
+#include "Core/FInputSettings.hpp"
+
+#include <cmath>
 
 namespace Leon {
 
@@ -10,6 +14,45 @@ namespace Leon {
                 return {static_cast<float>(window.GetWidth()), static_cast<float>(window.GetHeight())};
         }
         return {kDesignWidth, kDesignHeight};
+    }
+
+    glm::vec2 FUILayout::ResolveViewportSize(const UCanvasPanel* InRoot) {
+        const glm::vec2 window = ResolveWindowSize();
+        if (window.x > 1.0f && window.y > 1.0f)
+            return window;
+        if (InRoot && InRoot->GetSize().x > 1.0f && InRoot->GetSize().y > 1.0f)
+            return InRoot->GetSize();
+        return {kDesignWidth, kDesignHeight};
+    }
+
+    float FUILayout::SyncResolutionScale(UCanvasPanel& InRoot, float& InOutAppliedScale,
+                                         glm::vec2& InOutAppliedViewport, float InDesignContentHeight,
+                                         float InVerticalMargin) {
+        const glm::vec2 vp = ResolveViewportSize(&InRoot);
+        const float target = LayoutScaleFit(vp.x, vp.y, InDesignContentHeight, InVerticalMargin);
+        InRoot.SetSize(vp);
+        if (InOutAppliedScale <= 1.0e-4f)
+            InOutAppliedScale = 1.0f;
+        const float factor = target / InOutAppliedScale;
+        if (std::abs(factor - 1.0f) > 0.001f || glm::length(vp - InOutAppliedViewport) > 1.0f) {
+            if (std::abs(factor - 1.0f) > 0.001f)
+                InRoot.ScaleLayout(factor);
+            InOutAppliedScale = target;
+            InOutAppliedViewport = vp;
+        }
+        return target;
+    }
+
+    bool FUILayout::GamepadEdge(int InButton, bool& InOutWasDown) {
+        const FInputSettings& input = FInputSettings::Get();
+        if (!input.bEnableGamepad || !FInput::IsGamepadConnected(input.GamepadId)) {
+            InOutWasDown = false;
+            return false;
+        }
+        const bool down = FInput::IsGamepadButtonPressed(InButton, input.GamepadId);
+        const bool edge = down && !InOutWasDown;
+        InOutWasDown = down;
+        return edge;
     }
 
     FMargin FUILayout::BoxTL(float InX, float InY, float InW, float InH) {
@@ -56,8 +99,8 @@ namespace Leon {
         const glm::vec2 m = FUIRenderer::MeasureString(InLabel, InFont);
         label->SetSize(m);
         btn->SetContent(label);
-        constexpr float padX = 36.0f;
-        constexpr float padY = 14.0f;
+        const float padX = 36.0f;
+        const float padY = InMinH > 0.0f ? 8.0f : 14.0f;
         const float w = std::max(InMinW, m.x + padX * 2.0f);
         const float h = std::max(InMinH > 0.0f ? InMinH : (m.y + padY * 2.0f), m.y + padY * 2.0f);
         btn->SetSize({w, h});

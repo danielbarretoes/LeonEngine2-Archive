@@ -1,13 +1,5 @@
 #include "FLeonTournamentArenaBuilder.hpp"
 #include "Gameplay/FProceduralPrimitiveSpawner.hpp"
-#include "Assets/UAssetManager.hpp"
-#include "Core/FApplication.hpp"
-#include "Engine/Components.hpp"
-#include "Engine/UWorld.hpp"
-#include "Gameplay/AActor.hpp"
-#include "Gameplay/UPrimitiveComponent.hpp"
-#include "Renderer/FMaterial.hpp"
-#include "Renderer/FMeshPrimitives.hpp"
 
 namespace Leon {
 
@@ -37,100 +29,33 @@ namespace Leon {
                                                   const glm::vec3& InLocation, const glm::vec3& InScale,
                                                   ELeonTournamentArenaSurface InSurface, const glm::vec3& InTint,
                                                   float InUvTile) {
-        AActor* actor = FProceduralPrimitiveSpawner::SpawnStaticBox(InWorld, InName, InLocation, InScale);
-        if (!actor)
-            return nullptr;
-        if (FApplication::HasInstance()) {
-            auto va = FMeshPrimitives::CreateCube(1.0f);
-            auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
-            if (va && shader) {
-                auto& mesh = actor->AddComponent<FMeshComponent>(va, shader);
-                mesh.MeshType = "Cube";
-                mesh.MeshSize = 1.0f;
-                mesh.Mobility = EComponentMobility::Static;
-                mesh.LightmapResolution = 64;
-                mesh.bCastShadows = true;
-                mesh.bReceiveShadows = true;
-                mesh.bVisibleInReflection = InSurface != ELeonTournamentArenaSurface::Floor;
-                if (auto mat = UAssetManager::GetMaterialInstance(ArenaMaterialPath(InSurface))) {
-                    mat->SetAlbedoColor(InTint);
-                    if (InUvTile > 0.0f)
-                        mat->SetUVTiling({InUvTile, InUvTile});
-                    mat->SetUsePlanarReflection(InSurface == ELeonTournamentArenaSurface::Floor ||
-                                                InSurface == ELeonTournamentArenaSurface::Mirror);
-                    actor->AddComponent<FMaterialComponent>(mat);
-                } else if (auto parent = UAssetManager::GetDefaultMaterial()) {
-                    auto inst = parent->CreateInstance(InName + "Mat");
-                    inst->SetAlbedoColor(InTint);
-                    actor->AddComponent<FMaterialComponent>(inst);
-                }
-            }
-        }
-        return actor;
+        const bool planar = InSurface == ELeonTournamentArenaSurface::Floor ||
+                            InSurface == ELeonTournamentArenaSurface::Mirror;
+        const bool visibleInReflection = InSurface != ELeonTournamentArenaSurface::Floor;
+        return FProceduralPrimitiveSpawner::SpawnMeshBox(InWorld, InName, InLocation, InScale, InTint,
+                                                         ArenaMaterialPath(InSurface), InUvTile, planar,
+                                                         visibleInReflection);
     }
 
     AActor* FLeonTournamentArenaBuilder::SpawnSimpleBox(UWorld* InWorld, const std::string& InName,
                                                         const glm::vec3& InLocation, const glm::vec3& InScale,
                                                         const glm::vec3& InColor) {
-        AActor* actor = FProceduralPrimitiveSpawner::SpawnStaticBox(InWorld, InName, InLocation, InScale);
-        if (!actor)
-            return nullptr;
-        if (FApplication::HasInstance()) {
-            auto va = FMeshPrimitives::CreateCube(1.0f);
-            auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
-            if (va && shader) {
-                auto& mesh = actor->AddComponent<FMeshComponent>(va, shader);
-                mesh.MeshType = "Cube";
-                mesh.MeshSize = 1.0f;
-                mesh.Mobility = EComponentMobility::Static;
-                if (auto parent = UAssetManager::GetDefaultMaterial()) {
-                    auto inst = parent->CreateInstance(InName + "Mat");
-                    inst->SetAlbedoColor(InColor);
-                    actor->AddComponent<FMaterialComponent>(inst);
-                }
-            }
-        }
-        return actor;
+        return FProceduralPrimitiveSpawner::SpawnMeshBox(InWorld, InName, InLocation, InScale, InColor);
     }
 
     AActor* FLeonTournamentArenaBuilder::SpawnPointLight(UWorld* InWorld, const std::string& InName,
                                                          const glm::vec3& InPos, const glm::vec3& InColor,
                                                          float InIntensity, float InRadius, ELightMobility InMobility) {
-        if (!InWorld)
-            return nullptr;
-        AActor* actor = InWorld->SpawnActor<AActor>(InName);
-        actor->SetActorLocation(InPos);
-        FPointLightComponent light;
-        light.bEnabled = true;
-        light.Mobility = InMobility;
-        light.Light.Position = InPos;
-        light.Light.Color = InColor;
-        light.Light.Intensity = InIntensity;
-        light.Light.Radius = InRadius;
-        actor->AddComponent<FPointLightComponent>(light);
-        return actor;
+        return FProceduralPrimitiveSpawner::SpawnPointLight(InWorld, InName, InPos, InColor, InIntensity, InRadius,
+                                                            InMobility);
     }
 
     AActor* FLeonTournamentArenaBuilder::SpawnSpotLight(UWorld* InWorld, const std::string& InName,
                                                         const glm::vec3& InPos, const glm::vec3& InDir,
                                                         const glm::vec3& InColor, float InIntensity, float InRadius,
                                                         float InInnerDeg, float InOuterDeg, ELightMobility InMobility) {
-        if (!InWorld)
-            return nullptr;
-        AActor* actor = InWorld->SpawnActor<AActor>(InName);
-        actor->SetActorLocation(InPos);
-        FSpotLightComponent light;
-        light.bEnabled = true;
-        light.Mobility = InMobility;
-        light.Light.Position = InPos;
-        light.Light.Direction = glm::normalize(InDir);
-        light.Light.Color = InColor;
-        light.Light.Intensity = InIntensity;
-        light.Light.Radius = InRadius;
-        light.Light.CutOff = InInnerDeg;
-        light.Light.OuterCutOff = InOuterDeg;
-        actor->AddComponent<FSpotLightComponent>(light);
-        return actor;
+        return FProceduralPrimitiveSpawner::SpawnSpotLight(InWorld, InName, InPos, InDir, InColor, InIntensity, InRadius,
+                                                           InInnerDeg, InOuterDeg, InMobility);
     }
 
 } // namespace Leon

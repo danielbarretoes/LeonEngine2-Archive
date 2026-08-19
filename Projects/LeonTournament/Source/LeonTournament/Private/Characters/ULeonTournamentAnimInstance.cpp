@@ -229,7 +229,7 @@ namespace Leon {
 
     void ULeonTournamentAnimInstance::PlayDeathMontage() {
         if (DeathSequence)
-            SetOverrideSequence(DeathSequence, false);
+            PlayOneShotOverride(DeathSequence);
     }
 
     void ULeonTournamentAnimInstance::NativeUpdateAnimation(float InDeltaSeconds) {

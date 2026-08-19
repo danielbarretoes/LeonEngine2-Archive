@@ -1,4 +1,4 @@
-#include "FLeonTournamentGraphicsQuality.hpp"
+#include "Engine/FGraphicsQuality.hpp"
 #include "Engine/UEngine.hpp"
 #include "Engine/UWorld.hpp"
 #include "Assets/FAssetPath.hpp"
@@ -115,14 +115,14 @@ namespace Leon {
             return total;
         }
 
-        size_t SSAOBytes(uint32_t InViewportW, uint32_t InViewportH) {
+        size_t SSAOBytes(uint32_t InViewportW, uint32_t InViewportHeight) {
             const uint32_t halfW = std::max(InViewportW / 2, 1u);
-            const uint32_t halfH = std::max(InViewportH / 2, 1u);
+            const uint32_t halfH = std::max(InViewportHeight / 2, 1u);
             return 2ull * static_cast<size_t>(halfW) * halfH * 4ull +
-                   static_cast<size_t>(InViewportW) * InViewportH * 8ull;
+                   static_cast<size_t>(InViewportW) * InViewportHeight * 8ull;
         }
 
-        void SyncEngineProjectDefaults(const FLeonTournamentGraphicsPreset& InPreset) {
+        void SyncEngineProjectDefaults(const FGraphicsPreset& InPreset) {
             if (!UEngine::HasInstance())
                 return;
             UEngine::Get().SetProjectRendererConfig(InPreset.ShadowMapResolution, InPreset.bEnablePlanarReflection,
@@ -131,7 +131,7 @@ namespace Leon {
                                                     InPreset.bEnableFXAA, InPreset.ShadowFilter);
         }
 
-        bool PresetMatchesWorld(const UWorld& InWorld, const FLeonTournamentGraphicsPreset& InPreset) {
+        bool PresetMatchesWorld(const UWorld& InWorld, const FGraphicsPreset& InPreset) {
             return InWorld.GetPendingShadowMapResolution() == InPreset.ShadowMapResolution &&
                    InWorld.GetPendingCascadeCount() == InPreset.CascadeCount &&
                    InWorld.GetPendingPlanarReflectionEnabled() == InPreset.bEnablePlanarReflection &&
@@ -143,54 +143,54 @@ namespace Leon {
         }
     } // namespace
 
-    ELeonTournamentGraphicsQuality FLeonTournamentGraphicsQuality::Parse(const std::string& InValue) {
+    EGraphicsQuality FGraphicsQuality::Parse(const std::string& InValue) {
         const std::string v = Lower(InValue);
         if (v == "low" || v == "min" || v == "minimum")
-            return ELeonTournamentGraphicsQuality::Low;
+            return EGraphicsQuality::Low;
         if (v == "medium" || v == "med" || v == "recommended")
-            return ELeonTournamentGraphicsQuality::Medium;
-        return ELeonTournamentGraphicsQuality::High;
+            return EGraphicsQuality::Medium;
+        return EGraphicsQuality::High;
     }
 
-    const char* FLeonTournamentGraphicsQuality::ToToken(ELeonTournamentGraphicsQuality InQuality) {
+    const char* FGraphicsQuality::ToToken(EGraphicsQuality InQuality) {
         switch (InQuality) {
-        case ELeonTournamentGraphicsQuality::Low:
+        case EGraphicsQuality::Low:
             return "Low";
-        case ELeonTournamentGraphicsQuality::Medium:
+        case EGraphicsQuality::Medium:
             return "Medium";
-        case ELeonTournamentGraphicsQuality::High:
+        case EGraphicsQuality::High:
         default:
             return "High";
         }
     }
 
-    const char* FLeonTournamentGraphicsQuality::ToLabel(ELeonTournamentGraphicsQuality InQuality) {
+    const char* FGraphicsQuality::ToLabel(EGraphicsQuality InQuality) {
         switch (InQuality) {
-        case ELeonTournamentGraphicsQuality::Low:
+        case EGraphicsQuality::Low:
             return "LOW";
-        case ELeonTournamentGraphicsQuality::Medium:
+        case EGraphicsQuality::Medium:
             return "MEDIUM";
-        case ELeonTournamentGraphicsQuality::High:
+        case EGraphicsQuality::High:
         default:
             return "HIGH";
         }
     }
 
-    FLeonTournamentGraphicsPreset FLeonTournamentGraphicsQuality::GetPreset(ELeonTournamentGraphicsQuality InQuality) {
-        FLeonTournamentGraphicsPreset preset;
+    FGraphicsPreset FGraphicsQuality::GetPreset(EGraphicsQuality InQuality) {
+        FGraphicsPreset preset;
         switch (InQuality) {
-        case ELeonTournamentGraphicsQuality::Low:
-            preset.ShadowMapResolution = 1024;
-            preset.CascadeCount = 2;
-            preset.ShadowDistance = 40.0f;
+        case EGraphicsQuality::Low:
+            preset.ShadowMapResolution = 512;
+            preset.CascadeCount = 1;
+            preset.ShadowDistance = 12.0f;
             preset.ShadowFilter = EShadowFilterMode::Hard;
             preset.bEnablePlanarReflection = false;
             preset.PlanarQuality = EPlanarReflectionQuality::Low;
             preset.bEnableSSAO = false;
             preset.bEnableBloom = false;
-            preset.bEnableFXAA = true;
+            preset.bEnableFXAA = false;
             break;
-        case ELeonTournamentGraphicsQuality::Medium:
+        case EGraphicsQuality::Medium:
             preset.ShadowMapResolution = 1024;
             preset.CascadeCount = 3;
             preset.ShadowDistance = 60.0f;
@@ -201,12 +201,12 @@ namespace Leon {
             preset.bEnableBloom = true;
             preset.bEnableFXAA = true;
             break;
-        case ELeonTournamentGraphicsQuality::High:
+        case EGraphicsQuality::High:
         default:
             preset.ShadowMapResolution = 2048;
             preset.CascadeCount = 4;
             preset.ShadowDistance = 100.0f;
-            preset.ShadowFilter = EShadowFilterMode::PCF3x3;
+            preset.ShadowFilter = EShadowFilterMode::PCF5x5;
             preset.bEnablePlanarReflection = true;
             preset.PlanarQuality = EPlanarReflectionQuality::Epic;
             preset.bEnableSSAO = true;
@@ -217,26 +217,26 @@ namespace Leon {
         return preset;
     }
 
-    ELeonTournamentGraphicsQuality FLeonTournamentGraphicsQuality::InferFromWorld(const UWorld& InWorld) {
-        if (PresetMatchesWorld(InWorld, GetPreset(ELeonTournamentGraphicsQuality::High)))
-            return ELeonTournamentGraphicsQuality::High;
-        if (PresetMatchesWorld(InWorld, GetPreset(ELeonTournamentGraphicsQuality::Medium)))
-            return ELeonTournamentGraphicsQuality::Medium;
-        if (PresetMatchesWorld(InWorld, GetPreset(ELeonTournamentGraphicsQuality::Low)))
-            return ELeonTournamentGraphicsQuality::Low;
+    EGraphicsQuality FGraphicsQuality::InferFromWorld(const UWorld& InWorld) {
+        if (PresetMatchesWorld(InWorld, GetPreset(EGraphicsQuality::High)))
+            return EGraphicsQuality::High;
+        if (PresetMatchesWorld(InWorld, GetPreset(EGraphicsQuality::Medium)))
+            return EGraphicsQuality::Medium;
+        if (PresetMatchesWorld(InWorld, GetPreset(EGraphicsQuality::Low)))
+            return EGraphicsQuality::Low;
         if (InWorld.GetPendingShadowMapResolution() >= 2048 &&
             InWorld.GetPendingPlanarReflectionQuality() == EPlanarReflectionQuality::Epic)
-            return ELeonTournamentGraphicsQuality::High;
+            return EGraphicsQuality::High;
         if (InWorld.GetPendingPlanarReflectionEnabled())
-            return ELeonTournamentGraphicsQuality::Medium;
-        return ELeonTournamentGraphicsQuality::Low;
+            return EGraphicsQuality::Medium;
+        return EGraphicsQuality::Low;
     }
 
-    void FLeonTournamentGraphicsQuality::ApplyToWorld(UWorld& InWorld, ELeonTournamentGraphicsQuality InQuality) {
+    void FGraphicsQuality::ApplyToWorld(UWorld& InWorld, EGraphicsQuality InQuality) {
         // Flow: graphics quality
         // 1. Expand the menu preset into world pending renderer / SSAO / post / filter state
         // 2. Mirror onto UEngine so the next map travel keeps the same working set
-        const FLeonTournamentGraphicsPreset preset = GetPreset(InQuality);
+        const FGraphicsPreset preset = GetPreset(InQuality);
         InWorld.SetProjectRendererDefaults(preset.ShadowMapResolution, preset.bEnablePlanarReflection,
                                            preset.CascadeCount, preset.ShadowDistance, preset.PlanarQuality, 0.0f);
         InWorld.SetProjectSSAODefaults(preset.bEnableSSAO, InWorld.GetPendingSSAORadius(),
@@ -246,15 +246,14 @@ namespace Leon {
         SyncEngineProjectDefaults(preset);
     }
 
-    bool FLeonTournamentGraphicsQuality::PersistToEngineIni(ELeonTournamentGraphicsQuality InQuality) {
+    bool FGraphicsQuality::PersistToEngineIni(EGraphicsQuality InQuality) {
         const std::string path = FAssetPath::Combine(FProjectPaths::ProjectConfigDir(), "DefaultEngine.ini");
         if (path.empty() || path == "DefaultEngine.ini")
             return false;
         return PersistToIniFile(InQuality, path);
     }
 
-    bool FLeonTournamentGraphicsQuality::PersistToIniFile(ELeonTournamentGraphicsQuality InQuality,
-                                                          const std::string& InIniPath) {
+    bool FGraphicsQuality::PersistToIniFile(EGraphicsQuality InQuality, const std::string& InIniPath) {
         // Patch live keys in place. FConfigFile::Save() would drop the preset comments.
         std::ifstream in(InIniPath, std::ios::binary);
         if (!in)
@@ -276,7 +275,7 @@ namespace Leon {
             }
         }
 
-        const FLeonTournamentGraphicsPreset preset = GetPreset(InQuality);
+        const FGraphicsPreset preset = GetPreset(InQuality);
         const std::pair<std::string, std::string> keys[] = {
             {"GraphicsQuality", ToToken(InQuality)},
             {"ShadowMapResolution", std::to_string(preset.ShadowMapResolution)},
@@ -329,11 +328,11 @@ namespace Leon {
         return static_cast<bool>(out);
     }
 
-    size_t FLeonTournamentGraphicsQuality::EstimateVRAMBytes(ELeonTournamentGraphicsQuality InQuality,
-                                                             uint32_t InViewportWidth, uint32_t InViewportHeight) {
+    size_t FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality InQuality, uint32_t InViewportWidth,
+                                               uint32_t InViewportHeight) {
         const uint32_t w = std::max(InViewportWidth, 1u);
         const uint32_t h = std::max(InViewportHeight, 1u);
-        const FLeonTournamentGraphicsPreset preset = GetPreset(InQuality);
+        const FGraphicsPreset preset = GetPreset(InQuality);
 
         // CSM is always a 4-layer DEPTH32F array even when CascadeCount is 2 or 3.
         size_t bytes = AssetBaselineBytes();
@@ -351,8 +350,8 @@ namespace Leon {
         return bytes;
     }
 
-    std::string FLeonTournamentGraphicsQuality::FormatVRAMLabel(ELeonTournamentGraphicsQuality InQuality,
-                                                                uint32_t InViewportWidth, uint32_t InViewportHeight) {
+    std::string FGraphicsQuality::FormatVRAMLabel(EGraphicsQuality InQuality, uint32_t InViewportWidth,
+                                                  uint32_t InViewportHeight) {
         const size_t mb =
             (EstimateVRAMBytes(InQuality, InViewportWidth, InViewportHeight) + 512ull * 1024ull) / (1024ull * 1024ull);
         char buffer[64];

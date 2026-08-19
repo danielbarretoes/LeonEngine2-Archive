@@ -264,7 +264,6 @@ namespace Leon {
     // and hide walls). Keeps the best early-out fraction for each BodyID.
     template <class CollectorType> class FPerBodyHitCollector : public CollectorType {
     public:
-        using ResultType = typename CollectorType::ResultType;
         static constexpr uint32_t kMaxBodies = 32;
 
         void Reset() override {
@@ -272,7 +271,7 @@ namespace Leon {
             Hits.clear();
         }
 
-        void AddHit(const ResultType& InResult) override {
+        void AddHit(const typename CollectorType::ResultType& InResult) override {
             const BodyID id = HitBodyId(InResult);
             for (auto& hit : Hits) {
                 if (HitBodyId(hit) != id)
@@ -285,21 +284,24 @@ namespace Leon {
                 Hits.push_back(InResult);
                 return;
             }
-            auto worst = std::max_element(Hits.begin(), Hits.end(), [](const ResultType& a, const ResultType& b) {
-                return a.GetEarlyOutFraction() < b.GetEarlyOutFraction();
-            });
+            auto worst = std::max_element(
+                Hits.begin(), Hits.end(),
+                [](const typename CollectorType::ResultType& a, const typename CollectorType::ResultType& b) {
+                    return a.GetEarlyOutFraction() < b.GetEarlyOutFraction();
+                });
             if (InResult.GetEarlyOutFraction() >= worst->GetEarlyOutFraction())
                 return;
             *worst = InResult;
         }
 
         void SortHits() {
-            std::sort(Hits.begin(), Hits.end(), [](const ResultType& a, const ResultType& b) {
-                return a.GetEarlyOutFraction() < b.GetEarlyOutFraction();
-            });
+            std::sort(Hits.begin(), Hits.end(),
+                      [](const typename CollectorType::ResultType& a, const typename CollectorType::ResultType& b) {
+                          return a.GetEarlyOutFraction() < b.GetEarlyOutFraction();
+                      });
         }
 
-        std::vector<ResultType> Hits;
+        std::vector<typename CollectorType::ResultType> Hits;
     };
 
     class FJoltContactListener final : public ContactListener {

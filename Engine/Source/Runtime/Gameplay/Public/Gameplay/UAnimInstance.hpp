@@ -48,6 +48,8 @@ namespace Leon {
         TRef<UAnimSequence> GetUpperBodySequence() const { return UpperBodySequence; }
 
         void SetOverrideSequence(const TRef<UAnimSequence>& InSeq, bool bLoop = true);
+        /** One-shot override (default non-looping); thin alias of SetOverrideSequence. */
+        void PlayOneShotOverride(const TRef<UAnimSequence>& InSeq, bool bLoop = false);
         void ClearOverrideSequence();
         void ResetPoseState();
 

@@ -124,7 +124,9 @@ Engine mappings are generic (`MoveForward`, `Look`, `Jump`, `Sprint`). Fire / Re
 
 `ACharacter` consumes `CrouchBit` (capsule half-height, crouched walk speed, `FlagCrouched`). `USkeletalMeshComponent::GetBoneLocation` / `GetSocketLocation` expose the evaluated pose. `ACharacter::EnableRagdoll` prefers a `UPhysicsAsset` on the mesh and falls back to capsule simulation.
 
-`FProceduralPrimitiveSpawner::SpawnStaticBox` creates a WorldStatic collision box; game builders add materials/meshes.
+`FProceduralPrimitiveSpawner` provides `SpawnStaticBox`, `SpawnMeshBox` (optional material path / color), and point/spot lights. Product wrappers map arena surface enums to material paths (`FLeonTournamentArenaBuilder`).
+
+`FGraphicsQuality` / `EGraphicsQuality` / `FGraphicsPreset` live under `Engine/` (Low/Medium/High renderer presets, INI persistence, VRAM estimate). Games call them from menus without duplicating preset tables. Project `DefaultEngine.ini` uses `GraphicsQuality=` (see Sandbox and LeonTournament).
 
 ## Animation flow
 
@@ -160,7 +162,7 @@ Engine: `FParticleEmitterSettings`, `UParticleComponent`, `FParticleRenderer`. D
 
 ## UMG
 
-Engine: `UWidget` tree, `FUIRenderer`, `FUILayout` (boxes / MeasurePadded / Place*), `UProgressBar`, `UHorizontalBox`, `UVerticalBox`, `USlider`, `UCheckBox`, `UWidgetSwitcher`, `UScrollBox`. Product GI/GM accessors stay in the game (`FLeonTournamentUILayout`).
+Engine: `UWidget` tree, `FUIRenderer`, `FUILayout` (boxes / MeasurePadded / Place* / `ResolveViewportSize` / `SyncResolutionScale` / `GamepadEdge`), `UProgressBar`, `UHorizontalBox`, `UVerticalBox`, `USlider`, `UCheckBox`, `UWidgetSwitcher`, `UScrollBox`. Product GI/GM accessors and menu rail widths stay in the game (`FLeonTournamentUILayout`).
 
 ## Physics / traces
 

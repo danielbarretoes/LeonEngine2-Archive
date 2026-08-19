@@ -1,7 +1,7 @@
 #include <doctest/doctest.h>
 
 #include "Engine/UWorld.hpp"
-#include "FLeonTournamentGraphicsQuality.hpp"
+#include "Engine/FGraphicsQuality.hpp"
 #include "Renderer/FShadowTypes.hpp"
 #include "Renderer/FPlanarReflectionTypes.hpp"
 
@@ -15,34 +15,35 @@
 TEST_SUITE("LeonTournament graphics quality") {
 
     TEST_CASE("Parse accepts menu tokens and INI aliases") {
-        using Leon::ELeonTournamentGraphicsQuality;
-        using Leon::FLeonTournamentGraphicsQuality;
-        CHECK(FLeonTournamentGraphicsQuality::Parse("Low") == ELeonTournamentGraphicsQuality::Low);
-        CHECK(FLeonTournamentGraphicsQuality::Parse("min") == ELeonTournamentGraphicsQuality::Low);
-        CHECK(FLeonTournamentGraphicsQuality::Parse("Medium") == ELeonTournamentGraphicsQuality::Medium);
-        CHECK(FLeonTournamentGraphicsQuality::Parse("recommended") == ELeonTournamentGraphicsQuality::Medium);
-        CHECK(FLeonTournamentGraphicsQuality::Parse("High") == ELeonTournamentGraphicsQuality::High);
-        CHECK(FLeonTournamentGraphicsQuality::Parse("optimal") == ELeonTournamentGraphicsQuality::High);
-        CHECK(FLeonTournamentGraphicsQuality::Parse("hight") == ELeonTournamentGraphicsQuality::High);
-        CHECK(std::string(FLeonTournamentGraphicsQuality::ToToken(ELeonTournamentGraphicsQuality::Low)) == "Low");
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
+        CHECK(FGraphicsQuality::Parse("Low") == EGraphicsQuality::Low);
+        CHECK(FGraphicsQuality::Parse("min") == EGraphicsQuality::Low);
+        CHECK(FGraphicsQuality::Parse("Medium") == EGraphicsQuality::Medium);
+        CHECK(FGraphicsQuality::Parse("recommended") == EGraphicsQuality::Medium);
+        CHECK(FGraphicsQuality::Parse("High") == EGraphicsQuality::High);
+        CHECK(FGraphicsQuality::Parse("optimal") == EGraphicsQuality::High);
+        CHECK(FGraphicsQuality::Parse("hight") == EGraphicsQuality::High);
+        CHECK(std::string(FGraphicsQuality::ToToken(EGraphicsQuality::Low)) == "Low");
     }
 
     TEST_CASE("Presets match DefaultEngine.ini Low / Medium / High") {
-        using Leon::ELeonTournamentGraphicsQuality;
+        using Leon::EGraphicsQuality;
         using Leon::EPlanarReflectionQuality;
         using Leon::EShadowFilterMode;
-        using Leon::FLeonTournamentGraphicsQuality;
+        using Leon::FGraphicsQuality;
 
-        const auto low = FLeonTournamentGraphicsQuality::GetPreset(ELeonTournamentGraphicsQuality::Low);
-        CHECK(low.ShadowMapResolution == 1024);
-        CHECK(low.CascadeCount == 2);
+        const auto low = FGraphicsQuality::GetPreset(EGraphicsQuality::Low);
+        CHECK(low.ShadowMapResolution == 512);
+        CHECK(low.CascadeCount == 1);
         CHECK(low.ShadowFilter == EShadowFilterMode::Hard);
         CHECK_FALSE(low.bEnablePlanarReflection);
         CHECK_FALSE(low.bEnableSSAO);
         CHECK_FALSE(low.bEnableBloom);
-        CHECK(low.bEnableFXAA);
+        CHECK(low.ShadowDistance == 12.0f);
+        CHECK_FALSE(low.bEnableFXAA);
 
-        const auto medium = FLeonTournamentGraphicsQuality::GetPreset(ELeonTournamentGraphicsQuality::Medium);
+        const auto medium = FGraphicsQuality::GetPreset(EGraphicsQuality::Medium);
         CHECK(medium.ShadowMapResolution == 1024);
         CHECK(medium.CascadeCount == 3);
         CHECK(medium.bEnablePlanarReflection);
@@ -50,53 +51,54 @@ TEST_SUITE("LeonTournament graphics quality") {
         CHECK(medium.bEnableSSAO);
         CHECK(medium.bEnableBloom);
 
-        const auto high = FLeonTournamentGraphicsQuality::GetPreset(ELeonTournamentGraphicsQuality::High);
+        const auto high = FGraphicsQuality::GetPreset(EGraphicsQuality::High);
         CHECK(high.ShadowMapResolution == 2048);
         CHECK(high.CascadeCount == 4);
+        CHECK(high.ShadowFilter == Leon::EShadowFilterMode::PCF5x5);
         CHECK(high.PlanarQuality == EPlanarReflectionQuality::Epic);
         CHECK(high.bEnableSSAO);
         CHECK(high.bEnableBloom);
     }
 
     TEST_CASE("ApplyToWorld writes pending renderer defaults") {
-        using Leon::ELeonTournamentGraphicsQuality;
-        using Leon::FLeonTournamentGraphicsQuality;
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
 
         auto world = Leon::UWorld::Create("GraphicsQualityWorld");
         REQUIRE(world != nullptr);
-        FLeonTournamentGraphicsQuality::ApplyToWorld(*world, ELeonTournamentGraphicsQuality::Low);
-        CHECK(world->GetPendingShadowMapResolution() == 1024);
+        FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::Low);
+        CHECK(world->GetPendingShadowMapResolution() == 512);
         CHECK_FALSE(world->GetPendingPlanarReflectionEnabled());
         CHECK_FALSE(world->GetPendingSSAOEnabled());
         CHECK_FALSE(world->GetPendingBloomEnabled());
-        CHECK(FLeonTournamentGraphicsQuality::InferFromWorld(*world) == ELeonTournamentGraphicsQuality::Low);
+        CHECK(FGraphicsQuality::InferFromWorld(*world) == EGraphicsQuality::Low);
 
-        FLeonTournamentGraphicsQuality::ApplyToWorld(*world, ELeonTournamentGraphicsQuality::High);
+        FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::High);
         CHECK(world->GetPendingShadowMapResolution() == 2048);
         CHECK(world->GetPendingPlanarReflectionEnabled());
-        CHECK(FLeonTournamentGraphicsQuality::InferFromWorld(*world) == ELeonTournamentGraphicsQuality::High);
+        CHECK(FGraphicsQuality::InferFromWorld(*world) == EGraphicsQuality::High);
     }
 
     TEST_CASE("VRAM estimates increase Low < Medium < High") {
-        using Leon::ELeonTournamentGraphicsQuality;
-        using Leon::FLeonTournamentGraphicsQuality;
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
         const size_t low =
-            FLeonTournamentGraphicsQuality::EstimateVRAMBytes(ELeonTournamentGraphicsQuality::Low, 1280, 720);
+            FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::Low, 1280, 720);
         const size_t medium =
-            FLeonTournamentGraphicsQuality::EstimateVRAMBytes(ELeonTournamentGraphicsQuality::Medium, 1280, 720);
+            FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::Medium, 1280, 720);
         const size_t high =
-            FLeonTournamentGraphicsQuality::EstimateVRAMBytes(ELeonTournamentGraphicsQuality::High, 1280, 720);
+            FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::High, 1280, 720);
         CHECK(low < medium);
         CHECK(medium < high);
         const std::string label =
-            FLeonTournamentGraphicsQuality::FormatVRAMLabel(ELeonTournamentGraphicsQuality::High, 1280, 720);
+            FGraphicsQuality::FormatVRAMLabel(EGraphicsQuality::High, 1280, 720);
         CHECK(label.find("HIGH") != std::string::npos);
         CHECK(label.find("MB") != std::string::npos);
     }
 
     TEST_CASE("PersistToIniFile patches live keys and keeps comments") {
-        using Leon::ELeonTournamentGraphicsQuality;
-        using Leon::FLeonTournamentGraphicsQuality;
+        using Leon::EGraphicsQuality;
+        using Leon::FGraphicsQuality;
 
         const auto path = std::filesystem::temp_directory_path() /
                           ("leon_graphics_quality_test_" + std::to_string(std::time(nullptr)) + ".ini");
@@ -115,14 +117,14 @@ TEST_SUITE("LeonTournament graphics quality") {
             out << "EnableFXAA=True\n";
         }
 
-        REQUIRE(FLeonTournamentGraphicsQuality::PersistToIniFile(ELeonTournamentGraphicsQuality::Low, path.string()));
+        REQUIRE(FGraphicsQuality::PersistToIniFile(EGraphicsQuality::Low, path.string()));
 
         std::ifstream in(path);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         in.close();
         CHECK(text.find("; keep this comment") != std::string::npos);
         CHECK(text.find("GraphicsQuality=Low") != std::string::npos);
-        CHECK(text.find("ShadowMapResolution=1024") != std::string::npos);
+        CHECK(text.find("ShadowMapResolution=512") != std::string::npos);
         CHECK(text.find("EnablePlanarReflection=False") != std::string::npos);
         CHECK(text.find("EnableSSAO=False") != std::string::npos);
         std::error_code ec;

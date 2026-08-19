@@ -7,7 +7,7 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 | Type | Owns | Must not own |
 | :--- | :--- | :--- |
 | `UGameInstance` | Application/session lifetime, travel URL, net mode, listen/join via injected `INetTransport`, project services that survive map changes | Match score, kills, current pawn, match timer, combat state |
-| `AGameModeBase` | Authority rules, login, `RestartPlayer`, spawn/respawn, default class selection, match start/end | HUD widgets, camera, input, animation, replicated per-player stats |
+| `AGameModeBase` | Authority rules, login, `Logout`, `RestartPlayer`, spawn/respawn, default class selection, match start/end | HUD widgets, camera, input, animation, replicated per-player stats |
 | `AGameStateBase` | Replicated world/match facts (phase, timer, team scores, winner) | Input, camera, weapon impl, local UI, spawn algorithms |
 | `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement | Movement, mesh, weapons |
 | `APlayerController` | Input, possession, camera, local HUD interaction, commands to authority | Health, score, weapon implementation, match rules |
@@ -30,18 +30,25 @@ Menu (GameInstance + HUD widgets)
   → Spawn pawn/character → Possess
   → Match start (GameMode writes rules; GameState exposes phase)
   → Gameplay
-  → Death (Health on authority) → GameMode.NotifyDeath writes PlayerState/GameState + respawn timer
+  → Death (Health on authority) → `NotifyActorKilled` on GameMode; game subclasses score / respawn
   → RestartPlayer: destroy pawn, spawn new pawn, Possess (same Controller + PlayerState)
+  → Logout (optional): UnPossess, unregister PlayerState, destroy HUD / PC / PlayerState
   → Match end (GameMode) → GameState winner/scores
 ```
 
 `AGameModeBase::RestartPlayer` is the single respawn path. If `DefaultPawnClass` is empty or `"None"`, the base implementation UnPossesses and destroys the old pawn without spawning. Game subclasses that keep `DefaultPawnClass = "None"` (menu-first) override `RestartPlayer` to spawn their character.
 
+`AController::Possess` UnPossesses any previous owner of the target pawn before binding, so Controller→Pawn pointers stay consistent.
+
+`AGameModeBase::ChoosePlayerStart` returns the first enabled `APlayerStart` that is not tagged `"Dummy"`. Team / named-start selection belongs in a game GameMode override.
+
+`AGameModeBase::Logout` is the rules-side exit path (does not destroy the World or GameInstance).
+
 `AGameStateBase` / game `GameState` mutators and `PlayerState` score setters no-op unless `AActor::IsNetworkAuthority()` (not `ENetMode::Client`). Replication writes fields in `DeserializeReplication` and does not go through those setters.
 
-`UHealthComponent::ApplyDamage` / `Heal` run only on network authority. `EndPlay` clears `OnDeath` / `OnDamage` delegates.
+`UHealthComponent::ApplyDamage` / `Heal` run only on network authority. `BecomeDead` notifies `AGameModeBase::NotifyActorKilled` when a GameMode is set. `UGameplayStatics::ApplyPointDamage` / `ApplyRadialDamage` call `NotifyActorDamaged` only (kill notification is not duplicated). `EndPlay` clears `OnDeath` / `OnDamage` delegates.
 
-`APawn::GetPlayerState()` prefers the possessing Controller, then the PlayerState cached at `PossessedBy`.
+`APawn::GetPlayerState()` prefers the possessing Controller, then the PlayerState cached at `PossessedBy`. `UnPossessed` clears that cache. `APlayerState::GetPlayerController()` scans `UWorld` player controllers.
 
 Only `AGameModeBase` (and game subclasses) decides when a match starts or ends. `UGameInstance` may request travel; it does not increment kills.
 
@@ -85,10 +92,12 @@ Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`
 | `AAIController` | `ALeonTournamentBotController` | TDM enemy filter + BT asset; sight via Engine `UAIPerceptionComponent` |
 | `AHUD` | `ALeonTournamentHUD` | Crosshair, scores, hit marker |
 | `AWeaponBase` | `ALeonTournamentWeapon` | Arsenal, ammo, traces → damage |
-| — | `FLeonTournamentArenaBuilder` | Shared procedural arena/lab box spawn |
+| — | `FLeonTournamentArenaBuilder` | Thin wrapper: arena surface → material path → Engine `FProceduralPrimitiveSpawner` |
 | — | `FLeonTournamentDamageRules` | Friendly-fire / self-damage checks |
 | — | `FLeonTournamentWeaponVfx` | Muzzle/tracer/flame particle helpers |
 | — | `FLeonTournamentUILayout` | Product GI/GM accessors wrapping Engine `FUILayout` |
+| `FGraphicsQuality` | (menu / GI) | Engine Low/Medium/High presets; game stores `EGraphicsQuality` |
+| — | `FUITypeScale` | HTML-like font tokens (`H1`/`H2`/`H3`/`P`); `FUILayout::kFs*` aliases |
 
 `UCombatComponent` in Engine is a cooldown/attack gate. Fire/reload facade lives on `ULeonTournamentCombatComponent`; magazine and cooldown live on Engine `AWeaponBase`; traces and presets live on `ALeonTournamentWeapon`. Held fire is `FControlInput::CustomBit0`; reload stays a ServerRPC.
 
