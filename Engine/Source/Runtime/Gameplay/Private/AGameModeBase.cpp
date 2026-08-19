@@ -3,6 +3,7 @@
 #include "Core/FLog.hpp"
 #include "Gameplay/ADefaultPawn.hpp"
 #include "Gameplay/AHUD.hpp"
+#include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "Engine/UWorld.hpp"
@@ -80,7 +81,6 @@ namespace Leon {
     APlayerStart* AGameModeBase::ChoosePlayerStart() const {
         if (!World)
             return nullptr;
-        APlayerStart* fallback = nullptr;
         for (const auto& actorRef : World->GetAllActors()) {
             if (!actorRef || actorRef->IsPendingKill())
                 continue;
@@ -89,12 +89,9 @@ namespace Leon {
                 continue;
             if (start->GetPlayerStartTag() == "Dummy")
                 continue;
-            if (!fallback)
-                fallback = start;
-            if (start->GetPlayerStartTag() == "Player" || start->GetTeamIndex() == 1)
-                return start;
+            return start;
         }
-        return fallback;
+        return nullptr;
     }
 
     AActor* AGameModeBase::FindPlayerStart(const std::string& InIncomingName) const {
@@ -183,6 +180,31 @@ namespace Leon {
         }
 
         return pc;
+    }
+
+    void AGameModeBase::Logout(AController* Exiting) {
+        if (!Exiting || !World || World->GetNetMode() == ENetMode::Client)
+            return;
+
+        // Flow: Logout
+        // 1. UnPossess so the pawn is released (controller + PlayerState are about to go).
+        // 2. Unregister PlayerState from GameState.
+        // 3. Destroy HUD / camera manager, then the controller and PlayerState.
+        APlayerState* playerState = Exiting->GetPlayerState();
+        Exiting->UnPossess();
+        if (GameState && playerState)
+            GameState->RemovePlayerState(playerState);
+
+        if (auto* pc = dynamic_cast<APlayerController*>(Exiting)) {
+            if (AHUD* hud = pc->GetHUD())
+                World->DestroyActor(hud);
+            if (APlayerCameraManager* pcm = pc->GetPlayerCameraManager())
+                World->DestroyActor(pcm);
+        }
+
+        World->DestroyActor(Exiting);
+        if (playerState && !playerState->IsPendingKill())
+            World->DestroyActor(playerState);
     }
 
     APawn* AGameModeBase::SpawnDefaultPawnAtTransform(const glm::vec3& InLocation, const glm::vec3& InRotation) {

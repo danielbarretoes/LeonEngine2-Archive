@@ -46,7 +46,9 @@ TEST_SUITE("Naming conventions") {
         CHECK(UClassRegistry::Get().HasClass("APawn"));
         CHECK(UClassRegistry::Get().HasClass("ACharacter"));
         CHECK(UClassRegistry::Get().HasClass("AGameModeBase"));
+        CHECK(UClassRegistry::Get().HasClass("AGameMode"));
         CHECK(UClassRegistry::Get().HasClass("AGameStateBase"));
+        CHECK(UClassRegistry::Get().HasClass("AGameState"));
         CHECK(UClassRegistry::Get().HasClass("APlayerController"));
         CHECK(UClassRegistry::Get().HasClass("AHUD"));
         CHECK(UClassRegistry::Get().HasClass("ABlockingVolume"));

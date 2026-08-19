@@ -80,6 +80,9 @@ namespace Leon {
             return 0.0f;
         }
 
+        /** Clear backend program-bind caches so recycled native IDs are not skipped after travel. */
+        virtual void InvalidateShaderBindingCache() {}
+
         static ERenderAPI GetAPI() { return CurrentAPI; }
         static void SetAPI(ERenderAPI InAPI) { CurrentAPI = InAPI; }
 

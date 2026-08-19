@@ -108,7 +108,7 @@ namespace Leon {
         Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.45f});
 
         const float titleH = MeasurePadded("SCOREBOARD", kFsTitle).y;
-        const float headerH = MeasurePadded("PLAYER                        K    D    A", kFsCaption).y;
+        const float headerH = MeasurePadded("PLAYER                   SCORE   K    D    A", kFsCaption).y;
         const float rowsH = MeasurePadded(std::string(16, '\n') + "x", kFsBody).y;
         const float footerH = MeasurePadded("T1  99     T2  99", kFsCaption).y;
         const float panelPad = 28.0f;
@@ -129,7 +129,7 @@ namespace Leon {
         y += titleH + 12.0f;
 
         HeaderText = std::make_shared<UTextBlock>("SBHeader");
-        HeaderText->SetText("PLAYER                        K    D    A");
+        HeaderText->SetText("PLAYER                   SCORE   K    D    A");
         HeaderText->SetFontScale(kFsCaption);
         HeaderText->SetColor({0.65f, 0.74f, 0.90f, 0.95f});
         PlaceTextC(*Root, HeaderText, 0.0f, y + headerH * 0.5f, panelW - panelPad * 2.0f);
@@ -168,31 +168,28 @@ namespace Leon {
         const float scale = FUILayout::LayoutScale(vp.x, vp.y);
         if (std::abs(scale - AppliedLayoutScale) > 0.001f || glm::length(vp - AppliedViewport) > 1.0f)
             ApplyViewportLayout();
+        // Unreal: scoreboard is a HUD view of GameState.PlayerArray + PlayerState (not GameMode).
         auto* gs = GS(OwningPlayer);
         if (!gs || !RowsText)
             return;
 
-        ALeonTournamentPlayerState* localPs = nullptr;
-        if (OwningPlayer) {
-            if (auto* pawn = OwningPlayer->GetPawn<ALeonTournamentCharacter>())
-                localPs = pawn->GetPlayerState();
-            if (!localPs)
-                localPs = dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState());
-        }
+        auto* localPs = OwningPlayer ? dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState()) : nullptr;
+        const auto ranked = gs->GetSortedScoreboard();
 
         std::ostringstream ss;
         auto appendGroup = [&](ELeonTournamentTeam team, const char* title) {
             ss << title << "\n";
-            ss << "  PLAYER                      K    D    A\n";
+            ss << "  PLAYER                   SCORE   K    D    A\n";
             bool any = false;
-            for (auto* ps : gs->GetSortedScoreboard()) {
+            for (auto* ps : ranked) {
                 if (!ps || ps->GetTeam() != team)
                     continue;
                 any = true;
                 const bool bYou = localPs && ps == localPs;
                 char line[160];
-                std::snprintf(line, sizeof(line), "%s %-24s  %3d  %3d  %3d\n", bYou ? ">" : " ",
-                              ps->GetPlayerName().c_str(), ps->GetKills(), ps->GetDeaths(), ps->GetAssists());
+                std::snprintf(line, sizeof(line), "%s %-22s  %5.0f  %3d  %3d  %3d\n", bYou ? ">" : " ",
+                              ps->GetPlayerName().c_str(), ps->GetScore(), ps->GetKills(), ps->GetDeaths(),
+                              ps->GetAssists());
                 ss << line;
             }
             if (!any)
@@ -201,17 +198,15 @@ namespace Leon {
         };
         appendGroup(ELeonTournamentTeam::Team1, "TEAM 1");
         appendGroup(ELeonTournamentTeam::Team2, "TEAM 2");
-        {
-            bool anyNone = false;
-            for (auto* ps : gs->GetSortedScoreboard()) {
-                if (ps && ps->GetTeam() == ELeonTournamentTeam::None) {
-                    anyNone = true;
-                    break;
-                }
+        bool anyNone = false;
+        for (auto* ps : ranked) {
+            if (ps && ps->GetTeam() == ELeonTournamentTeam::None) {
+                anyNone = true;
+                break;
             }
-            if (anyNone)
-                appendGroup(ELeonTournamentTeam::None, "UNASSIGNED");
         }
+        if (anyNone)
+            appendGroup(ELeonTournamentTeam::None, "UNASSIGNED");
         RowsText->SetText(ss.str());
         if (FooterText) {
             char foot[64];

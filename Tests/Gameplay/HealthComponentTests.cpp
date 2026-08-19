@@ -5,10 +5,24 @@
 #include "Engine/UWorld.hpp"
 #include "Engine/Components.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/AGameModeBase.hpp"
 
 #include <glm/glm.hpp>
 
 namespace Leon {
+
+    class ATestNotifyGameMode : public AGameModeBase {
+    public:
+        ATestNotifyGameMode(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "GM")
+            : AGameModeBase(InHandle, InWorld, InName) {}
+        void NotifyActorKilled(AActor* InVictim, const FDamageInfo& InInfo) override {
+            (void)InInfo;
+            LastVictim = InVictim;
+            ++KillCount;
+        }
+        AActor* LastVictim = nullptr;
+        int32_t KillCount = 0;
+    };
 
     TEST_SUITE("UHealthComponent") {
 
@@ -75,6 +89,18 @@ namespace Leon {
             CHECK(health.GetHealth() == doctest::Approx(100.0f));
             health.SetHealth(0.0f);
             CHECK(health.IsDead());
+        }
+
+        TEST_CASE("BecomeDead notifies GameMode NotifyActorKilled") {
+            auto world = UWorld::Create("HealthNotifyWorld");
+            auto* gm = world->SpawnActor<ATestNotifyGameMode>("GM");
+            world->SetGameMode(gm);
+            auto* body = world->SpawnActor<AActor>("Body");
+            auto health = body->AddActorComponent<UHealthComponent>("Health");
+            health->ApplyDamage(200.0f);
+            CHECK(health->IsDead());
+            CHECK(gm->KillCount == 1);
+            CHECK(gm->LastVictim == body);
         }
     }
 

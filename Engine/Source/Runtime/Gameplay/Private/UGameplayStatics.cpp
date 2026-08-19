@@ -121,11 +121,8 @@ namespace Leon {
         if (health->GetHealth() >= before)
             return false;
 
-        if (AGameModeBase* gm = GetGameMode(InWorld)) {
+        if (AGameModeBase* gm = GetGameMode(InWorld))
             gm->NotifyActorDamaged(DamagedActor, info);
-            if (health->IsDead())
-                gm->NotifyActorKilled(DamagedActor, info);
-        }
         return true;
     }
 
@@ -176,11 +173,8 @@ namespace Leon {
                 continue;
 
             ++hitCount;
-            if (gm) {
+            if (gm)
                 gm->NotifyActorDamaged(actor, info);
-                if (health->IsDead())
-                    gm->NotifyActorKilled(actor, info);
-            }
         }
         return hitCount;
     }

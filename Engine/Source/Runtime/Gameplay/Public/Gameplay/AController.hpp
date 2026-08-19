@@ -21,6 +21,7 @@ namespace Leon {
 
         virtual void Possess(APawn* InPawn);
         virtual void UnPossess();
+        virtual bool IsPlayerController() const { return false; }
 
         APawn* GetPawn() const { return Pawn; }
         template <typename T> T* GetPawn() const { return dynamic_cast<T*>(Pawn); }

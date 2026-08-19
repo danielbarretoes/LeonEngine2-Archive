@@ -1,4 +1,5 @@
 #include "FOpenGLRenderAPI.hpp"
+#include "FOpenGLShader.hpp"
 #include "RHI/FVertexArray.hpp"
 #include "RHI/FRenderer.hpp"
 
@@ -330,5 +331,7 @@ namespace Leon {
             return 0.0f;
         return GPUResolvedMs[InSlot];
     }
+
+    void FOpenGLRenderAPI::InvalidateShaderBindingCache() { FOpenGLShader::InvalidateBoundCache(); }
 
 } // namespace Leon

@@ -15,8 +15,6 @@ namespace Leon {
         APlayerStart(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "PlayerStart");
         ~APlayerStart() override = default;
 
-        void Tick(float DeltaSeconds) override;
-
         const std::string& GetPlayerStartTag() const { return PlayerStartTag; }
         void SetPlayerStartTag(const std::string& InTag) { PlayerStartTag = InTag; }
 

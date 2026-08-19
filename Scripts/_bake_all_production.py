@@ -15,7 +15,6 @@ JOBS = [
     ("Projects/LeonTournament/LeonTournament.lproject", "/Game/Maps/TournamentArenaNight"),
     ("Projects/LeonTournament/LeonTournament.lproject", "/Game/Maps/AnimLab"),
     ("Projects/Sandbox/Sandbox.lproject", "/Game/Maps/ShowcaseLevel"),
-    ("Projects/Sandbox/Sandbox.lproject", "/Game/Maps/NightLevel"),
 ]
 
 

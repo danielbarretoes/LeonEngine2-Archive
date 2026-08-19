@@ -1,5 +1,7 @@
 #include "Gameplay/UHealthComponent.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/AGameModeBase.hpp"
+#include "Engine/UWorld.hpp"
 
 #include <algorithm>
 
@@ -101,6 +103,8 @@ namespace Leon {
             if (cb)
                 cb(InInfo);
         }
+        if (Owner && Owner->GetWorld() && Owner->GetWorld()->GetGameMode())
+            Owner->GetWorld()->GetGameMode()->NotifyActorKilled(Owner, InInfo);
     }
 
 } // namespace Leon

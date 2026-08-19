@@ -127,6 +127,24 @@ namespace Leon {
             CHECK(hud->GetViewportWidgets().empty());
         }
 
+        TEST_CASE("AHUD AddWidgetToViewport applies ZOrder") {
+            auto world = UWorld::Create("ZOrderWorld");
+            auto* pc = world->SpawnActor<APlayerController>("PC");
+            auto* hud = world->SpawnActor<AHUD>("HUD");
+            hud->SetPlayerController(pc);
+            pc->SetHUD(hud);
+
+            auto low = UUserWidget::CreateWidget<UUserWidget>(pc, "Low");
+            auto high = UUserWidget::CreateWidget<UUserWidget>(pc, "High");
+            hud->AddWidgetToViewport(high, 10);
+            hud->AddWidgetToViewport(low, 0);
+            CHECK(high->GetZOrder() == 10);
+            CHECK(low->GetZOrder() == 0);
+            REQUIRE(hud->GetViewportWidgets().size() == 2);
+            CHECK(hud->GetViewportWidgets()[0] == low);
+            CHECK(hud->GetViewportWidgets()[1] == high);
+        }
+
         TEST_CASE("UButton click / hover / disabled") {
             auto button = std::make_shared<UButton>("Btn");
             button->SetPosition({10, 10});
@@ -369,6 +387,17 @@ Actors:
             FUILayout::PlaceTextTL(*canvas, text, 16.0f, 12.0f);
             CHECK(canvas->GetChildrenCount() == 1);
             CHECK(canvas->GetSlots().size() == 1);
+        }
+
+        TEST_CASE("FUITypeScale HTML tokens stay ordered") {
+            CHECK(FUITypeScale::H1 > FUITypeScale::H2);
+            CHECK(FUITypeScale::H2 > FUITypeScale::H3);
+            CHECK(FUITypeScale::H3 > FUITypeScale::P);
+            CHECK(FUITypeScale::P > FUITypeScale::Small);
+            CHECK(FUILayout::kFsHero == FUITypeScale::H1);
+            CHECK(FUILayout::kFsTitle == FUITypeScale::H2);
+            CHECK(FUILayout::kFsBody == FUITypeScale::P);
+            CHECK(FUILayout::kFsCaption == FUITypeScale::Small);
         }
 
         TEST_CASE("LayoutScale follows the 1280x720 design") {

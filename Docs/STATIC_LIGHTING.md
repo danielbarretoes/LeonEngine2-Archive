@@ -53,7 +53,7 @@ Pipeline:
 
 See `Docs/RENDERER_CONTRACT.md` for equations, mobility, and cache versions.
 
-### Debug (F7 cycle)
+### Debug (F6 lighting cycle)
 
 | Mode | `u_DebugMode` | Shows |
 | :--- | :--- | :--- |
@@ -73,14 +73,12 @@ See `Docs/RENDERER_CONTRACT.md` for equations, mobility, and cache versions.
 
 ## Limits (vs Unreal)
 
-No GPU Lightmass, no volumetric lightmaps, no photon mapping, no true Stationary shadow-map baking. Procedural primitives write non-overlapping UV1 (cube 2×3 atlas, cylinder side+caps). Runtime samples UV1 (`u_LightmapUseTexCoord` stays 0). Imported NightLevel meshes store generated UV1 in `.lmesh`.
+No GPU Lightmass, no volumetric lightmaps, no photon mapping, no true Stationary shadow-map baking. Procedural primitives write non-overlapping UV1 (cube 2×3 atlas, cylinder side+caps). Runtime samples UV1 (`u_LightmapUseTexCoord` stays 0). Imported meshes store generated UV1 in `.lmesh`.
 
 ## Sandbox maps
 
 | Map | Geometry | HDRI | Lightmap |
 | :--- | :--- | :--- | :--- |
-| `/Game/Maps/ShowcaseLevel` | Procedural primitives (studio floor 36×32) | `DaySky1k` | `ShowcaseLevel.llightmap` |
-| `/Game/Maps/NightLevel` | Imported static meshes | `NightSky1k` | `NightLevel.llightmap` |
-| `/Game/Maps/RendererLab` | Spawned PBR spheres + cube + glass + SSAO corner (GameMode) | Procedural sky | none (movable) |
+| `/Game/Maps/ShowcaseLevel` | Procedural primitives (studio floor 40×28) | `DaySky1k` | `ShowcaseLevel.llightmap` |
 
-`AutumnField1k.lhdr` is an engine IBL/HDR test fixture under Sandbox `Content/HDR/`; neither map references it. Rebake after content changes: `python Projects/Sandbox/Scripts/bake.py --force`.
+`DaySky1k.lhdr` is the IBL/HDR test fixture under Sandbox `Content/HDR/`. Rebake after content changes: `python Projects/Sandbox/Scripts/bake.py --force`.

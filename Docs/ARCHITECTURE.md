@@ -317,16 +317,16 @@ LeonEngine2 provides direct single-key forensic debugging controls available acr
 | :--- | :--- | :--- |
 | **`F1`** | **Diagnostics HUD** | Real-time panel rendering FPS, frametimes (CPU/GPU), VRAM allocation, RAM usage, triangle counts, and draw call metrics. |
 | **`F2`** | **3D Light Gizmos** | 3D wireframe cones for Spot Lights, bounding attenuation spheres for Point Lights, and directional sunlight vectors. |
-| **`F3`** | **Wireframe Toggle** | Toggles polygon rasterization between solid fill and wireframe (`glPolygonMode`). |
-| **`F4`** | **Unlit / Albedo** | Isolates raw Base Color texture/scalar without lighting or reflections. |
-| **`F5`** | **World Normals** | Displays perturbed normal vectors ($N \cdot 0.5 + 0.5$) with TBN normal map contributions. |
-| **`F6`** | **Material Channels** | Cycles sequentially between **Roughness**, **Metallic**, and **Ambient Occlusion (AO)** channels. |
-| **`F7`** | **Lighting Isolation** | Cycles: **Dynamic (Lo)** → **Baked only** → **Lightmap irradiance** → **Lightmap UV** → **Dynamic+Baked (no IBL)**. |
-| **`F8`** | **Specular IBL & Environment**| Isolates Image-Based Lighting reflections and split-sum environment contributions. |
-| **`F9`** | **CSM Cascade Slices** | Visualizes Cascaded Shadow Map splits via false-color (Cascade 0: Red, 1: Green, 2: Blue, 3: Yellow). |
-| **`F10`** | **Shadow Occlusion Mask** | Renders the direct shadow occlusion factor ($1.0 = \text{lit}, 0.0 = \text{occluded}$). |
-| **`F11`** | **Planar Reflections** | Inspects the mirrored camera offscreen planar reflection framebuffer texture. |
-| **`F12`** | **Standard Lit (Default)** | Resets rendering to full multi-light Cook-Torrance PBR composite with IBL and tone mapping. |
+| **`F3`** | **Wireframe** | Toggle solid fill vs wireframe (`glPolygonMode`). Geometry only; restored before post/UI. |
+| **`F4`** | **Material cycle** | Albedo → Metallic → Roughness → AO → Emissive → UV0 → Tangent → Bitangent → N·L. |
+| **`F5`** | **Geometry cycle** | World normals → reflection vector. |
+| **`F6`** | **Lighting cycle** | Lo → direct diffuse → direct specular → IBL specular → IBL diffuse → baked → lightmap irradiance → lightmap UV → Lo+baked (no IBL) → HDR before tone map. |
+| **`F7`** | **IBL maps cycle** | Prefilter mips 0–4 → irradiance cubemap → BRDF LUT. |
+| **`F8`** | **Shadows cycle** | Occlusion mask → CSM false-color → spot shadow → cascade 0–3 depth. |
+| **`F9`** | **Planar buffer** | Offscreen planar reflection texture (`u_DebugMode` 13). |
+| **`F10`** | **Post-process cycle** | Composite → raw HDR → bloom → bright pass → tone map (no FXAA) → SSAO. |
+| **`F11`** | **Post-process master** | Toggle `FPostProcessSettings::bEnabled` (tone map / bloom / SSAO / FXAA). |
+| **`F12`** | **Reset lit** | Shader mode 0, post debug 0, post enabled, solid fill. |
 
 ---
 
@@ -372,7 +372,7 @@ UObject
   │     ├── UImage
   │     ├── UProgressBar         (percent fill)
   │     └── UPanelWidget
-  │           ├── UCanvasPanel   (anchors + offsets; FUILayout helpers)
+  │           ├── UCanvasPanel   (anchors + offsets; FUILayout / FUITypeScale)
   │           ├── UHorizontalBox
   │           └── UVerticalBox
   └── AActor
@@ -397,11 +397,11 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 
 | Engine | Sandbox project |
 |--------|-----------------|
-| `AHUD`, widgets, `FUIRenderer`, `PrintString`, `OpenLevel`, InputMode, F1–F12 | `ASandboxGameMode`, `ASandboxHUD`, `USandboxMainMenuWidget`, INI / `.lproject` config |
+| `AHUD`, widgets, `FUIRenderer`, `PrintString`, `OpenLevel`, InputMode, F1–F12 | `ASandboxGameMode`, `ASandboxHUD`, INI / `.lproject` config |
 
 **PrintString** (`UGameplayStatics::PrintString` / `Leon::PrintString`) queues on-screen debug messages via `FOnScreenDebugMessageManager`. Messages are distinct from `FLog` and are painted inside the viewport by `AHUD::DrawHUD`.
 
-**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/MyMap")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay. Sandbox `USandboxMainMenuWidget` uses this to toggle `ShowcaseLevel` ↔ `NightLevel`.
+**OpenLevel** (`UGameplayStatics::OpenLevel("/Game/Maps/MyMap")`) requests a safe-frame travel on `UEngine`: EndPlay → Clear old World → Create World → Load `.lmap` (virtual path) → GameMode → Login (PC / Pawn / HUD) → BeginPlay. Product HUD widgets use this to change maps.
 
 **FInput modes** (`APlayerController`): `SetInputModeGameOnly`, `SetInputModeUIOnly`, `SetInputModeGameAndUI`. GameAndUI allows pawn movement and UI mouse interaction simultaneously.
 
@@ -412,7 +412,7 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 | F1 | Diagnostics performance overlay (`FDebugOverlay`) |
 | Shift+F1 | Gameplay debug: line traces, hitboxes, and colliders (`FDebugRenderer`) |
 | F2 | 3D light gizmos (`FDebugRenderer`) |
-| F3–F12 | Existing render debug views / wireframe (unchanged) |
+| F3–F12 | Render debug cycles (`FRenderDebugHotkeys`: material, lighting, IBL maps, shadows, planar, post) |
 
 ### Unreal Naming & Prefix Standards:
 - **`U`** = Engine objects, worlds, components, assets, widgets (`UObject`, `UWorld`, `UGameInstance`, `UEngine`, `UWidget`, `UUserWidget`, `UButton`, `UTextBlock`, `UPanelWidget`, `UCanvasPanel`, `UGameplayStatics`, `UClassRegistry`).

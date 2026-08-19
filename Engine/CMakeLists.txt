@@ -99,7 +99,9 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Gameplay/Private/ACharacter.cpp
     Source/Runtime/Gameplay/Private/ADefaultPawn.cpp
     Source/Runtime/Gameplay/Private/AGameModeBase.cpp
+    Source/Runtime/Gameplay/Private/AGameMode.cpp
     Source/Runtime/Gameplay/Private/AGameStateBase.cpp
+    Source/Runtime/Gameplay/Private/AGameState.cpp
     Source/Runtime/Gameplay/Private/AHUD.cpp
     Source/Runtime/Gameplay/Private/APawn.cpp
     Source/Runtime/Gameplay/Private/APlayerCameraManager.cpp

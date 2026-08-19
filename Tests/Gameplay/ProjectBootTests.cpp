@@ -86,17 +86,6 @@ namespace Leon {
             CHECK(std::filesystem::file_size(physical) > 0);
         }
 
-        TEST_CASE("NightLevel map resolves for travel path") {
-            std::string project = FProjectPaths::LocateProjectFile("Projects/Sandbox/Sandbox.lproject");
-            REQUIRE_FALSE(project.empty());
-            FProjectPaths::SetProjectRoot(project);
-
-            std::string physical = FProjectPaths::ResolveVirtualPath("/Game/Maps/NightLevel");
-            REQUIRE(std::filesystem::exists(physical));
-            CHECK(physical.find("NightLevel") != std::string::npos);
-            CHECK(std::filesystem::file_size(physical) > 0);
-        }
-
     } // TEST_SUITE
 
 } // namespace Leon

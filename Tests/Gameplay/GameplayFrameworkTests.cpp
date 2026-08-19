@@ -5,7 +5,9 @@
 #include "Gameplay/ACameraActor.hpp"
 #include "Gameplay/ADefaultPawn.hpp"
 #include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AGameMode.hpp"
 #include "Gameplay/AGameStateBase.hpp"
+#include "Gameplay/AGameState.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerController.hpp"
@@ -69,7 +71,9 @@ namespace Leon {
             CHECK(registry.HasClass("APlayerController"));
             CHECK(registry.HasClass("APlayerState"));
             CHECK(registry.HasClass("AGameStateBase"));
+            CHECK(registry.HasClass("AGameState"));
             CHECK(registry.HasClass("AGameModeBase"));
+            CHECK(registry.HasClass("AGameMode"));
             CHECK(registry.HasClass("ACameraActor"));
             CHECK(registry.HasClass("APlayerCameraManager"));
             CHECK(registry.HasClass("AHUD"));
@@ -124,6 +128,13 @@ namespace Leon {
             CHECK(gm->DefaultSpawnLocation.y == doctest::Approx(3.5f));
         }
 
+        TEST_CASE("5b. AGameMode defaults to AGameState") {
+            auto world = UWorld::Create("GameModeWorld");
+            auto gm = world->SpawnActor<AGameMode>("GameMode");
+            REQUIRE(gm != nullptr);
+            CHECK(gm->GameStateClass == "AGameState");
+        }
+
         TEST_CASE("6. AGameStateBase creation & player registration") {
             auto world = UWorld::Create("GameStateWorld");
             auto gs = world->SpawnActor<AGameStateBase>("GameState");
@@ -135,6 +146,48 @@ namespace Leon {
 
             CHECK(gs->GetPlayerArray().size() == 1);
             CHECK(gs->GetPlayerArray()[0]->GetPlayerName() == "PlayerOne");
+        }
+
+        TEST_CASE("6c. GameState PlayerArray sorted by PlayerState Score") {
+            auto world = UWorld::Create("ScoreboardWorld");
+            auto gs = world->SpawnActor<AGameStateBase>("GameState");
+            auto low = world->SpawnActor<APlayerState>("PSLow");
+            auto high = world->SpawnActor<APlayerState>("PSHigh");
+            low->SetPlayerName("Low");
+            high->SetPlayerName("High");
+            low->SetScore(1.0f);
+            high->SetScore(10.0f);
+            gs->AddPlayerState(low);
+            gs->AddPlayerState(high);
+            auto ranked = gs->GetPlayerArraySortedByScore();
+            REQUIRE(ranked.size() == 2);
+            CHECK(ranked[0] == high);
+            CHECK(ranked[1] == low);
+            CHECK(ranked[0]->GetScore() == doctest::Approx(10.0f));
+        }
+
+        TEST_CASE("6b. AGameMode StartMatch syncs remaining time on AGameState") {
+            auto world = UWorld::Create("MatchClockWorld");
+            auto* gm = world->SpawnActor<AGameMode>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            REQUIRE(gm->GetMatchGameState());
+            CHECK(gm->GetMatchGameState()->GetMatchState() == EMatchState::WaitingToStart);
+            CHECK_FALSE(gm->HasMatchStarted());
+
+            gm->GetMatchGameState()->SetRemainingTime(10.0f);
+            gm->StartMatch();
+            CHECK(gm->HasMatchStarted());
+            CHECK_FALSE(gm->HasMatchEnded());
+            CHECK(gm->GetMatchGameState()->GetMatchState() == EMatchState::InProgress);
+
+            world->BeginPlay();
+            world->Tick(FTimestep(0.1f));
+            CHECK(gm->GetMatchGameState()->GetRemainingTime() == doctest::Approx(9.9f).epsilon(0.01f));
+
+            gm->EndMatch();
+            CHECK(gm->HasMatchEnded());
+            CHECK(gm->GetMatchGameState()->GetMatchState() == EMatchState::WaitingPostMatch);
         }
 
         TEST_CASE("7. APlayerController creation") {
@@ -179,6 +232,26 @@ namespace Leon {
             CHECK(pc->GetPawn() == nullptr);
         }
 
+        TEST_CASE("10b. Possess steals pawn from the previous controller") {
+            auto world = UWorld::Create("StealPossessWorld");
+            auto* pcA = world->SpawnActor<APlayerController>("PCA");
+            auto* pcB = world->SpawnActor<APlayerController>("PCB");
+            auto* pawn = world->SpawnActor<ADefaultPawn>("Pawn");
+            REQUIRE(pcA);
+            REQUIRE(pcB);
+            REQUIRE(pawn);
+
+            pcA->Possess(pawn);
+            CHECK(pcA->GetPawn() == pawn);
+            CHECK(pawn->GetController() == pcA);
+
+            pcB->Possess(pawn);
+            CHECK(pcA->GetPawn() == nullptr);
+            CHECK(pcB->GetPawn() == pawn);
+            CHECK(pawn->GetController() == pcB);
+            CHECK(pcA->IsPlayerController());
+        }
+
         TEST_CASE("11. PlayerCameraManager creation") {
             auto world = UWorld::Create("PCMWorld");
             auto pc = world->SpawnActor<APlayerController>("PC");
@@ -206,6 +279,28 @@ namespace Leon {
             CHECK(viewCam.GetPosition().x == doctest::Approx(10.0f));
             CHECK(viewCam.GetPosition().y == doctest::Approx(5.0f));
             CHECK(viewCam.GetPosition().z == doctest::Approx(20.0f));
+        }
+
+        TEST_CASE("12c. ViewTarget blend lerps position") {
+            auto world = UWorld::Create("ViewBlendWorld");
+            auto pc = world->SpawnActor<APlayerController>("PC");
+            world->AddPlayerController(pc);
+
+            auto camA = world->SpawnActor<ACameraActor>("CamA");
+            camA->GetCameraComponent().Camera.SetPosition({0.0f, 1.0f, 0.0f});
+            auto camB = world->SpawnActor<ACameraActor>("CamB");
+            camB->GetCameraComponent().Camera.SetPosition({10.0f, 1.0f, 0.0f});
+
+            pc->SetViewTarget(camA);
+            pc->UpdateCameraManager(0.016f);
+            pc->SetViewTargetWithBlend(camB, 1.0f);
+            pc->UpdateCameraManager(0.5f);
+
+            FPerspectiveCamera viewCam;
+            pc->GetPlayerViewPoint(viewCam);
+            CHECK(viewCam.GetPosition().x == doctest::Approx(5.0f).epsilon(0.05));
+            REQUIRE(pc->GetPlayerCameraManager());
+            CHECK(pc->GetPlayerCameraManager()->IsBlendingViewTarget());
         }
 
         TEST_CASE("12b. AProjectile movement") {
@@ -564,6 +659,24 @@ Actors:
             REQUIRE(pawn);
             CHECK(pawn->GetActorLocation().x == doctest::Approx(9.0f));
             CHECK(pawn->GetActorLocation().z == doctest::Approx(7.0f));
+        }
+
+        TEST_CASE("28b. ChoosePlayerStart takes first enabled non-Dummy start") {
+            auto world = UWorld::Create("ChooseStartWorld");
+            auto* dummy = world->SpawnActor<APlayerStart>("DummyStart");
+            dummy->SetPlayerStartTag("Dummy");
+            dummy->SetTeamIndex(1);
+            auto* first = world->SpawnActor<APlayerStart>("Team2Start");
+            first->SetTeamIndex(2);
+            first->SetActorLocation({1.0f, 0.0f, 0.0f});
+            auto* preferredTeam = world->SpawnActor<APlayerStart>("Team1Start");
+            preferredTeam->SetTeamIndex(1);
+            preferredTeam->SetPlayerStartTag("Player");
+            preferredTeam->SetActorLocation({9.0f, 0.0f, 0.0f});
+
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            CHECK(gm->ChoosePlayerStart() == first);
+            CHECK_FALSE(first->CanEverTick());
         }
 
         TEST_CASE("29. Character AABB blocked by static cube") {

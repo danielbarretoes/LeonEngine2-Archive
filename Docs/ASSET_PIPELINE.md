@@ -84,7 +84,7 @@ Prefer Engine Scripts (resolve Content from `.lproject`). See [SCRIPTS.md](SCRIP
 python Scripts/validate_project.py --project <path.lproject>
 python Scripts/import_assets.py --project <path.lproject> [--force]
 
-Sandbox layout: `Raw/HDR/*.hdr`, `Raw/Textures/T_*_*.jpg`, `Raw/Meshes/*.fbx` import into `Content/` as `.lhdr` / `.ltex` / `.lmesh`. Maps use `DaySky1k` and `NightSky1k`; `AutumnField1k.lhdr` is kept as the IBL/HDR test fixture.
+Sandbox layout: `Raw/HDR/*.hdr` and `Raw/Textures/T_*_*.jpg` import into `Content/` as `.lhdr` / `.ltex`. ShowcaseLevel uses `DaySky1k`.
 python Scripts/validate_assets.py --project <path.lproject>
 python Scripts/bake_lightmaps.py --project <path.lproject> [--map /Game/Maps/Name] [--force]
 

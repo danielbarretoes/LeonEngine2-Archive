@@ -39,6 +39,7 @@ namespace Leon {
     void APawn::UnPossessed() {
         LE_CORE_INFO("APawn '{0}' unpossessed", GetName());
         Controller = nullptr;
+        PlayerState = nullptr;
     }
 
 } // namespace Leon

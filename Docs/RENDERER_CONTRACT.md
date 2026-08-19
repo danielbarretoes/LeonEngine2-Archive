@@ -210,16 +210,20 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 | 38 | Direct diffuse |
 | 39 | Direct specular |
 
+Modes 2, 17, and 36 duplicate 1, 11, and 10; they are not bound to F-keys.
+
+Hotkeys (`FRenderDebugHotkeys`): **F4** material, **F5** geometry, **F6** lighting (incl. 9/10/31–35/37–39), **F7** IBL maps (1, 3–8), **F8** shadows (24–30), **F9** planar (13), **F10** post-process `DebugMode` 0–5, **F11** post master toggle, **F12** reset. **F3** wireframe. **F1** HUD / **F2** gizmos stay on `FApplication`.
+
 Post-process `FPostProcessSettings::DebugMode` 5 visualizes SSAO (grayscale) before bloom.
 
 ## Limitations
 
 - Forward renderer. Opaque draws with the same VA + material instance batch together (GPU instancing ≤64). No clustered lights, VSM, or GPU-driven path.
-- At most 16 point lights and 8 spot lights in the UBO; one shadowed spotlight (excess lights are dropped — warn planned in remediation P1).
-- Opaque: camera frustum AABB cull. Shadow passes: no light-frustum cull yet (P1).
-- Alpha-masked shadow casters: supported for procedural `FMeshComponent`; static/skinned CSM currently force opaque alpha (P1).
+- At most 16 point lights and 8 spot lights in the UBO; one shadowed spotlight. Excess lights are dropped with a per-frame warning.
+- Opaque: camera frustum AABB cull. Shadow casters: light-space AABB cull per cascade / spot.
+- Alpha-masked shadow casters: `EAlphaMode::Mask` clips in CSM and spot for procedural, static, and skinned meshes.
 - No local cubemap / sphere reflection probes. Planar is for registered planes; curved metals use IBL.
 - SSAO is depth-only at half resolution (view-space normals from depth derivatives). No G-buffer. Occlusion ignores coplanar hits so open floors do not get a camera-facing AO band; composite keeps high-luminance specular.
-- No OIT. Transparent sort uses model origin distance (AABB center planned in P1).
+- No OIT. Transparent sort uses world AABB center distance (not the model origin).
 - No reversed-Z.
 - Golden PNG references are not shipped; GPU tests check mathematical constraints (energy, sRGB, resize).

@@ -2,8 +2,8 @@
 #include "Gameplay/ACameraActor.hpp"
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/ADefaultPawn.hpp"
-#include "Gameplay/AGameModeBase.hpp"
-#include "Gameplay/AGameStateBase.hpp"
+#include "Gameplay/AGameMode.hpp"
+#include "Gameplay/AGameState.hpp"
 #include "Gameplay/AHUD.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
@@ -35,7 +35,9 @@ namespace Leon {
         RegisterClass<APlayerController>("APlayerController");
         RegisterClass<APlayerState>("APlayerState");
         RegisterClass<AGameStateBase>("AGameStateBase");
+        RegisterClass<AGameState>("AGameState");
         RegisterClass<AGameModeBase>("AGameModeBase");
+        RegisterClass<AGameMode>("AGameMode");
         RegisterClass<ACameraActor>("ACameraActor");
         RegisterClass<APlayerCameraManager>("APlayerCameraManager");
         RegisterClass<AHUD>("AHUD");

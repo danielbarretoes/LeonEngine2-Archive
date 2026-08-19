@@ -7,9 +7,11 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 | Type | Owns | Must not own |
 | :--- | :--- | :--- |
 | `UGameInstance` | Application/session lifetime, travel URL, net mode, listen/join via injected `INetTransport`, project services that survive map changes | Match score, kills, current pawn, match timer, combat state |
-| `AGameModeBase` | Authority rules, login, `Logout`, `RestartPlayer`, spawn/respawn, default class selection, match start/end | HUD widgets, camera, input, animation, replicated per-player stats |
-| `AGameStateBase` | Replicated world/match facts (phase, timer, team scores, winner) | Input, camera, weapon impl, local UI, spawn algorithms |
-| `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement | Movement, mesh, weapons |
+| `AGameModeBase` | Authority rules, login, `Logout`, `RestartPlayer`, spawn/respawn, default class selection | HUD widgets, camera, input, animation, replicated per-player stats |
+| `AGameMode` | Match start/end (`StartMatch` / `EndMatch`) | Team scores, HUD, pawn movement |
+| `AGameStateBase` | Player array, elapsed time, scoreboard rank (`GetPlayerArraySortedByScore`) | Input, camera, spawn algorithms |
+| `AGameState` | Replicated match phase (`EMatchState`) and remaining clock | Weapon impl, local UI |
+| `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement; scoreboard row | Movement, mesh, weapons |
 | `APlayerController` | Input, possession, camera, local HUD interaction, commands to authority | Health, score, weapon implementation, match rules |
 | `APawn` / `ACharacter` | Capsule, movement, mesh, jump/crouch/fall/land, camera attach, `FControlInput` serialize, ragdoll helper | Rifle/ammo, TDM, team assignment, kill scoring |
 | `FControlInput` | Analog move, look, Jump/Crouch/Sprint bits | Fire, reload, weapon cycle, teams |
@@ -28,17 +30,19 @@ Menu (GameInstance + HUD widgets)
   → GameState spawned by GameMode/World
   → Player login → PlayerState + PlayerController
   → Spawn pawn/character → Possess
-  → Match start (GameMode writes rules; GameState exposes phase)
+  → Match start (`AGameMode::StartMatch` writes `AGameState` InProgress; remaining clock ticks on GameState)
   → Gameplay
   → Death (Health on authority) → `NotifyActorKilled` on GameMode; game subclasses score / respawn
   → RestartPlayer: destroy pawn, spawn new pawn, Possess (same Controller + PlayerState)
   → Logout (optional): UnPossess, unregister PlayerState, destroy HUD / PC / PlayerState
-  → Match end (GameMode) → GameState winner/scores
+  → Match end (`AGameMode::EndMatch` writes WaitingPostMatch)
 ```
 
 `AGameModeBase::RestartPlayer` is the single respawn path. If `DefaultPawnClass` is empty or `"None"`, the base implementation UnPossesses and destroys the old pawn without spawning. Game subclasses that keep `DefaultPawnClass = "None"` (menu-first) override `RestartPlayer` to spawn their character.
 
 `AController::Possess` UnPossesses any previous owner of the target pawn before binding, so Controller→Pawn pointers stay consistent.
+
+Scoreboard HUD reads `UWorld::GetGameState()` → `PlayerArray` / `GetPlayerArraySortedByScore()`. Each row is an `APlayerState` (name, `Score`, game K/D). `AGameMode` does not exist on clients and must not own the board. Tournament `ALeonTournamentGameState::GetSortedScoreboard()` is that query filtered to `ALeonTournamentPlayerState`. Local highlight uses `APlayerController::GetPlayerState()`.
 
 `AGameModeBase::ChoosePlayerStart` returns the first enabled `APlayerStart` that is not tagged `"Dummy"`. Team / named-start selection belongs in a game GameMode override.
 
@@ -50,7 +54,7 @@ Menu (GameInstance + HUD widgets)
 
 `APawn::GetPlayerState()` prefers the possessing Controller, then the PlayerState cached at `PossessedBy`. `UnPossessed` clears that cache. `APlayerState::GetPlayerController()` scans `UWorld` player controllers.
 
-Only `AGameModeBase` (and game subclasses) decides when a match starts or ends. `UGameInstance` may request travel; it does not increment kills.
+Only `AGameMode` / `AGameModeBase` (and game subclasses) decide when a match starts or ends. `UGameInstance` may request travel; it does not increment kills.
 
 ## Character component hierarchy (Unreal)
 
@@ -76,15 +80,15 @@ Project configuration (.lproject + DefaultEngine.ini + DefaultGame.ini)
   → UClassRegistry::CreateActorOfClass
 ```
 
-Engine generic fallbacks: `AGameModeBase`, `AGameStateBase`, `APlayerController`, `APlayerState`, `ADefaultPawn`, `AHUD`.
+Engine generic fallbacks: `AGameModeBase`, `AGameMode`, `AGameStateBase`, `AGameState`, `APlayerController`, `APlayerState`, `ADefaultPawn`, `AHUD`.
 
 ## LeonTournament mapping
 
 | Engine base | Project class | Role |
 | :--- | :--- | :--- |
 | `UGameInstance` | `ULeonTournamentGameInstance` | Session mode, LAN host/join wrappers, auto-offline match CLI |
-| `AGameModeBase` | `ALeonTournamentGameMode` | TDM rules, team assign, spawn, kill limit, duration |
-| `AGameStateBase` | `ALeonTournamentGameState` | TeamScores, MatchState, MatchTime, Winner |
+| `AGameMode` | `ALeonTournamentGameMode` | TDM rules, team assign, spawn, kill limit, duration |
+| `AGameState` | `ALeonTournamentGameState` | TeamScores, MatchState, remaining clock (replicated), Winner |
 | `APlayerState` | `ALeonTournamentPlayerState` | Team, kills, deaths |
 | `APlayerController` | `ALeonTournamentPlayerController` | Look/fire commands, local HUD |
 | `ACharacter` | `ALeonTournamentCharacter` | First-person shooter pawn; arsenal slots via Engine `UInventoryComponent` |
@@ -110,6 +114,10 @@ Projects/LeonTournament/Source/LeonTournament/
 ```
 
 Include roots are those Public subfolders (flat `#include "ALeonTournamentGameMode.hpp"`).
+
+## Sandbox mapping
+
+`ASandboxGameMode` subclasses `AGameMode` and uses engine `AGameState`. `StartPlay` calls `StartMatch()` so the remaining clock is in `InProgress` (Sandbox does not enforce a TDM duration).
 
 ## File naming
 

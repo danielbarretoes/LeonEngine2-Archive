@@ -4,6 +4,8 @@
 
 namespace Leon {
 
+    class APlayerController;
+
     /**
      * @brief Unreal Engine aligned PlayerState holding replicated/persistent player data.
      */
@@ -13,6 +15,8 @@ namespace Leon {
         APlayerState(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "PlayerState");
         ~APlayerState() override = default;
 
+        APlayerController* GetPlayerController() const;
+
         const std::string& GetPlayerName() const { return PlayerName; }
         void SetPlayerName(const std::string& InName) { PlayerName = InName; }
 
@@ -20,6 +24,7 @@ namespace Leon {
         void SetPlayerId(int32_t InId) { PlayerId = InId; }
 
         float GetScore() const { return Score; }
+        /** Authority and snapshot apply (UNetDriver) write Score; HUD ranks by this field. */
         void SetScore(float InScore) { Score = InScore; }
 
     private:

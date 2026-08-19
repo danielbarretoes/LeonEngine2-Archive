@@ -19,6 +19,7 @@
 #include "Renderer/FRenderingMath.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/APlayerStart.hpp"
 #include "Gameplay/FGameplayDebugger.hpp"
 #include "Physics/FCollisionQuery.hpp"
 #include "AI/UNavigationSystem.hpp"
@@ -262,16 +263,21 @@ namespace Leon {
         }
 
         std::vector<FPointLight> pointLights;
+        int truncatedPointLights = 0;
         {
             auto view = reg.view<FPointLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<FPointLightComponent>(entity);
-                if (comp.bEnabled && comp.Mobility != ELightMobility::Static && pointLights.size() < 16) {
-                    FPointLight pl = comp.Light;
-                    if (reg.all_of<FTransformComponent>(entity))
-                        pl.Position = reg.get<FTransformComponent>(entity).Translation;
-                    pointLights.push_back(pl);
+                if (!comp.bEnabled || comp.Mobility == ELightMobility::Static)
+                    continue;
+                if (pointLights.size() >= 16) {
+                    ++truncatedPointLights;
+                    continue;
                 }
+                FPointLight pl = comp.Light;
+                if (reg.all_of<FTransformComponent>(entity))
+                    pl.Position = reg.get<FTransformComponent>(entity).Translation;
+                pointLights.push_back(pl);
             }
         }
 
@@ -280,20 +286,29 @@ namespace Leon {
         glm::vec3 shadowedSpotPos{0.0f};
         std::vector<FSpotLight> spotLights;
         std::vector<FSpotLightComponent> spotComps;
+        int truncatedSpotLights = 0;
         {
             auto view = reg.view<FSpotLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<FSpotLightComponent>(entity);
-                if (comp.bEnabled && comp.Mobility != ELightMobility::Static && spotLights.size() < 8) {
-                    FSpotLight sl = comp.Light;
-                    if (reg.all_of<FTransformComponent>(entity))
-                        sl.Position = reg.get<FTransformComponent>(entity).Translation;
-                    spotComps.push_back(comp);
-                    spotLights.push_back(sl);
-                    bHasSpotLight = true;
+                if (!comp.bEnabled || comp.Mobility == ELightMobility::Static)
+                    continue;
+                if (spotLights.size() >= 8) {
+                    ++truncatedSpotLights;
+                    continue;
                 }
+                FSpotLight sl = comp.Light;
+                if (reg.all_of<FTransformComponent>(entity))
+                    sl.Position = reg.get<FTransformComponent>(entity).Translation;
+                spotComps.push_back(comp);
+                spotLights.push_back(sl);
+                bHasSpotLight = true;
             }
         }
+        if (truncatedPointLights > 0)
+            LE_CORE_WARN("FWorldRenderer: truncated {0} point lights (UBO limit 16)", truncatedPointLights);
+        if (truncatedSpotLights > 0)
+            LE_CORE_WARN("FWorldRenderer: truncated {0} spot lights (UBO limit 8)", truncatedSpotLights);
         int shadowedSpotIndex = 0;
         if (bHasSpotLight) {
             shadowedSpotIndex =
@@ -453,8 +468,21 @@ namespace Leon {
             FRenderCommand::SetDepthMask(false);
             FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);
             FDebugRenderer::BeginScene(InCamera);
-            if (FGameplayDebugger::ShowPhysics())
+            if (FGameplayDebugger::ShowPhysics()) {
                 DrawDebugWorldColliders(*World);
+                for (const auto& actorRef : World->GetAllActors()) {
+                    auto* start = dynamic_cast<APlayerStart*>(actorRef.get());
+                    if (!start || start->IsPendingKill() || !start->IsEnabled())
+                        continue;
+                    const glm::vec3 origin = start->GetActorLocation();
+                    FDebugRenderer::DrawDebugCapsule(origin, 0.4f, 0.9f, glm::vec4(0.95f, 0.85f, 0.15f, 1.0f));
+                    const glm::vec3 rot = start->GetActorRotation();
+                    const float yawRad = glm::radians(rot.y);
+                    const glm::vec3 fwd(std::cos(yawRad), 0.0f, std::sin(yawRad));
+                    FDebugRenderer::DrawDebugArrow(origin, origin + fwd * 1.6f, glm::vec4(1.0f, 0.9f, 0.2f, 1.0f),
+                                                   0.25f);
+                }
+            }
             if (FGameplayDebugger::ShowAI() && World->GetNavigationSystem() && World->GetNavigationSystem()->IsBuilt())
                 World->GetNavigationSystem()->DrawDebug();
             FDebugRenderer::DrawQueuedTraces();

@@ -241,6 +241,10 @@ namespace Leon {
         glUseProgram(0);
     }
 
+    void FOpenGLShader::InvalidateBoundCache() {
+        GBoundProgram = 0;
+    }
+
     int FOpenGLShader::GetUniformLocation(const std::string& InName) const {
         if (UniformLocationCache.find(InName) != UniformLocationCache.end())
             return UniformLocationCache[InName];

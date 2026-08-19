@@ -14,7 +14,9 @@ namespace Leon {
 
         std::unordered_map<std::string, TRef<FVertexArray>> GPrimitiveCache;
 
-        void ClearPrimitiveCache() { GPrimitiveCache.clear(); }
+        void ClearPrimitiveCache() {
+            GPrimitiveCache.clear();
+        }
 
         TRef<FVertexArray> CachePrimitive(const std::string& InKey, TRef<FVertexArray> InVA) {
             if (InVA)
@@ -33,8 +35,8 @@ namespace Leon {
             if (!vertexArray)
                 return nullptr;
 
-            TRef<FVertexBuffer> vertexBuffer = FVertexBuffer::Create(
-                InVertices.data(), static_cast<uint32_t>(InVertices.size() * sizeof(float)));
+            TRef<FVertexBuffer> vertexBuffer =
+                FVertexBuffer::Create(InVertices.data(), static_cast<uint32_t>(InVertices.size() * sizeof(float)));
             if (!vertexBuffer)
                 return nullptr;
             vertexBuffer->SetLayout(MakeCanonicalMeshLayout());
@@ -60,7 +62,9 @@ namespace Leon {
 
     } // namespace
 
-    void FMeshPrimitives::ReleaseStaticCaches() { ClearPrimitiveCache(); }
+    void FMeshPrimitives::ReleaseStaticCaches() {
+        ClearPrimitiveCache();
+    }
 
     TRef<FVertexArray> FMeshPrimitives::CreateCube(float InSize) {
         const std::string key = "cube:" + std::to_string(InSize);
@@ -181,7 +185,7 @@ namespace Leon {
 
     TRef<FVertexArray> FMeshPrimitives::CreatePlane(float InWidth, float InDepth, unsigned int InSubdivisionsX,
                                                     unsigned int InSubdivisionsZ) {
-        const std::string key = "plane:uv0v:" + std::to_string(InWidth) + ":" + std::to_string(InDepth) + ":" +
+        const std::string key = "plane:n+y:" + std::to_string(InWidth) + ":" + std::to_string(InDepth) + ":" +
                                 std::to_string(InSubdivisionsX) + ":" + std::to_string(InSubdivisionsZ);
         if (auto cached = FindCachedPrimitive(key))
             return cached;
@@ -214,7 +218,7 @@ namespace Leon {
             }
         }
 
-        // Viewed from +Y: X right, -Z up in screen → CCW
+        // Front face +Y: i0→i1 is +Z, i1→i2 is +X, so +Z × +X = +Y (CCW from above).
         for (unsigned int z = 0; z < InSubdivisionsZ; ++z) {
             for (unsigned int x = 0; x < InSubdivisionsX; ++x) {
                 uint32_t i0 = z * (InSubdivisionsX + 1) + x;
@@ -223,12 +227,12 @@ namespace Leon {
                 uint32_t i3 = z * (InSubdivisionsX + 1) + (x + 1);
 
                 indices.push_back(i0);
-                indices.push_back(i3);
+                indices.push_back(i1);
                 indices.push_back(i2);
 
                 indices.push_back(i0);
                 indices.push_back(i2);
-                indices.push_back(i1);
+                indices.push_back(i3);
             }
         }
 
@@ -299,10 +303,10 @@ namespace Leon {
                 float theta = u * (PI * 2.0f);
                 float cosTheta = std::cos(theta);
                 float sinTheta = std::sin(theta);
-                AppendCanonicalVertex(vertices, glm::vec3(InTopRadius * cosTheta, h, InTopRadius * sinTheta), n,
-                                      glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), t, b, glm::vec3(1.0f),
-                                      PackLightmapCell(glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), 0, 1,
-                                                       2, 2));
+                AppendCanonicalVertex(
+                    vertices, glm::vec3(InTopRadius * cosTheta, h, InTopRadius * sinTheta), n,
+                    glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), t, b, glm::vec3(1.0f),
+                    PackLightmapCell(glm::vec2(0.5f + 0.5f * cosTheta, 0.5f + 0.5f * sinTheta), 0, 1, 2, 2));
             }
 
             for (unsigned int x = 0; x < InSegments; ++x) {
@@ -326,10 +330,10 @@ namespace Leon {
                 float theta = u * (PI * 2.0f);
                 float cosTheta = std::cos(theta);
                 float sinTheta = std::sin(theta);
-                AppendCanonicalVertex(vertices, glm::vec3(InBottomRadius * cosTheta, -h, InBottomRadius * sinTheta), n,
-                                      glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), t, b, glm::vec3(1.0f),
-                                      PackLightmapCell(glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), 1, 1,
-                                                       2, 2));
+                AppendCanonicalVertex(
+                    vertices, glm::vec3(InBottomRadius * cosTheta, -h, InBottomRadius * sinTheta), n,
+                    glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), t, b, glm::vec3(1.0f),
+                    PackLightmapCell(glm::vec2(0.5f + 0.5f * cosTheta, 0.5f - 0.5f * sinTheta), 1, 1, 2, 2));
             }
 
             for (unsigned int x = 0; x < InSegments; ++x) {
@@ -384,8 +388,8 @@ namespace Leon {
         AppendCanonicalVertex(vertices, {w, -h, -d}, {1, 0, 0}, {1, 0}, {0, 0, -1}, {0, 1, 0});
         AppendCanonicalVertex(vertices, {w, h, -d}, {1, 0, 0}, {1, 1}, {0, 0, -1}, {0, 1, 0});
 
-        std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 12, 13, 14, 15, 16,
-                                         17};
+        std::vector<uint32_t> indices = {0, 1, 2,  2,  3,  0, 4,  5,  6,  6,  7,  4,
+                                         8, 9, 10, 10, 11, 8, 12, 13, 14, 15, 16, 17};
         return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
     }
 

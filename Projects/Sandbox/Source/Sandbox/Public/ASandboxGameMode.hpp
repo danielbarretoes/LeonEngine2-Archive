@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AGameMode.hpp"
 
 namespace Leon {
 
     /**
-     * Sandbox GameMode — fly spectator, HUD chip, floor planar capture, and an APickup demo.
+     * Sandbox GameMode — fly spectator, floor planar capture, and an APickup demo.
      */
-    class ASandboxGameMode : public AGameModeBase {
+    class ASandboxGameMode : public AGameMode {
     public:
         ASandboxGameMode() = default;
         ASandboxGameMode(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "SandboxGameMode");
@@ -18,8 +18,6 @@ namespace Leon {
     private:
         void SetupPlanarReflections();
         void SpawnShowcaseDemos();
-        void SpawnNightDemos();
-        void SpawnRendererLab();
     };
 
 } // namespace Leon

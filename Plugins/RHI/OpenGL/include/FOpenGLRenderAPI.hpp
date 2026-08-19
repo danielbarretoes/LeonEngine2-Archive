@@ -42,6 +42,7 @@ namespace Leon {
         void EndGPUTimeQuery(uint32_t InSlot) override;
         void ResolveGPUTimeQueries() override;
         float GetGPUTimeMs(uint32_t InSlot) const override;
+        void InvalidateShaderBindingCache() override;
 
         FOpenGLRenderAPI() = default;
         ~FOpenGLRenderAPI() override;

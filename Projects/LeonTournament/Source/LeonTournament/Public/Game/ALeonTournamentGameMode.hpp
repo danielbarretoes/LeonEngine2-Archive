@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gameplay/AGameModeBase.hpp"
+#include "Gameplay/AGameMode.hpp"
 #include "Gameplay/AController.hpp"
 #include "FLeonTournamentTypes.hpp"
 #include "ALeonTournamentCharacter.hpp"
@@ -21,7 +21,7 @@ namespace Leon {
         float Amount = 0.0f;
     };
 
-    class ALeonTournamentGameMode : public AGameModeBase {
+    class ALeonTournamentGameMode : public AGameMode {
     public:
         ALeonTournamentGameMode() = default;
         ALeonTournamentGameMode(entt::entity InHandle, UWorld* InWorld,
@@ -53,7 +53,7 @@ namespace Leon {
         void OpenNightArena();
         void OpenPlayableMap(ELeonTournamentPlayableMap InMap);
         void NotifySelectedCharacterChanged();
-        void StartMatch();
+        void StartMatch() override;
         void EndMatch(ELeonTournamentMatchWinner InWinner);
         void ReturnToMenu();
 
@@ -74,8 +74,6 @@ namespace Leon {
         int32_t CountTeam(ELeonTournamentTeam InTeam) const;
         int32_t CountHumans() const;
         int32_t CountBotsOnTeam(ELeonTournamentTeam InTeam) const;
-
-        std::vector<ALeonTournamentPlayerState*> GetSortedScoreboard() const;
 
         void BuildArena();
         void EnsurePlayableLighting();

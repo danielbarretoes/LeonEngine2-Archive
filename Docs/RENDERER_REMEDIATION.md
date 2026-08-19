@@ -25,16 +25,16 @@ Index: [RENDERER.md](RENDERER.md). Contract: [RENDERER_CONTRACT.md](RENDERER_CON
 
 ---
 
-## P1 — Important (next pass)
+## P1 — Done
 
-| Item | Location (approx.) | Why |
-| :--- | :--- | :--- |
-| Frustum / light-space cull for shadow casters | `RenderCascadedShadowPass`, `RenderSpotShadowPass` | Cost ≈ cascades × all casters today |
-| Dual-key `UAssetManager` cache blocks `UnloadUnused` | `UAssetManager.cpp` | Virtual + resolved keys inflate `use_count`; travel leaks VRAM |
-| Invalidate `GBoundProgram` on travel / recreate | `FOpenGLShader.cpp` | Skip-bind can reuse a recycled GL program ID |
-| Alpha-mask on static / skinned shadow casters | CSM/spot static & skinned paths force `u_AlphaMode=0` | Foliage / fences cast solid shadows |
-| Warn when truncating >16 point / >8 spot lights | `FWorldRenderer::Render` gather | Silent drop |
-| Transparent sort by AABB center (not model origin) | `FWorldRendererGeometry.cpp` | Large pivots sort wrong |
+| Item | Status | Notes |
+| :--- | :---: | :--- |
+| Frustum / light-space cull for shadow casters | Done | AABB vs cascade / spot VP in `FWorldRendererLighting.cpp` |
+| Dual-key `UAssetManager` cache blocks `UnloadUnused` | Done | Drop when `use_count() <=` alias count in the same map |
+| Invalidate `GBoundProgram` on travel | Done | `FRenderCommand::InvalidateShaderBindingCache` after `UnloadUnused` |
+| Alpha-mask on static / skinned shadow casters | Done | `BindShadowCasterAlpha` for Mask; Blend writes opaque depth |
+| Warn when truncating >16 point / >8 spot lights | Done | Per-frame `LE_CORE_WARN` in `FWorldRenderer::Render` |
+| Transparent sort by AABB center | Done | `TransparentSortDistanceSq` |
 
 ---
 

@@ -188,10 +188,15 @@ namespace Leon {
         InUBO->SetData(padded, sizeof(padded), 0);
     }
 
-    inline bool IsProceduralMeshCulled(const glm::mat4& InWorld, const FMeshComponent& InMesh,
-                                const FFrustumPlanes& InFrustum) {
+    inline glm::vec3 ProceduralMeshLocalExtent(const FMeshComponent& InMesh) {
         float e = std::max({InMesh.MeshSize * 0.5f, InMesh.MeshRadius, InMesh.MeshWidth * 0.5f,
                             InMesh.MeshHeight * 0.5f, InMesh.MeshDepth * 0.5f, 0.5f});
+        return glm::vec3(e);
+    }
+
+    inline bool IsProceduralMeshCulled(const glm::mat4& InWorld, const FMeshComponent& InMesh,
+                                const FFrustumPlanes& InFrustum) {
+        glm::vec3 e = ProceduralMeshLocalExtent(InMesh);
         glm::vec3 localMin(-e), localMax(e);
         glm::vec3 wMin, wMax;
         TransformAABB(localMin, localMax, InWorld, wMin, wMax);
@@ -201,6 +206,63 @@ namespace Leon {
         }
         FRenderer::GetStatsMutable().MeshesDrawn++;
         return false;
+    }
+
+    inline bool IsProceduralMeshOutsideLightFrustum(const glm::mat4& InWorld, const FMeshComponent& InMesh,
+                                                    const FFrustumPlanes& InFrustum) {
+        glm::vec3 e = ProceduralMeshLocalExtent(InMesh);
+        glm::vec3 wMin, wMax;
+        TransformAABB(-e, e, InWorld, wMin, wMax);
+        return !AABBIntersectsFrustum(wMin, wMax, InFrustum);
+    }
+
+    inline bool IsStaticMeshOutsideLightFrustum(const glm::mat4& InWorld, const FStaticMeshComponent& InMesh,
+                                                const FFrustumPlanes& InFrustum) {
+        if (!InMesh.StaticMesh)
+            return false;
+        glm::vec3 wMin, wMax;
+        TransformAABB(InMesh.StaticMesh->GetBoundsMin(), InMesh.StaticMesh->GetBoundsMax(), InWorld, wMin, wMax);
+        return !AABBIntersectsFrustum(wMin, wMax, InFrustum);
+    }
+
+    inline bool IsSkeletalMeshOutsideLightFrustum(const glm::mat4& InWorld, const FSkinnedMeshRenderState& InMesh,
+                                                  const FFrustumPlanes& InFrustum) {
+        if (!InMesh.SkeletalMesh)
+            return false;
+        glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
+                             glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
+                             glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
+        glm::vec3 wMin, wMax;
+        TransformAABB(InMesh.SkeletalMesh->GetBoundsMin(), InMesh.SkeletalMesh->GetBoundsMax(), InWorld * relative,
+                      wMin, wMax);
+        return !AABBIntersectsFrustum(wMin, wMax, InFrustum);
+    }
+
+    inline float TransparentSortDistanceSq(const glm::mat4& InModel, const glm::vec3& InLocalMin,
+                                           const glm::vec3& InLocalMax, const glm::vec3& InCamPos) {
+        glm::vec3 wMin, wMax;
+        TransformAABB(InLocalMin, InLocalMax, InModel, wMin, wMax);
+        glm::vec3 center = 0.5f * (wMin + wMax);
+        glm::vec3 delta = center - InCamPos;
+        return glm::dot(delta, delta);
+    }
+
+    inline void BindShadowCasterAlpha(FShader& InShader, FMaterialInstance* InMat) {
+        if (!InMat || InMat->GetAlphaMode() != EAlphaMode::Mask) {
+            InShader.SetInt("u_AlphaMode", 0);
+            InShader.SetInt("u_UseAlbedoMap", 0);
+            return;
+        }
+        TRef<FTexture2D> albedoTex = InMat->GetTexture(0);
+        glm::vec2 tiling = InMat->GetUVTiling();
+        glm::vec2 offset = InMat->GetUVOffset();
+        InShader.SetInt("u_AlphaMode", 1);
+        InShader.SetFloat("u_AlphaCutoff", InMat->GetAlphaCutoff());
+        InShader.SetInt("u_UseAlbedoMap", albedoTex ? 1 : 0);
+        InShader.SetFloat2("u_UVTiling", tiling.x, tiling.y);
+        InShader.SetFloat2("u_UVOffset", offset.x, offset.y);
+        if (albedoTex)
+            albedoTex->Bind(0);
     }
 
     inline void BindLightmapUniforms(FShader& InShader, bool bUseLightmap, bool bUseTexCoord, const glm::vec2& InScale,

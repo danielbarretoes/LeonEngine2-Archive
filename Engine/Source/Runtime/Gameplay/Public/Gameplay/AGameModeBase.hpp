@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/AController.hpp"
 #include "Gameplay/AGameStateBase.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerController.hpp"
@@ -25,6 +26,7 @@ namespace Leon {
         virtual void StartPlay();
 
         virtual APlayerController* Login(const std::string& InPlayerName = "Player_0");
+        virtual void Logout(AController* Exiting);
         virtual void RestartPlayer(AController* NewPlayer);
         virtual void RestartPlayerAtTransform(AController* NewPlayer, const glm::vec3& InLocation,
                                               const glm::vec3& InRotation);

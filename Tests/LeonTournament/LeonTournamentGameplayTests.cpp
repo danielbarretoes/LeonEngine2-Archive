@@ -141,10 +141,10 @@ namespace Leon {
             cfg.MaxPlayers = 2;
             f.GM->SetMatchConfig(cfg);
             f.GS->SetMatchState(ELeonTournamentMatchState::Playing);
-            f.GS->SetRemainingTime(0.2f);
+            f.GS->SetRemainingTime(0.05f);
             f.GS->SetTeam1Kills(3);
             f.GS->SetTeam2Kills(1);
-            f.World->Tick(FTimestep(0.25f));
+            f.World->Tick(FTimestep(0.1f));
             CHECK(f.GS->GetMatchState() == ELeonTournamentMatchState::Finished);
             CHECK(f.GS->GetMatchWinner() == ELeonTournamentMatchWinner::Team1);
 
@@ -210,7 +210,7 @@ namespace Leon {
             CHECK(psa->GetAssists() == 1);
 
             psk->AddKill();
-            auto board = f.GM->GetSortedScoreboard();
+            auto board = f.GS->GetSortedScoreboard();
             REQUIRE(board.size() >= 3);
             CHECK(board.front()->GetKills() >= board[1]->GetKills());
         }

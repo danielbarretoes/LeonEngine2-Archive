@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bake Sandbox lightmaps (ShowcaseLevel and NightLevel) via Engine Scripts."""
+"""Bake Sandbox lightmaps (ShowcaseLevel) via Engine Scripts."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def main() -> int:
     engine_scripts = os.path.abspath(os.path.join(here, "..", "..", "..", "Scripts"))
     bake = os.path.join(engine_scripts, "bake_lightmaps.py")
 
-    maps = ["/Game/Maps/ShowcaseLevel", "/Game/Maps/NightLevel"]
+    maps = ["/Game/Maps/ShowcaseLevel"]
     extra = sys.argv[1:]
     if "--map" not in extra:
         for m in maps:

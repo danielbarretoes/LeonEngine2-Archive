@@ -13,6 +13,7 @@
 #include "Gameplay/UClassRegistry.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
+#include "Gameplay/AGameState.hpp"
 #include "ALeonTournamentCharacter.hpp"
 #include "ALeonTournamentPlayerController.hpp"
 #include "ALeonTournamentPlayerState.hpp"
@@ -365,6 +366,7 @@ namespace Leon {
             gm->HUDClass = "None";
             server->BeginPlay();
             gm->GetGameState()->SetMatchState(ELeonTournamentMatchState::Playing);
+            gm->GetGameState()->SetRemainingTime(90.0f);
             gm->GetGameState()->SetTeam1Kills(4);
             for (int i = 0; i < 3; ++i) {
                 server->Tick(FTimestep(0.05f));
@@ -374,6 +376,8 @@ namespace Leon {
             REQUIRE(gs);
             CHECK(gs->GetMatchState() == ELeonTournamentMatchState::Playing);
             CHECK(gs->GetTeam1Kills() == 4);
+            CHECK(gs->GetRemainingTime() == doctest::Approx(90.0f - 0.15f).epsilon(0.08f));
+            CHECK(gs->AGameState::GetMatchState() == EMatchState::InProgress);
         }
     }
 

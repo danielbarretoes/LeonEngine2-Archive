@@ -134,8 +134,8 @@ namespace Leon {
                 draw.VA = mesh.VertexArray;
                 draw.Mat = matInst;
                 draw.Model = model;
-                glm::vec3 delta = glm::vec3(model[3]) - camPos;
-                draw.DistanceSq = glm::dot(delta, delta);
+                glm::vec3 e = ProceduralMeshLocalExtent(mesh);
+                draw.DistanceSq = TransparentSortDistanceSq(model, -e, e, camPos);
                 draw.bReceiveShadows = mesh.bReceiveShadows;
                 draw.bUseLightmap = bUseLM;
                 draw.bLightmapUseTexCoord = false;
@@ -202,8 +202,8 @@ namespace Leon {
                     draw.VA = staticMeshComp.StaticMesh->GetVertexArray();
                     draw.Mat = matInst;
                     draw.Model = model;
-                    glm::vec3 delta = glm::vec3(model[3]) - camPos;
-                    draw.DistanceSq = glm::dot(delta, delta);
+                    draw.DistanceSq = TransparentSortDistanceSq(model, staticMeshComp.StaticMesh->GetBoundsMin(),
+                                                                staticMeshComp.StaticMesh->GetBoundsMax(), camPos);
                     draw.IndexCount = submesh.IndexCount;
                     draw.IndexOffset = submesh.IndexOffset;
                     draw.bOffset = true;
@@ -262,8 +262,8 @@ namespace Leon {
                     draw.VA = skel.SkeletalMesh->GetVertexArray();
                     draw.Mat = matInst;
                     draw.Model = model;
-                    glm::vec3 delta = glm::vec3(model[3]) - camPos;
-                    draw.DistanceSq = glm::dot(delta, delta);
+                    draw.DistanceSq = TransparentSortDistanceSq(model, skel.SkeletalMesh->GetBoundsMin(),
+                                                                skel.SkeletalMesh->GetBoundsMax(), camPos);
                     draw.IndexCount = submesh.IndexCount;
                     draw.IndexOffset = submesh.IndexOffset;
                     draw.bOffset = true;

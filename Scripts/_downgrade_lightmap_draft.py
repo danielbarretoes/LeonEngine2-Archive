@@ -13,7 +13,6 @@ MAPS = [
     ROOT / "Projects/LeonTournament/Content/Maps/TournamentArenaNight.lmap",
     ROOT / "Projects/LeonTournament/Content/Maps/AnimLab.lmap",
     ROOT / "Projects/Sandbox/Content/Maps/ShowcaseLevel.lmap",
-    ROOT / "Projects/Sandbox/Content/Maps/NightLevel.lmap",
 ]
 
 LARGE_TOKENS = (

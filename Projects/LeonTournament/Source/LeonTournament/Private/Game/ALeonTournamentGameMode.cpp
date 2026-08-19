@@ -161,7 +161,7 @@ namespace Leon {
     } // namespace
 
     ALeonTournamentGameMode::ALeonTournamentGameMode(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
-        : AGameModeBase(InHandle, InWorld, InName) {
+        : AGameMode(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentGameMode");
         DefaultPawnClass = "None";
         PlayerControllerClass = "ALeonTournamentPlayerController";
@@ -1147,6 +1147,7 @@ namespace Leon {
     void ALeonTournamentGameMode::EndMatch(ELeonTournamentMatchWinner InWinner) {
         if (!IsNetworkAuthority())
             return;
+        AGameMode::EndMatch();
         if (auto* gs = GetGameState()) {
             gs->SetMatchState(ELeonTournamentMatchState::Finished);
             gs->SetMatchWinner(InWinner);
@@ -1270,16 +1271,14 @@ namespace Leon {
         if (gs->GetMatchState() != ELeonTournamentMatchState::Playing)
             return;
 
-        if (Config.MatchDurationSeconds > 0.0f) {
-            gs->SetRemainingTime(std::max(0.0f, gs->GetRemainingTime() - DeltaSeconds));
-            if (gs->GetRemainingTime() <= 0.0f) {
-                if (gs->GetTeam1Kills() > gs->GetTeam2Kills())
-                    EndMatch(ELeonTournamentMatchWinner::Team1);
-                else if (gs->GetTeam2Kills() > gs->GetTeam1Kills())
-                    EndMatch(ELeonTournamentMatchWinner::Team2);
-                else
-                    EndMatch(ELeonTournamentMatchWinner::Draw);
-            }
+        // GameMode ticks before GameState, so treat this frame's remaining as already consumed.
+        if (Config.MatchDurationSeconds > 0.0f && gs->GetRemainingTime() <= DeltaSeconds) {
+            if (gs->GetTeam1Kills() > gs->GetTeam2Kills())
+                EndMatch(ELeonTournamentMatchWinner::Team1);
+            else if (gs->GetTeam2Kills() > gs->GetTeam1Kills())
+                EndMatch(ELeonTournamentMatchWinner::Team2);
+            else
+                EndMatch(ELeonTournamentMatchWinner::Draw);
         }
     }
 
@@ -1507,12 +1506,6 @@ namespace Leon {
                 gs->GetMatchState() == ELeonTournamentMatchState::Lobby)
                 RefreshMenuShowcasePlacement();
         }
-    }
-
-    std::vector<ALeonTournamentPlayerState*> ALeonTournamentGameMode::GetSortedScoreboard() const {
-        if (auto* gs = GetGameState())
-            return gs->GetSortedScoreboard();
-        return {};
     }
 
     void ALeonTournamentGameMode::ValidateSpawnedCharacter(ALeonTournamentCharacter& InCharacter,

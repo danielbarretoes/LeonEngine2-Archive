@@ -41,7 +41,6 @@ Renderer contracts: [RENDERER.md](RENDERER.md). Known coverage gaps (see [RENDER
 
 - GL state after UI / debug overlays
 - `FStaticMeshComponent.bVisible` (code fixed; add regression test)
-- Map travel / `UnloadUnused` VRAM (dual-key cache)
 
 ## Behavioral bar
 

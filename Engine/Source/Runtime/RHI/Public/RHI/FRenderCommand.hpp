@@ -119,6 +119,11 @@ namespace Leon {
             return RenderAPI ? RenderAPI->GetGPUTimeMs(InSlot) : 0.0f;
         }
 
+        static void InvalidateShaderBindingCache() {
+            if (RenderAPI)
+                RenderAPI->InvalidateShaderBindingCache();
+        }
+
         /** Release the process IRenderAPI while the graphics context is still alive. */
         static void Shutdown() { RenderAPI.reset(); }
 

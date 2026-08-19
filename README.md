@@ -34,7 +34,7 @@ Compatibility wrappers `run_sandbox.py` / `validate_sandbox.py` forward to the `
 
 ## Sandbox
 
-Reference game with two maps. Default boot is `/Game/Maps/ShowcaseLevel` (procedural PBR primitives, `DaySky1k`). The HUD chip in the top-right travels to `/Game/Maps/NightLevel` (imported static meshes, `NightSky1k`) and back. IBL/HDR engine tests use `DaySky1k.lhdr`.
+Reference game. Default boot is `/Game/Maps/ShowcaseLevel` (procedural PBR primitives, `DaySky1k`). IBL/HDR engine tests use `DaySky1k.lhdr`.
 
 ## Docs
 

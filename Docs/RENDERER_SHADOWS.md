@@ -16,10 +16,7 @@ Cascaded shadow maps (CSM) and one shadowed spotlight for LeonEngine2. Contracts
 
 CSM uses front-face cull + polygon offset `(2, 4)`. Spot uses back-face cull. Pass entry/exit calls `ResetDefaultMeshRasterState()`.
 
-### Known gaps (P1)
-
-- No frustum / light-space cull of casters (every cascade redraws the full caster set).
-- Alpha mask on casters: procedural meshes yes; static/skinned force `u_AlphaMode = 0`.
+Casters are AABB-culled against each cascade / spot light-space frustum. Masked materials (`EAlphaMode::Mask`) discard in the depth shader for procedural, static, and skinned meshes. Blend casters write opaque depth (no alpha clip).
 
 ## Practical split scheme
 
@@ -55,4 +52,4 @@ PCF taps add a receiver-plane depth prediction. Maps use `GL_NEAREST` compare (s
 | 26 | Spot shadow factor |
 | 27–30 | Cascade depth visualizations |
 
-Sandbox: `F11` cycles shadow debug views; `F12` cycles filter modes.
+Runtime: `F8` cycles shadow debug views (mask, CSM color, spot, cascade depths). `F12` resets to lit. Shadow filter is a graphics setting, not an F-key.

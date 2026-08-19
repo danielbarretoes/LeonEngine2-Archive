@@ -14,6 +14,16 @@ namespace Leon {
     void AController::Possess(APawn* InPawn) {
         if (Pawn == InPawn)
             return;
+        // Flow: Possess
+        // 1. If another controller owns InPawn, UnPossess that controller first (no stale Pawn*).
+        // 2. Release this controller's current pawn.
+        // 3. Bind both sides and copy ControlRotation onto characters.
+        if (InPawn) {
+            if (AController* previous = InPawn->GetController()) {
+                if (previous != this)
+                    previous->UnPossess();
+            }
+        }
         if (Pawn)
             UnPossess();
         Pawn = InPawn;

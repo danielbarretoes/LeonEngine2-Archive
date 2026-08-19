@@ -15,6 +15,7 @@ namespace Leon {
 
         void Bind() const override;
         void Unbind() const override;
+        static void InvalidateBoundCache();
 
         void SetInt(const std::string& InName, int InValue) override;
         void SetFloat(const std::string& InName, float InValue) override;

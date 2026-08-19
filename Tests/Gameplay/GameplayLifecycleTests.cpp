@@ -59,6 +59,9 @@ namespace Leon {
             CHECK(pawn->GetPlayerState() == ps);
             CHECK(world->GetGameState());
             CHECK(world->GetGameState()->GetPlayerArray().size() == 1);
+            CHECK(ps->GetPlayerController() == pc);
+            CHECK(world->GetGameState()->GetGameMode() == gm);
+            CHECK(pc->IsPlayerController());
         }
 
         TEST_CASE("RestartPlayer destroys pawn and keeps controller plus PlayerState") {
@@ -86,6 +89,28 @@ namespace Leon {
             CHECK(ps->GetPlayerName() == "KeepMe");
             CHECK(spawned->GetPlayerState() == ps);
             CHECK(world->GetFirstPlayerController() == pc);
+        }
+
+        TEST_CASE("Logout removes controller PlayerState HUD and leaves pawn unpossessed") {
+            auto world = UWorld::Create("LogoutLife");
+            auto* gm = world->SpawnActor<AGameModeBase>("GM");
+            world->SetGameMode(gm);
+            world->InitWorld();
+            world->BeginPlay();
+
+            APlayerController* pc = world->GetFirstPlayerController();
+            REQUIRE(pc);
+            APawn* pawn = pc->GetPawn();
+            REQUIRE(pawn);
+            REQUIRE(world->GetGameState());
+            CHECK(world->GetGameState()->GetPlayerArray().size() == 1);
+
+            gm->Logout(pc);
+            CHECK(world->GetPlayerControllers().empty());
+            CHECK(world->GetFirstPlayerController() == nullptr);
+            CHECK(world->GetGameState()->GetPlayerArray().empty());
+            CHECK_FALSE(pawn->IsPendingKill());
+            CHECK_FALSE(pawn->IsControlled());
         }
 
         TEST_CASE("StartPlay on a client world does not Login") {

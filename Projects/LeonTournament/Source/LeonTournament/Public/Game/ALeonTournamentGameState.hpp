@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Gameplay/AGameStateBase.hpp"
+#include "Gameplay/AGameState.hpp"
 #include "FLeonTournamentTypes.hpp"
 #include "Engine/FNetBlob.hpp"
 
@@ -10,24 +10,13 @@ namespace Leon {
 
     class ALeonTournamentPlayerState;
 
-    class ALeonTournamentGameState : public AGameStateBase {
+    class ALeonTournamentGameState : public AGameState {
     public:
         ALeonTournamentGameState() = default;
         ALeonTournamentGameState(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentGameState");
 
         ELeonTournamentMatchState GetMatchState() const { return MatchState; }
-        void SetMatchState(ELeonTournamentMatchState InState) {
-            if (!IsNetworkAuthority())
-                return;
-            MatchState = InState;
-        }
-
-        float GetRemainingTime() const { return RemainingTime; }
-        void SetRemainingTime(float InTime) {
-            if (!IsNetworkAuthority())
-                return;
-            RemainingTime = InTime;
-        }
+        void SetMatchState(ELeonTournamentMatchState InState);
 
         int32_t GetTeam1Kills() const { return Team1Kills; }
         int32_t GetTeam2Kills() const { return Team2Kills; }
@@ -77,7 +66,6 @@ namespace Leon {
 
     private:
         ELeonTournamentMatchState MatchState = ELeonTournamentMatchState::MainMenu;
-        float RemainingTime = 600.0f;
         int32_t Team1Kills = 0;
         int32_t Team2Kills = 0;
         int32_t Team1PlayerCount = 0;

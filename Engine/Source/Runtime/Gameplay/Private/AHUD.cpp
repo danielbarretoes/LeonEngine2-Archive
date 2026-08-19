@@ -16,12 +16,13 @@ namespace Leon {
         if (!InWidget)
             return;
 
+        InWidget->SetZOrder(InZOrder);
+
         auto it = std::find(ViewportWidgets.begin(), ViewportWidgets.end(), InWidget);
         if (it == ViewportWidgets.end()) {
             ViewportWidgets.push_back(InWidget);
         }
 
-        (void)InZOrder;
         std::stable_sort(
             ViewportWidgets.begin(), ViewportWidgets.end(),
             [](const TRef<UUserWidget>& a, const TRef<UUserWidget>& b) { return a->GetZOrder() < b->GetZOrder(); });

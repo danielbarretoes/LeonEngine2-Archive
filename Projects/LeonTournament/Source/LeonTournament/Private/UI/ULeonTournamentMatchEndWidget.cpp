@@ -166,10 +166,11 @@ namespace Leon {
 
         std::ostringstream ss;
         ss << "TEAM 1  " << gs->GetTeam1Kills() << "     TEAM 2  " << gs->GetTeam2Kills() << "\n";
-        if (OwningPlayer) {
-            if (auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState())) {
-                ss << "\nYOU  K " << ps->GetKills() << "  D " << ps->GetDeaths() << "  A " << ps->GetAssists();
-            }
+        for (auto* ps : gs->GetSortedScoreboard()) {
+            if (!ps)
+                continue;
+            ss << "\n" << ps->GetPlayerName() << "  " << static_cast<int>(ps->GetScore()) << "  K " << ps->GetKills()
+               << "  D " << ps->GetDeaths() << "  A " << ps->GetAssists();
         }
         if (StatsText)
             StatsText->SetText(ss.str());

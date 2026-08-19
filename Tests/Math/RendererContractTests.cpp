@@ -11,6 +11,7 @@
 #include "Renderer/FIBLMath.hpp"
 #include "Renderer/FPlanarReflectionTypes.hpp"
 #include "Renderer/FShadowTypes.hpp"
+#include "Renderer/FFrustumCull.hpp"
 
 TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
 
@@ -217,6 +218,12 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(D == doctest::Approx(16.0f / PI).epsilon(1e-5f));
     }
 
+    TEST_CASE("Plane triangle winding faces +Y") {
+        glm::vec3 p0(-1.0f, 0.0f, -1.0f), p1(-1.0f, 0.0f, 1.0f), p2(1.0f, 0.0f, 1.0f);
+        glm::vec3 n = glm::cross(p1 - p0, p2 - p0);
+        CHECK(n.y > 0.0f);
+    }
+
     TEST_CASE("Cube front face winding is CCW / outward") {
         float h = 0.5f;
         glm::vec3 p0(-h, -h, h), p1(h, -h, h), p2(h, h, h);
@@ -300,5 +307,28 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         glm::vec2 a = Leon::PackLightmapCell({1.0f, 1.0f}, 0, 0, 3, 2);
         glm::vec2 b = Leon::PackLightmapCell({0.0f, 0.0f}, 1, 0, 3, 2);
         CHECK(a.x < b.x);
+    }
+
+    TEST_CASE("AABB outside an ortho light frustum is culled") {
+        glm::mat4 proj = glm::ortho(-4.0f, 4.0f, -4.0f, 4.0f, 0.1f, 20.0f);
+        glm::mat4 view = glm::lookAt(glm::vec3(0, 10, 0), glm::vec3(0, 0, 0), glm::vec3(0, 0, -1));
+        Leon::FFrustumPlanes frustum = Leon::ExtractFrustumPlanes(proj * view);
+        CHECK(Leon::AABBIntersectsFrustum({-1, -1, -1}, {1, 1, 1}, frustum));
+        CHECK_FALSE(Leon::AABBIntersectsFrustum({80, -1, 80}, {82, 1, 82}, frustum));
+    }
+
+    TEST_CASE("Transparent sort uses world AABB center not model origin") {
+        glm::mat4 model(1.0f);
+        glm::vec3 cam(0.0f);
+        glm::vec3 localMin(9.0f, -1.0f, -1.0f);
+        glm::vec3 localMax(11.0f, 1.0f, 1.0f);
+        glm::vec3 wMin, wMax;
+        Leon::TransformAABB(localMin, localMax, model, wMin, wMax);
+        glm::vec3 center = 0.5f * (wMin + wMax);
+        float fromCenter = glm::dot(center - cam, center - cam);
+        glm::vec3 origin(model[3]);
+        float fromOrigin = glm::dot(origin - cam, origin - cam);
+        CHECK(fromOrigin == doctest::Approx(0.0f));
+        CHECK(fromCenter == doctest::Approx(100.0f));
     }
 }
