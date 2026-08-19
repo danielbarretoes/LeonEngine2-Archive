@@ -139,7 +139,10 @@ namespace Leon {
                    InWorld.GetPendingSSAOEnabled() == InPreset.bEnableSSAO &&
                    InWorld.GetPendingBloomEnabled() == InPreset.bEnableBloom &&
                    InWorld.GetPendingFXAAEnabled() == InPreset.bEnableFXAA &&
-                   InWorld.GetPendingShadowFilter() == InPreset.ShadowFilter;
+                   InWorld.GetPendingShadowFilter() == InPreset.ShadowFilter &&
+                   InWorld.GetPendingSpotResolution() == InPreset.SpotResolution &&
+                   InWorld.GetPendingPointShadowResolution() == InPreset.PointShadowResolution &&
+                   InWorld.GetPendingMaxShadowedPointLights() == InPreset.MaxShadowedPointLights;
         }
     } // namespace
 
@@ -182,6 +185,9 @@ namespace Leon {
         case EGraphicsQuality::Low:
             preset.ShadowMapResolution = 512;
             preset.CascadeCount = 1;
+            preset.SpotResolution = 512;
+            preset.PointShadowResolution = 256;
+            preset.MaxShadowedPointLights = 1;
             preset.ShadowDistance = 12.0f;
             preset.ShadowFilter = EShadowFilterMode::Hard;
             preset.bEnablePlanarReflection = false;
@@ -193,6 +199,9 @@ namespace Leon {
         case EGraphicsQuality::Medium:
             preset.ShadowMapResolution = 1024;
             preset.CascadeCount = 3;
+            preset.SpotResolution = 1024;
+            preset.PointShadowResolution = 512;
+            preset.MaxShadowedPointLights = 2;
             preset.ShadowDistance = 60.0f;
             preset.ShadowFilter = EShadowFilterMode::PCF3x3;
             preset.bEnablePlanarReflection = true;
@@ -205,6 +214,9 @@ namespace Leon {
         default:
             preset.ShadowMapResolution = 2048;
             preset.CascadeCount = 4;
+            preset.SpotResolution = 1024;
+            preset.PointShadowResolution = 512;
+            preset.MaxShadowedPointLights = 4;
             preset.ShadowDistance = 100.0f;
             preset.ShadowFilter = EShadowFilterMode::PCF5x5;
             preset.bEnablePlanarReflection = true;
@@ -243,6 +255,8 @@ namespace Leon {
                                        InWorld.GetPendingSSAOIntensity(), InWorld.GetPendingSSAOBias());
         InWorld.SetProjectPostProcessToggles(preset.bEnableBloom, preset.bEnableFXAA);
         InWorld.SetProjectShadowFilter(preset.ShadowFilter);
+        InWorld.SetProjectOmniShadowDefaults(preset.SpotResolution, preset.PointShadowResolution,
+                                             preset.MaxShadowedPointLights);
         SyncEngineProjectDefaults(preset);
     }
 
@@ -337,7 +351,9 @@ namespace Leon {
         // CSM is always a 4-layer DEPTH32F array even when CascadeCount is 2 or 3.
         size_t bytes = AssetBaselineBytes();
         bytes += static_cast<size_t>(preset.ShadowMapResolution) * preset.ShadowMapResolution * 4ull * 4ull;
-        bytes += 1024ull * 1024ull * 4ull;
+        bytes += static_cast<size_t>(preset.SpotResolution) * preset.SpotResolution * 4ull;
+        bytes += static_cast<size_t>(preset.PointShadowResolution) * preset.PointShadowResolution * 4ull * 6ull *
+                 FShadowSettings::kMaxShadowedPointLights;
         if (preset.bEnablePlanarReflection)
             bytes += PlanarBytes(w, h, preset.PlanarQuality);
         bytes += static_cast<size_t>(w) * h * 12ull; // HDR RGBA16F + depth

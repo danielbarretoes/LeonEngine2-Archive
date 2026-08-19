@@ -90,11 +90,15 @@ Energy check: uniform `Li = 1` ⇒ `E = π`. Albedo `1` ⇒ `Lo_diffuse = 1` (`u
 
 ## Shadows
 
-- Directional: 4-cascade CSM, configurable resolution.
+- Directional: CSM with up to 4 layers. `CascadeCount` is packed in `FCameraBufferData::ShadowSettings.z`. Unused layers are cleared and padded; the shader clamps index, blend, and far fade to that count.
 - Spotlight: **one** shadowed spot (`FShadowSettings.ShadowedSpotIndex`, default `0`). Viewport uses `SpotResolution`.
+- Point: **at most 4** cubemap-array slots (`FShadowSettings::kMaxShadowedPointLights`). `FGpuPointLight::Params.y` is the cube index (`-1` = unshadowed). Binding 14, `u_UsePointShadows`. Linear depth vs radius.
+- `FShadowSettings.bEnableShadows` disables all shadow passes and GPU flags.
+- PCF / Poisson skip UV taps outside `[0,1]` and renormalize (no border-lit leaks).
 - Contact shadows: **removed**.
-- Depth: classical `GL_LEQUAL` compare. Bias: constant + slope + normal offset.
-- Opaque geometry uses camera frustum AABB cull; **shadow passes do not yet cull** (see remediation P1).
+- Depth: classical `GL_LEQUAL` compare on CSM/spot. Point cubes use `COMPARE_MODE = NONE` and a manual linear compare.
+- Bias: constant + slope + normal offset.
+- Opaque geometry uses camera frustum AABB cull. Shadow casters are AABB-culled per cascade / spot / cubemap face. Skinned bounds are inflated by `kSkinnedShadowBoundsPadding`.
 
 ## Lightmaps
 

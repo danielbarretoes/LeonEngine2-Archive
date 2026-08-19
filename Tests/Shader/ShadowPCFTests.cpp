@@ -85,6 +85,31 @@ TEST_SUITE("Shader GPU - Shadow Filtering Modes (Hard, PCF 3x3, PCF 5x5, Poisson
             CHECK(pix.r == doctest::Approx(1.0f).epsilon(0.02f));
         }
 
+        SUBCASE("PCF 5x5 near UV 0 skips OOB taps (occluded, not border-lit)") {
+            float zeroDepth = 0.0f;
+            glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 0, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT,
+                               &zeroDepth);
+
+            glm::mat4 lightMat(1.0f);
+            lightMat[3][0] = -0.90f;
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = lightMat;
+            camData.ShadowSettings = glm::ivec4(2, 16, 0, 24);
+            camData.ShadowParams = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+            gl.UpdateCameraUBO(camData);
+
+            gl.DrawQuad();
+            glm::vec4 pix = gl.ReadPixel(0, 0);
+
+            float oneDepth = 1.0f;
+            glClearTexSubImage(gl.GetDefaultShadowArrayTex(), 0, 0, 0, 0, 1, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT,
+                               &oneDepth);
+            for (int c = 0; c < 4; ++c)
+                camData.LightSpaceMatrices[c] = glm::mat4(1.0f);
+
+            CHECK(pix.r == doctest::Approx(0.0f).epsilon(0.08f));
+        }
+
         SUBCASE("Poisson Disk vs Hard Filter Penumbra Edge Response") {
             // Position quad right at shadow boundary in light space
             // deltaZ maps center to 1.000 (edge of shadow depth)

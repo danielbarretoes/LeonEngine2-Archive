@@ -19,6 +19,7 @@ namespace Leon {
         DEPTH32F,
         DEPTH32F_SHADOW,
         DEPTH32F_ARRAY_SHADOW,
+        DEPTH32F_CUBE_ARRAY,
 
         // Defaults
         Depth = DEPTH24STENCIL8

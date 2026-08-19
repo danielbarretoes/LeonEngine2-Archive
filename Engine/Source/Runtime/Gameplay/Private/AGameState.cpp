@@ -12,10 +12,19 @@ namespace Leon {
         SetAlwaysRelevant(true);
     }
 
+    void AGameState::HandleMatchStateChange(EMatchState InPrevious, EMatchState InCurrent) {
+        (void)InPrevious;
+        (void)InCurrent;
+    }
+
     void AGameState::SetMatchState(EMatchState InState) {
         if (!IsNetworkAuthority())
             return;
+        if (MatchState == InState)
+            return;
+        const EMatchState previous = MatchState;
         MatchState = InState;
+        HandleMatchStateChange(previous, MatchState);
     }
 
     void AGameState::SetRemainingTime(float InTime) {
@@ -46,8 +55,13 @@ namespace Leon {
         if (!FNetBlob::ReadU8(bytes, offset, state) || !FNetBlob::ReadF32(bytes, offset, RemainingTime) ||
             !FNetBlob::ReadF32(bytes, offset, elapsed))
             return;
-        MatchState = static_cast<EMatchState>(state);
+        const EMatchState incoming = static_cast<EMatchState>(state);
         SetElapsedTime(elapsed);
+        if (MatchState != incoming) {
+            const EMatchState previous = MatchState;
+            MatchState = incoming;
+            HandleMatchStateChange(previous, MatchState);
+        }
     }
 
 } // namespace Leon

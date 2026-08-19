@@ -18,6 +18,7 @@ namespace Leon {
 
         EMatchState GetMatchState() const { return MatchState; }
         void SetMatchState(EMatchState InState);
+        virtual void HandleMatchStateChange(EMatchState InPrevious, EMatchState InCurrent);
 
         float GetRemainingTime() const { return RemainingTime; }
         void SetRemainingTime(float InTime);

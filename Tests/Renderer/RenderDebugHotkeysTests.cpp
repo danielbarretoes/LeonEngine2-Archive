@@ -24,7 +24,7 @@ TEST_SUITE("Render debug hotkeys") {
         modes.insert(13); // F9 planar
 
         const int expected[] = {1,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 18, 19, 20,
-                                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39};
+                                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40};
         for (int mode : expected)
             CHECK(modes.contains(mode));
         CHECK(modes.size() == sizeof(expected) / sizeof(expected[0]));
@@ -70,7 +70,7 @@ TEST_SUITE("Render debug hotkeys") {
         using Leon::FRenderDebugHotkeys;
         CHECK(std::string(FRenderDebugHotkeys::ShaderViewName(0)) == "Lit");
         CHECK(std::string(FRenderDebugHotkeys::ShaderViewName(13)) == "Planar Reflections Buffer");
-        CHECK(std::string(FRenderDebugHotkeys::ShaderViewName(14)) == "Albedo / Base Color");
+        CHECK(std::string(FRenderDebugHotkeys::ShaderViewName(40)) == "Point Shadow Factor");
         CHECK(std::string(FRenderDebugHotkeys::CycleNameOrNull(16, FRenderDebugHotkeys::MaterialCycle)) ==
               std::string("Roughness"));
         CHECK(FRenderDebugHotkeys::CycleNameOrNull(11, FRenderDebugHotkeys::MaterialCycle) == nullptr);

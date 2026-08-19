@@ -152,18 +152,24 @@ namespace Leon {
             }
         }
 
-        glm::vec4 GetAtlasScaleOffset2x2(uint32_t InCascadeIndex) {
-            switch (InCascadeIndex) {
-            case 0:
-                return glm::vec4(0.5f, 0.5f, 0.0f, 0.0f);
-            case 1:
-                return glm::vec4(0.5f, 0.5f, 0.5f, 0.0f);
-            case 2:
-                return glm::vec4(0.5f, 0.5f, 0.0f, 0.5f);
-            case 3:
-            default:
-                return glm::vec4(0.5f, 0.5f, 0.5f, 0.5f);
-            }
+        glm::mat4 PointCubeFaceView(const glm::vec3& InLightPos, uint32_t InFace) {
+            // OpenGL cubemap face centers and ups (LearnOpenGL / spec).
+            const glm::vec3 centers[6] = {
+                {1.0f, 0.0f, 0.0f},  {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+                {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f},  {0.0f, 0.0f, -1.0f},
+            };
+            const glm::vec3 ups[6] = {
+                {0.0f, -1.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f},
+                {0.0f, 0.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, -1.0f, 0.0f},
+            };
+            const uint32_t face = std::min(InFace, 5u);
+            return glm::lookAt(InLightPos, InLightPos + centers[face], ups[face]);
+        }
+
+        glm::mat4 PointCubeFaceProjection(float InNear, float InFar) {
+            float nearPlane = std::max(InNear, 0.01f);
+            float farPlane = std::max(InFar, nearPlane + 0.01f);
+            return glm::perspective(glm::radians(90.0f), 1.0f, nearPlane, farPlane);
         }
 
         void CascadeSliceDepthRange(uint32_t InIndex, const std::vector<float>& InSplits, float InBlendWidth,

@@ -145,30 +145,39 @@ float ShadowTap2D(sampler2DShadow shadowMap, vec2 uv, float refZ) {
     return texture(shadowMap, vec3(uv, refZ));
 }
 
+bool ShadowUvValid(vec2 uv) {
+    return uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0;
+}
+
+int ActiveCascadeCount() {
+    int c = u_ShadowSettings.z;
+    return c <= 0 ? 4 : clamp(c, 1, 4);
+}
+
 float FilterShadowArray(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 projCoords, float refZ) {
     vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0).xy);
     vec2 dzDuv = ReceiverPlaneDzDuv(dFdx(projCoords), dFdy(projCoords));
     int filterMode = u_ShadowSettings.x;
     float shadow = 0.0;
+    float valid = 0.0;
 
     if (filterMode == 0) {
         return 1.0 - ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy, refZ);
-    } else if (filterMode == 1) {
-        for (int x = -1; x <= 1; ++x) {
-            for (int y = -1; y <= 1; ++y) {
+    } else if (filterMode == 1 || filterMode == 2) {
+        int radius = filterMode == 1 ? 1 : 2;
+        for (int x = -radius; x <= radius; ++x) {
+            for (int y = -radius; y <= radius; ++y) {
                 vec2 uvOff = vec2(x, y) * texelSize;
-                shadow += ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+                vec2 uv = projCoords.xy + uvOff;
+                if (!ShadowUvValid(uv))
+                    continue;
+                shadow += ShadowTapArray(shadowMap, cascadeIndex, uv, refZ + dot(dzDuv, uvOff));
+                valid += 1.0;
             }
         }
-        return 1.0 - (shadow / 9.0);
-    } else if (filterMode == 2) {
-        for (int x = -2; x <= 2; ++x) {
-            for (int y = -2; y <= 2; ++y) {
-                vec2 uvOff = vec2(x, y) * texelSize;
-                shadow += ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
-            }
-        }
-        return 1.0 - (shadow / 25.0);
+        if (valid < 0.5)
+            return 0.0;
+        return 1.0 - (shadow / valid);
     }
 
     float noise = InterleavedGradientNoise(gl_FragCoord.xy);
@@ -177,9 +186,15 @@ float FilterShadowArray(sampler2DArrayShadow shadowMap, int cascadeIndex, vec3 p
     float diskRadius = 1.75;
     for (int i = 0; i < 16; ++i) {
         vec2 uvOff = rot * POISSON_DISK[i] * diskRadius * texelSize;
-        shadow += ShadowTapArray(shadowMap, cascadeIndex, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+        vec2 uv = projCoords.xy + uvOff;
+        if (!ShadowUvValid(uv))
+            continue;
+        shadow += ShadowTapArray(shadowMap, cascadeIndex, uv, refZ + dot(dzDuv, uvOff));
+        valid += 1.0;
     }
-    return 1.0 - (shadow / 16.0);
+    if (valid < 0.5)
+        return 0.0;
+    return 1.0 - (shadow / valid);
 }
 
 float FilterShadow2D(sampler2DShadow shadowMap, vec3 projCoords, float refZ) {
@@ -187,25 +202,25 @@ float FilterShadow2D(sampler2DShadow shadowMap, vec3 projCoords, float refZ) {
     vec2 dzDuv = ReceiverPlaneDzDuv(dFdx(projCoords), dFdy(projCoords));
     int filterMode = u_ShadowSettings.x;
     float shadow = 0.0;
+    float valid = 0.0;
 
     if (filterMode == 0) {
         return 1.0 - ShadowTap2D(shadowMap, projCoords.xy, refZ);
-    } else if (filterMode == 1) {
-        for (int x = -1; x <= 1; ++x) {
-            for (int y = -1; y <= 1; ++y) {
+    } else if (filterMode == 1 || filterMode == 2) {
+        int radius = filterMode == 1 ? 1 : 2;
+        for (int x = -radius; x <= radius; ++x) {
+            for (int y = -radius; y <= radius; ++y) {
                 vec2 uvOff = vec2(x, y) * texelSize;
-                shadow += ShadowTap2D(shadowMap, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+                vec2 uv = projCoords.xy + uvOff;
+                if (!ShadowUvValid(uv))
+                    continue;
+                shadow += ShadowTap2D(shadowMap, uv, refZ + dot(dzDuv, uvOff));
+                valid += 1.0;
             }
         }
-        return 1.0 - (shadow / 9.0);
-    } else if (filterMode == 2) {
-        for (int x = -2; x <= 2; ++x) {
-            for (int y = -2; y <= 2; ++y) {
-                vec2 uvOff = vec2(x, y) * texelSize;
-                shadow += ShadowTap2D(shadowMap, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
-            }
-        }
-        return 1.0 - (shadow / 25.0);
+        if (valid < 0.5)
+            return 0.0;
+        return 1.0 - (shadow / valid);
     }
 
     float noise = InterleavedGradientNoise(gl_FragCoord.xy);
@@ -214,9 +229,15 @@ float FilterShadow2D(sampler2DShadow shadowMap, vec3 projCoords, float refZ) {
     float diskRadius = 1.75;
     for (int i = 0; i < 16; ++i) {
         vec2 uvOff = rot * POISSON_DISK[i] * diskRadius * texelSize;
-        shadow += ShadowTap2D(shadowMap, projCoords.xy + uvOff, refZ + dot(dzDuv, uvOff));
+        vec2 uv = projCoords.xy + uvOff;
+        if (!ShadowUvValid(uv))
+            continue;
+        shadow += ShadowTap2D(shadowMap, uv, refZ + dot(dzDuv, uvOff));
+        valid += 1.0;
     }
-    return 1.0 - (shadow / 16.0);
+    if (valid < 0.5)
+        return 0.0;
+    return 1.0 - (shadow / valid);
 }
 
 vec3 ApplyShadowUvNormalOffset(vec3 projCoords, mat4 lightMatrix, vec3 normal, float slopeFactor, vec2 texelSize) {
@@ -323,8 +344,9 @@ float CascadeSplitFar(int cascadeIndex) {
 }
 
 float CascadeBlendAlpha(float depth, int cascadeIndex) {
+    int cascadeCount = ActiveCascadeCount();
     float blendWidth = u_ShadowParams.w;
-    if (blendWidth < 0.001 || cascadeIndex >= 3)
+    if (blendWidth < 0.001 || cascadeIndex + 1 >= cascadeCount)
         return 0.0;
     float splitDist = CascadeSplitFar(cascadeIndex);
     float cascadeLen = max(splitDist - CascadeSplitNear(cascadeIndex), 0.001);
@@ -342,16 +364,20 @@ float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDi
         return 0.0;
     }
 
+    int cascadeCount = ActiveCascadeCount();
+    int lastCascade = cascadeCount - 1;
+
     // Planar view depth along camera forward axis (matches perspective frustum slices exactly)
     float depth = dot(fragPos - u_ViewPos.xyz, u_CameraForward.xyz);
-    int cascadeIndex = 3;
+    int cascadeIndex = lastCascade;
     if (depth < u_CascadeSplits.x) {
         cascadeIndex = 0;
-    } else if (depth < u_CascadeSplits.y) {
+    } else if (cascadeCount > 1 && depth < u_CascadeSplits.y) {
         cascadeIndex = 1;
-    } else if (depth < u_CascadeSplits.z) {
+    } else if (cascadeCount > 2 && depth < u_CascadeSplits.z) {
         cascadeIndex = 2;
     }
+    cascadeIndex = min(cascadeIndex, lastCascade);
     outCascadeIndex = cascadeIndex;
 
     float shadow = SampleCascadeShadowSlice(u_CascadeShadowMap, cascadeIndex, fragPos, normal, lightDir);
@@ -365,9 +391,9 @@ float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDi
             shadow = mix(shadow, nextShadow, alpha);
     }
 
-    // Soft fadeout at far shadow distance (split3 / cascadeSplits.w)
-    if (depth > u_CascadeSplits.w) {
-        float fade = clamp((depth - u_CascadeSplits.w) / 15.0, 0.0, 1.0);
+    float farSplit = CascadeSplitFar(lastCascade);
+    if (depth > farSplit) {
+        float fade = clamp((depth - farSplit) / 15.0, 0.0, 1.0);
         shadow = mix(shadow, 0.0, fade);
     }
 
@@ -377,6 +403,73 @@ float CalculateCascadedDirectionalShadow(vec3 fragPos, vec3 normal, vec3 lightDi
 float CalculateSpotShadow(vec3 fragPos, vec3 normal, vec3 lightDir) {
     if (u_UseSpotShadows == 0) return 0.0;
     return SampleSpotShadowMap(u_SpotShadowMap, fragPos, normal, lightDir);
+}
+
+float FilterPointCubeShadow(vec3 dir, int cubeIndex, float refDepth) {
+    int filterMode = u_ShadowSettings.x;
+    vec3 nDir = SafeNormalize3(dir, vec3(0.0, 0.0, 1.0));
+    vec3 up = abs(nDir.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 T = SafeNormalize3(cross(up, nDir), vec3(1.0, 0.0, 0.0));
+    vec3 B = cross(nDir, T);
+    float occluded = 0.0;
+    float valid = 0.0;
+    float disk = 0.012;
+
+    int radius = 0;
+    if (filterMode == 1)
+        radius = 1;
+    else if (filterMode == 2)
+        radius = 2;
+
+    if (filterMode == 0) {
+        float stored = texture(u_PointShadowMap, vec4(nDir, float(cubeIndex))).r;
+        return refDepth > stored + 0.002 ? 1.0 : 0.0;
+    }
+    if (filterMode == 3) {
+        float noise = InterleavedGradientNoise(gl_FragCoord.xy);
+        float angle = noise * 2.0 * PI;
+        mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+        for (int i = 0; i < 16; ++i) {
+            vec2 off = rot * POISSON_DISK[i] * disk * 1.75;
+            vec3 sdir = SafeNormalize3(nDir + T * off.x + B * off.y, nDir);
+            float stored = texture(u_PointShadowMap, vec4(sdir, float(cubeIndex))).r;
+            occluded += refDepth > stored + 0.002 ? 1.0 : 0.0;
+            valid += 1.0;
+        }
+        return occluded / max(valid, 1.0);
+    }
+    for (int x = -radius; x <= radius; ++x) {
+        for (int y = -radius; y <= radius; ++y) {
+            vec3 sdir = SafeNormalize3(nDir + T * (float(x) * disk) + B * (float(y) * disk), nDir);
+            float stored = texture(u_PointShadowMap, vec4(sdir, float(cubeIndex))).r;
+            occluded += refDepth > stored + 0.002 ? 1.0 : 0.0;
+            valid += 1.0;
+        }
+    }
+    return occluded / max(valid, 1.0);
+}
+
+float CalculatePointShadow(vec3 fragPos, vec3 vertexN, int lightIndex) {
+    if (u_UsePointShadows == 0)
+        return 0.0;
+    float cubeSlot = u_PointLights[lightIndex].params.y;
+    if (cubeSlot < 0.0)
+        return 0.0;
+    vec3 lightPos = u_PointLights[lightIndex].position.xyz;
+    float radius = max(u_PointLights[lightIndex].params.x, 0.01);
+    vec3 toFrag = fragPos - lightPos;
+    float dist = length(toFrag);
+    if (dist > radius || dist < 1e-5)
+        return 0.0;
+    vec3 normal = ShadowFaceNormal(fragPos, vertexN);
+    vec3 L = SafeNormalize3(lightPos - fragPos, vec3(0.0, 1.0, 0.0));
+    float NdotL = max(dot(normal, L), 0.0);
+    float tanTheta = ShadowSlopeTan(normal, L);
+    float bias = (u_ShadowParams.x + u_ShadowParams.y * tanTheta) * 1.5;
+    float refDepth = clamp(dist / radius - bias, 0.0, 1.0);
+    float shadow = FilterPointCubeShadow(toFrag, int(cubeSlot + 0.5), refDepth);
+    shadow *= smoothstep(0.0, 0.22, NdotL);
+    return shadow;
 }
 
 // Project the fragment through a mirrored camera used to fill a planar map.

@@ -105,16 +105,17 @@ TEST_SUITE("Shader GPU - Shadow Cascaded Partitioning & Stabilization Math") {
         CHECK(jitteredTexelSize == doctest::Approx(worldUnitsPerTexel).epsilon(0.0001f));
     }
 
-    TEST_CASE("ShadowMath - 2x2 Atlas Scale and Offset Coordinates") {
-        auto q0 = ShadowMath::GetAtlasScaleOffset2x2(0);
-        auto q1 = ShadowMath::GetAtlasScaleOffset2x2(1);
-        auto q2 = ShadowMath::GetAtlasScaleOffset2x2(2);
-        auto q3 = ShadowMath::GetAtlasScaleOffset2x2(3);
+    TEST_CASE("ShadowMath - point cube face lookAt is orthonormal and 90 degree proj") {
+        glm::mat4 view = ShadowMath::PointCubeFaceView(glm::vec3(1.0f, 2.0f, 3.0f), 0);
+        glm::mat3 r(view);
+        for (int i = 0; i < 3; ++i)
+            CHECK(glm::length(r[i]) == doctest::Approx(1.0f).epsilon(0.001f));
+        CHECK(std::abs(glm::dot(r[0], r[1])) < 0.001f);
+        CHECK(std::abs(glm::dot(r[0], r[2])) < 0.001f);
+        CHECK(std::abs(glm::dot(r[1], r[2])) < 0.001f);
 
-        CHECK(q0 == glm::vec4(0.5f, 0.5f, 0.0f, 0.0f));
-        CHECK(q1 == glm::vec4(0.5f, 0.5f, 0.5f, 0.0f));
-        CHECK(q2 == glm::vec4(0.5f, 0.5f, 0.0f, 0.5f));
-        CHECK(q3 == glm::vec4(0.5f, 0.5f, 0.5f, 0.5f));
+        glm::mat4 proj = ShadowMath::PointCubeFaceProjection(0.1f, 25.0f);
+        CHECK(proj[1][1] == doctest::Approx(1.0f).epsilon(0.001f));
     }
 
     TEST_CASE("ShadowMath - cascade slice range overlaps the blend zone") {

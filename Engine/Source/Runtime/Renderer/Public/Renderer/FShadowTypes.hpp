@@ -27,8 +27,7 @@ namespace Leon {
     };
 
     /**
-     * @brief Configuration parameters for Cascaded Shadow Maps and spotlight shadows.
-     * Spotlight shadows: at most one shadowed spot (index 0 of the runtime spot list).
+     * @brief Configuration for CSM, one spotlight map, and up to four point cubemaps.
      */
     struct FShadowSettings {
         bool bEnableShadows = true;
@@ -50,7 +49,13 @@ namespace Leon {
 
         uint32_t CascadeResolution = 2048; ///< Width and height per cascade layer
         uint32_t SpotResolution = 1024;    ///< Spotlight shadow map resolution
-        int32_t ShadowedSpotIndex = 0;     ///< Runtime spot list index that receives the single spot shadow map
+        uint32_t PointShadowResolution = 512;
+        uint32_t MaxShadowedPointLights = 4;
+        int32_t ShadowedSpotIndex = 0; ///< Runtime spot list index that receives the single spot shadow map
+
+        static constexpr uint32_t kMaxShadowedPointLights = 4;
+        /// Bind-pose AABB is inflated so animation that leaves rest bounds still casts.
+        static constexpr float kSkinnedShadowBoundsPadding = 1.35f;
     };
 
     /** INI / console tokens: Hard, PCF3x3, PCF5x5, Poisson. Default PCF3x3. */

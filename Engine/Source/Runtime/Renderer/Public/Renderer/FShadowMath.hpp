@@ -42,9 +42,11 @@ namespace Leon {
                                          uint32_t InResolution, bool bInStabilize, float& OutWorldUnitsPerTexel);
 
         /**
-         * @brief Computes UV scale and offset for a 2x2 atlas partition.
+         * OpenGL cubemap face look-at: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z.
          */
-        glm::vec4 GetAtlasScaleOffset2x2(uint32_t InCascadeIndex);
+        glm::mat4 PointCubeFaceView(const glm::vec3& InLightPos, uint32_t InFace);
+
+        glm::mat4 PointCubeFaceProjection(float InNear, float InFar);
 
         /**
          * Camera-depth range used to fit cascade InIndex. Extends into the neighbour

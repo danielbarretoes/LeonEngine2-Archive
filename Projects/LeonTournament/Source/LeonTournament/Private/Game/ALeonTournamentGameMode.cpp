@@ -839,15 +839,74 @@ namespace Leon {
         }
     }
 
+    bool ALeonTournamentGameMode::PlayerCanRestart(AController* InPlayer) const {
+        (void)InPlayer;
+        auto* gs = GetGameState();
+        if (!gs)
+            return false;
+        const ELeonTournamentMatchState state = gs->GetMatchState();
+        return state == ELeonTournamentMatchState::Starting || state == ELeonTournamentMatchState::Playing;
+    }
+
+    APlayerStart* ALeonTournamentGameMode::ChoosePlayerStart(AController* InPlayer) const {
+        auto* ps = InPlayer ? dynamic_cast<ALeonTournamentPlayerState*>(InPlayer->GetPlayerState()) : nullptr;
+        const ELeonTournamentTeam team = ps ? ps->GetTeam() : ELeonTournamentTeam::None;
+        if (team == ELeonTournamentTeam::None)
+            return AGameMode::ChoosePlayerStart(InPlayer);
+
+        const int32_t teamIndex = team == ELeonTournamentTeam::Team2 ? 2 : 1;
+        const char* tag = team == ELeonTournamentTeam::Team2 ? "Team2" : "Team1";
+        std::vector<APlayerStart*> starts;
+        if (World) {
+            for (const auto& actor : World->GetAllActors()) {
+                auto* start = dynamic_cast<APlayerStart*>(actor.get());
+                if (!start || !start->IsEnabled() || start->GetPlayerStartTag() == "Dummy")
+                    continue;
+                if (start->GetTeamIndex() == teamIndex || start->GetPlayerStartTag() == tag)
+                    starts.push_back(start);
+            }
+        }
+        if (starts.empty())
+            return AGameMode::ChoosePlayerStart(InPlayer);
+
+        auto occupied = [&](const glm::vec3& loc) {
+            if (!World)
+                return false;
+            for (const auto& actor : World->GetAllActors()) {
+                auto* ch = dynamic_cast<ACharacter*>(actor.get());
+                if (!ch || ch->IsPendingKill())
+                    continue;
+                glm::vec3 d = ch->GetActorLocation() - loc;
+                d.y = 0.0f;
+                if (glm::length(d) < 1.4f)
+                    return true;
+            }
+            return false;
+        };
+
+        int32_t& cursor = team == ELeonTournamentTeam::Team2 ? NextTeam2Spawn : NextTeam1Spawn;
+        for (size_t n = 0; n < starts.size(); ++n) {
+            APlayerStart* pick = starts[static_cast<size_t>(cursor) % starts.size()];
+            ++cursor;
+            if (!occupied(pick->GetActorLocation()))
+                return pick;
+        }
+        return starts[static_cast<size_t>(cursor) % starts.size()];
+    }
+
     void ALeonTournamentGameMode::RestartPlayer(AController* NewPlayer) {
         if (!NewPlayer || !World || !IsNetworkAuthority())
+            return;
+        if (!PlayerCanRestart(NewPlayer))
             return;
 
         auto* ps = dynamic_cast<ALeonTournamentPlayerState*>(NewPlayer->GetPlayerState());
         if (ps && ps->GetTeam() == ELeonTournamentTeam::None)
             ps->SetTeam(AssignTeam());
         const ELeonTournamentTeam team = ps ? ps->GetTeam() : ELeonTournamentTeam::Team1;
-        const glm::vec3 spawn = GetTeamSpawnLocation(team);
+        glm::vec3 spawn = GetTeamSpawnLocation(team);
+        if (APlayerStart* start = ChoosePlayerStart(NewPlayer))
+            spawn = start->GetActorLocation();
         const bool bBot = dynamic_cast<ALeonTournamentBotController*>(NewPlayer) != nullptr;
 
         if (APawn* oldPawn = NewPlayer->GetPawn()) {
@@ -1152,6 +1211,14 @@ namespace Leon {
             gs->SetMatchState(ELeonTournamentMatchState::Finished);
             gs->SetMatchWinner(InWinner);
         }
+    }
+
+    void ALeonTournamentGameMode::RestartGame() {
+        if (!IsNetworkAuthority())
+            return;
+        if (auto* gs = GetGameState())
+            gs->SetMatchState(ELeonTournamentMatchState::Lobby);
+        AGameMode::RestartGame();
     }
 
     void ALeonTournamentGameMode::ReturnToMenu() {

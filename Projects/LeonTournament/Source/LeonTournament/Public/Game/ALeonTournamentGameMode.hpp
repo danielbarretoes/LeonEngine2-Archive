@@ -33,7 +33,9 @@ namespace Leon {
         void EndPlay() override;
 
         virtual APlayerController* Login(const std::string& InPlayerName = "Player_0") override;
+        virtual bool PlayerCanRestart(AController* InPlayer) const override;
         void RestartPlayer(AController* NewPlayer) override;
+        APlayerStart* ChoosePlayerStart(AController* InPlayer = nullptr) const override;
 
         ALeonTournamentGameState* GetGameState() const;
         const FLeonTournamentMatchConfig& GetMatchConfig() const { return Config; }
@@ -55,6 +57,7 @@ namespace Leon {
         void NotifySelectedCharacterChanged();
         void StartMatch() override;
         void EndMatch(ELeonTournamentMatchWinner InWinner);
+        void RestartGame() override;
         void ReturnToMenu();
 
         bool ApplyAuthoritativeDamage(ALeonTournamentCharacter& InInstigator, ALeonTournamentCharacter& InTarget,

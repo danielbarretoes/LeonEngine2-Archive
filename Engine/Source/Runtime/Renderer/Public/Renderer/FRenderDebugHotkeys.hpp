@@ -73,6 +73,7 @@ namespace Leon {
             {24, "Shadow Occlusion Mask"},
             {25, "CSM False-Color Cascades"},
             {26, "Spot Shadow Factor"},
+            {40, "Point Shadow Factor"},
             {27, "Cascade 0 Depth"},
             {28, "Cascade 1 Depth"},
             {29, "Cascade 2 Depth"},

@@ -46,6 +46,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Shader/ShadowBiasTests.cpp
     Shader/ShadowAtlasTests.cpp
     Shader/ShadowSelectionTests.cpp
+    Shader/ShadowPointTests.cpp
     Asset/AssetIDTests.cpp
     Asset/TextureImportTests.cpp
     Asset/HDRAssetTests.cpp

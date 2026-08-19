@@ -30,6 +30,8 @@ namespace Leon {
         static void DrawWireSphere(const glm::vec3& InCenter, float InRadius,
                                    const glm::vec4& InColor = glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),
                                    unsigned int InSegments = 24);
+        static void DrawWireFrustum(const glm::mat4& InViewProjection,
+                                    const glm::vec4& InColor = glm::vec4(0.95f, 0.55f, 0.15f, 1.0f));
         static void DrawWireCone(const glm::vec3& InApex, const glm::vec3& InDirection, float InRange, float InAngleDeg,
                                  const glm::vec4& InColor = glm::vec4(0.2f, 0.8f, 1.0f, 1.0f),
                                  unsigned int InSegments = 24);

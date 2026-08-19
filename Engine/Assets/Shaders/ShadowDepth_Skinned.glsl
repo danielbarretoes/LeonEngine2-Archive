@@ -11,6 +11,7 @@ layout(location = 6) in ivec4 aBoneIndices;
 layout(location = 7) in vec4 aBoneWeights;
 
 out vec2 v_TexCoord;
+out vec3 v_WorldPos;
 
 layout(std140, binding = 2) uniform BonePalette {
     mat4 u_Bones[128];
@@ -31,18 +32,23 @@ mat4 SkinMatrix() {
 void main() {
     v_TexCoord = aTexCoord * u_UVTiling + u_UVOffset;
     vec4 skinnedPos = SkinMatrix() * vec4(aPos, 1.0);
-    gl_Position = u_LightSpaceMatrix * u_Model * skinnedPos;
+    vec4 world = u_Model * skinnedPos;
+    v_WorldPos = world.xyz;
+    gl_Position = u_LightSpaceMatrix * world;
 }
 
 #type fragment
 #version 450 core
 
 in vec2 v_TexCoord;
+in vec3 v_WorldPos;
 
 uniform int u_AlphaMode = 0; // 0 = Opaque, 1 = Mask, 2 = Blend
 uniform float u_AlphaCutoff = 0.5;
 uniform int u_UseAlbedoMap = 0;
 layout(binding = 0) uniform sampler2D u_AlbedoMap;
+uniform vec3 u_PointLightWorldPosition = vec3(0.0);
+uniform float u_PointShadowFarPlane = 0.0;
 
 void main() {
     if (u_AlphaMode == 1 && u_UseAlbedoMap == 1) {
@@ -50,5 +56,8 @@ void main() {
         if (alpha < u_AlphaCutoff) {
             discard;
         }
+    }
+    if (u_PointShadowFarPlane > 0.0) {
+        gl_FragDepth = length(v_WorldPos - u_PointLightWorldPosition) / u_PointShadowFarPlane;
     }
 }

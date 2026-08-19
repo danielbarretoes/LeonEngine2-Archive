@@ -8,7 +8,7 @@ Unreal-aligned responsibilities. There is one canonical type per concept; no com
 | :--- | :--- | :--- |
 | `UGameInstance` | Application/session lifetime, travel URL, net mode, listen/join via injected `INetTransport`, project services that survive map changes | Match score, kills, current pawn, match timer, combat state |
 | `AGameModeBase` | Authority rules, login, `Logout`, `RestartPlayer`, spawn/respawn, default class selection | HUD widgets, camera, input, animation, replicated per-player stats |
-| `AGameMode` | Match start/end (`StartMatch` / `EndMatch`) | Team scores, HUD, pawn movement |
+| `AGameMode` | Match start/end (`SetMatchState`, `StartMatch` / `EndMatch` / `RestartGame`), `PlayerCanRestart` | Team scores, HUD, pawn movement |
 | `AGameStateBase` | Player array, elapsed time, scoreboard rank (`GetPlayerArraySortedByScore`) | Input, camera, spawn algorithms |
 | `AGameState` | Replicated match phase (`EMatchState`) and remaining clock | Weapon impl, local UI |
 | `APlayerState` | Persistent per-player identity (name, id, team, score, kills/deaths) across pawn replacement; scoreboard row | Movement, mesh, weapons |
@@ -30,12 +30,13 @@ Menu (GameInstance + HUD widgets)
   → GameState spawned by GameMode/World
   → Player login → PlayerState + PlayerController
   → Spawn pawn/character → Possess
-  → Match start (`AGameMode::StartMatch` writes `AGameState` InProgress; remaining clock ticks on GameState)
+  → Match start (`AGameMode::StartMatch` → `SetMatchState(InProgress)` → `HandleMatchHasStarted`; remaining clock ticks on GameState)
   → Gameplay
   → Death (Health on authority) → `NotifyActorKilled` on GameMode; game subclasses score / respawn
-  → RestartPlayer: destroy pawn, spawn new pawn, Possess (same Controller + PlayerState)
+  → `PlayerCanRestart` then RestartPlayer: destroy pawn, spawn new pawn, Possess (same Controller + PlayerState)
   → Logout (optional): UnPossess, unregister PlayerState, destroy HUD / PC / PlayerState
-  → Match end (`AGameMode::EndMatch` writes WaitingPostMatch)
+  → Match end (`AGameMode::EndMatch` → `SetMatchState(WaitingPostMatch)` → `HandleMatchHasEnded`)
+  → Optional rematch (`RestartGame` resets to WaitingToStart then StartMatch)
 ```
 
 `AGameModeBase::RestartPlayer` is the single respawn path. If `DefaultPawnClass` is empty or `"None"`, the base implementation UnPossesses and destroys the old pawn without spawning. Game subclasses that keep `DefaultPawnClass = "None"` (menu-first) override `RestartPlayer` to spawn their character.
@@ -44,7 +45,7 @@ Menu (GameInstance + HUD widgets)
 
 Scoreboard HUD reads `UWorld::GetGameState()` → `PlayerArray` / `GetPlayerArraySortedByScore()`. Each row is an `APlayerState` (name, `Score`, game K/D). `AGameMode` does not exist on clients and must not own the board. Tournament `ALeonTournamentGameState::GetSortedScoreboard()` is that query filtered to `ALeonTournamentPlayerState`. Local highlight uses `APlayerController::GetPlayerState()`.
 
-`AGameModeBase::ChoosePlayerStart` returns the first enabled `APlayerStart` that is not tagged `"Dummy"`. Team / named-start selection belongs in a game GameMode override.
+`AGameModeBase::ChoosePlayerStart(AController* InPlayer)` returns the first enabled `APlayerStart` that is not tagged `"Dummy"`. Pass the Controller so games can pick team / named starts. `FindPlayerStart(InPlayer, InIncomingName)` still matches tag or actor name first.
 
 `AGameModeBase::Logout` is the rules-side exit path (does not destroy the World or GameInstance).
 

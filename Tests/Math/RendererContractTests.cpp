@@ -317,6 +317,18 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK_FALSE(Leon::AABBIntersectsFrustum({80, -1, 80}, {82, 1, 82}, frustum));
     }
 
+    TEST_CASE("Skinned shadow AABB padding inflates bind-pose extent") {
+        glm::vec3 wMin(-1.0f, -1.0f, -1.0f);
+        glm::vec3 wMax(1.0f, 1.0f, 1.0f);
+        glm::vec3 center = 0.5f * (wMin + wMax);
+        glm::vec3 extent = (wMax - wMin) * 0.5f * Leon::FShadowSettings::kSkinnedShadowBoundsPadding;
+        glm::vec3 paddedMin = center - extent;
+        glm::vec3 paddedMax = center + extent;
+        CHECK(Leon::FShadowSettings::kSkinnedShadowBoundsPadding == doctest::Approx(1.35f));
+        CHECK(paddedMax.x == doctest::Approx(1.35f));
+        CHECK(paddedMin.x == doctest::Approx(-1.35f));
+    }
+
     TEST_CASE("Transparent sort uses world AABB center not model origin") {
         glm::mat4 model(1.0f);
         glm::vec3 cam(0.0f);

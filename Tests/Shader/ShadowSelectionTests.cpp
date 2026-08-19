@@ -91,6 +91,32 @@ TEST_SUITE("Shader GPU - Shadow Cascade Slice Selection & False-Color Debug") {
             CHECK(pix.b == doctest::Approx(0.10f).epsilon(0.05f));
         }
 
+        SUBCASE("CascadeCount 1 clamps far depth to cascade 0 (red)") {
+            camData.ShadowSettings = glm::ivec4(1, 16, 1, 25);
+            camData.CameraPosition = glm::vec4(0.0f, 0.0f, 50.0f, 1.0f);
+            gl.UpdateCameraUBO(camData);
+
+            gl.DrawQuad();
+            glm::vec4 pix = gl.ReadPixel(0, 0);
+
+            CHECK(pix.r == doctest::Approx(1.0f).epsilon(0.05f));
+            CHECK(pix.g == doctest::Approx(0.15f).epsilon(0.05f));
+            CHECK(pix.b == doctest::Approx(0.15f).epsilon(0.05f));
+        }
+
+        SUBCASE("CascadeCount 3 maps far depth to last valid cascade (blue, not yellow)") {
+            camData.ShadowSettings = glm::ivec4(1, 16, 3, 25);
+            camData.CameraPosition = glm::vec4(0.0f, 0.0f, 50.0f, 1.0f);
+            gl.UpdateCameraUBO(camData);
+
+            gl.DrawQuad();
+            glm::vec4 pix = gl.ReadPixel(0, 0);
+
+            CHECK(pix.r == doctest::Approx(0.20f).epsilon(0.05f));
+            CHECK(pix.g == doctest::Approx(0.40f).epsilon(0.05f));
+            CHECK(pix.b == doctest::Approx(1.0f).epsilon(0.05f));
+        }
+
         SUBCASE("Cascade Smooth Boundary Blending Invariant") {
             shader->SetInt("u_DebugMode", 24);                 // Mode 24: Direct shadow factor (1 = lit, 0 = occluded)
             camData.ShadowSettings = glm::ivec4(0, 16, 0, 24); // Hard shadow (1 tap)

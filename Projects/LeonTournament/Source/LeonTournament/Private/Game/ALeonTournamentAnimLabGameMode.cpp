@@ -199,7 +199,7 @@ namespace Leon {
         if (!World || Dummy)
             return;
         glm::vec3 loc{5.0f, 2.0f, 0.0f};
-        if (AActor* start = FindPlayerStart("Dummy"))
+        if (AActor* start = FindPlayerStart(nullptr, "Dummy"))
             loc = start->GetActorLocation();
         Dummy = World->SpawnActor<ALeonTournamentDummy>("Dummy");
         auto* ps = World->SpawnActor<ALeonTournamentPlayerState>("DummyPS");
@@ -216,7 +216,7 @@ namespace Leon {
         if (!Dummy || !World)
             return;
         glm::vec3 loc{5.0f, 2.0f, 0.0f};
-        if (AActor* start = FindPlayerStart("Dummy"))
+        if (AActor* start = FindPlayerStart(nullptr, "Dummy"))
             loc = start->GetActorLocation();
         Dummy->OnServerRespawn(loc);
         Dummy->SetThirdPerson(true);

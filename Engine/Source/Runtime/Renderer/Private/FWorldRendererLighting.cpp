@@ -41,6 +41,90 @@ namespace Leon {
     // =========================================================================
     // PASS 1: Cascaded Shadow Pass (OpenGL 4.5 Texture2DArray)
     // =========================================================================
+    void FWorldRenderer::DrawShadowCasters(const glm::mat4& InLightSpace, bool bInCullFront, float InPointShadowFarPlane,
+                                           const glm::vec3& InPointLightPos) {
+        if (!ShadowDepthShader || !World)
+            return;
+        const FFrustumPlanes lightFrustum = ExtractFrustumPlanes(InLightSpace);
+
+        auto bindDepthUniforms = [&](FShader& InShader) {
+            InShader.Bind();
+            InShader.SetMat4("u_LightSpaceMatrix", glm::value_ptr(InLightSpace));
+            InShader.SetFloat("u_PointShadowFarPlane", InPointShadowFarPlane);
+            InShader.SetFloat3("u_PointLightWorldPosition", InPointLightPos.x, InPointLightPos.y, InPointLightPos.z);
+        };
+        bindDepthUniforms(*ShadowDepthShader);
+
+        auto meshView = World->GetRegistry().view<FTransformComponent, FMeshComponent>();
+        for (auto entity : meshView) {
+            auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
+            if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
+                continue;
+            glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsProceduralMeshOutsideLightFrustum(model, mesh, lightFrustum))
+                continue;
+            FMaterialInstance* matInst = nullptr;
+            if (World->GetRegistry().all_of<FMaterialComponent>(entity))
+                matInst = World->GetRegistry().get<FMaterialComponent>(entity).MaterialInstance.get();
+            ApplyShadowCasterRasterState(matInst, bInCullFront);
+            ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
+            BindShadowCasterAlpha(*ShadowDepthShader, matInst);
+            mesh.VertexArray->Bind();
+            FRenderCommand::DrawIndexed(mesh.VertexArray);
+        }
+
+        auto staticMeshView = World->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
+        for (auto entity : staticMeshView) {
+            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
+            if (!staticMeshComp.bVisible || !staticMeshComp.StaticMesh ||
+                !staticMeshComp.StaticMesh->GetVertexArray() || !staticMeshComp.bCastShadows)
+                continue;
+            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            if (IsStaticMeshOutsideLightFrustum(world, staticMeshComp, lightFrustum))
+                continue;
+            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
+            for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
+                if (submesh.IndexCount == 0)
+                    continue;
+                glm::mat4 model = world * submesh.LocalTransform;
+                TRef<FMaterialInstance> matInst = ResolveStaticSubmeshMaterial(
+                    *staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
+                ApplyShadowCasterRasterState(matInst.get(), bInCullFront);
+                ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
+                BindShadowCasterAlpha(*ShadowDepthShader, matInst.get());
+                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
+                                                  submesh.IndexOffset);
+            }
+        }
+
+        if (ShadowDepthSkinnedShader) {
+            bindDepthUniforms(*ShadowDepthSkinnedShader);
+            auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
+            for (auto entity : skelView) {
+                auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
+                if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows || !skel.bVisible)
+                    continue;
+                glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+                if (IsSkeletalMeshOutsideLightFrustum(world, skel, lightFrustum))
+                    continue;
+                UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
+                skel.SkeletalMesh->GetVertexArray()->Bind();
+                for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
+                    if (submesh.IndexCount == 0)
+                        continue;
+                    glm::mat4 model = SkeletalModelMatrix(world, skel, submesh.LocalTransform);
+                    TRef<FMaterialInstance> matInst =
+                        ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
+                    ApplyShadowCasterRasterState(matInst.get(), bInCullFront);
+                    ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
+                    BindShadowCasterAlpha(*ShadowDepthSkinnedShader, matInst.get());
+                    FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
+                                                      submesh.IndexOffset);
+                }
+            }
+        }
+    }
+
     void FWorldRenderer::RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
                                                   const FDirectionalLightComponent* InDirLightComp,
                                                   FCameraBufferData& OutCamData) {
@@ -63,22 +147,24 @@ namespace Leon {
         OutCamData.ShadowParams = glm::vec4(ShadowSettings.ConstantBias, ShadowSettings.SlopeBias,
                                             ShadowSettings.NormalBias, ShadowSettings.CascadeBlendWidth);
         OutCamData.ShadowSettings =
-            glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), ShadowSettings.ShadowedSpotIndex, 0, DebugMode);
+            glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), ShadowSettings.ShadowedSpotIndex,
+                       static_cast<int>(ShadowSettings.CascadeCount), DebugMode);
 
         CascadeShadowFramebuffer->Bind();
         FRenderCommand::SetViewport(0, 0, ShadowSettings.CascadeResolution, ShadowSettings.CascadeResolution);
         ResetDefaultMeshRasterState();
-        FRenderCommand::SetCulling(true, ECullMode::Front);
         FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
-
-        ShadowDepthShader->Bind();
+        for (uint32_t layer = 0; layer < 4; ++layer) {
+            CascadeShadowFramebuffer->AttachDepthTextureLayer(layer);
+            FRenderCommand::Clear();
+        }
 
         float fov = InCamera.GetFOV();
         float aspect = InCamera.GetAspectRatio();
 
+        uint32_t written = 0;
         for (uint32_t cascade = 0; cascade < ShadowSettings.CascadeCount && cascade < 4; ++cascade) {
             CascadeShadowFramebuffer->AttachDepthTextureLayer(cascade);
-            FRenderCommand::Clear();
 
             glm::mat4 subProj;
             {
@@ -95,85 +181,12 @@ namespace Leon {
                 corners, InDirLightComp->Light.Direction, ShadowSettings.CascadeResolution,
                 ShadowSettings.bStabilizeCascades, worldUnitsPerTexel);
             OutCamData.LightSpaceMatrices[cascade] = cascadeMatrix;
-            const FFrustumPlanes lightFrustum = ExtractFrustumPlanes(cascadeMatrix);
-
-            ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
-
-            auto meshView = World->GetRegistry().view<FTransformComponent, FMeshComponent>();
-            for (auto entity : meshView) {
-                auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-                if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
-                    continue;
-
-                glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform);
-                if (IsProceduralMeshOutsideLightFrustum(model, mesh, lightFrustum))
-                    continue;
-                ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
-
-                FMaterialInstance* matInst = nullptr;
-                if (World->GetRegistry().all_of<FMaterialComponent>(entity))
-                    matInst = World->GetRegistry().get<FMaterialComponent>(entity).MaterialInstance.get();
-                BindShadowCasterAlpha(*ShadowDepthShader, matInst);
-
-                mesh.VertexArray->Bind();
-                FRenderCommand::DrawIndexed(mesh.VertexArray);
-            }
-
-            auto staticMeshView = World->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
-            for (auto entity : staticMeshView) {
-                auto [transform, staticMeshComp] =
-                    staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
-                if (!staticMeshComp.bVisible || !staticMeshComp.StaticMesh ||
-                    !staticMeshComp.StaticMesh->GetVertexArray() || !staticMeshComp.bCastShadows)
-                    continue;
-
-                glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
-                if (IsStaticMeshOutsideLightFrustum(world, staticMeshComp, lightFrustum))
-                    continue;
-
-                staticMeshComp.StaticMesh->GetVertexArray()->Bind();
-                for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
-                    if (submesh.IndexCount == 0)
-                        continue;
-                    glm::mat4 model = world * submesh.LocalTransform;
-                    ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
-                    TRef<FMaterialInstance> matInst = ResolveStaticSubmeshMaterial(
-                        *staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
-                    BindShadowCasterAlpha(*ShadowDepthShader, matInst.get());
-                    FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
-                                                      submesh.IndexOffset);
-                }
-            }
-
-            if (ShadowDepthSkinnedShader) {
-                ShadowDepthSkinnedShader->Bind();
-                ShadowDepthSkinnedShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
-                auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
-                for (auto entity : skelView) {
-                    auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
-                    if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows ||
-                        !skel.bVisible)
-                        continue;
-                    glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
-                    if (IsSkeletalMeshOutsideLightFrustum(world, skel, lightFrustum))
-                        continue;
-                    UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
-                    skel.SkeletalMesh->GetVertexArray()->Bind();
-                    for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
-                        if (submesh.IndexCount == 0)
-                            continue;
-                        glm::mat4 model = SkeletalModelMatrix(world, skel, submesh.LocalTransform);
-                        ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
-                        TRef<FMaterialInstance> matInst =
-                            ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
-                        BindShadowCasterAlpha(*ShadowDepthSkinnedShader, matInst.get());
-                        FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
-                                                          submesh.IndexOffset);
-                    }
-                }
-                ShadowDepthShader->Bind();
-                ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(cascadeMatrix));
-            }
+            DrawShadowCasters(cascadeMatrix, true, 0.0f, glm::vec3(0.0f));
+            written = cascade + 1;
+        }
+        if (written > 0) {
+            for (uint32_t i = written; i < 4; ++i)
+                OutCamData.LightSpaceMatrices[i] = OutCamData.LightSpaceMatrices[written - 1];
         }
 
         FRenderCommand::SetPolygonOffset(false);
@@ -204,81 +217,66 @@ namespace Leon {
         FRenderCommand::Clear();
         ResetDefaultMeshRasterState();
         FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
-
-        ShadowDepthShader->Bind();
-        ShadowDepthShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));
-        const FFrustumPlanes spotFrustum = ExtractFrustumPlanes(spotLightSpace);
-
-        auto meshView = World->GetRegistry().view<FTransformComponent, FMeshComponent>();
-        for (auto entity : meshView) {
-            auto [transform, mesh] = meshView.get<FTransformComponent, FMeshComponent>(entity);
-            if (!mesh.VertexArray || !mesh.bCastShadows || !mesh.bVisible)
-                continue;
-            glm::mat4 model = ResolveActorWorldMatrix(World, entity, transform);
-            if (IsProceduralMeshOutsideLightFrustum(model, mesh, spotFrustum))
-                continue;
-            ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
-            FMaterialInstance* matInst = nullptr;
-            if (World->GetRegistry().all_of<FMaterialComponent>(entity))
-                matInst = World->GetRegistry().get<FMaterialComponent>(entity).MaterialInstance.get();
-            BindShadowCasterAlpha(*ShadowDepthShader, matInst);
-            mesh.VertexArray->Bind();
-            FRenderCommand::DrawIndexed(mesh.VertexArray);
-        }
-
-        auto staticMeshView = World->GetRegistry().view<FTransformComponent, FStaticMeshComponent>();
-        for (auto entity : staticMeshView) {
-            auto [transform, staticMeshComp] = staticMeshView.get<FTransformComponent, FStaticMeshComponent>(entity);
-            if (!staticMeshComp.bVisible || !staticMeshComp.StaticMesh ||
-                !staticMeshComp.StaticMesh->GetVertexArray() || !staticMeshComp.bCastShadows)
-                continue;
-            glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
-            if (IsStaticMeshOutsideLightFrustum(world, staticMeshComp, spotFrustum))
-                continue;
-            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
-            for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
-                if (submesh.IndexCount == 0)
-                    continue;
-                glm::mat4 model = world * submesh.LocalTransform;
-                ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
-                TRef<FMaterialInstance> matInst = ResolveStaticSubmeshMaterial(
-                    *staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
-                BindShadowCasterAlpha(*ShadowDepthShader, matInst.get());
-                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
-                                                  submesh.IndexOffset);
-            }
-        }
-
-        if (ShadowDepthSkinnedShader) {
-            ShadowDepthSkinnedShader->Bind();
-            ShadowDepthSkinnedShader->SetMat4("u_LightSpaceMatrix", glm::value_ptr(spotLightSpace));
-            auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
-            for (auto entity : skelView) {
-                auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
-                if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows || !skel.bVisible)
-                    continue;
-                glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
-                if (IsSkeletalMeshOutsideLightFrustum(world, skel, spotFrustum))
-                    continue;
-                UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);
-                skel.SkeletalMesh->GetVertexArray()->Bind();
-                for (const auto& submesh : skel.SkeletalMesh->GetSubmeshes()) {
-                    if (submesh.IndexCount == 0)
-                        continue;
-                    glm::mat4 model = SkeletalModelMatrix(world, skel, submesh.LocalTransform);
-                    ShadowDepthSkinnedShader->SetMat4("u_Model", glm::value_ptr(model));
-                    TRef<FMaterialInstance> matInst =
-                        ResolveSkeletalSubmeshMaterial(*skel.SkeletalMesh, submesh, skel.MaterialOverrides);
-                    BindShadowCasterAlpha(*ShadowDepthSkinnedShader, matInst.get());
-                    FRenderCommand::DrawIndexedOffset(skel.SkeletalMesh->GetVertexArray(), submesh.IndexCount,
-                                                      submesh.IndexOffset);
-                }
-            }
-        }
-
+        DrawShadowCasters(spotLightSpace, false, 0.0f, glm::vec3(0.0f));
         FRenderCommand::SetPolygonOffset(false);
         ResetDefaultMeshRasterState();
         SpotShadowFramebuffer->Unbind();
+    }
+
+    void FWorldRenderer::RenderPointShadowPass(const glm::vec3* InPositions, const float* InRadii, uint32_t InCount) {
+        if (!PointShadowFramebuffer || !ShadowDepthShader || !InPositions || !InRadii || InCount == 0)
+            return;
+        PointShadowFramebuffer->Bind();
+        FRenderCommand::SetViewport(0, 0, ShadowSettings.PointShadowResolution, ShadowSettings.PointShadowResolution);
+        ResetDefaultMeshRasterState();
+        FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
+        glm::mat4 faceProj = ShadowMath::PointCubeFaceProjection(0.05f, 1.0f);
+        for (uint32_t i = 0; i < InCount && i < FShadowSettings::kMaxShadowedPointLights; ++i) {
+            float farPlane = std::max(InRadii[i], 1.0f);
+            faceProj = ShadowMath::PointCubeFaceProjection(0.05f, farPlane);
+            for (uint32_t face = 0; face < 6; ++face) {
+                PointShadowFramebuffer->AttachDepthTextureLayer(i * 6 + face);
+                FRenderCommand::Clear();
+                glm::mat4 view = ShadowMath::PointCubeFaceView(InPositions[i], face);
+                DrawShadowCasters(faceProj * view, false, farPlane, InPositions[i]);
+            }
+        }
+        FRenderCommand::SetPolygonOffset(false);
+        ResetDefaultMeshRasterState();
+        PointShadowFramebuffer->Unbind();
+    }
+
+    void FWorldRenderer::EnsureShadowFramebuffers() {
+        auto recreateIfNeeded = [](TRef<FFramebuffer>& InTarget, const FFramebufferSpecification& InSpec) {
+            if (!InTarget || InTarget->GetSpecification().Width != InSpec.Width ||
+                InTarget->GetSpecification().Height != InSpec.Height ||
+                InTarget->GetSpecification().ArrayLayers != InSpec.ArrayLayers) {
+                InTarget = FFramebuffer::Create(InSpec);
+            }
+        };
+
+        FFramebufferSpecification csmSpec;
+        csmSpec.Width = ShadowSettings.CascadeResolution;
+        csmSpec.Height = ShadowSettings.CascadeResolution;
+        csmSpec.ArrayLayers = 4;
+        csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
+        csmSpec.DebugName = "CSM";
+        recreateIfNeeded(CascadeShadowFramebuffer, csmSpec);
+
+        FFramebufferSpecification spotSpec;
+        spotSpec.Width = ShadowSettings.SpotResolution;
+        spotSpec.Height = ShadowSettings.SpotResolution;
+        spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_SHADOW};
+        spotSpec.DebugName = "SpotShadow";
+        recreateIfNeeded(SpotShadowFramebuffer, spotSpec);
+
+        FFramebufferSpecification pointSpec;
+        pointSpec.Width = ShadowSettings.PointShadowResolution;
+        pointSpec.Height = ShadowSettings.PointShadowResolution;
+        pointSpec.ArrayLayers = FShadowSettings::kMaxShadowedPointLights;
+        pointSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_CUBE_ARRAY};
+        pointSpec.DebugName = "PointShadow";
+        recreateIfNeeded(PointShadowFramebuffer, pointSpec);
     }
 
     void FWorldRenderer::ClearPlanarReflectionPlanes() {
@@ -425,6 +423,8 @@ namespace Leon {
             CascadeShadowFramebuffer->BindDepthTexture(10);
         if (SpotShadowFramebuffer)
             SpotShadowFramebuffer->BindDepthTexture(11);
+        if (PointShadowFramebuffer)
+            PointShadowFramebuffer->BindDepthTexture(14);
 
         if (DefaultWhiteTexture) {
             DefaultWhiteTexture->Bind(0);
@@ -477,6 +477,7 @@ namespace Leon {
             mesh.Shader->SetInt("u_UsePlanarReflection1", 0);
             mesh.Shader->SetInt("u_UseShadows", 0);
             mesh.Shader->SetInt("u_UseSpotShadows", 0);
+            mesh.Shader->SetInt("u_UsePointShadows", 0);
             mesh.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             mesh.Shader->SetInt("u_DebugMode", 0);
             mesh.Shader->SetInt("u_UseInstancing", 0);
@@ -538,6 +539,7 @@ namespace Leon {
             shader->SetInt("u_UsePlanarReflection1", 0);
             shader->SetInt("u_UseShadows", 0);
             shader->SetInt("u_UseSpotShadows", 0);
+            shader->SetInt("u_UsePointShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
             shader->SetInt("u_UseInstancing", 0);
@@ -596,6 +598,7 @@ namespace Leon {
             shader->SetInt("u_UsePlanarReflection1", 0);
             shader->SetInt("u_UseShadows", 0);
             shader->SetInt("u_UseSpotShadows", 0);
+            shader->SetInt("u_UsePointShadows", 0);
             shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             shader->SetInt("u_DebugMode", 0);
             shader->SetInt("u_UseInstancing", 0);

@@ -44,13 +44,20 @@ namespace Leon {
         Login("Player_0");
     }
 
+    bool AGameModeBase::PlayerCanRestart(AController* InPlayer) const {
+        (void)InPlayer;
+        return true;
+    }
+
     void AGameModeBase::RestartPlayer(AController* NewPlayer) {
         if (!NewPlayer || !World || World->GetNetMode() == ENetMode::Client)
+            return;
+        if (!PlayerCanRestart(NewPlayer))
             return;
 
         glm::vec3 spawnLoc = DefaultSpawnLocation;
         glm::vec3 spawnRot = DefaultSpawnRotation;
-        if (AActor* start = FindPlayerStart()) {
+        if (AActor* start = FindPlayerStart(NewPlayer)) {
             spawnLoc = start->GetActorLocation();
             spawnRot = start->GetActorRotation();
         }
@@ -78,7 +85,8 @@ namespace Leon {
             NewPlayer->Possess(pawn);
     }
 
-    APlayerStart* AGameModeBase::ChoosePlayerStart() const {
+    APlayerStart* AGameModeBase::ChoosePlayerStart(AController* InPlayer) const {
+        (void)InPlayer;
         if (!World)
             return nullptr;
         for (const auto& actorRef : World->GetAllActors()) {
@@ -94,7 +102,7 @@ namespace Leon {
         return nullptr;
     }
 
-    AActor* AGameModeBase::FindPlayerStart(const std::string& InIncomingName) const {
+    AActor* AGameModeBase::FindPlayerStart(AController* InPlayer, const std::string& InIncomingName) const {
         if (!World)
             return nullptr;
         if (!InIncomingName.empty()) {
@@ -106,7 +114,7 @@ namespace Leon {
                     return start;
             }
         }
-        if (APlayerStart* chosen = ChoosePlayerStart())
+        if (APlayerStart* chosen = ChoosePlayerStart(InPlayer))
             return chosen;
         return nullptr;
     }
@@ -163,7 +171,7 @@ namespace Leon {
             if (!DefaultPawnClass.empty() && DefaultPawnClass != "None") {
                 glm::vec3 spawnLoc = DefaultSpawnLocation;
                 glm::vec3 spawnRot = DefaultSpawnRotation;
-                if (AActor* start = FindPlayerStart()) {
+                if (AActor* start = FindPlayerStart(pc)) {
                     spawnLoc = start->GetActorLocation();
                     spawnRot = start->GetActorRotation();
                 }

@@ -83,9 +83,13 @@ namespace Leon {
             CascadeShadowFramebuffer->BindDepthTexture(10);
         if (SpotShadowFramebuffer)
             SpotShadowFramebuffer->BindDepthTexture(11);
+        if (PointShadowFramebuffer)
+            PointShadowFramebuffer->BindDepthTexture(14);
 
-        bool bShadowsAvailable = bHasDirLight && CascadeShadowFramebuffer;
-        bool bSpotShadowAvailable = bHasSpotLight && SpotShadowFramebuffer;
+        bool bShadowsOn = ShadowSettings.bEnableShadows;
+        bool bShadowsAvailable = bShadowsOn && bHasDirLight && CascadeShadowFramebuffer;
+        bool bSpotShadowAvailable = bShadowsOn && bHasSpotLight && SpotShadowFramebuffer;
+        bool bPointShadowAvailable = bShadowsOn && PointShadowFramebuffer;
 
         // IBL maps (slots 6-8) — same for all objects
         bool bIBLAvailable = bUseIBL && IBLEnvironment.BRDFLUT;
@@ -308,6 +312,7 @@ namespace Leon {
         const std::vector<glm::mat4>* lastBones = nullptr;
         bool bLastShadows = false;
         bool bLastSpotShadows = false;
+        bool bLastPointShadows = false;
         bool bLastPlanar = false;
         alignas(16) glm::mat4 instanceMats[kMaxOpaqueInstances];
 
@@ -324,6 +329,7 @@ namespace Leon {
             }
             bool bWantShadows = bShadowsAvailable && draw.bReceiveShadows;
             bool bWantSpot = bSpotShadowAvailable && draw.bReceiveShadows;
+            bool bWantPoint = bPointShadowAvailable && draw.bReceiveShadows;
             if (bShaderChanged || bWantShadows != bLastShadows) {
                 draw.Shader->SetInt("u_UseShadows", bWantShadows ? 1 : 0);
                 bLastShadows = bWantShadows;
@@ -331,6 +337,10 @@ namespace Leon {
             if (bShaderChanged || bWantSpot != bLastSpotShadows) {
                 draw.Shader->SetInt("u_UseSpotShadows", bWantSpot ? 1 : 0);
                 bLastSpotShadows = bWantSpot;
+            }
+            if (bShaderChanged || bWantPoint != bLastPointShadows) {
+                draw.Shader->SetInt("u_UsePointShadows", bWantPoint ? 1 : 0);
+                bLastPointShadows = bWantPoint;
             }
             if (bShaderChanged || draw.bPlanar != bLastPlanar) {
                 BindPlanarReflectionUniforms(*draw.Shader, draw.bPlanar);
@@ -446,9 +456,13 @@ namespace Leon {
             CascadeShadowFramebuffer->BindDepthTexture(10);
         if (SpotShadowFramebuffer)
             SpotShadowFramebuffer->BindDepthTexture(11);
+        if (PointShadowFramebuffer)
+            PointShadowFramebuffer->BindDepthTexture(14);
 
-        bool bShadowsAvailable = bHasDirLight && CascadeShadowFramebuffer;
-        bool bSpotShadowAvailable = bHasSpotLight && SpotShadowFramebuffer;
+        bool bShadowsOn = ShadowSettings.bEnableShadows;
+        bool bShadowsAvailable = bShadowsOn && bHasDirLight && CascadeShadowFramebuffer;
+        bool bSpotShadowAvailable = bShadowsOn && bHasSpotLight && SpotShadowFramebuffer;
+        bool bPointShadowAvailable = bShadowsOn && PointShadowFramebuffer;
         bool bIBLAvailable = bUseIBL && IBLEnvironment.BRDFLUT;
         if (bIBLAvailable) {
             if (IBLEnvironment.BRDFLUT)
@@ -471,6 +485,7 @@ namespace Leon {
             draw.Shader->SetInt("u_UseInstancing", 0);
             draw.Shader->SetInt("u_UseShadows", (bShadowsAvailable && draw.bReceiveShadows) ? 1 : 0);
             draw.Shader->SetInt("u_UseSpotShadows", (bSpotShadowAvailable && draw.bReceiveShadows) ? 1 : 0);
+            draw.Shader->SetInt("u_UsePointShadows", (bPointShadowAvailable && draw.bReceiveShadows) ? 1 : 0);
             draw.Shader->SetInt("u_UseIBL", bIBLAvailable ? 1 : 0);
             draw.Shader->SetInt("u_DebugMode", DebugMode);
             BindPlanarReflectionUniforms(*draw.Shader,

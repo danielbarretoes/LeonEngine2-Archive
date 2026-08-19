@@ -44,6 +44,9 @@ namespace Leon {
                 ShadowSettings.CascadeResolution = InWorld->GetPendingShadowMapResolution();
                 ShadowSettings.CascadeCount = InWorld->GetPendingCascadeCount();
                 ShadowSettings.ShadowDistance = InWorld->GetPendingShadowDistance();
+                ShadowSettings.SpotResolution = InWorld->GetPendingSpotResolution();
+                ShadowSettings.PointShadowResolution = InWorld->GetPendingPointShadowResolution();
+                ShadowSettings.MaxShadowedPointLights = InWorld->GetPendingMaxShadowedPointLights();
                 bEnablePlanarReflection = InWorld->GetPendingPlanarReflectionEnabled();
                 PlanarQuality = InWorld->GetPendingPlanarReflectionQuality();
                 PlanarResolutionScale = InWorld->GetPendingPlanarReflectionResolutionScale();
@@ -74,6 +77,14 @@ namespace Leon {
         spotSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_SHADOW};
         spotSpec.DebugName = "SpotShadow";
         SpotShadowFramebuffer = FFramebuffer::Create(spotSpec);
+
+        FFramebufferSpecification pointSpec;
+        pointSpec.Width = ShadowSettings.PointShadowResolution;
+        pointSpec.Height = ShadowSettings.PointShadowResolution;
+        pointSpec.ArrayLayers = FShadowSettings::kMaxShadowedPointLights;
+        pointSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_CUBE_ARRAY};
+        pointSpec.DebugName = "PointShadow";
+        PointShadowFramebuffer = FFramebuffer::Create(pointSpec);
 
         // -----------------------------------------------------------------------
         // 2. Offscreen framebuffers
@@ -155,13 +166,7 @@ namespace Leon {
             return;
 
         ShadowSettings.CascadeResolution = InShadowMapResolution;
-        FFramebufferSpecification csmSpec;
-        csmSpec.Width = ShadowSettings.CascadeResolution;
-        csmSpec.Height = ShadowSettings.CascadeResolution;
-        csmSpec.ArrayLayers = 4;
-        csmSpec.Attachments = {EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW};
-        csmSpec.DebugName = "CSM";
-        CascadeShadowFramebuffer = FFramebuffer::Create(csmSpec);
+        EnsureShadowFramebuffers();
     }
 
     void FWorldRenderer::SetPlanarReflectionQuality(EPlanarReflectionQuality InQuality) {
@@ -351,7 +356,7 @@ namespace Leon {
         for (size_t i = 0; i < pointLights.size(); ++i) {
             lightingData.PointLights[i].Position = glm::vec4(pointLights[i].Position, 1.0f);
             lightingData.PointLights[i].Color = glm::vec4(pointLights[i].Color, pointLights[i].Intensity);
-            lightingData.PointLights[i].Params = glm::vec4(pointLights[i].Radius, 0.0f, 0.0f, 0.0f);
+            lightingData.PointLights[i].Params = glm::vec4(pointLights[i].Radius, -1.0f, 0.0f, 0.0f);
         }
 
         for (size_t i = 0; i < spotLights.size(); ++i) {
@@ -368,8 +373,22 @@ namespace Leon {
             lightingData.SpotLights[i].Params = glm::vec4(spotLights[i].Radius, spotLights[i].Intensity, 0.0f, 0.0f);
         }
 
+        glm::vec3 shadowedPointPos[FShadowSettings::kMaxShadowedPointLights];
+        float shadowedPointRadius[FShadowSettings::kMaxShadowedPointLights];
+        uint32_t shadowedPointCount = 0;
+        const uint32_t maxPointShadows = std::min(ShadowSettings.MaxShadowedPointLights,
+                                                  FShadowSettings::kMaxShadowedPointLights);
+        if (ShadowSettings.bEnableShadows) {
+            for (size_t i = 0; i < pointLights.size() && shadowedPointCount < maxPointShadows; ++i) {
+                lightingData.PointLights[i].Params.y = static_cast<float>(shadowedPointCount);
+                shadowedPointPos[shadowedPointCount] = pointLights[i].Position;
+                shadowedPointRadius[shadowedPointCount] = pointLights[i].Radius;
+                ++shadowedPointCount;
+            }
+        }
         lightingData.LightCounts =
-            glm::ivec4(static_cast<int>(pointLights.size()), static_cast<int>(spotLights.size()), 0, 0);
+            glm::ivec4(static_cast<int>(pointLights.size()), static_cast<int>(spotLights.size()),
+                       static_cast<int>(shadowedPointCount), 0);
         lightingData.EnvSkyColor = glm::vec4(skybox.SkyZenithColor, skybox.EnvironmentIntensity);
         lightingData.EnvHorizonColor = glm::vec4(skybox.HorizonColor, 0.0f);
         lightingData.EnvGroundColor = glm::vec4(skybox.GroundColor, 0.0f);
@@ -389,15 +408,18 @@ namespace Leon {
         // PASS 1: Cascaded Shadow Pass
         // ------------------------------------------------------------------
         const uint32_t drawsBeforeShadow = FRenderer::GetStats().DrawCalls;
-        if ((bHasDirLight && ShadowSettings.CascadeCount > 0) || bHasSpotLight) {
+        const bool bShadowsOn = ShadowSettings.bEnableShadows;
+        if (bShadowsOn && ((bHasDirLight && ShadowSettings.CascadeCount > 0) || bHasSpotLight || shadowedPointCount > 0)) {
             FGpuCpuScope shadow(&FFrameProfiler::Working().ShadowMs, EGPUTimerSlot::Shadow);
             if (bHasDirLight && ShadowSettings.CascadeCount > 0)
                 RenderCascadedShadowPass(InCamera, &dirLightComp, mainCamData);
             if (bHasSpotLight)
                 RenderSpotShadowPass(&shadowedSpotComp, shadowedSpotPos, mainCamData);
+            if (shadowedPointCount > 0)
+                RenderPointShadowPass(shadowedPointPos, shadowedPointRadius, shadowedPointCount);
         }
-        mainCamData.ShadowSettings =
-            glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), shadowedSpotIndex, 0, DebugMode);
+        mainCamData.ShadowSettings = glm::ivec4(static_cast<int>(ShadowSettings.FilterMode), shadowedSpotIndex,
+                                                static_cast<int>(ShadowSettings.CascadeCount), DebugMode);
         FFrameProfiler::Working().ShadowDrawCalls = FRenderer::GetStats().DrawCalls - drawsBeforeShadow;
 
         {
@@ -470,6 +492,14 @@ namespace Leon {
             FDebugRenderer::BeginScene(InCamera);
             if (FGameplayDebugger::ShowPhysics()) {
                 DrawDebugWorldColliders(*World);
+                if (ShadowSettings.bEnableShadows) {
+                    const glm::vec4 cascadeColor(0.95f, 0.55f, 0.15f, 0.85f);
+                    for (uint32_t i = 0; i < ShadowSettings.CascadeCount && i < 4; ++i)
+                        FDebugRenderer::DrawWireFrustum(mainCamData.LightSpaceMatrices[i], cascadeColor);
+                    if (bHasSpotLight)
+                        FDebugRenderer::DrawWireFrustum(mainCamData.SpotLightSpaceMatrix,
+                                                        glm::vec4(0.2f, 0.85f, 1.0f, 0.85f));
+                }
                 for (const auto& actorRef : World->GetAllActors()) {
                     auto* start = dynamic_cast<APlayerStart*>(actorRef.get());
                     if (!start || start->IsPendingKill() || !start->IsEnabled())

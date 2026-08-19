@@ -18,6 +18,7 @@ namespace Leon {
             case EFramebufferTextureFormat::DEPTH32F:
             case EFramebufferTextureFormat::DEPTH32F_SHADOW:
             case EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW:
+            case EFramebufferTextureFormat::DEPTH32F_CUBE_ARRAY:
                 return true;
             default:
                 return false;
@@ -129,7 +130,20 @@ namespace Leon {
 
         // 2. Depth Attachment (DSA - 2D or 2D Array)
         if (DepthAttachmentSpec.TextureFormat != EFramebufferTextureFormat::None) {
-            if (DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW) {
+            if (DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_CUBE_ARRAY) {
+                uint32_t cubes = std::max(Specification.ArrayLayers, 1u);
+                glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &DepthAttachment);
+                glTextureStorage3D(DepthAttachment, 1, GL_DEPTH_COMPONENT32F, Specification.Width, Specification.Height,
+                                   6 * cubes);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTextureParameteri(DepthAttachment, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+                glNamedFramebufferTextureLayer(RendererID, GL_DEPTH_ATTACHMENT, DepthAttachment, 0, 0);
+                totalBytes += Specification.Width * Specification.Height * 4 * 6 * cubes;
+            } else if (DepthAttachmentSpec.TextureFormat == EFramebufferTextureFormat::DEPTH32F_ARRAY_SHADOW) {
                 uint32_t layers = std::max(Specification.ArrayLayers, 1u);
                 glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &DepthAttachment);
                 glTextureStorage3D(DepthAttachment, 1, GL_DEPTH_COMPONENT32F, Specification.Width, Specification.Height,

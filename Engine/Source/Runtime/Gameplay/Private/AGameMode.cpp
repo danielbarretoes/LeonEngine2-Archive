@@ -8,36 +8,86 @@ namespace Leon {
         GameStateClass = "AGameState";
     }
 
-    AGameState* AGameMode::GetMatchGameState() const {
+    AGameState* AGameMode::GetGameState() const {
         return dynamic_cast<AGameState*>(GameState);
+    }
+
+    void AGameMode::SetMatchState(EMatchState InState) {
+        if (!IsNetworkAuthority())
+            return;
+        AGameState* gs = GetGameState();
+        if (!gs)
+            return;
+        const EMatchState previous = gs->GetMatchState();
+        if (previous == InState)
+            return;
+        gs->SetMatchState(InState);
+        if (InState == EMatchState::WaitingPostMatch)
+            gs->SetRemainingTime(0.0f);
+        // Flow: match state
+        // 1. GameMode is the authority writer.
+        // 2. GameState replicates MatchState.
+        // 3. Handles run after the GameState field updates.
+        switch (InState) {
+        case EMatchState::WaitingToStart:
+            HandleMatchIsWaitingToStart();
+            break;
+        case EMatchState::InProgress:
+            HandleMatchHasStarted();
+            break;
+        case EMatchState::WaitingPostMatch:
+            HandleMatchHasEnded();
+            break;
+        }
     }
 
     void AGameMode::StartMatch() {
         if (!IsNetworkAuthority())
             return;
-        if (HasMatchStarted() && !HasMatchEnded())
+        if (HasMatchInProgress())
             return;
-        if (AGameState* gs = GetMatchGameState())
-            gs->SetMatchState(EMatchState::InProgress);
+        SetMatchState(EMatchState::InProgress);
     }
 
     void AGameMode::EndMatch() {
         if (!IsNetworkAuthority())
             return;
-        if (AGameState* gs = GetMatchGameState()) {
-            gs->SetMatchState(EMatchState::WaitingPostMatch);
-            gs->SetRemainingTime(0.0f);
-        }
+        if (HasMatchEnded())
+            return;
+        SetMatchState(EMatchState::WaitingPostMatch);
+    }
+
+    void AGameMode::RestartGame() {
+        if (!IsNetworkAuthority())
+            return;
+        SetMatchState(EMatchState::WaitingToStart);
+        StartMatch();
+    }
+
+    void AGameMode::HandleMatchIsWaitingToStart() {}
+
+    void AGameMode::HandleMatchHasStarted() {}
+
+    void AGameMode::HandleMatchHasEnded() {}
+
+    bool AGameMode::PlayerCanRestart(AController* InPlayer) const {
+        (void)InPlayer;
+        return HasMatchInProgress();
     }
 
     bool AGameMode::HasMatchStarted() const {
-        AGameState* gs = GetMatchGameState();
+        AGameState* gs = GetGameState();
         return gs && gs->GetMatchState() != EMatchState::WaitingToStart;
     }
 
     bool AGameMode::HasMatchEnded() const {
-        AGameState* gs = GetMatchGameState();
+        AGameState* gs = GetGameState();
         return gs && gs->GetMatchState() == EMatchState::WaitingPostMatch;
+    }
+
+    bool AGameMode::HasMatchInProgress() const {
+        AGameState* gs = GetGameState();
+        return gs && gs->GetMatchState() == EMatchState::InProgress;
     }
 
 } // namespace Leon

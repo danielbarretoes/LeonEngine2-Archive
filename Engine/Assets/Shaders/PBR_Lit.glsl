@@ -23,7 +23,7 @@ layout(std140) uniform CameraData {
     vec4 u_CameraForward;
     vec4 u_CascadeSplits;
     vec4 u_ShadowParams;
-    ivec4 u_ShadowSettings; // x = filterMode, y = shadowedSpotIndex, z = 0, w = debug
+    ivec4 u_ShadowSettings; // x = filterMode, y = shadowedSpotIndex, z = cascadeCount, w = debug
 };
 
 uniform mat4 u_Model;
@@ -87,7 +87,7 @@ layout(std140) uniform CameraData {
     vec4 u_CameraForward;
     vec4 u_CascadeSplits;
     vec4 u_ShadowParams;
-    ivec4 u_ShadowSettings; // x = filterMode, y = shadowedSpotIndex, z = 0, w = debug
+    ivec4 u_ShadowSettings; // x = filterMode, y = shadowedSpotIndex, z = cascadeCount, w = debug
 };
 
 // Direct Lighting & Environment Subsystem (std140)
@@ -100,7 +100,7 @@ struct DirectionalLight {
 struct PointLight {
     vec4 position;    // xyz = pos, w = enabled (1.0 / 0.0)
     vec4 color;       // xyz = color, w = intensity
-    vec4 params;      // x = radius (UE4 inverse-square falloff), yzw = 0
+    vec4 params;      // x = radius, y = cubeIndex (-1 = none)
 };
 
 struct SpotLight {
@@ -118,7 +118,7 @@ layout(std140) uniform LightingData {
     DirectionalLight u_DirLight;
     PointLight u_PointLights[MAX_POINT_LIGHTS];
     SpotLight u_SpotLights[MAX_SPOT_LIGHTS];
-    ivec4 u_LightCounts;        // x = pointCount, y = spotCount
+    ivec4 u_LightCounts;        // x = pointCount, y = spotCount, z = shadowedPointCount
     vec4 u_EnvSkyColor;         // xyz = skyZenithColor, w = envIntensity
     vec4 u_EnvHorizonColor;     // xyz = horizonColor
     vec4 u_EnvGroundColor;      // xyz = groundColor
@@ -159,6 +159,7 @@ layout(binding = 9) uniform sampler2D u_EmissiveMap;
 layout(binding = 10) uniform sampler2DArrayShadow u_CascadeShadowMap;
 layout(binding = 11) uniform sampler2DShadow u_SpotShadowMap;
 layout(binding = 12) uniform sampler2D u_Lightmap;
+layout(binding = 14) uniform samplerCubeArray u_PointShadowMap;
 
 uniform int u_UseIBL;
 uniform int u_UseAlbedoMap;
@@ -171,6 +172,7 @@ uniform int u_UsePlanarReflection;
 uniform int u_UsePlanarReflection1 = 0;
 uniform int u_UseShadows;
 uniform int u_UseSpotShadows;
+uniform int u_UsePointShadows = 0;
 uniform int u_DebugMode;
 uniform mat4 u_PlanarViewProjection = mat4(1.0);
 uniform vec3 u_PlanarPlaneNormal = vec3(0.0, 1.0, 0.0);
@@ -246,6 +248,7 @@ void main() {
     int activeCascadeIndex = 0;
     float dirShadow = 0.0;
     float spotShadowFactor = 0.0;
+    float pointShadowFactor = 1.0;
 
     // 5.1 Directional Sunlight — single radiance = color * intensity (PBR-correct)
     if (u_DirLight.direction.w > 0.5) {
@@ -309,6 +312,10 @@ void main() {
 
         float NdotL = max(dot(N, L), 0.0);
         vec3 vis = radiance * NdotL;
+        float pointShadow = CalculatePointShadow(v_FragPos, geoN, i);
+        vis *= (1.0 - pointShadow);
+        if (u_PointLights[i].params.y >= 0.0)
+            pointShadowFactor = 1.0 - pointShadow;
         LoDiffuse += (kD * albedo / PI) * vis;
         LoSpecular += specular * vis;
     }
@@ -513,7 +520,7 @@ void main() {
         vec3 col = cascadeColors[cascadeIndex];
         float viewDepth = dot(v_FragPos - u_ViewPos.xyz, u_CameraForward.xyz);
         float blendA = CascadeBlendAlpha(viewDepth, cascadeIndex);
-        if (blendA > 0.0 && cascadeIndex < 3)
+        if (blendA > 0.0 && cascadeIndex + 1 < ActiveCascadeCount())
             col = mix(col, cascadeColors[cascadeIndex + 1], blendA);
         FragColor = vec4(col, 1.0);
         return;
@@ -573,6 +580,9 @@ void main() {
         return;
     } else if (u_DebugMode == 39) {
         FragColor = vec4(LoSpecular, 1.0);
+        return;
+    } else if (u_DebugMode == 40) {
+        FragColor = vec4(vec3(pointShadowFactor), 1.0);
         return;
     }
 

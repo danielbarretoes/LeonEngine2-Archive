@@ -12,6 +12,7 @@
 #include "Renderer/FFrustumCull.hpp"
 #include "Renderer/FMaterialInstance.hpp"
 #include "Renderer/FRenderingMath.hpp"
+#include "Renderer/FShadowTypes.hpp"
 #include "RHI/FTexture.hpp"
 #include "Core/FFrameProfiler.hpp"
 
@@ -233,8 +234,13 @@ namespace Leon {
                              glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
                              glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
         glm::vec3 wMin, wMax;
+        // Bind-pose AABB: animation can leave these bounds, so inflate instead of per-bone AABBs.
         TransformAABB(InMesh.SkeletalMesh->GetBoundsMin(), InMesh.SkeletalMesh->GetBoundsMax(), InWorld * relative,
                       wMin, wMax);
+        glm::vec3 center = 0.5f * (wMin + wMax);
+        glm::vec3 extent = (wMax - wMin) * 0.5f * FShadowSettings::kSkinnedShadowBoundsPadding;
+        wMin = center - extent;
+        wMax = center + extent;
         return !AABBIntersectsFrustum(wMin, wMax, InFrustum);
     }
 
@@ -245,6 +251,15 @@ namespace Leon {
         glm::vec3 center = 0.5f * (wMin + wMax);
         glm::vec3 delta = center - InCamPos;
         return glm::dot(delta, delta);
+    }
+
+    inline void ApplyShadowCasterRasterState(FMaterialInstance* InMat, bool bInCullFront) {
+        bool bDoubleSided = InMat && InMat->GetDoubleSided();
+        if (bDoubleSided) {
+            FRenderCommand::SetCulling(false);
+            return;
+        }
+        FRenderCommand::SetCulling(true, bInCullFront ? ECullMode::Front : ECullMode::Back);
     }
 
     inline void BindShadowCasterAlpha(FShader& InShader, FMaterialInstance* InMat) {

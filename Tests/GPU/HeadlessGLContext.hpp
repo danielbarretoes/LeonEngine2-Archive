@@ -139,6 +139,10 @@ namespace Leon::TestGPU {
             glActiveTexture(GL_TEXTURE11);
             glBindTexture(GL_TEXTURE_2D, DefaultShadowTex);
 
+            // Unit 14: Point cubemap array (linear depth, no compare)
+            glActiveTexture(GL_TEXTURE14);
+            glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, DefaultPointCubeArrayTex);
+
             // Unit 13: second planar capture (wall mirrors)
             glActiveTexture(GL_TEXTURE13);
             glBindTexture(GL_TEXTURE_2D, DefaultBlackTex);
@@ -161,6 +165,7 @@ namespace Leon::TestGPU {
             shader->SetInt("u_UseIBL", 0);
             shader->SetInt("u_UseShadows", 0);
             shader->SetInt("u_UseSpotShadows", 0);
+            shader->SetInt("u_UsePointShadows", 0);
             shader->SetInt("u_DebugMode", 0);
             shader->SetFloat3("u_AlbedoColor", 1.0f, 1.0f, 1.0f);
             shader->SetFloat("u_Metallic", 0.0f);
@@ -176,6 +181,7 @@ namespace Leon::TestGPU {
 
         GLuint GetDefaultShadowArrayTex() const { return DefaultShadowArrayTex; }
         GLuint GetDefaultShadowTex() const { return DefaultShadowTex; }
+        GLuint GetDefaultPointCubeArrayTex() const { return DefaultPointCubeArrayTex; }
 
         GLuint Create1x1Texture(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
             GLuint tex = 0;
@@ -299,6 +305,7 @@ namespace Leon::TestGPU {
                 glDeleteTextures(1, &DefaultCubeTex);
                 glDeleteTextures(1, &DefaultShadowTex);
                 glDeleteTextures(1, &DefaultShadowArrayTex);
+                glDeleteTextures(1, &DefaultPointCubeArrayTex);
 
                 glfwDestroyWindow(NativeWindow);
                 glfwTerminate();
@@ -435,6 +442,17 @@ namespace Leon::TestGPU {
             glTextureParameteri(DefaultShadowArrayTex, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
             glClearTexImage(DefaultShadowArrayTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
 
+            // Default point cubemap array: 1 cube × 6 faces, linear depth 1 (fully lit)
+            glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &DefaultPointCubeArrayTex);
+            glTextureStorage3D(DefaultPointCubeArrayTex, 1, GL_DEPTH_COMPONENT32F, 1, 1, 6);
+            glTextureParameteri(DefaultPointCubeArrayTex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(DefaultPointCubeArrayTex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(DefaultPointCubeArrayTex, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+            glTextureParameteri(DefaultPointCubeArrayTex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(DefaultPointCubeArrayTex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(DefaultPointCubeArrayTex, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            glClearTexImage(DefaultPointCubeArrayTex, 0, GL_DEPTH_COMPONENT, GL_FLOAT, &clearDepth);
+
             // Split-sum LUT fallback: RG = (scale=1, bias=0)
             DefaultBRDFLUTTex = Create1x1FloatTexture(1.0f, 0.0f, 0.0f, 1.0f);
         }
@@ -460,6 +478,7 @@ namespace Leon::TestGPU {
         GLuint DefaultCubeTex = 0;
         GLuint DefaultShadowTex = 0;
         GLuint DefaultShadowArrayTex = 0;
+        GLuint DefaultPointCubeArrayTex = 0;
     };
 
 } // namespace Leon::TestGPU

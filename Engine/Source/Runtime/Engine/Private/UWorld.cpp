@@ -533,6 +533,20 @@ namespace Leon {
             Renderer->GetShadowSettings().FilterMode = PendingShadowFilter;
     }
 
+    void UWorld::SetProjectOmniShadowDefaults(uint32_t InSpotResolution, uint32_t InPointShadowResolution,
+                                              uint32_t InMaxShadowedPointLights) {
+        PendingSpotResolution = InSpotResolution > 0 ? InSpotResolution : 1024;
+        PendingPointShadowResolution = InPointShadowResolution > 0 ? InPointShadowResolution : 512;
+        PendingMaxShadowedPointLights = std::min(std::max(InMaxShadowedPointLights, 1u), 4u);
+        if (Renderer) {
+            auto& sh = Renderer->GetShadowSettings();
+            sh.SpotResolution = PendingSpotResolution;
+            sh.PointShadowResolution = PendingPointShadowResolution;
+            sh.MaxShadowedPointLights = PendingMaxShadowedPointLights;
+            Renderer->EnsureShadowFramebuffers();
+        }
+    }
+
     void UWorld::OnRender(const FPerspectiveCamera& InCamera) {
         GetWorldRenderer()->RenderScene(InCamera);
     }

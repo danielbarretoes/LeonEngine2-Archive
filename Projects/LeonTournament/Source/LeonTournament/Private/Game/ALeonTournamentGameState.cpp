@@ -1,5 +1,6 @@
 #include "ALeonTournamentGameState.hpp"
 #include "ALeonTournamentPlayerState.hpp"
+#include "Gameplay/AGameMode.hpp"
 #include "Gameplay/EMatchState.hpp"
 
 #include <algorithm>
@@ -15,12 +16,14 @@ namespace Leon {
         if (!IsNetworkAuthority())
             return;
         MatchState = InState;
-        if (InState == ELeonTournamentMatchState::Playing)
-            AGameState::SetMatchState(EMatchState::InProgress);
-        else if (InState == ELeonTournamentMatchState::Finished)
-            AGameState::SetMatchState(EMatchState::WaitingPostMatch);
-        else
-            AGameState::SetMatchState(EMatchState::WaitingToStart);
+        if (auto* gm = dynamic_cast<AGameMode*>(GetGameMode())) {
+            if (InState == ELeonTournamentMatchState::Playing)
+                gm->SetMatchState(EMatchState::InProgress);
+            else if (InState == ELeonTournamentMatchState::Finished)
+                gm->SetMatchState(EMatchState::WaitingPostMatch);
+            else
+                gm->SetMatchState(EMatchState::WaitingToStart);
+        }
     }
 
     void ALeonTournamentGameState::AddTeamKill(ELeonTournamentTeam InTeam) {

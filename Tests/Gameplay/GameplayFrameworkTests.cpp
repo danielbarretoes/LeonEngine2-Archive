@@ -171,23 +171,33 @@ namespace Leon {
             auto* gm = world->SpawnActor<AGameMode>("GM");
             world->SetGameMode(gm);
             world->InitWorld();
-            REQUIRE(gm->GetMatchGameState());
-            CHECK(gm->GetMatchGameState()->GetMatchState() == EMatchState::WaitingToStart);
+            REQUIRE(gm->GetGameState());
+            CHECK(gm->GetGameState()->GetMatchState() == EMatchState::WaitingToStart);
             CHECK_FALSE(gm->HasMatchStarted());
+            CHECK_FALSE(gm->HasMatchInProgress());
+            CHECK_FALSE(gm->PlayerCanRestart(nullptr));
 
-            gm->GetMatchGameState()->SetRemainingTime(10.0f);
+            gm->GetGameState()->SetRemainingTime(10.0f);
             gm->StartMatch();
             CHECK(gm->HasMatchStarted());
+            CHECK(gm->HasMatchInProgress());
+            CHECK(gm->PlayerCanRestart(nullptr));
             CHECK_FALSE(gm->HasMatchEnded());
-            CHECK(gm->GetMatchGameState()->GetMatchState() == EMatchState::InProgress);
+            CHECK(gm->GetGameState()->GetMatchState() == EMatchState::InProgress);
 
             world->BeginPlay();
             world->Tick(FTimestep(0.1f));
-            CHECK(gm->GetMatchGameState()->GetRemainingTime() == doctest::Approx(9.9f).epsilon(0.01f));
+            CHECK(gm->GetGameState()->GetRemainingTime() == doctest::Approx(9.9f).epsilon(0.01f));
 
             gm->EndMatch();
             CHECK(gm->HasMatchEnded());
-            CHECK(gm->GetMatchGameState()->GetMatchState() == EMatchState::WaitingPostMatch);
+            CHECK_FALSE(gm->HasMatchInProgress());
+            CHECK_FALSE(gm->PlayerCanRestart(nullptr));
+            CHECK(gm->GetGameState()->GetMatchState() == EMatchState::WaitingPostMatch);
+
+            gm->RestartGame();
+            CHECK(gm->HasMatchInProgress());
+            CHECK(gm->GetGameState()->GetMatchState() == EMatchState::InProgress);
         }
 
         TEST_CASE("7. APlayerController creation") {
@@ -676,6 +686,7 @@ Actors:
 
             auto* gm = world->SpawnActor<AGameModeBase>("GM");
             CHECK(gm->ChoosePlayerStart() == first);
+            CHECK(gm->ChoosePlayerStart(nullptr) == first);
             CHECK_FALSE(first->CanEverTick());
         }
 

@@ -136,6 +136,8 @@ namespace Leon {
         void SetProjectSSAODefaults(bool bInEnabled, float InRadius, float InIntensity, float InBias);
         void SetProjectPostProcessToggles(bool bInBloomEnabled, bool bInFXAAEnabled);
         void SetProjectShadowFilter(EShadowFilterMode InFilter);
+        void SetProjectOmniShadowDefaults(uint32_t InSpotResolution, uint32_t InPointShadowResolution,
+                                          uint32_t InMaxShadowedPointLights);
         bool GetPendingSSAOEnabled() const { return bPendingSSAOEnabled; }
         float GetPendingSSAORadius() const { return PendingSSAORadius; }
         float GetPendingSSAOIntensity() const { return PendingSSAOIntensity; }
@@ -151,6 +153,9 @@ namespace Leon {
         float GetPendingShadowDistance() const { return PendingShadowDistance; }
         EPlanarReflectionQuality GetPendingPlanarReflectionQuality() const { return PendingPlanarQuality; }
         float GetPendingPlanarReflectionResolutionScale() const { return PendingPlanarResolutionScale; }
+        uint32_t GetPendingSpotResolution() const { return PendingSpotResolution; }
+        uint32_t GetPendingPointShadowResolution() const { return PendingPointShadowResolution; }
+        uint32_t GetPendingMaxShadowedPointLights() const { return PendingMaxShadowedPointLights; }
 
         bool OverlapAABB(const glm::vec3& InWorldMin, const glm::vec3& InWorldMax, AActor* InIgnore,
                          FHitResult& OutHit) const;
@@ -223,6 +228,9 @@ namespace Leon {
         bool bPendingBloomEnabled = true;
         bool bPendingFXAAEnabled = true;
         EShadowFilterMode PendingShadowFilter = EShadowFilterMode::PCF3x3;
+        uint32_t PendingSpotResolution = 1024;
+        uint32_t PendingPointShadowResolution = 512;
+        uint32_t PendingMaxShadowedPointLights = 4;
 
         friend class FMapSerializer;
     };

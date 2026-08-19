@@ -41,11 +41,17 @@ TEST_SUITE("LeonTournament graphics quality") {
         CHECK_FALSE(low.bEnableSSAO);
         CHECK_FALSE(low.bEnableBloom);
         CHECK(low.ShadowDistance == 12.0f);
+        CHECK(low.SpotResolution == 512);
+        CHECK(low.PointShadowResolution == 256);
+        CHECK(low.MaxShadowedPointLights == 1);
         CHECK_FALSE(low.bEnableFXAA);
 
         const auto medium = FGraphicsQuality::GetPreset(EGraphicsQuality::Medium);
         CHECK(medium.ShadowMapResolution == 1024);
         CHECK(medium.CascadeCount == 3);
+        CHECK(medium.SpotResolution == 1024);
+        CHECK(medium.PointShadowResolution == 512);
+        CHECK(medium.MaxShadowedPointLights == 2);
         CHECK(medium.bEnablePlanarReflection);
         CHECK(medium.PlanarQuality == EPlanarReflectionQuality::Low);
         CHECK(medium.bEnableSSAO);
@@ -54,6 +60,9 @@ TEST_SUITE("LeonTournament graphics quality") {
         const auto high = FGraphicsQuality::GetPreset(EGraphicsQuality::High);
         CHECK(high.ShadowMapResolution == 2048);
         CHECK(high.CascadeCount == 4);
+        CHECK(high.SpotResolution == 1024);
+        CHECK(high.PointShadowResolution == 512);
+        CHECK(high.MaxShadowedPointLights == 4);
         CHECK(high.ShadowFilter == Leon::EShadowFilterMode::PCF5x5);
         CHECK(high.PlanarQuality == EPlanarReflectionQuality::Epic);
         CHECK(high.bEnableSSAO);
@@ -68,6 +77,9 @@ TEST_SUITE("LeonTournament graphics quality") {
         REQUIRE(world != nullptr);
         FGraphicsQuality::ApplyToWorld(*world, EGraphicsQuality::Low);
         CHECK(world->GetPendingShadowMapResolution() == 512);
+        CHECK(world->GetPendingSpotResolution() == 512);
+        CHECK(world->GetPendingPointShadowResolution() == 256);
+        CHECK(world->GetPendingMaxShadowedPointLights() == 1);
         CHECK_FALSE(world->GetPendingPlanarReflectionEnabled());
         CHECK_FALSE(world->GetPendingSSAOEnabled());
         CHECK_FALSE(world->GetPendingBloomEnabled());

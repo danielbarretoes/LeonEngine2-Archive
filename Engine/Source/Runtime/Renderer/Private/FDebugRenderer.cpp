@@ -1,4 +1,5 @@
 #include "Renderer/FDebugRenderer.hpp"
+#include "Renderer/FShadowMath.hpp"
 #include "Core/FLog.hpp"
 #include "RHI/FRenderCommand.hpp"
 
@@ -167,6 +168,14 @@ namespace Leon {
             // YZ Plane
             DrawLine(InCenter + glm::vec3(0.0f, c0, s0), InCenter + glm::vec3(0.0f, c1, s1), InColor);
         }
+    }
+
+    void FDebugRenderer::DrawWireFrustum(const glm::mat4& InViewProjection, const glm::vec4& InColor) {
+        auto corners = ShadowMath::GetFrustumCornersWorldSpace(InViewProjection, glm::mat4(1.0f));
+        const int edges[12][2] = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3},
+                                  {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+        for (const auto& e : edges)
+            DrawLine(corners[static_cast<size_t>(e[0])], corners[static_cast<size_t>(e[1])], InColor);
     }
 
     void FDebugRenderer::DrawWireCone(const glm::vec3& InApex, const glm::vec3& InDirection, float InRange,
