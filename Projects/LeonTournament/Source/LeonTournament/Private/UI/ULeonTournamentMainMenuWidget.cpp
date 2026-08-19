@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
@@ -125,8 +126,7 @@ namespace Leon {
         Root->SetSize({1280, 720});
         Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.0f});
 
-        Panel = std::make_shared<UImage>("MenuPanel");
-        Panel->SetTintColor({0.02f, 0.03f, 0.06f, 0.92f});
+        Panel = FLeonTournamentUILayout::MakePanel("MenuPanel");
         Root->AddChild(Panel, FAnchors::LeftStretch(),
                        FUILayout::BoxLeftStretch(0.0f, kLeonTournamentMenuPanelDesignWidth));
 
@@ -136,42 +136,42 @@ namespace Leon {
         auto title = std::make_shared<UTextBlock>("Title");
         title->SetText("LEON TOURNAMENT");
         title->SetFontScale(kFsHero);
-        title->SetColor({0.90f, 0.93f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleHero(*title);
         PlaceTextTL(*Root, title, leftX, y);
         y += MeasurePadded(title->GetText(), title->GetFontScale()).y + 2.0f;
 
         Subtitle = std::make_shared<UTextBlock>("Sub");
-        Subtitle->SetText("2v2 Team Deathmatch");
+        Subtitle->SetText("UNREAL TOURNAMENT MVP");
         Subtitle->SetFontScale(kFsBody);
-        Subtitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleAccent(*Subtitle);
         PlaceTextTL(*Root, Subtitle, leftX, y);
         y += MeasurePadded(Subtitle->GetText(), Subtitle->GetFontScale()).y + 16.0f;
 
         const float stackY = y;
         constexpr float btnGap = 8.0f;
-        constexpr float btnMinH = 40.0f;
+        constexpr float btnMinH = 44.0f;
 
-        auto play = MakeButton("Play", "PLAY", kFsButton, 300.0f, btnMinH);
+        auto play = FLeonTournamentUILayout::MakeThemedButton("Play", "PLAY", kFsButton, 300.0f, btnMinH);
         play->OnClicked.AddLambda([this]() { OnOffline(); });
         PlaceButtonTL(*Root, play, leftX, y);
         y += play->GetSize().y + btnGap;
 
-        auto training = MakeButton("Training", "TRAINING", kFsButton, 300.0f, btnMinH);
+        auto training = FLeonTournamentUILayout::MakeThemedButton("Training", "TRAINING", kFsButton, 300.0f, btnMinH);
         training->OnClicked.AddLambda([this]() { OnAnimLab(); });
         PlaceButtonTL(*Root, training, leftX, y);
         y += training->GetSize().y + btnGap;
 
-        auto renderLab = MakeButton("RenderLab", "RENDER LAB", kFsButton, 300.0f, btnMinH);
+        auto renderLab = FLeonTournamentUILayout::MakeThemedButton("RenderLab", "RENDER LAB", kFsButton, 300.0f, btnMinH);
         renderLab->OnClicked.AddLambda([this]() { OnRenderLab(); });
         PlaceButtonTL(*Root, renderLab, leftX, y);
         y += renderLab->GetSize().y + btnGap;
 
-        auto host = MakeButton("Host", "HOST LAN", kFsButton, 300.0f, btnMinH);
+        auto host = FLeonTournamentUILayout::MakeThemedButton("Host", "HOST LAN", kFsButton, 300.0f, btnMinH);
         host->OnClicked.AddLambda([this]() { OnHostLan(); });
         PlaceButtonTL(*Root, host, leftX, y);
         y += host->GetSize().y + btnGap;
 
-        auto join = MakeButton("Join", "JOIN LAN", kFsButton, 300.0f, btnMinH);
+        auto join = FLeonTournamentUILayout::MakeThemedButton("Join", "JOIN LAN", kFsButton, 300.0f, btnMinH);
         join->OnClicked.AddLambda([this]() { OnJoinLan(); });
         PlaceButtonTL(*Root, join, leftX, y);
         y += join->GetSize().y + 10.0f;
@@ -179,7 +179,7 @@ namespace Leon {
         auto ipLabel = std::make_shared<UTextBlock>("IpLabel");
         ipLabel->SetText("IP Address");
         ipLabel->SetFontScale(kFsCaption);
-        ipLabel->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*ipLabel);
         PlaceTextTL(*Root, ipLabel, leftX, y);
         y += MeasurePadded(ipLabel->GetText(), ipLabel->GetFontScale()).y + 2.0f;
 
@@ -198,12 +198,12 @@ namespace Leon {
         Root->AddChild(AddressField, FAnchors::TopLeft(), BoxTL(leftX, y, fieldW, fieldH));
         y += fieldH + 12.0f;
 
-        auto settings = MakeButton("Settings", "SETTINGS", kFsButton, 300.0f, btnMinH);
+        auto settings = FLeonTournamentUILayout::MakeThemedButton("Settings", "SETTINGS", kFsButton, 300.0f, btnMinH);
         settings->OnClicked.AddLambda([this]() { OnOpenSettings(); });
         PlaceButtonTL(*Root, settings, leftX, y);
         y += settings->GetSize().y + btnGap;
 
-        auto quit = MakeButton("Quit", "QUIT", kFsButton, 300.0f, btnMinH);
+        auto quit = FLeonTournamentUILayout::MakeThemedButton("Quit", "QUIT", kFsButton, 300.0f, btnMinH);
         quit->OnClicked.AddLambda([this]() { OnQuit(); });
         PlaceButtonTL(*Root, quit, leftX, y);
         DesignContentHeight = y + quit->GetSize().y + 8.0f;
@@ -212,28 +212,28 @@ namespace Leon {
         SettingsHint = std::make_shared<UTextBlock>("SettingsHint");
         SettingsHint->SetText("Texture limit + estimated VRAM at this resolution");
         SettingsHint->SetFontScale(kFsCaption);
-        SettingsHint->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*SettingsHint);
         PlaceTextTL(*Root, SettingsHint, leftX, settingsY);
         settingsY += MeasurePadded(SettingsHint->GetText(), SettingsHint->GetFontScale()).y + 10.0f;
 
-        SettingsLowBtn = MakeButton("QualityLow", "LOW", kFsButton, 300.0f, btnMinH);
+        SettingsLowBtn = FLeonTournamentUILayout::MakeThemedButton("QualityLow", "LOW", kFsButton, 300.0f, btnMinH);
         SettingsLowBtn->OnClicked.AddLambda([this]() { OnSelectGraphicsQuality(EGraphicsQuality::Low); });
         PlaceButtonTL(*Root, SettingsLowBtn, leftX, settingsY);
         settingsY += SettingsLowBtn->GetSize().y + btnGap;
 
-        SettingsMediumBtn = MakeButton("QualityMedium", "MEDIUM", kFsButton, 300.0f, btnMinH);
+        SettingsMediumBtn = FLeonTournamentUILayout::MakeThemedButton("QualityMedium", "MEDIUM", kFsButton, 300.0f, btnMinH);
         SettingsMediumBtn->OnClicked.AddLambda(
             [this]() { OnSelectGraphicsQuality(EGraphicsQuality::Medium); });
         PlaceButtonTL(*Root, SettingsMediumBtn, leftX, settingsY);
         settingsY += SettingsMediumBtn->GetSize().y + btnGap;
 
-        SettingsHighBtn = MakeButton("QualityHigh", "HIGH", kFsButton, 300.0f, btnMinH);
+        SettingsHighBtn = FLeonTournamentUILayout::MakeThemedButton("QualityHigh", "HIGH", kFsButton, 300.0f, btnMinH);
         SettingsHighBtn->OnClicked.AddLambda(
             [this]() { OnSelectGraphicsQuality(EGraphicsQuality::High); });
         PlaceButtonTL(*Root, SettingsHighBtn, leftX, settingsY);
         settingsY += SettingsHighBtn->GetSize().y + 16.0f;
 
-        SettingsBackBtn = MakeButton("SettingsBack", "BACK", kFsButton, 300.0f, btnMinH);
+        SettingsBackBtn = FLeonTournamentUILayout::MakeThemedButton("SettingsBack", "BACK", kFsButton, 300.0f, btnMinH);
         SettingsBackBtn->OnClicked.AddLambda([this]() { OnCloseSettings(); });
         PlaceButtonTL(*Root, SettingsBackBtn, leftX, settingsY);
         DesignContentHeight = std::max(DesignContentHeight, settingsY + SettingsBackBtn->GetSize().y + 8.0f);
@@ -242,17 +242,17 @@ namespace Leon {
         SettingsPageWidgets = {SettingsHint, SettingsLowBtn, SettingsMediumBtn, SettingsHighBtn, SettingsBackBtn};
         SetSettingsPageVisible(false);
 
-        PrevCharBtn = MakeButton("PrevChar", "<", kFsSub, 56.0f, 52.0f);
+        PrevCharBtn = FLeonTournamentUILayout::MakeThemedButton("PrevChar", "<", kFsSub, 56.0f, 52.0f);
         PrevCharBtn->OnClicked.AddLambda([this]() { OnPrevCharacter(); });
 
         CharacterLabel = std::make_shared<UTextBlock>("CharName");
         CharacterLabel->SetFontScale(kFsSub);
-        CharacterLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*CharacterLabel);
         CharacterLabel->SetJustification(ETextAlignment::Center);
         CharacterLabel->SetText("YBOT");
         RefreshCharacterLabel();
 
-        NextCharBtn = MakeButton("NextChar", ">", kFsSub, 56.0f, 52.0f);
+        NextCharBtn = FLeonTournamentUILayout::MakeThemedButton("NextChar", ">", kFsSub, 56.0f, 52.0f);
         NextCharBtn->OnClicked.AddLambda([this]() { OnNextCharacter(); });
 
         SetWidgetTree(Root);
@@ -279,6 +279,10 @@ namespace Leon {
                 RefreshSettingsQualityButtons();
         }
         RefreshCharacterLabel();
+        if (Subtitle) {
+            if (auto* gi = GI())
+                Subtitle->SetText(LeonTournamentGameModeName(gi->GetSelectedGameMode()));
+        }
         if (bInSettings) {
             if (GamepadEdge(GamepadButton::B, bPadBWasDown))
                 OnCloseSettings();
@@ -416,8 +420,8 @@ namespace Leon {
         const uint32_t w = ViewportWidth();
         const uint32_t h = ViewportHeight();
         const auto quality = GI() ? GI()->GetGraphicsQuality() : EGraphicsQuality::High;
-        const glm::vec4 selected{0.16f, 0.42f, 0.72f, 1.0f};
-        const glm::vec4 idle{0.12f, 0.18f, 0.30f, 0.95f};
+        const glm::vec4 selected = FLeonTournamentUITheme::BtnSelected;
+        const glm::vec4 idle = FLeonTournamentUITheme::BtnNormal;
         auto apply = [&](const TRef<UButton>& btn, EGraphicsQuality q) {
             if (!btn)
                 return;
@@ -425,7 +429,7 @@ namespace Leon {
                 label->SetText(FGraphicsQuality::FormatVRAMLabel(q, w, h));
                 label->SetSize(FUIRenderer::MeasureString(label->GetText(), label->GetFontScale()));
             }
-            btn->SetNormalColor(q == quality ? selected : idle);
+            FLeonTournamentUILayout::ApplyThemedButtonColors(*btn, q == quality);
         };
         apply(SettingsLowBtn, EGraphicsQuality::Low);
         apply(SettingsMediumBtn, EGraphicsQuality::Medium);

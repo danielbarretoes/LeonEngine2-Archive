@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "UMG/FUIRenderer.hpp"
 #include "UMG/FUILayout.hpp"
 
@@ -21,7 +22,7 @@ namespace Leon {
         FUIRenderer::Init();
         Root = std::make_shared<UCanvasPanel>("LoadingRoot");
         Root->SetSize({1280, 720});
-        Root->SetBackgroundColor({0.02f, 0.02f, 0.05f, 0.92f});
+        Root->SetBackgroundColor(FLeonTournamentUITheme::VoidBg);
 
         Spinner = std::make_shared<ULoadingSpinner>("LoadingSpinner");
         Spinner->SetSize({88.0f, 88.0f});
@@ -32,7 +33,7 @@ namespace Leon {
         StatusText = std::make_shared<UTextBlock>("LoadingStatus");
         StatusText->SetText("LOADING...");
         StatusText->SetFontScale(kFsStatus);
-        StatusText->SetColor({0.82f, 0.88f, 0.98f, 0.95f});
+        StatusText->SetColor(FLeonTournamentUITheme::TextAccent);
         StatusText->SetJustification(ETextAlignment::Center);
         FLeonTournamentUILayout::PlaceTextC(*Root, StatusText, 0.0f, 56.0f, 420.0f);
 

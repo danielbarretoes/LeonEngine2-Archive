@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentRenderLabGameMode.hpp"
 #include "ULeonTournamentGameInstance.hpp"
@@ -48,7 +49,7 @@ namespace Leon {
         }
         TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = kFsButton,
                                  float InMinW = 200.0f, float InMinH = 0.0f) {
-            return FLeonTournamentUILayout::MakeButton(InName, InLabel, InFont, InMinW, InMinH);
+            return FLeonTournamentUILayout::MakeThemedButton(InName, InLabel, InFont, InMinW, InMinH);
         }
         void PlaceButtonTL(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InX, float InY) {
             FLeonTournamentUILayout::PlaceButtonTL(InRoot, InBtn, InX, InY);
@@ -139,14 +140,12 @@ namespace Leon {
         constexpr float panelW = 232.0f;
         constexpr float panelH = 548.0f;
         constexpr float designW = 1280.0f;
-        Panel = std::make_shared<UImage>("RenderLabPanel");
-        Panel->SetTintColor({0.02f, 0.03f, 0.06f, 0.82f});
+        Panel = FLeonTournamentUILayout::MakePanel("RenderLabPanel", FLeonTournamentUITheme::PanelBgStrong);
         Root->AddChild(Panel, FAnchors::TopLeft(), BoxTL(designW - panelW - 8.0f, 8.0f, panelW, panelH));
 
         constexpr float debugW = 248.0f;
         constexpr float debugH = 214.0f;
-        DebugPanel = std::make_shared<UImage>("RenderLabDebugPanel");
-        DebugPanel->SetTintColor({0.02f, 0.03f, 0.06f, 0.80f});
+        DebugPanel = FLeonTournamentUILayout::MakePanel("RenderLabDebugPanel", FLeonTournamentUITheme::PanelBg);
         Root->AddChild(DebugPanel, FAnchors::TopLeft(), BoxTL(8.0f, 8.0f, debugW, debugH));
 
         constexpr float debugX = 16.0f;
@@ -154,13 +153,13 @@ namespace Leon {
         DebugTitle = std::make_shared<UTextBlock>("RLDebugTitle");
         DebugTitle->SetText("DEBUG");
         DebugTitle->SetFontScale(kFsCaption);
-        DebugTitle->SetColor({0.92f, 0.95f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*DebugTitle);
         PlaceTextTL(*Root, DebugTitle, debugX, debugY);
         debugY += MeasurePadded(DebugTitle->GetText(), DebugTitle->GetFontScale()).y;
 
         DebugViewLine = std::make_shared<UTextBlock>("RLDebugView");
         DebugViewLine->SetFontScale(kFsCaption);
-        DebugViewLine->SetColor({0.45f, 0.92f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleAccent(*DebugViewLine);
         DebugViewLine->SetText("View: Lit");
         PlaceTextTL(*Root, DebugViewLine, debugX, debugY, 220.0f, 14.0f);
         debugY += 14.0f;
@@ -174,7 +173,7 @@ namespace Leon {
             std::snprintf(name, sizeof(name), "RLDebugF%d", i + 1);
             DebugKeyLines[static_cast<size_t>(i)] = std::make_shared<UTextBlock>(name);
             DebugKeyLines[static_cast<size_t>(i)]->SetFontScale(kFsCaption);
-            DebugKeyLines[static_cast<size_t>(i)]->SetColor({0.62f, 0.68f, 0.78f, 1.0f});
+            FLeonTournamentUILayout::StyleCaption(*DebugKeyLines[static_cast<size_t>(i)]);
             DebugKeyLines[static_cast<size_t>(i)]->SetText(keyPlaceholders[i]);
             PlaceTextTL(*Root, DebugKeyLines[static_cast<size_t>(i)], debugX, debugY, 220.0f, 13.0f);
             debugY += 13.0f;
@@ -189,14 +188,14 @@ namespace Leon {
         auto title = std::make_shared<UTextBlock>("RLTitle");
         title->SetText("RENDER LAB");
         title->SetFontScale(kFsCaption);
-        title->SetColor({0.92f, 0.95f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*title);
         PlaceTextTL(*Root, title, leftX, y);
         y += MeasurePadded(title->GetText(), title->GetFontScale()).y + 2.0f;
 
         auto hint = std::make_shared<UTextBlock>("RLHint");
         hint->SetText("F-keys left. ESC=menu");
         hint->SetFontScale(kFsCaption);
-        hint->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*hint);
         PlaceTextTL(*Root, hint, leftX, y);
         y += MeasurePadded(hint->GetText(), hint->GetFontScale()).y + 6.0f;
 
@@ -209,7 +208,7 @@ namespace Leon {
             auto t = std::make_shared<UTextBlock>(InName);
             t->SetText(InText);
             t->SetFontScale(kFsCaption);
-            t->SetColor({0.55f, 0.78f, 1.0f, 1.0f});
+            FLeonTournamentUILayout::StyleAccent(*t);
             PlaceTextTL(*Root, t, leftX, y);
             y += MeasurePadded(InText, kFsCaption).y + 4.0f;
         };
@@ -280,7 +279,7 @@ namespace Leon {
 
         StatusText = std::make_shared<UTextBlock>("RLStatus");
         StatusText->SetFontScale(kFsCaption);
-        StatusText->SetColor({0.75f, 0.82f, 0.92f, 1.0f});
+        FLeonTournamentUILayout::StyleBody(*StatusText);
         StatusText->SetText("...");
         PlaceTextTL(*Root, StatusText, leftX, y, btnW, 44.0f);
         y += 46.0f;
@@ -337,8 +336,6 @@ namespace Leon {
 
     void ULeonTournamentRenderLabWidget::RefreshLabels() {
         const FGraphicsPreset p = ReadCurrent();
-        const glm::vec4 selected{0.16f, 0.42f, 0.72f, 1.0f};
-        const glm::vec4 idle{0.12f, 0.18f, 0.30f, 0.95f};
 
         EGraphicsQuality q = EGraphicsQuality::High;
         if (auto* gi = GI()) {
@@ -348,11 +345,11 @@ namespace Leon {
         }
 
         if (PresetLowBtn)
-            PresetLowBtn->SetNormalColor(q == EGraphicsQuality::Low ? selected : idle);
+            FLeonTournamentUILayout::ApplyThemedButtonColors(*PresetLowBtn, q == EGraphicsQuality::Low);
         if (PresetMedBtn)
-            PresetMedBtn->SetNormalColor(q == EGraphicsQuality::Medium ? selected : idle);
+            FLeonTournamentUILayout::ApplyThemedButtonColors(*PresetMedBtn, q == EGraphicsQuality::Medium);
         if (PresetHighBtn)
-            PresetHighBtn->SetNormalColor(q == EGraphicsQuality::High ? selected : idle);
+            FLeonTournamentUILayout::ApplyThemedButtonColors(*PresetHighBtn, q == EGraphicsQuality::High);
 
         SetButtonLabel(PresetLowBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Low));
         SetButtonLabel(PresetMedBtn, FGraphicsQuality::FormatPresetLabel(EGraphicsQuality::Medium));
@@ -433,8 +430,8 @@ namespace Leon {
             DebugViewLine->SetText(view);
         }
 
-        const glm::vec4 on{0.40f, 0.95f, 1.0f, 1.0f};
-        const glm::vec4 off{0.60f, 0.66f, 0.76f, 1.0f};
+        const glm::vec4 on = FLeonTournamentUITheme::AccentCyan;
+        const glm::vec4 off = FLeonTournamentUITheme::TextMuted;
         auto setLine = [&](size_t InIndex, bool bActive, const char* InText) {
             if (InIndex >= DebugKeyLines.size() || !DebugKeyLines[InIndex])
                 return;

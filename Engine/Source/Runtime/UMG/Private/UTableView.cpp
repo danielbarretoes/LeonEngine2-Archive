@@ -100,11 +100,17 @@ namespace Leon {
             }
 
             if (row.Kind == ETableRowKind::SectionHeader) {
+                const glm::vec4 sectionBg = row.SectionColor.a > 0.0f
+                                                ? glm::vec4(row.SectionColor.r * 0.18f, row.SectionColor.g * 0.18f,
+                                                            row.SectionColor.b * 0.18f, 0.92f)
+                                                : SectionBackgroundColor;
+                const glm::vec4 sectionText =
+                    row.SectionColor.a > 0.0f ? row.SectionColor : SectionTextColor;
                 const glm::vec2 sectionMin{p0.x + 1.0f, rowY};
                 const glm::vec2 sectionMax{p1.x - 1.0f, rowY + rowH};
-                FUIRenderer::DrawQuad(sectionMin, sectionMax, SectionBackgroundColor);
+                FUIRenderer::DrawQuad(sectionMin, sectionMax, sectionBg);
                 const float textY = rowY + (rowH - ResolveLineHeight(HeaderFontScale)) * 0.5f;
-                FUIRenderer::DrawString(p0.x + CellPaddingX + 2.0f, textY, row.SectionLabel, SectionTextColor,
+                FUIRenderer::DrawString(p0.x + CellPaddingX + 2.0f, textY, row.SectionLabel, sectionText,
                                         HeaderFontScale, ETextAlignment::Left);
                 rowY += rowH;
                 continue;

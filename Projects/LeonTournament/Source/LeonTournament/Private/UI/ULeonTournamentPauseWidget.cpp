@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -105,10 +106,10 @@ namespace Leon {
         FUIRenderer::Init();
         Root = std::make_shared<UCanvasPanel>("PauseRoot");
         Root->SetSize({1280, 720});
-        Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.62f});
+        Root->SetBackgroundColor(FLeonTournamentUITheme::DimOverlay);
 
-        auto resume = MakeButton("Resume", "RESUME", kFsButton, 280.0f);
-        auto leave = MakeButton("Leave", "LEAVE TO MENU", kFsButton, 280.0f);
+        auto resume = FLeonTournamentUILayout::MakeThemedButton("Resume", "RESUME", kFsButton, 280.0f, 44.0f);
+        auto leave = FLeonTournamentUILayout::MakeThemedButton("Leave", "LEAVE TO MENU", kFsButton, 280.0f, 44.0f);
         const float titleH = MeasurePadded("PAUSED", kFsTitle).y;
         const float hintH = MeasurePadded("ESC to resume", kFsCaption).y;
         const float gap = 14.0f;
@@ -117,15 +118,16 @@ namespace Leon {
         const float panelH = panelPad * 2.0f + titleH + 8.0f + hintH + 20.0f + resume->GetSize().y + gap +
                              leave->GetSize().y;
 
-        auto panel = std::make_shared<UImage>("PausePanel");
-        panel->SetTintColor({0.05f, 0.06f, 0.10f, 0.96f});
+        auto panel = FLeonTournamentUILayout::MakePanel("PausePanel", FLeonTournamentUITheme::PanelBgStrong);
+        auto accent = FLeonTournamentUILayout::MakeAccentStrip("PauseAccent", true);
         Root->AddChild(panel, FAnchors::Center(), BoxC(0.0f, 0.0f, panelW, panelH));
+        Root->AddChild(accent, FAnchors::Center(), BoxC(-panelW * 0.5f + 2.0f, 0.0f, 4.0f, panelH));
 
         float y = -panelH * 0.5f + panelPad;
         auto title = std::make_shared<UTextBlock>("PauseTitle");
         title->SetText("PAUSED");
         title->SetFontScale(kFsTitle);
-        title->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*title);
         title->SetJustification(ETextAlignment::Center);
         PlaceTextC(*Root, title, 0.0f, y + titleH * 0.5f, panelW - panelPad * 2.0f);
         y += titleH + 8.0f;
@@ -133,7 +135,7 @@ namespace Leon {
         auto hint = std::make_shared<UTextBlock>("PauseHint");
         hint->SetText("ESC to resume");
         hint->SetFontScale(kFsCaption);
-        hint->SetColor({0.65f, 0.72f, 0.85f, 0.9f});
+        FLeonTournamentUILayout::StyleCaption(*hint);
         hint->SetJustification(ETextAlignment::Center);
         PlaceTextC(*Root, hint, 0.0f, y + hintH * 0.5f, panelW - panelPad * 2.0f);
         y += hintH + 20.0f;
@@ -171,6 +173,7 @@ namespace Leon {
     }
 
     void ULeonTournamentPauseWidget::OnResume() {
+        UGameplayStatics::PlaySound2D("/Game/Audio/SFX_PauseOpen", 0.45f);
         if (auto* spc = dynamic_cast<ALeonTournamentPlayerController*>(OwningPlayer))
             spc->SetPauseMenuOpen(false);
     }

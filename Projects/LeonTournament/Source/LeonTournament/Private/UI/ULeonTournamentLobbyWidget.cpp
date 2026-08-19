@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
@@ -82,7 +83,7 @@ namespace Leon {
         }
         TRef<UButton> MakeButton(const std::string& InName, const std::string& InLabel, float InFont = kFsButton,
                                  float InMinW = 200.0f, float InMinH = 0.0f) {
-            return FLeonTournamentUILayout::MakeButton(InName, InLabel, InFont, InMinW, InMinH);
+            return FLeonTournamentUILayout::MakeThemedButton(InName, InLabel, InFont, InMinW, InMinH);
         }
         void PlaceButtonTL(UCanvasPanel& InRoot, const TRef<UButton>& InBtn, float InX, float InY) {
             FLeonTournamentUILayout::PlaceButtonTL(InRoot, InBtn, InX, InY);
@@ -126,8 +127,7 @@ namespace Leon {
         Root->SetSize({1280, 720});
         Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.0f});
 
-        Panel = std::make_shared<UImage>("LobbyPanel");
-        Panel->SetTintColor({0.03f, 0.04f, 0.08f, 0.92f});
+        Panel = FLeonTournamentUILayout::MakePanel("LobbyPanel");
         Root->AddChild(Panel, FAnchors::LeftStretch(),
                        FUILayout::BoxLeftStretch(0.0f, kLeonTournamentLobbyPanelDesignWidth));
 
@@ -137,6 +137,7 @@ namespace Leon {
         TitleText = std::make_shared<UTextBlock>("LobbyTitle");
         TitleText->SetText("LOBBY");
         TitleText->SetFontScale(kFsTitle);
+        FLeonTournamentUILayout::StyleTitle(*TitleText);
         PlaceTextTL(*Root, TitleText, leftX, y);
         y += MeasurePadded(TitleText->GetText(), TitleText->GetFontScale()).y + 10.0f;
 
@@ -156,11 +157,11 @@ namespace Leon {
         auto botsTitle = std::make_shared<UTextBlock>("BotsTitle");
         botsTitle->SetText("BOTS");
         botsTitle->SetFontScale(kFsCaption);
-        botsTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*botsTitle);
         PlaceTextTL(*Root, botsTitle, leftX, y);
         y += MeasurePadded(botsTitle->GetText(), botsTitle->GetFontScale()).y + 6.0f;
 
-        auto t1Minus = MakeButton("T1BotsMinus", "-", kFsLabel, 48.0f, 44.0f);
+        auto t1Minus = FLeonTournamentUILayout::MakeThemedButton("T1BotsMinus", "-", kFsLabel, 48.0f, 44.0f);
         t1Minus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam1(-1); });
         PlaceButtonTL(*Root, t1Minus, leftX, y);
 
@@ -174,12 +175,12 @@ namespace Leon {
                        BoxTL(leftX + t1Minus->GetSize().x + 8.0f, y + (t1Minus->GetSize().y - botsLabelH) * 0.5f,
                              botsLabelW, botsLabelH));
 
-        auto t1Plus = MakeButton("T1BotsPlus", "+", kFsLabel, 48.0f, 44.0f);
+        auto t1Plus = FLeonTournamentUILayout::MakeThemedButton("T1BotsPlus", "+", kFsLabel, 48.0f, 44.0f);
         t1Plus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam1(1); });
         PlaceButtonTL(*Root, t1Plus, leftX + t1Minus->GetSize().x + 8.0f + botsLabelW + 8.0f, y);
         y += t1Minus->GetSize().y + 8.0f;
 
-        auto t2Minus = MakeButton("T2BotsMinus", "-", kFsLabel, 48.0f, 44.0f);
+        auto t2Minus = FLeonTournamentUILayout::MakeThemedButton("T2BotsMinus", "-", kFsLabel, 48.0f, 44.0f);
         t2Minus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam2(-1); });
         PlaceButtonTL(*Root, t2Minus, leftX, y);
 
@@ -191,14 +192,14 @@ namespace Leon {
                        BoxTL(leftX + t2Minus->GetSize().x + 8.0f, y + (t2Minus->GetSize().y - botsLabelH) * 0.5f,
                              botsLabelW, botsLabelH));
 
-        auto t2Plus = MakeButton("T2BotsPlus", "+", kFsLabel, 48.0f, 44.0f);
+        auto t2Plus = FLeonTournamentUILayout::MakeThemedButton("T2BotsPlus", "+", kFsLabel, 48.0f, 44.0f);
         t2Plus->OnClicked.AddLambda([this]() { OnAdjustBotsTeam2(1); });
         PlaceButtonTL(*Root, t2Plus, leftX + t2Minus->GetSize().x + 8.0f + botsLabelW + 8.0f, y);
         y += t2Minus->GetSize().y + 8.0f;
 
         CapacityHint = std::make_shared<UTextBlock>("CapacityHint");
         CapacityHint->SetFontScale(kFsCaption);
-        CapacityHint->SetColor({0.7f, 0.78f, 0.9f, 1.0f});
+        FLeonTournamentUILayout::StyleAccent(*CapacityHint);
         CapacityHint->SetText("You + bots  /  12");
         PlaceTextTL(*Root, CapacityHint, leftX, y, 448.0f);
         y += MeasurePadded(CapacityHint->GetText(), CapacityHint->GetFontScale()).y + 14.0f;
@@ -206,17 +207,17 @@ namespace Leon {
         auto mapTitle = std::make_shared<UTextBlock>("LobbyMapTitle");
         mapTitle->SetText("MAP");
         mapTitle->SetFontScale(kFsCaption);
-        mapTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*mapTitle);
         PlaceTextTL(*Root, mapTitle, leftX, y);
         y += MeasurePadded(mapTitle->GetText(), mapTitle->GetFontScale()).y + 6.0f;
 
-        auto prevMap = MakeButton("LobbyPrevMap", "<", kFsSub, 48.0f, 44.0f);
+        auto prevMap = FLeonTournamentUILayout::MakeThemedButton("LobbyPrevMap", "<", kFsSub, 48.0f, 44.0f);
         prevMap->OnClicked.AddLambda([this]() { OnPrevMap(); });
         PlaceButtonTL(*Root, prevMap, leftX, y);
 
         MapLabel = std::make_shared<UTextBlock>("LobbyMapName");
         MapLabel->SetFontScale(kFsSub);
-        MapLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*MapLabel);
         MapLabel->SetJustification(ETextAlignment::Center);
         MapLabel->SetText("ARENA");
         const float cycleLabelW = 240.0f;
@@ -226,7 +227,7 @@ namespace Leon {
             BoxTL(leftX + prevMap->GetSize().x + 8.0f, y + (prevMap->GetSize().y - nameH) * 0.5f, cycleLabelW, nameH));
         RefreshMapLabel();
 
-        auto nextMap = MakeButton("LobbyNextMap", ">", kFsSub, 48.0f, 44.0f);
+        auto nextMap = FLeonTournamentUILayout::MakeThemedButton("LobbyNextMap", ">", kFsSub, 48.0f, 44.0f);
         nextMap->OnClicked.AddLambda([this]() { OnNextMap(); });
         PlaceButtonTL(*Root, nextMap, leftX + prevMap->GetSize().x + 8.0f + cycleLabelW + 8.0f, y);
         y += prevMap->GetSize().y + 10.0f;
@@ -234,17 +235,17 @@ namespace Leon {
         auto modeTitle = std::make_shared<UTextBlock>("LobbyModeTitle");
         modeTitle->SetText("MODE");
         modeTitle->SetFontScale(kFsCaption);
-        modeTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*modeTitle);
         PlaceTextTL(*Root, modeTitle, leftX, y);
         y += MeasurePadded(modeTitle->GetText(), modeTitle->GetFontScale()).y + 6.0f;
 
-        auto prevMode = MakeButton("LobbyPrevMode", "<", kFsSub, 48.0f, 44.0f);
+        auto prevMode = FLeonTournamentUILayout::MakeThemedButton("LobbyPrevMode", "<", kFsSub, 48.0f, 44.0f);
         prevMode->OnClicked.AddLambda([this]() { OnPrevGameMode(); });
         PlaceButtonTL(*Root, prevMode, leftX, y);
 
         GameModeLabel = std::make_shared<UTextBlock>("LobbyModeName");
         GameModeLabel->SetFontScale(kFsSub);
-        GameModeLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*GameModeLabel);
         GameModeLabel->SetJustification(ETextAlignment::Center);
         GameModeLabel->SetText("TDM");
         Root->AddChild(GameModeLabel, FAnchors::TopLeft(),
@@ -252,7 +253,7 @@ namespace Leon {
                              cycleLabelW, nameH));
         RefreshGameModeLabel();
 
-        auto nextMode = MakeButton("LobbyNextMode", ">", kFsSub, 48.0f, 44.0f);
+        auto nextMode = FLeonTournamentUILayout::MakeThemedButton("LobbyNextMode", ">", kFsSub, 48.0f, 44.0f);
         nextMode->OnClicked.AddLambda([this]() { OnNextGameMode(); });
         PlaceButtonTL(*Root, nextMode, leftX + prevMode->GetSize().x + 8.0f + cycleLabelW + 8.0f, y);
         y += prevMode->GetSize().y + 10.0f;
@@ -260,17 +261,17 @@ namespace Leon {
         auto diffTitle = std::make_shared<UTextBlock>("LobbyDiffTitle");
         diffTitle->SetText("BOT DIFFICULTY");
         diffTitle->SetFontScale(kFsCaption);
-        diffTitle->SetColor({0.65f, 0.72f, 0.85f, 1.0f});
+        FLeonTournamentUILayout::StyleCaption(*diffTitle);
         PlaceTextTL(*Root, diffTitle, leftX, y);
         y += MeasurePadded(diffTitle->GetText(), diffTitle->GetFontScale()).y + 6.0f;
 
-        auto prevDiff = MakeButton("LobbyPrevDiff", "<", kFsSub, 48.0f, 44.0f);
+        auto prevDiff = FLeonTournamentUILayout::MakeThemedButton("LobbyPrevDiff", "<", kFsSub, 48.0f, 44.0f);
         prevDiff->OnClicked.AddLambda([this]() { OnPrevBotDifficulty(); });
         PlaceButtonTL(*Root, prevDiff, leftX, y);
 
         BotDifficultyLabel = std::make_shared<UTextBlock>("LobbyDiffName");
         BotDifficultyLabel->SetFontScale(kFsSub);
-        BotDifficultyLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*BotDifficultyLabel);
         BotDifficultyLabel->SetJustification(ETextAlignment::Center);
         BotDifficultyLabel->SetText("NORMAL");
         Root->AddChild(BotDifficultyLabel, FAnchors::TopLeft(),
@@ -278,30 +279,30 @@ namespace Leon {
                              cycleLabelW, nameH));
         RefreshBotDifficultyLabel();
 
-        auto nextDiff = MakeButton("LobbyNextDiff", ">", kFsSub, 48.0f, 44.0f);
+        auto nextDiff = FLeonTournamentUILayout::MakeThemedButton("LobbyNextDiff", ">", kFsSub, 48.0f, 44.0f);
         nextDiff->OnClicked.AddLambda([this]() { OnNextBotDifficulty(); });
         PlaceButtonTL(*Root, nextDiff, leftX + prevDiff->GetSize().x + 8.0f + cycleLabelW + 8.0f, y);
         y += prevDiff->GetSize().y + 16.0f;
 
-        auto start = MakeButton("Start", "START MATCH", kFsButton, 220.0f);
+        auto start = FLeonTournamentUILayout::MakeThemedButton("Start", "START MATCH", kFsButton, 220.0f);
         start->OnClicked.AddLambda([this]() { OnStart(); });
         PlaceButtonTL(*Root, start, leftX, y);
 
-        auto back = MakeButton("Back", "BACK", kFsButton, 140.0f);
+        auto back = FLeonTournamentUILayout::MakeThemedButton("Back", "BACK", kFsButton, 140.0f);
         back->OnClicked.AddLambda([this]() { OnBack(); });
         PlaceButtonTL(*Root, back, leftX + start->GetSize().x + 12.0f, y);
 
-        PrevCharBtn = MakeButton("LobbyPrevChar", "<", kFsSub, 56.0f, 52.0f);
+        PrevCharBtn = FLeonTournamentUILayout::MakeThemedButton("LobbyPrevChar", "<", kFsSub, 56.0f, 52.0f);
         PrevCharBtn->OnClicked.AddLambda([this]() { OnPrevCharacter(); });
 
         CharacterLabel = std::make_shared<UTextBlock>("LobbyCharName");
         CharacterLabel->SetFontScale(kFsSub);
-        CharacterLabel->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleTitle(*CharacterLabel);
         CharacterLabel->SetJustification(ETextAlignment::Center);
         CharacterLabel->SetText("YBOT");
         RefreshCharacterLabel();
 
-        NextCharBtn = MakeButton("LobbyNextChar", ">", kFsSub, 56.0f, 52.0f);
+        NextCharBtn = FLeonTournamentUILayout::MakeThemedButton("LobbyNextChar", ">", kFsSub, 56.0f, 52.0f);
         NextCharBtn->OnClicked.AddLambda([this]() { OnNextCharacter(); });
 
         RefreshBotLabels();

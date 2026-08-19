@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -104,7 +105,7 @@ namespace Leon {
         FUIRenderer::Init();
         Root = std::make_shared<UCanvasPanel>("SBRoot");
         Root->SetSize({1280, 720});
-        Root->SetBackgroundColor({0.0f, 0.0f, 0.0f, 0.45f});
+        Root->SetBackgroundColor(FLeonTournamentUITheme::DimOverlay);
 
         const float titleH = MeasurePadded("SCOREBOARD", kFsTitle).y;
         const float tableHeaderH = FUIRenderer::MeasureString("PLAYER", kFsCaption).y + 6.0f;
@@ -119,15 +120,16 @@ namespace Leon {
         const float panelW = 880.0f;
         const float panelH = panelPad * 2.0f + titleH + 12.0f + tableH + 12.0f + footerH;
 
-        Panel = std::make_shared<UImage>("SBPanel");
-        Panel->SetTintColor({0.04f, 0.05f, 0.09f, 0.92f});
+        Panel = FLeonTournamentUILayout::MakePanel("SBPanel", FLeonTournamentUITheme::PanelBgStrong);
         Root->AddChild(Panel, FAnchors::Center(), BoxC(0.0f, 0.0f, panelW, panelH));
+        auto accent = FLeonTournamentUILayout::MakeAccentStrip("SBAccent", true);
+        Root->AddChild(accent, FAnchors::Center(), BoxC(-panelW * 0.5f + 2.0f, 0.0f, 4.0f, panelH));
 
         float y = -panelH * 0.5f + panelPad;
         TitleText = std::make_shared<UTextBlock>("SBTitle");
         TitleText->SetText("SCOREBOARD");
         TitleText->SetFontScale(kFsTitle);
-        TitleText->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        FLeonTournamentUILayout::StyleAccent(*TitleText);
         TitleText->SetJustification(ETextAlignment::Center);
         PlaceTextC(*Root, TitleText, 0.0f, y + titleH * 0.5f, 360.0f);
         y += titleH + 12.0f;
@@ -143,6 +145,7 @@ namespace Leon {
                                 {"K", 0.7f, ETextAlignment::Center},
                                 {"D", 0.7f, ETextAlignment::Center},
                                 {"A", 0.7f, ETextAlignment::Center}});
+        FLeonTournamentUILayout::ApplyScoreboardTableTheme(*ScoreTable);
         Root->AddChild(ScoreTable, FAnchors::Center(),
                        BoxC(0.0f, y + tableH * 0.5f, panelW - panelPad * 2.0f, tableH));
         y += tableH + 12.0f;
@@ -150,7 +153,7 @@ namespace Leon {
         FooterText = std::make_shared<UTextBlock>("SBFooter");
         FooterText->SetText("HOLD  TAB");
         FooterText->SetFontScale(kFsCaption);
-        FooterText->SetColor({0.55f, 0.62f, 0.75f, 0.85f});
+        FLeonTournamentUILayout::StyleCaption(*FooterText);
         FooterText->SetJustification(ETextAlignment::Center);
         PlaceTextC(*Root, FooterText, 0.0f, y + footerH * 0.5f, 280.0f);
 
@@ -183,7 +186,7 @@ namespace Leon {
 
         std::vector<FTableRow> rows;
         auto appendGroup = [&](ELeonTournamentTeam team, const char* title) {
-            rows.push_back({ETableRowKind::SectionHeader, {}, title, false});
+            rows.push_back({ETableRowKind::SectionHeader, {}, title, false, FLeonTournamentUITheme::TeamColor(team)});
             bool any = false;
             for (auto* ps : ranked) {
                 if (!ps || ps->GetTeam() != team)

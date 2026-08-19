@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
 #include "ALeonTournamentGameState.hpp"
@@ -138,11 +139,11 @@ namespace Leon {
         if (MatchLabel)
             MatchLabel->SetFontScale(kFsBody * s);
         if (Team1Text)
-            Team1Text->SetFontScale(kFsScore * s);
+            Team1Text->SetFontScale(kFsScore * 1.12f * s);
         if (Team2Text)
-            Team2Text->SetFontScale(kFsScore * s);
+            Team2Text->SetFontScale(kFsScore * 1.12f * s);
         if (TimerText)
-            TimerText->SetFontScale(kFsTimer * s);
+            TimerText->SetFontScale(kFsTimer * 1.05f * s);
         if (HealthLabel)
             HealthLabel->SetFontScale(kFsCaption * s);
         if (HealthText)
@@ -169,28 +170,32 @@ namespace Leon {
         }
 
         const float topBarH =
-            MeasurePadded("00:00", kFsTimer * s).y + MeasurePadded("TEAM DEATHMATCH", kFsBody * s).y + 18.0f * s;
+            MeasurePadded("00:00", kFsTimer * 1.05f * s).y + MeasurePadded("TEAM DEATHMATCH", kFsCaption * s).y + 14.0f * s;
+        const float accentH = 3.0f * s;
         const float vitalH = MeasurePadded("999", kFsVital * s).y;
-        const float labelH = MeasurePadded("HEALTH", kFsCaption * s).y;
-        const float barH = 10.0f * s;
-        const float bottomPad = 18.0f * s;
-        const float bottomBarH = labelH + vitalH + barH + 36.0f * s;
-        const float bottomBarW = 320.0f * s;
-        const float inset = 24.0f * s;
-        const float textInset = 44.0f * s;
-        const float scoreTop = 10.0f * s + MeasurePadded("TEAM DEATHMATCH", kFsBody * s).y + 4.0f * s;
+        const float labelH = MeasurePadded("HP", kFsCaption * s).y;
+        const float barH = 6.0f * s;
+        const float bottomPad = 16.0f * s;
+        const float bottomBarH = labelH + vitalH + barH + 28.0f * s;
+        const float bottomBarW = 300.0f * s;
+        const float inset = 20.0f * s;
+        const float textInset = 36.0f * s;
+        const float scoreTop = accentH + 6.0f * s + MeasurePadded("TEAM DEATHMATCH", kFsCaption * s).y + 2.0f * s;
 
-        place(TopBar, FAnchors::TopStretch(), FUILayout::BoxTopStretch(0.0f, topBarH));
-        place(BottomBarL, FAnchors::BottomLeft(), BoxBL(inset, bottomPad, bottomBarW, bottomBarH));
-        place(BottomBarR, FAnchors::BottomRight(), BoxBR(inset, bottomPad, bottomBarW, bottomBarH));
+        place(TopAccent, FAnchors::TopStretch(), FUILayout::BoxTopStretch(0.0f, accentH));
+        place(TopBar, FAnchors::TopStretch(), FUILayout::BoxTopStretch(accentH, topBarH));
+        place(BottomAccentL, FAnchors::BottomLeft(), BoxBL(inset, bottomPad, 4.0f * s, bottomBarH));
+        place(BottomBarL, FAnchors::BottomLeft(), BoxBL(inset + 6.0f * s, bottomPad, bottomBarW, bottomBarH));
+        place(BottomAccentR, FAnchors::BottomRight(), BoxBR(inset, bottomPad, 4.0f * s, bottomBarH));
+        place(BottomBarR, FAnchors::BottomRight(), BoxBR(inset + 6.0f * s, bottomPad, bottomBarW, bottomBarH));
 
         if (MatchLabel) {
             const glm::vec2 e = MeasurePadded(MatchLabel->GetText(), MatchLabel->GetFontScale());
-            place(MatchLabel, FAnchors::TopCenter(), BoxTC(10.0f * s, std::max(280.0f * s, e.x), e.y));
+            place(MatchLabel, FAnchors::TopCenter(), BoxTC(accentH + 4.0f * s, std::max(280.0f * s, e.x), e.y));
         }
         if (Team1Text) {
             const glm::vec2 e = MeasurePadded(Team1Text->GetText(), Team1Text->GetFontScale());
-            place(Team1Text, FAnchors::TopCenter(), BoxTC(scoreTop, std::max(80.0f * s, e.x), e.y, -140.0f * s));
+            place(Team1Text, FAnchors::TopCenter(), BoxTC(scoreTop, std::max(96.0f * s, e.x), e.y, -190.0f * s));
         }
         if (TimerText) {
             const glm::vec2 e = MeasurePadded(TimerText->GetText(), TimerText->GetFontScale());
@@ -198,7 +203,7 @@ namespace Leon {
         }
         if (Team2Text) {
             const glm::vec2 e = MeasurePadded(Team2Text->GetText(), Team2Text->GetFontScale());
-            place(Team2Text, FAnchors::TopCenter(), BoxTC(scoreTop, std::max(80.0f * s, e.x), e.y, 140.0f * s));
+            place(Team2Text, FAnchors::TopCenter(), BoxTC(scoreTop, std::max(96.0f * s, e.x), e.y, 190.0f * s));
         }
 
         place(CrosshairText, FAnchors::Center(), BoxC(0.0f, 0.0f, 4.0f * s, 4.0f * s));
@@ -288,32 +293,32 @@ namespace Leon {
         Root = std::make_shared<UCanvasPanel>("HudRoot");
         Root->SetSize({FUILayout::kDesignWidth, FUILayout::kDesignHeight});
 
-        TopBar = std::make_shared<UImage>("TopBar");
-        TopBar->SetTintColor({0.02f, 0.03f, 0.06f, 0.55f});
+        TopBar = FLeonTournamentUILayout::MakePanel("TopBar", FLeonTournamentUITheme::HudBarBg);
+        TopAccent = FLeonTournamentUILayout::MakeAccentStrip("TopAccent", false);
 
-        BottomBarL = std::make_shared<UImage>("BottomBarL");
-        BottomBarL->SetTintColor({0.02f, 0.04f, 0.05f, 0.62f});
-        BottomBarR = std::make_shared<UImage>("BottomBarR");
-        BottomBarR->SetTintColor({0.02f, 0.04f, 0.05f, 0.62f});
+        BottomBarL = FLeonTournamentUILayout::MakePanel("BottomBarL", FLeonTournamentUITheme::HudBarBg);
+        BottomAccentL = FLeonTournamentUILayout::MakeAccentStrip("BottomAccentL", true);
+        BottomBarR = FLeonTournamentUILayout::MakePanel("BottomBarR", FLeonTournamentUITheme::HudBarBg);
+        BottomAccentR = FLeonTournamentUILayout::MakeAccentStrip("BottomAccentR", true);
 
         MatchLabel = std::make_shared<UTextBlock>("MatchLabel");
         MatchLabel->SetText("TEAM DEATHMATCH");
-        MatchLabel->SetColor({0.72f, 0.80f, 0.92f, 0.85f});
+        FLeonTournamentUILayout::StyleCaption(*MatchLabel);
         MatchLabel->SetJustification(ETextAlignment::Center);
 
         Team1Text = std::make_shared<UTextBlock>("T1");
         Team1Text->SetText("0");
-        Team1Text->SetColor({1.0f, 0.42f, 0.32f, 1.0f});
+        Team1Text->SetColor(FLeonTournamentUITheme::Team1);
         Team1Text->SetJustification(ETextAlignment::Right);
 
         TimerText = std::make_shared<UTextBlock>("Timer");
         TimerText->SetText("00:00");
-        TimerText->SetColor({0.98f, 0.98f, 1.0f, 1.0f});
+        TimerText->SetColor(FLeonTournamentUITheme::TextPrimary);
         TimerText->SetJustification(ETextAlignment::Center);
 
         Team2Text = std::make_shared<UTextBlock>("T2");
         Team2Text->SetText("0");
-        Team2Text->SetColor({0.38f, 0.62f, 1.0f, 1.0f});
+        Team2Text->SetColor(FLeonTournamentUITheme::Team2);
         Team2Text->SetJustification(ETextAlignment::Left);
 
         CrosshairText = std::make_shared<UTextBlock>("Crosshair");
@@ -365,70 +370,70 @@ namespace Leon {
         HitMarkBR = makeHit("HM_BR");
 
         HealthLabel = std::make_shared<UTextBlock>("HPLabel");
-        HealthLabel->SetText("HEALTH");
-        HealthLabel->SetColor({0.55f, 0.95f, 0.65f, 0.85f});
+        HealthLabel->SetText("HP");
+        FLeonTournamentUILayout::StyleCaption(*HealthLabel);
 
         HealthText = std::make_shared<UTextBlock>("HP");
         HealthText->SetText("100");
-        HealthText->SetColor({0.45f, 1.0f, 0.55f, 1.0f});
+        HealthText->SetColor(FLeonTournamentUITheme::HealthHigh);
 
         HealthBar = std::make_shared<UProgressBar>("HPBar");
-        HealthBar->SetFillColor({0.35f, 0.90f, 0.45f, 0.95f});
+        HealthBar->SetFillColor(FLeonTournamentUITheme::HealthHigh);
 
         AmmoLabel = std::make_shared<UTextBlock>("AmmoLabel");
         AmmoLabel->SetText("AMMO");
-        AmmoLabel->SetColor({0.85f, 0.88f, 0.95f, 0.85f});
+        FLeonTournamentUILayout::StyleCaption(*AmmoLabel);
         AmmoLabel->SetJustification(ETextAlignment::Right);
 
         AmmoText = std::make_shared<UTextBlock>("Ammo");
         AmmoText->SetText("30 / 30");
-        AmmoText->SetColor({0.95f, 0.97f, 1.0f, 1.0f});
+        AmmoText->SetColor(FLeonTournamentUITheme::Ammo);
         AmmoText->SetJustification(ETextAlignment::Right);
 
         AmmoBar = std::make_shared<UProgressBar>("AmmoBar");
-        AmmoBar->SetFillColor({0.75f, 0.82f, 1.0f, 0.95f});
+        AmmoBar->SetFillColor(FLeonTournamentUITheme::AccentCyan);
 
         WeaponSlotsText = std::make_shared<UTextBlock>("WeaponSlots");
         WeaponSlotsText->SetText("[1]  2  3  4  5");
-        WeaponSlotsText->SetColor({0.78f, 0.86f, 1.0f, 0.95f});
+        WeaponSlotsText->SetColor(FLeonTournamentUITheme::TextSecondary);
         WeaponSlotsText->SetJustification(ETextAlignment::Right);
 
         DodgeCooldownText = std::make_shared<UTextBlock>("DodgeCD");
         DodgeCooldownText->SetText("");
-        DodgeCooldownText->SetColor({0.72f, 0.82f, 0.95f, 0.85f});
+        FLeonTournamentUILayout::StyleCaption(*DodgeCooldownText);
         DodgeCooldownText->SetVisibility(ESlateVisibility::Collapsed);
 
         StatusText = std::make_shared<UTextBlock>("Status");
         StatusText->SetText("RESPAWN IN 1.0s");
-        StatusText->SetColor({1.0f, 0.55f, 0.45f, 1.0f});
+        StatusText->SetColor(FLeonTournamentUITheme::TextAccent);
         StatusText->SetJustification(ETextAlignment::Center);
         StatusText->SetVisibility(ESlateVisibility::Collapsed);
 
         KillText = std::make_shared<UTextBlock>("KillConfirm");
         KillText->SetText("KILL");
-        KillText->SetColor({1.0f, 0.82f, 0.25f, 1.0f});
+        KillText->SetColor(FLeonTournamentUITheme::KillGold);
         KillText->SetJustification(ETextAlignment::Center);
         KillText->SetVisibility(ESlateVisibility::Collapsed);
 
         BannerText = std::make_shared<UTextBlock>("Banner");
         BannerText->SetText("FIGHT!");
-        BannerText->SetColor({1.0f, 0.95f, 0.75f, 1.0f});
+        BannerText->SetColor(FLeonTournamentUITheme::Banner);
         BannerText->SetJustification(ETextAlignment::Center);
         BannerText->SetVisibility(ESlateVisibility::Collapsed);
 
         DamageFlash = std::make_shared<UImage>("DamageFlash");
-        DamageFlash->SetTintColor({0.85f, 0.08f, 0.08f, 0.22f});
+        DamageFlash->SetTintColor(FLeonTournamentUITheme::DamageFlash);
         DamageFlash->SetVisibility(ESlateVisibility::Collapsed);
 
         HintText = std::make_shared<UTextBlock>("Hints");
-        HintText->SetColor({0.78f, 0.86f, 0.96f, 0.92f});
+        FLeonTournamentUILayout::StyleCaption(*HintText);
         HintText->SetVisibility(ESlateVisibility::Collapsed);
         HintText->SetText(
             "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   Q/E or 1-5 Weapons");
 
         for (size_t i = 0; i < KillFeedLines.size(); ++i) {
             auto line = std::make_shared<UTextBlock>(std::string("KillFeed_") + std::to_string(i));
-            line->SetColor({0.92f, 0.94f, 0.98f, 0.92f});
+            line->SetColor(FLeonTournamentUITheme::TextSecondary);
             line->SetJustification(ETextAlignment::Right);
             line->SetVisibility(ESlateVisibility::Collapsed);
             KillFeedLines[i] = line;
@@ -519,21 +524,18 @@ namespace Leon {
                 HealthText->SetText(std::to_string(static_cast<int>(health->GetHealth())));
             if (health && !health->IsDead() && !bDead) {
                 const float pct = health->GetMaxHealth() > 0.0f ? health->GetHealth() / health->GetMaxHealth() : 0.0f;
-                if (pct < 0.3f)
-                    HealthText->SetColor({1.0f, 0.35f, 0.3f, 1.0f});
-                else if (pct < 0.6f)
-                    HealthText->SetColor({1.0f, 0.85f, 0.35f, 1.0f});
-                else
-                    HealthText->SetColor({0.45f, 1.0f, 0.55f, 1.0f});
+                const glm::vec4 hpColor = FLeonTournamentUITheme::HealthColor(pct);
+                HealthText->SetColor(hpColor);
+                if (HealthBar)
+                    HealthBar->SetFillColor(hpColor);
             } else {
-                HealthText->SetColor({0.85f, 0.45f, 0.4f, 1.0f});
+                HealthText->SetColor(FLeonTournamentUITheme::HealthLow);
             }
             if (HealthBar) {
                 float hpPct = 0.0f;
                 if (health && !health->IsDead() && !bDead && health->GetMaxHealth() > 0.0f)
                     hpPct = health->GetHealth() / health->GetMaxHealth();
                 HealthBar->SetPercent(hpPct);
-                HealthBar->SetFillColor(HealthText->GetColor());
             }
         }
         if (AmmoText) {

@@ -149,8 +149,11 @@ namespace Leon {
         glm::vec2 ResolveViewportSize();
         TRef<UCanvasPanel> Root;
         TRef<UImage> TopBar;
+        TRef<UImage> TopAccent;
         TRef<UImage> BottomBarL;
+        TRef<UImage> BottomAccentL;
         TRef<UImage> BottomBarR;
+        TRef<UImage> BottomAccentR;
         TRef<UTextBlock> MatchLabel;
         TRef<UTextBlock> Team1Text;
         TRef<UTextBlock> Team2Text;

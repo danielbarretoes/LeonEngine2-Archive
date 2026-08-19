@@ -1,5 +1,6 @@
 #include "ULeonTournamentWidgets.hpp"
 #include "FLeonTournamentUILayout.hpp"
+#include "FLeonTournamentUITheme.hpp"
 #include "ALeonTournamentHUD.hpp"
 #include "ALeonTournamentAnimLabGameMode.hpp"
 #include "ALeonTournamentGameMode.hpp"
@@ -106,31 +107,45 @@ namespace Leon {
         FUIRenderer::Init();
         Root = std::make_shared<UCanvasPanel>("EndRoot");
         Root->SetSize({1280, 720});
-        Root->SetBackgroundColor({0.02f, 0.02f, 0.05f, 0.92f});
+        Root->SetBackgroundColor(FLeonTournamentUITheme::DimOverlay);
 
-        constexpr float leftX = 72.0f;
-        float y = 72.0f;
+        auto dim = FLeonTournamentUILayout::MakePanel("EndDim", FLeonTournamentUITheme::DimOverlay);
+        auto panel = FLeonTournamentUILayout::MakePanel("EndPanel", FLeonTournamentUITheme::PanelBgStrong);
+        auto accent = FLeonTournamentUILayout::MakeAccentStrip("EndAccent", true);
 
         ResultText = std::make_shared<UTextBlock>("Result");
         ResultText->SetText("WIN");
         ResultText->SetFontScale(kFsHero);
-        PlaceTextTL(*Root, ResultText, leftX, y, 400.0f);
-        y += MeasurePadded("WIN", kFsHero).y + 24.0f;
+        FLeonTournamentUILayout::StyleHero(*ResultText);
+        ResultText->SetJustification(ETextAlignment::Center);
 
         StatsText = std::make_shared<UTextBlock>("Stats");
-        StatsText->SetFontScale(kFsSub);
+        StatsText->SetFontScale(kFsBody);
+        FLeonTournamentUILayout::StyleBody(*StatsText);
         StatsText->SetText("TEAM 1  0     TEAM 2  0\n\nYOU  K 0  D 0  A 0");
-        const float statsH = MeasurePadded(StatsText->GetText(), kFsSub).y + 40.0f;
-        Root->AddChild(StatsText, FAnchors::TopLeft(), BoxTL(leftX, y, 900.0f, statsH));
-        y += statsH + 32.0f;
+        StatsText->SetJustification(ETextAlignment::Center);
 
-        auto back = MakeButton("Return", "RETURN TO MENU", kFsButton, 280.0f);
+        auto back = FLeonTournamentUILayout::MakeThemedButton("Return", "RETURN TO MENU", kFsButton, 260.0f, 44.0f);
         back->OnClicked.AddLambda([this]() { OnReturn(); });
-        PlaceButtonTL(*Root, back, leftX, y);
 
-        RematchButton = MakeButton("Rematch", "PLAY AGAIN", kFsButton, 280.0f);
+        RematchButton = FLeonTournamentUILayout::MakeThemedButton("Rematch", "PLAY AGAIN", kFsButton, 260.0f, 44.0f);
         RematchButton->OnClicked.AddLambda([this]() { OnRematch(); });
-        PlaceButtonTL(*Root, RematchButton, leftX + 300.0f, y);
+
+        const float titleH = MeasurePadded("WIN", kFsHero).y;
+        const float statsH = MeasurePadded(StatsText->GetText(), kFsBody).y + 24.0f;
+        const float panelPad = 40.0f;
+        const float panelW = 720.0f;
+        const float panelH = panelPad * 2.0f + titleH + 16.0f + statsH + 24.0f + RematchButton->GetSize().y;
+
+        FLeonTournamentUILayout::ApplyModalLayout(*Root, dim, panel, accent, panelW, panelH);
+
+        float y = -panelH * 0.5f + panelPad;
+        PlaceTextC(*Root, ResultText, 0.0f, y + titleH * 0.5f, panelW - panelPad * 2.0f);
+        y += titleH + 16.0f;
+        PlaceTextC(*Root, StatsText, 0.0f, y + statsH * 0.5f, panelW - panelPad * 2.0f);
+        y += statsH + 24.0f;
+        PlaceButtonC(*Root, back, -140.0f, y + back->GetSize().y * 0.5f);
+        PlaceButtonC(*Root, RematchButton, 140.0f, y + RematchButton->GetSize().y * 0.5f);
 
         SetWidgetTree(Root);
         SetSize({1280, 720});
@@ -170,6 +185,7 @@ namespace Leon {
         else if (gs->GetMatchWinner() == ELeonTournamentMatchWinner::Draw)
             result = "DRAW";
         ResultText->SetText(result);
+        ResultText->SetColor(FLeonTournamentUITheme::ResultColor(result));
 
         std::ostringstream ss;
         ss << "TEAM 1  " << gs->GetTeam1Kills() << "     TEAM 2  " << gs->GetTeam2Kills() << "\n";

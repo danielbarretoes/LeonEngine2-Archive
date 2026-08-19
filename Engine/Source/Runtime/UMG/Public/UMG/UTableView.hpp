@@ -21,6 +21,8 @@ namespace Leon {
         std::vector<std::string> Cells;
         std::string SectionLabel;
         bool bHighlighted = false;
+        /** When alpha > 0, tints section header text (and lightly tints its background). */
+        glm::vec4 SectionColor{0.0f, 0.0f, 0.0f, 0.0f};
     };
 
     /**
@@ -46,6 +48,17 @@ namespace Leon {
         void SetHeaderHeight(float InHeight) { HeaderHeight = InHeight; }
         void SetSectionHeight(float InHeight) { SectionHeight = InHeight; }
         void SetCellPaddingX(float InPadding) { CellPaddingX = InPadding; }
+
+        void SetBackgroundColor(const glm::vec4& InColor) { BackgroundColor = InColor; }
+        void SetHeaderBackgroundColor(const glm::vec4& InColor) { HeaderBackgroundColor = InColor; }
+        void SetRowBackgroundColor(const glm::vec4& InColor) { RowBackgroundColor = InColor; }
+        void SetAlternateRowBackgroundColor(const glm::vec4& InColor) { AlternateRowBackgroundColor = InColor; }
+        void SetHighlightBackgroundColor(const glm::vec4& InColor) { HighlightBackgroundColor = InColor; }
+        void SetSectionBackgroundColor(const glm::vec4& InColor) { SectionBackgroundColor = InColor; }
+        void SetBorderColor(const glm::vec4& InColor) { BorderColor = InColor; }
+        void SetHeaderTextColor(const glm::vec4& InColor) { HeaderTextColor = InColor; }
+        void SetRowTextColor(const glm::vec4& InColor) { RowTextColor = InColor; }
+        void SetSectionTextColor(const glm::vec4& InColor) { SectionTextColor = InColor; }
 
         void Paint(const FGeometry& InAllottedGeometry) override;
 
