@@ -47,6 +47,7 @@ namespace Leon::Editor {
                                float InViewportY, float InViewportW, float InViewportH) {
         if (!InSelectedActor || !InSelectedActor->HasComponent<FTransformComponent>()) {
             ActiveAxis = EGizmoAxis::None;
+            bHovered = false;
             return;
         }
 
@@ -54,6 +55,7 @@ namespace Leon::Editor {
 
         if (CurrentOperation == EGizmoOperation::Select) {
             ActiveAxis = EGizmoAxis::None;
+            bHovered = false;
             return;
         }
 
@@ -65,6 +67,7 @@ namespace Leon::Editor {
         glm::vec2 originScreen =
             WorldToScreen(actorPos, viewProj, InViewportX, InViewportY, InViewportW, InViewportH, bOriginInFront);
         if (!bOriginInFront) {
+            bHovered = false;
             return;
         }
 
@@ -124,6 +127,8 @@ namespace Leon::Editor {
         } else if (hoverDistZ < minHover) {
             hoveredAxis = EGizmoAxis::Z;
         }
+
+        bHovered = (hoveredAxis != EGizmoAxis::None || ActiveAxis != EGizmoAxis::None);
 
         // Handle Drag Start
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredAxis != EGizmoAxis::None &&

@@ -277,13 +277,26 @@ namespace Leon::Editor {
                 }
             }
 
+            // Active Primary Selected Actor
+            AActor* activeActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : InSelectedActor;
+
+            // Draw 3D Interactive Transform Gizmo
+            if (activeActor) {
+                Gizmo.Draw(activeActor, EditorCamera, vpMin.x, vpMin.y, vpSize.x, vpSize.y);
+            }
+
+            // Draw Selection Wireframe
+            if (activeActor) {
+                DrawSelectionOutline(activeActor, vpMin, vpSize);
+            }
+
             // Marquee Selection Box
             if (InWorld) {
                 ProcessMarqueeSelection(*InWorld, vpMin, vpSize);
             }
 
             // Actor Selection and Raycast Picking
-            if (InWorld && ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !Gizmo.IsDragging()) {
+            if (InWorld && ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !Gizmo.IsDragging() && !Gizmo.IsHovered()) {
                 ImVec2 mousePos = ImGui::GetMousePos();
                 if (mousePos.y > vpMin.y + 36.0f) { // Below toolbar
                     glm::vec2 clickPos(mousePos.x, mousePos.y);
@@ -310,19 +323,6 @@ namespace Leon::Editor {
                         OnActorSelected(hitActor);
                     }
                 }
-            }
-
-            // Active Primary Selected Actor
-            AActor* activeActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : InSelectedActor;
-
-            // Draw Selection Wireframe
-            if (activeActor) {
-                DrawSelectionOutline(activeActor, vpMin, vpSize);
-            }
-
-            // Draw 3D Interactive Transform Gizmo
-            if (activeActor) {
-                Gizmo.Draw(activeActor, EditorCamera, vpMin.x, vpMin.y, vpSize.x, vpSize.y);
             }
 
             // Drag and Drop Targets from Place Actors & Content Browser
@@ -463,6 +463,9 @@ namespace Leon::Editor {
         glm::mat4 invVP = glm::inverse(EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix());
         glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
         glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+        if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
+            return nullptr;
+
         nearPoint /= nearPoint.w;
         farPoint /= farPoint.w;
 
@@ -470,26 +473,115 @@ namespace Leon::Editor {
         glm::vec3 rayDir = glm::normalize(glm::vec3(farPoint - nearPoint));
 
         AActor* closestActor = nullptr;
-        float closestDist = 10000.0f;
+        float closestDist = 100000.0f;
+
+        auto RayIntersectsAABB = [](const glm::vec3& rOrigin, const glm::vec3& rDir,
+                                    const glm::vec3& boxMin, const glm::vec3& boxMax, float& outT) -> bool {
+            float tMin = 0.0f;
+            float tMax = 10000.0f;
+
+            for (int i = 0; i < 3; ++i) {
+                if (std::abs(rDir[i]) < 1e-6f) {
+                    if (rOrigin[i] < boxMin[i] || rOrigin[i] > boxMax[i])
+                        return false;
+                } else {
+                    float invD = 1.0f / rDir[i];
+                    float t1 = (boxMin[i] - rOrigin[i]) * invD;
+                    float t2 = (boxMax[i] - rOrigin[i]) * invD;
+                    if (t1 > t2) std::swap(t1, t2);
+                    tMin = std::max(tMin, t1);
+                    tMax = std::min(tMax, t2);
+                    if (tMin > tMax)
+                        return false;
+                }
+            }
+            outT = tMin;
+            return true;
+        };
 
         for (const auto& actor : InWorld.GetAllActors()) {
             if (!actor || !actor->template HasComponent<FTransformComponent>())
                 continue;
 
             const auto& tc = actor->template GetComponent<FTransformComponent>();
-            glm::vec3 toActor = tc.Translation - rayOrigin;
-            float proj = glm::dot(toActor, rayDir);
+            glm::mat4 worldTransform = tc.GetTransform();
+            glm::mat4 invWorld = glm::inverse(worldTransform);
 
-            if (proj > 0.0f && proj < closestDist) {
-                glm::vec3 perp = toActor - rayDir * proj;
-                float maxScale = std::max(tc.Scale.x, std::max(tc.Scale.y, tc.Scale.z));
-                float radius = maxScale * 0.75f;
-                if (radius < 0.5f)
-                    radius = 0.5f;
+            // Transform ray into Actor's Local Coordinate Space
+            glm::vec3 localRayOrigin = glm::vec3(invWorld * glm::vec4(rayOrigin, 1.0f));
+            glm::vec3 localRayDir = glm::vec3(invWorld * glm::vec4(rayDir, 0.0f));
+            float localDirLen = glm::length(localRayDir);
+            if (localDirLen < 1e-6f)
+                continue;
+            localRayDir /= localDirLen;
 
-                if (glm::length(perp) <= radius) {
-                    closestDist = proj;
+            glm::vec3 boxMin(-0.5f);
+            glm::vec3 boxMax(0.5f);
+
+            if (actor->template HasComponent<FBoxCollisionComponent>()) {
+                const auto& col = actor->template GetComponent<FBoxCollisionComponent>();
+                boxMin = col.LocalMin;
+                boxMax = col.LocalMax;
+            } else if (actor->template HasComponent<FStaticMeshComponent>()) {
+                const auto& smc = actor->template GetComponent<FStaticMeshComponent>();
+                if (smc.StaticMesh && glm::length(smc.StaticMesh->GetBoundsMax() - smc.StaticMesh->GetBoundsMin()) > 0.001f) {
+                    boxMin = smc.StaticMesh->GetBoundsMin();
+                    boxMax = smc.StaticMesh->GetBoundsMax();
+                }
+            } else if (actor->template HasComponent<FMeshComponent>()) {
+                const auto& mc = actor->template GetComponent<FMeshComponent>();
+                if (mc.MeshType == "Plane") {
+                    boxMin = glm::vec3(-0.5f * mc.MeshSize, -0.05f, -0.5f * mc.MeshSize);
+                    boxMax = glm::vec3(0.5f * mc.MeshSize, 0.05f, 0.5f * mc.MeshSize);
+                } else {
+                    boxMin = glm::vec3(-0.5f * mc.MeshSize);
+                    boxMax = glm::vec3(0.5f * mc.MeshSize);
+                }
+            }
+
+            // Expand thin boxes slightly for easier clicking in viewport
+            for (int i = 0; i < 3; ++i) {
+                if (boxMax[i] - boxMin[i] < 0.1f) {
+                    float mid = (boxMin[i] + boxMax[i]) * 0.5f;
+                    boxMin[i] = mid - 0.1f;
+                    boxMax[i] = mid + 0.1f;
+                }
+            }
+
+            float hitLocalT = 0.0f;
+            if (RayIntersectsAABB(localRayOrigin, localRayDir, boxMin, boxMax, hitLocalT)) {
+                glm::vec3 hitLocalPos = localRayOrigin + localRayDir * hitLocalT;
+                glm::vec3 hitWorldPos = glm::vec3(worldTransform * glm::vec4(hitLocalPos, 1.0f));
+                float hitWorldDist = glm::dot(hitWorldPos - rayOrigin, rayDir);
+
+                if (hitWorldDist > 0.0f && hitWorldDist < closestDist) {
+                    closestDist = hitWorldDist;
                     closestActor = actor.get();
+                }
+            }
+        }
+
+        // Secondary fallback: screen-distance test for actors without mesh volume (lights, empty actors, cameras)
+        if (!closestActor) {
+            float minScreenDist = 24.0f; // in pixels
+            glm::mat4 viewProj = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+
+            for (const auto& actor : InWorld.GetAllActors()) {
+                if (!actor || !actor->template HasComponent<FTransformComponent>())
+                    continue;
+
+                const auto& tc = actor->template GetComponent<FTransformComponent>();
+                glm::vec4 clip = viewProj * glm::vec4(tc.Translation, 1.0f);
+                if (clip.w > 0.001f) {
+                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                    float sx = InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x;
+                    float sy = InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y;
+                    float screenDist = glm::length(glm::vec2(sx, sy) - InScreenPos);
+
+                    if (screenDist < minScreenDist) {
+                        minScreenDist = screenDist;
+                        closestActor = actor.get();
+                    }
                 }
             }
         }

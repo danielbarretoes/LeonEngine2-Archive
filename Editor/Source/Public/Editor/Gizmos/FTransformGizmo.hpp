@@ -39,6 +39,7 @@ namespace Leon::Editor {
         void SetScaleSnap(float InSnap) { ScaleSnap = InSnap; }
 
         bool IsDragging() const { return ActiveAxis != EGizmoAxis::None; }
+        bool IsHovered() const { return bHovered; }
 
         void ProcessHotkeys();
         void Draw(AActor* InSelectedActor, const FPerspectiveCamera& InCamera, float InViewportX, float InViewportY,
@@ -57,6 +58,7 @@ namespace Leon::Editor {
         float ScaleSnap = 0.25f;
 
         EGizmoAxis ActiveAxis = EGizmoAxis::None;
+        bool bHovered = false;
         glm::vec2 DragStartMouse = glm::vec2(0.0f);
         glm::vec3 InitialActorLocation = glm::vec3(0.0f);
         glm::vec3 InitialActorRotation = glm::vec3(0.0f);
