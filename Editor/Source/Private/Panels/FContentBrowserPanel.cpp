@@ -1,8 +1,11 @@
 #include "Editor/Panels/FContentBrowserPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Core/FProjectPaths.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
+#include "Engine/Components.hpp"
+#include "Gameplay/AActor.hpp"
 
 #include <glad/glad.h>
 #include <stb_image.h>
@@ -305,6 +308,7 @@ namespace Leon::Editor {
             ImGui::Columns(1);
 
             DrawRenameModal();
+            DrawDeleteModal();
         } catch (const std::exception& e) {
             LE_CORE_ERROR("FContentBrowserPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Content Browser Error: %s", e.what());
@@ -658,6 +662,19 @@ namespace Leon::Editor {
             DrawAssetList(entries);
         }
 
+        // Delete key handler for selected assets in Content Browser
+        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+            ImGui::IsKeyPressed(ImGuiKey_Delete, false) && !ImGui::GetIO().WantTextInput) {
+            if (Context && Context->GetSelection().GetSelectedAssetCount() > 0) {
+                std::string firstAsset = Context->GetSelection().GetPrimarySelectedAsset();
+                if (!firstAsset.empty()) {
+                    RequestDeleteItem(firstAsset);
+                }
+            } else if (!LastClickedPath.empty()) {
+                RequestDeleteItem(LastClickedPath);
+            }
+        }
+
         DrawFooter(totalCount, selectedCount);
     }
 
@@ -803,7 +820,7 @@ namespace Leon::Editor {
 
                 ImGui::Separator();
                 if (ImGui::MenuItem("Delete", "Del")) {
-                    DeleteItem(entry.path());
+                    RequestDeleteItem(entry.path());
                 }
 
                 ImGui::EndPopup();
@@ -915,7 +932,7 @@ namespace Leon::Editor {
                         OpenInExplorer(entry.path());
                     ImGui::Separator();
                     if (ImGui::MenuItem("Delete", "Del"))
-                        DeleteItem(entry.path());
+                        RequestDeleteItem(entry.path());
                     ImGui::EndPopup();
                 }
 
@@ -1112,6 +1129,143 @@ namespace Leon::Editor {
 
         if (Context) {
             Context->GetSelection().DeselectAsset(InPath.string());
+        }
+    }
+
+    void FContentBrowserPanel::RequestDeleteItem(const fs::path& InPath) {
+        DeleteTargetPath = InPath;
+        CachedDeleteReferences = FindAssetReferencesInWorld(InPath);
+        bConfirmingDelete = true;
+    }
+
+    std::vector<FContentBrowserPanel::FAssetReferenceInfo> FContentBrowserPanel::FindAssetReferencesInWorld(const fs::path& InPath) {
+        std::vector<FAssetReferenceInfo> refs;
+        if (!Context || !Context->GetActiveWorld()) {
+            return refs;
+        }
+
+        UWorld* world = Context->GetActiveWorld();
+        std::string stem = InPath.stem().string();
+        std::string pathStr = InPath.string();
+        std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+
+        for (const auto& actorPtr : world->GetAllActors()) {
+            AActor* actor = actorPtr.get();
+            if (!actor) continue;
+
+            if (actor->HasComponent<FStaticMeshComponent>()) {
+                const auto& smc = actor->GetComponent<FStaticMeshComponent>();
+                std::string assetPath = smc.AssetPath;
+                std::replace(assetPath.begin(), assetPath.end(), '\\', '/');
+
+                if ((!assetPath.empty() && (pathStr.find(assetPath) != std::string::npos || assetPath.find(stem) != std::string::npos)) ||
+                    (smc.StaticMesh && smc.StaticMesh->GetName() == stem)) {
+                    refs.push_back({actor->GetName(), "StaticMeshComponent", actor});
+                }
+
+                for (const auto& matPath : smc.MaterialOverridePaths) {
+                    std::string normMat = matPath;
+                    std::replace(normMat.begin(), normMat.end(), '\\', '/');
+                    if (!normMat.empty() && (pathStr.find(normMat) != std::string::npos || normMat.find(stem) != std::string::npos)) {
+                        refs.push_back({actor->GetName(), "StaticMesh (Material Override)", actor});
+                        break;
+                    }
+                }
+            }
+
+            if (actor->HasComponent<FMeshComponent>()) {
+                const auto& mc = actor->GetComponent<FMeshComponent>();
+                if (mc.MeshType == stem) {
+                    refs.push_back({actor->GetName(), "MeshComponent", actor});
+                }
+            }
+        }
+
+        return refs;
+    }
+
+    void FContentBrowserPanel::UnlinkAssetReferences(const fs::path& InPath, const std::vector<FAssetReferenceInfo>& InRefs) {
+        (void)InPath;
+        for (const auto& ref : InRefs) {
+            if (!ref.ActorPtr) continue;
+
+            if (ref.ActorPtr->HasComponent<FStaticMeshComponent>()) {
+                auto& smc = ref.ActorPtr->GetComponent<FStaticMeshComponent>();
+                smc.StaticMesh = nullptr;
+                smc.AssetPath.clear();
+                smc.MaterialOverrides.clear();
+                smc.MaterialOverridePaths.clear();
+            }
+        }
+    }
+
+    void FContentBrowserPanel::DrawDeleteModal() {
+        if (bConfirmingDelete) {
+            ImGui::OpenPopup("Delete Asset / Folder");
+            bConfirmingDelete = false;
+        }
+
+        if (ImGui::BeginPopupModal("Delete Asset / Folder", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            std::string itemName = DeleteTargetPath.filename().string();
+            std::error_code ec;
+            bool bIsDir = fs::is_directory(DeleteTargetPath, ec);
+
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Delete %s:", bIsDir ? "Folder" : "Asset");
+            ImGui::SameLine();
+            ImGui::TextUnformatted(itemName.c_str());
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (CachedDeleteReferences.empty()) {
+                ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "No active actor references in loaded level.");
+                ImGui::TextDisabled("This item will be deleted from disk.");
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f),
+                                   "Found %zu active reference(s) in the current level:", CachedDeleteReferences.size());
+                ImGui::TextDisabled("Confirming will unlink the asset from referencing actors before deleting.");
+
+                ImGui::Spacing();
+                float boxHeight = std::min(130.0f, 24.0f * (static_cast<float>(CachedDeleteReferences.size()) + 1.0f));
+                ImGui::BeginChild("ReferenceListScrollBox", ImVec2(380.0f, boxHeight), true);
+                for (const auto& ref : CachedDeleteReferences) {
+                    ImGui::BulletText("%s (%s)", ref.ActorName.c_str(), ref.ComponentName.c_str());
+                }
+                ImGui::EndChild();
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Confirm Delete button (Red)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.15f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.25f, 0.25f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+
+            bool bConfirmed = ImGui::Button(CachedDeleteReferences.empty() ? "Delete" : "Delete & Unlink References",
+                                            ImVec2(CachedDeleteReferences.empty() ? 100.0f : 210.0f, 28.0f));
+            ImGui::PopStyleColor(3);
+
+            if (bConfirmed || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                if (!CachedDeleteReferences.empty()) {
+                    UnlinkAssetReferences(DeleteTargetPath, CachedDeleteReferences);
+                }
+                DeleteItem(DeleteTargetPath);
+                CachedDeleteReferences.clear();
+                DeleteTargetPath.clear();
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(90.0f, 28.0f)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                CachedDeleteReferences.clear();
+                DeleteTargetPath.clear();
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
         }
     }
 

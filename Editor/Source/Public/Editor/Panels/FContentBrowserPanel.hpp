@@ -45,6 +45,17 @@ namespace Leon::Editor {
         void DrawAssetList(const std::vector<std::filesystem::directory_entry>& InEntries);
         void DrawFooter(int InTotalItems, int InSelectedCount);
         void DrawRenameModal();
+        void DrawDeleteModal();
+
+        struct FAssetReferenceInfo {
+            std::string ActorName;
+            std::string ComponentName;
+            AActor* ActorPtr = nullptr;
+        };
+
+        void RequestDeleteItem(const std::filesystem::path& InPath);
+        std::vector<FAssetReferenceInfo> FindAssetReferencesInWorld(const std::filesystem::path& InPath);
+        void UnlinkAssetReferences(const std::filesystem::path& InPath, const std::vector<FAssetReferenceInfo>& InRefs);
 
         void DrawTextureThumbnail(ImDrawList* InDrawList, ImVec2 InMin, ImVec2 InMax,
                                   const std::filesystem::path& InPath);
@@ -97,6 +108,11 @@ namespace Leon::Editor {
         bool bRenamingItem = false;
         char RenameBuffer[128] = "";
         std::filesystem::path RenameTargetPath;
+
+        // Deletion & Reference Resolution Modal
+        bool bConfirmingDelete = false;
+        std::filesystem::path DeleteTargetPath;
+        std::vector<FAssetReferenceInfo> CachedDeleteReferences;
 
         // Thumbnail Cache (filepath -> OpenGL Texture ID)
         std::unordered_map<std::string, uint32_t> TextureThumbnailCache;
