@@ -186,7 +186,7 @@ Gameplay pose is owned by CharacterMovement (pawns) and SimplePhysics write-back
 
 ```text
 Source (FBX, HDR, PNG, …)
-  → Importer (LeonAssetTool / FMeshImporter / FHDRImporter)
+  → Importer (AssetTool / FMeshImporter / FHDRImporter)
   → Native asset (.lmesh, .lskeletalmesh, .lhdr, .lblend, …)
   → UAssetManager / virtual paths `/Game` and `/Engine`
   → Runtime UObject

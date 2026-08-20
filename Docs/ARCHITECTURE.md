@@ -294,7 +294,7 @@ Runtime path: `UEngine` → viewport layer → `UWorld::OnRender` → `FWorldRen
 
 Implementation is split across `FWorldRenderer.cpp` (frame + FBOs), `FWorldRendererLighting.cpp` (CSM / spot / planar / sky / IBL), `FWorldRendererGeometry.cpp` (opaque / skinned outline / transparent), `FWorldRendererPostProcess.cpp`.
 
-Static lighting (offline): `LeonAssetTool bake_lightmaps` → `FLightmass` / `FLightBaker` → `.llightmap`. Runtime sampling: [STATIC_LIGHTING.md](STATIC_LIGHTING.md). Bake AO: when enabled, `FLightBaker` multiplies AO into stored `E` (aligned with [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md)). Renderer docs: [RENDERER.md](RENDERER.md).
+Static lighting (offline): `LightmassTool bake` → `FLightmass` / `FLightBaker` → `.llightmap`. Runtime sampling: [STATIC_LIGHTING.md](STATIC_LIGHTING.md). Bake AO: when enabled, `FLightBaker` multiplies AO into stored `E` (aligned with [RENDERER_CONTRACT.md](RENDERER_CONTRACT.md)). Renderer docs: [RENDERER.md](RENDERER.md).
 
 ```text
 Gather lights (skip ELightMobility::Static) → Lighting UBO

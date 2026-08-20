@@ -17,15 +17,15 @@ Helpers: `IsLightmassBakeLight`, `DoesLightmassBakeDirect`.
 - **`.lmesh` v4**: packed tangent `vec4` + `LightmapUV` + unique-UV1 flag. v1–v3 migrate on load. Missing UV1 is generated at bake (split per triangle) and **persisted** via `UStaticMesh::SaveToFile`.
 - **`.lmap` Environment**: `StaticLighting`, `LightmapResolution`, `NumIndirectBounces`, `SamplesPerTexel`, `IndirectIntensity`, `AmbientOcclusion`, `AOIntensity`, `AORadius`, `TexelPadding`, `WorldScale`, `LightmapAsset`, `LightmapBakeHash`.
 
-## Offline bake (LeonAssetTool)
+## Offline bake (`LightmassTool` / `AssetTool`)
 
 ```
 python Scripts/bake_lightmaps.py --project <path.lproject> [--map /Game/Maps/Name] [--force]
 python Scripts/bake_lightmaps.py --project <path.lproject> --validate-only
 
-LeonAssetTool bake_lightmaps --map <path.lmap> [--force]
-LeonAssetTool validate_lightmaps --map <path.lmap>
-LeonAssetTool inspect <path.llightmap>
+LightmassTool bake --map <path.lmap> [--quality=Preview|Draft|Production] [--force]
+LightmassTool validate --map <path.lmap>
+AssetTool inspect <path.llightmap>
 ```
 
 Pipeline:

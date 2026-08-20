@@ -27,8 +27,8 @@ Rather than a single monolithic build, LeonEngine2 separates code into three dis
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────┐
 │ 1. ENGINE PRODUCT (cmake -S . -B out/Engine -DLEON_PRODUCT=Engine)             │
-│    Outputs: LeonEngineCore.lib, Plugins (OpenGL, Jolt, ENet), LeonAssetTool,   │
-│             and unit/GPU tests (out/Engine/)                                   │
+│    Outputs: LeonEngineCore.lib, Plugins (OpenGL, Jolt, ENet), Tools            │
+│             (AssetTool, LightmassTool, ProjectTool), and unit/GPU tests        │
 ├────────────────────────────────────────────────────────────────────────────────┤
 │ 2. EDITOR PRODUCT (cmake -S Editor -B out/Editor)                              │
 │    Outputs: LeonEditor.exe (out/Editor/)                                       │
@@ -68,14 +68,14 @@ LeonEngine2 strictly decouples physical file locations on disk from asset refere
 Baking operations (lightmaps, reflection probes, IBL prefiltering) are computationally heavy and require tools like FBX mesh importers (`ufbx`) and raytracing calculators.
 
 ```text
-[ Raw FBX / Maps ] ──► [ Tools/LeonAssetTool bake_lightmaps ] ──► [ Cooked .llightmap / .libl ]
-                                                                             │
-                                              [ Game Runtime (Lightmass-free) ]
+[ Raw FBX / Maps ] ──► [ Tools/Lightmass/LightmassTool bake ] ──► [ Cooked .llightmap / .libl ]
+                                                                              │
+                                               [ Game Runtime (Lightmass-free) ]
 ```
 
 ### Rationale:
 - **Lean Runtime**: Game clients only load lightweight, binary-cooked files (`.llightmap`, `.libl`). They do not link FBX importers or baking raytracers into the game binary.
-- **Deterministic Quality Settings**: `bake_lightmaps.py` exposes explicit `--quality` tiers (`Preview`, `Draft`, `Production`) executed headlessly.
+- **Deterministic Quality Settings**: `bake_lightmaps.py` exposes explicit `--quality` tiers (`Preview`, `Draft`, `Production`) executed headlessly via `LightmassTool`.
 
 ---
 
@@ -108,6 +108,6 @@ python Scripts/package_project.py --project Projects/Sandbox/Sandbox.lproject --
 | **Asset Virtualization** | `/Engine/...` vs `/Game/...` virtual mount points | Unreal Package Paths (`/Engine/`, `/Game/`) / Godot `res://` | ⭐ Industry Standard |
 | **RHI Backend Abstraction** | `IRenderDriver` interface + `FRenderDriverRegistry` | Unreal `FRHICommandList` / RHI backends | ⭐ Extensible |
 | **Modular Driver Model** | Plugins in `Plugins/RHI/`, `Plugins/Physics/` | Unreal Engine Plugins (`.uplugin`) | ⭐ Modular |
-| **Bake Tool Isolation** | Headless CLI `LeonAssetTool` (`.llightmap`, `.libl`) | Unreal *UnrealLightmass* / *Cooker* Out-of-Process | ⭐ Clean Runtime |
+| **Bake Tool Isolation** | Headless CLI `LightmassTool` (`.llightmap`, `.libl`) | Unreal *UnrealLightmass* / *Cooker* Out-of-Process | ⭐ Clean Runtime |
 | **Linter & Policy Checks** | `verify_ue_naming.py` validating naming & boundaries | AAA Commit Hooks / Clang-Tidy CI | ⭐ High Reliability |
 | **Automated Packaging** | `package_project.py` staging clean Shipping trees | Unreal *UAT* (Unreal Automation Tool) BuildCookRun | ⭐ Production Ready |

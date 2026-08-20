@@ -10,7 +10,7 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
  [Raw Authoring Files] (FBX, PNG, TGA, JPG, HDR)
           │
           ▼
-   [LeonAssetTool]
+   [Specialized Tools] (AssetTool / LightmassTool)
           │
           ├─── Texture Importer (stb_image / software box-filtered mips / gloss inversion)
           │         └─── Native Texture (.ltex) [sRGB/Linear, precalculated mips 0..N]
@@ -24,7 +24,7 @@ LeonEngine2 features a high-performance, deterministic **Native Asset Import Pip
           │         ├─── Native Skeletal Mesh (.lskeletalmesh)
           │         └─── Native Animation (.lanim)
           │
-          ├─── Lightmass (offline CPU bake)
+          ├─── Lightmass Tool (offline CPU bake)
           │         └─── Native Lightmap (.llightmap) [RGBA32F irradiance atlas + header hash]
           │
           ├─── Material Extractor (Fuzzy token mapper & material slot generator)
@@ -76,25 +76,26 @@ Skinned FBX (and Mixamo animation takes with bones but no mesh) import through t
 
 ---
 
-## 2. CLI Toolchain (`LeonAssetTool` + Engine Scripts)
+## 2. CLI Toolchain (`AssetTool`, `LightmassTool`, `ProjectTool` + Engine Scripts)
 
 Prefer Engine Scripts (resolve Content from `.lproject`). See [SCRIPTS.md](SCRIPTS.md).
 
 ```bash
 python Scripts/validate_project.py --project <path.lproject>
 python Scripts/import_assets.py --project <path.lproject> [--force]
-
-Sandbox layout: `Raw/HDR/*.hdr` and `Raw/Textures/T_*_*.jpg` import into `Content/` as `.lhdr` / `.ltex`. ShowcaseLevel uses `DaySky1k`.
 python Scripts/validate_assets.py --project <path.lproject>
 python Scripts/bake_lightmaps.py --project <path.lproject> [--map /Game/Maps/Name] [--force]
 
-# Direct tool (paths absolute):
-LeonAssetTool validate_project --project <path.lproject>
-LeonAssetTool import --raw <raw_dir> --content <content_dir> [--force]
-LeonAssetTool validate --content <content_dir>
-LeonAssetTool validate_map --map <path.lmap>
-LeonAssetTool bake_lightmaps --map <path.lmap> [--force]
-LeonAssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi | file.llightmap>
+# Direct specialized tools:
+AssetTool import --raw <raw_dir> --content <content_dir> [--force]
+AssetTool validate --content <content_dir>
+AssetTool inspect <file.lhdr | file.ltex | file.lmesh | file.lmat | file.lmi | file.llightmap>
+
+LightmassTool bake --map <path.lmap> [--quality=Preview|Draft|Production] [--force]
+LightmassTool validate --map <path.lmap>
+
+ProjectTool validate_project --project <path.lproject>
+ProjectTool validate_map --map <path.lmap>
 ```
 
 ---

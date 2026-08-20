@@ -62,7 +62,7 @@ namespace Leon {
 
     /**
      * @brief Offline static lighting (Unreal Lightmass analogue).
-     * Does not run inside FWorldRenderer. Invoked by LeonAssetTool.
+     * Does not run inside FWorldRenderer. Invoked by LightmassTool.
      *
      * Flow: load map → filter Static receivers + Static/Stationary lights → UV1 →
      * atlas → CPU bake → write .llightmap → stamp .lmap metadata (hash excludes that metadata).
