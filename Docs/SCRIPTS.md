@@ -16,7 +16,8 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 | Script | Purpose |
 | :--- | :--- |
 | `build_engine.py` | Configure/build Engine product → `out/Engine` (`LEON_PRODUCT=Engine`) |
-| `build_editor.py` | Configure/build LeonEditor → `out/Editor` |
+| `build_editor.py` | Configure/build LeonEditor → `out/Editor` (`--config`, `--clean`, `--rebuild`, `--run`) |
+| `run_editor.py` | `build_editor.py --run` (build and launch LeonEditor) |
 | `build_project.py` | Configure/build one game → `out/Projects/<Name>` (`--project`, `--config`, `--run`, `--clean`, `--rebuild`) |
 | `run_project.py` | `build_project.py --run` |
 | `validate_project.py` | ProjectTool `validate_project` (descriptor, config INIs, map integrity) |

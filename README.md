@@ -8,13 +8,14 @@ Unreal Engine–inspired C++20 game engine for solo / small-team development. Fo
 # Engine libraries / tools / tests → out/Engine
 python Scripts/build_engine.py --config Debug
 
-# Editor skeleton (ImGui) → out/Editor
+# Editor (ImGui Docking) → out/Editor
 python Scripts/build_editor.py --config Debug
+python Scripts/run_editor.py
 
 # One game project → out/Projects/<Name>
 python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject --config Debug
 
-# Build and run
+# Build and run game project
 python Scripts/run_project.py --project Projects/Sandbox/Sandbox.lproject
 
 # Unit / GPU tests (Engine product)
