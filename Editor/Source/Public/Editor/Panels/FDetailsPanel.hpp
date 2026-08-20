@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Core/Base.hpp"
-#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
-#include "Editor/Subsystems/FEditorTransactionSubsystem.hpp"
+#include "Editor/Context/FEditorContext.hpp"
 #include "Gameplay/AActor.hpp"
 
 #include <string>
@@ -18,8 +17,7 @@ namespace Leon::Editor {
     public:
         FDetailsPanel() = default;
 
-        void SetSelectionSubsystem(FEditorSelectionSubsystem* InSubsystem) { SelectionSubsystem = InSubsystem; }
-        void SetTransactionSubsystem(FEditorTransactionSubsystem* InSubsystem) { TransactionSubsystem = InSubsystem; }
+        void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
 
         void Draw(AActor* InSelectedActor, bool* bInOutOpen = nullptr);
 
@@ -35,11 +33,14 @@ namespace Leon::Editor {
         void DrawBoxCollisionComponent(AActor& InActor, const std::string& InFilter);
         void DrawAddComponentMenu(AActor& InActor);
 
-        FEditorSelectionSubsystem* SelectionSubsystem = nullptr;
-        FEditorTransactionSubsystem* TransactionSubsystem = nullptr;
+        FEditorContext* Context = nullptr;
 
         char SearchBuffer[128] = "";
         bool bLocalTransformMode = false;
     };
 
 } // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::FDetailsPanel;
+}

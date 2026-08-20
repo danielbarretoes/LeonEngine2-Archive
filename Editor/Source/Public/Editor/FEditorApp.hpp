@@ -2,8 +2,7 @@
 
 #include "Core/FApplication.hpp"
 #include "Core/FProjectDescriptor.hpp"
-#include "Editor/Commands/FEditorHistory.hpp"
-#include "Editor/FViewportPanel.hpp"
+#include "Editor/Context/FEditorContext.hpp"
 #include "Editor/Gizmos/FTransformGizmo.hpp"
 #include "Editor/Panels/FContentBrowserPanel.hpp"
 #include "Editor/Panels/FDetailsPanel.hpp"
@@ -13,9 +12,8 @@
 #include "Editor/Panels/FProjectHubPanel.hpp"
 #include "Editor/Panels/FProjectSettingsPanel.hpp"
 #include "Editor/Panels/FToolbarPanel.hpp"
+#include "Editor/Panels/FViewportPanel.hpp"
 #include "Editor/Panels/FWorldSettingsPanel.hpp"
-#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
-#include "Editor/Subsystems/FEditorTransactionSubsystem.hpp"
 #include "Editor/Window/FEditorWindow.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -41,6 +39,9 @@ namespace Leon::Editor {
         void LaunchGame();
         void ResetDefaultLayout();
 
+        [[nodiscard]] FEditorContext& GetContext() { return Context; }
+        [[nodiscard]] const FEditorContext& GetContext() const { return Context; }
+
     private:
         void BeginImGuiFrame();
         void EndImGuiFrame();
@@ -50,8 +51,8 @@ namespace Leon::Editor {
 
         TRef<UWorld> EditorWorld;
         AActor* SelectedActor = nullptr;
-        FEditorSelectionSubsystem SelectionSubsystem;
-        FEditorTransactionSubsystem TransactionSubsystem;
+
+        FEditorContext Context;
 
         FProjectHubPanel ProjectHub;
         FViewportPanel Viewport;
@@ -64,7 +65,6 @@ namespace Leon::Editor {
         FWorldSettingsPanel WorldSettings;
         FProjectSettingsPanel ProjectSettings;
         FTransformGizmo Gizmo;
-        FEditorHistory History;
 
         std::string ActiveProjectPath;
         FProjectDescriptor ActiveProjectDescriptor;
@@ -91,3 +91,7 @@ namespace Leon::Editor {
     };
 
 } // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::FEditorApp;
+}

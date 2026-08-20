@@ -107,10 +107,10 @@ namespace Leon::Editor {
         ImGui::Begin("Details", bInOutOpen);
 
         try {
-            // Determine active selection from Subsystem if available
+            // Determine active selection from Context if available
             std::vector<AActor*> selectedActors;
-            if (SelectionSubsystem && SelectionSubsystem->GetSelectedActorCount() > 0) {
-                for (AActor* act : SelectionSubsystem->GetSelectedActors()) {
+            if (Context && Context->GetSelection().GetSelectedActorCount() > 0) {
+                for (AActor* act : Context->GetSelection().GetSelectedActors()) {
                     if (act)
                         selectedActors.push_back(act);
                 }

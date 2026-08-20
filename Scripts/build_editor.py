@@ -17,7 +17,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _leon_paths import engine_root  # noqa: E402
+from _leon_paths import engine_root, safe_rmtree  # noqa: E402
 
 
 def find_editor_executable(build_dir: str) -> str:

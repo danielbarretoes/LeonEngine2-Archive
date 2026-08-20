@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core/Base.hpp"
+#include "Editor/Context/FEditorContext.hpp"
 #include "Editor/Gizmos/FTransformGizmo.hpp"
-#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
@@ -32,7 +32,7 @@ namespace Leon::Editor {
 
         FViewportPanel() = default;
 
-        void SetSelectionSubsystem(FEditorSelectionSubsystem* InSubsystem) { SelectionSubsystem = InSubsystem; }
+        void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
         void SetOnActorSelected(FOnActorSelected InCallback) { OnActorSelected = std::move(InCallback); }
         void SetOnActorSpawned(FOnActorSpawned InCallback) { OnActorSpawned = std::move(InCallback); }
 
@@ -62,7 +62,7 @@ namespace Leon::Editor {
         FPerspectiveCamera EditorCamera{45.0f, 1.778f, 0.1f, 1000.0f};
         FTransformGizmo Gizmo;
 
-        FEditorSelectionSubsystem* SelectionSubsystem = nullptr;
+        FEditorContext* Context = nullptr;
         FOnActorSelected OnActorSelected;
         FOnActorSpawned OnActorSpawned;
 
@@ -86,3 +86,9 @@ namespace Leon::Editor {
     };
 
 } // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::EViewportShadingMode;
+    using Editor::EViewportViewMode;
+    using Editor::FViewportPanel;
+} // namespace Leon

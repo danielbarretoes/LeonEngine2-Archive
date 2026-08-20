@@ -12,16 +12,16 @@
 namespace Leon::Editor {
 
     void FOutlinerPanel::SetSelectedActor(AActor* InActor) {
-        if (SelectionSubsystem) {
-            SelectionSubsystem->SelectActor(InActor, false);
+        if (Context) {
+            Context->GetSelection().SelectActor(InActor, false);
         } else {
             FallbackSelectedActor = InActor;
         }
     }
 
     AActor* FOutlinerPanel::GetSelectedActor() const {
-        if (SelectionSubsystem) {
-            return SelectionSubsystem->GetPrimarySelectedActor();
+        if (Context) {
+            return Context->GetSelection().GetPrimarySelectedActor();
         }
         return FallbackSelectedActor;
     }
@@ -121,8 +121,8 @@ namespace Leon::Editor {
 
             // Empty background click: clear selection
             if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered()) {
-                if (SelectionSubsystem) {
-                    SelectionSubsystem->ClearActorSelection();
+                if (Context) {
+                    Context->GetSelection().ClearActorSelection();
                 } else {
                     FallbackSelectedActor = nullptr;
                 }
@@ -161,7 +161,7 @@ namespace Leon::Editor {
             ImGui::Separator();
             size_t totalCount = allActors.size();
             size_t selCount =
-                SelectionSubsystem ? SelectionSubsystem->GetSelectedActorCount() : (FallbackSelectedActor ? 1 : 0);
+                Context ? Context->GetSelection().GetSelectedActorCount() : (FallbackSelectedActor ? 1 : 0);
             ImGui::TextDisabled("%zu Actors  |  %zu Selected", totalCount, selCount);
 
         } catch (const std::exception& e) {
@@ -195,7 +195,7 @@ namespace Leon::Editor {
         const auto& attachedChildren = InActor->GetAttachedActors();
         bool bHasChildren = !attachedChildren.empty();
         bool bIsSelected =
-            SelectionSubsystem ? SelectionSubsystem->IsActorSelected(InActor) : (FallbackSelectedActor == InActor);
+            Context ? Context->GetSelection().IsActorSelected(InActor) : (FallbackSelectedActor == InActor);
         bool bIsLocked = IsActorLocked(InActor);
         bool bIsHidden = IsActorHiddenInEditor(InActor);
 
@@ -293,11 +293,11 @@ namespace Leon::Editor {
         // Selection Handling with Ctrl/Shift
         if (!bIsLocked && (ImGui::IsItemClicked(0) || ImGui::IsItemClicked(1))) {
             bool bCtrl = ImGui::GetIO().KeyCtrl;
-            if (SelectionSubsystem) {
+            if (Context) {
                 if (bCtrl) {
-                    SelectionSubsystem->ToggleActorSelection(InActor);
+                    Context->GetSelection().ToggleActorSelection(InActor);
                 } else {
-                    SelectionSubsystem->SelectActor(InActor, false);
+                    Context->GetSelection().SelectActor(InActor, false);
                 }
             } else {
                 FallbackSelectedActor = InActor;
@@ -355,8 +355,8 @@ namespace Leon::Editor {
             return;
 
         if (ImGui::BeginPopupContextItem("ActorNodeContext")) {
-            if (SelectionSubsystem) {
-                SelectionSubsystem->SelectActor(InActor, false);
+            if (Context) {
+                Context->GetSelection().SelectActor(InActor, false);
             } else {
                 FallbackSelectedActor = InActor;
             }
@@ -381,8 +381,8 @@ namespace Leon::Editor {
                     dup->GetComponent<FTransformComponent>() = InActor->GetComponent<FTransformComponent>();
                     dup->GetComponent<FTransformComponent>().Translation += glm::vec3(1.0f, 0.0f, 0.0f);
                 }
-                if (SelectionSubsystem)
-                    SelectionSubsystem->SelectActor(dup, false);
+                if (Context)
+                    Context->GetSelection().SelectActor(dup, false);
             }
 
             if (InActor->GetAttachParentActor() != nullptr) {
@@ -413,8 +413,8 @@ namespace Leon::Editor {
             ImGui::Separator();
             if (ImGui::MenuItem("Delete", "Del")) {
                 InWorld.DestroyActor(InActor);
-                if (SelectionSubsystem)
-                    SelectionSubsystem->ClearActorSelection();
+                if (Context)
+                    Context->GetSelection().ClearActorSelection();
             }
 
             ImGui::EndPopup();
@@ -424,8 +424,8 @@ namespace Leon::Editor {
     void FOutlinerPanel::SpawnNewActor(UWorld& InWorld, const std::string& InType) {
         AActor* spawned = FPlaceActorsPanel::SpawnActorAt(InWorld, InType, glm::vec3(0.0f, 0.0f, 0.0f));
         if (spawned) {
-            if (SelectionSubsystem) {
-                SelectionSubsystem->SelectActor(spawned, false);
+            if (Context) {
+                Context->GetSelection().SelectActor(spawned, false);
             } else {
                 FallbackSelectedActor = spawned;
             }

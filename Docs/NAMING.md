@@ -103,13 +103,21 @@ ECS POD components (EnTT): `F*Component` / `FTag`.
 
 ```text
 Editor/
-├── Source/Public/Editor/     # FEditorApp.hpp, FViewportPanel.hpp, …
-├── Source/Private/           # matching .cpp + main.cpp
-└── Resources/                # icons, brand
+├── Source/Public/Editor/
+│   ├── FEditorApp.hpp               # Application host
+│   ├── Context/                     # FEditorContext, FEditorSelection, FEditorHistory
+│   ├── Commands/                    # IEditorCommand
+│   ├── Panels/                      # FViewportPanel, FOutlinerPanel, FDetailsPanel, ...
+│   ├── Gizmos/                      # FTransformGizmo
+│   ├── UI/                          # FEditorTheme, FLucideIcons, FEditorWidgets
+│   ├── Utils/                       # FEditorFileDialog
+│   └── Window/                      # FEditorWindow
+├── Source/Private/                  # matching .cpp + main.cpp
+└── Resources/                       # fonts, icons, brand
 ```
 
 - Same prefixes and `Leon::` / `Leon::Editor` as Runtime.
-- Includes: `#include "Editor/FEditorApp.hpp"` (via `Editor/Source/Public`).
+- Includes: `#include "Editor/FEditorApp.hpp"`, `#include "Editor/Context/FEditorContext.hpp"`, `#include "Editor/Panels/FViewportPanel.hpp"` (via `Editor/Source/Public`).
 - Do not introduce new `<leon/...>` or `leon::` symbols in `Editor/Source/`.
 
 ---

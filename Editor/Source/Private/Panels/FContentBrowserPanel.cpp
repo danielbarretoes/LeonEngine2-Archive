@@ -534,8 +534,8 @@ namespace Leon::Editor {
                 if (fs::exists(src, ec) && !ec) {
                     fs::path dst = InDir / src.filename();
                     fs::rename(src, dst, ec);
-                    if (SelectionSubsystem) {
-                        SelectionSubsystem->SelectAsset(dst.string());
+                    if (Context) {
+                        Context->GetSelection().SelectAsset(dst.string());
                     }
                 }
             }
@@ -652,7 +652,7 @@ namespace Leon::Editor {
         });
 
         int totalCount = static_cast<int>(entries.size());
-        int selectedCount = SelectionSubsystem ? static_cast<int>(SelectionSubsystem->GetSelectedAssetCount()) : 0;
+        int selectedCount = Context ? static_cast<int>(Context->GetSelection().GetSelectedAssetCount()) : 0;
 
         if (ViewMode == EContentBrowserViewMode::Grid) {
             DrawAssetGrid(entries);
@@ -681,7 +681,7 @@ namespace Leon::Editor {
             std::transform(lowerExt.begin(), lowerExt.end(), lowerExt.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-            bool bIsSelected = SelectionSubsystem && SelectionSubsystem->IsAssetSelected(pathStr);
+            bool bIsSelected = Context && Context->GetSelection().IsAssetSelected(pathStr);
 
             bool bIsTexture = (lowerExt == ".png" || lowerExt == ".jpg" || lowerExt == ".jpeg" || lowerExt == ".tga" ||
                                lowerExt == ".bmp" || lowerExt == ".hdr" || lowerExt == ".ltex");
@@ -762,11 +762,11 @@ namespace Leon::Editor {
             if (bClicked || ImGui::IsItemClicked(0)) {
                 LastClickedPath = entry.path();
                 bool bCtrl = ImGui::GetIO().KeyCtrl;
-                if (SelectionSubsystem) {
+                if (Context) {
                     if (bCtrl) {
-                        SelectionSubsystem->ToggleAssetSelection(pathStr);
+                        Context->GetSelection().ToggleAssetSelection(pathStr);
                     } else {
-                        SelectionSubsystem->SelectAsset(pathStr, false);
+                        Context->GetSelection().SelectAsset(pathStr, false);
                     }
                 }
             }
@@ -778,8 +778,8 @@ namespace Leon::Editor {
 
             // Context Menu
             if (ImGui::BeginPopupContextItem("AssetGridCardContext")) {
-                if (SelectionSubsystem) {
-                    SelectionSubsystem->SelectAsset(pathStr, false);
+                if (Context) {
+                    Context->GetSelection().SelectAsset(pathStr, false);
                 }
 
                 ImGui::TextDisabled("%s", filename.c_str());
@@ -843,8 +843,8 @@ namespace Leon::Editor {
         }
 
         if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered()) {
-            if (SelectionSubsystem) {
-                SelectionSubsystem->ClearAssetSelection();
+            if (Context) {
+                Context->GetSelection().ClearAssetSelection();
             }
         }
 
@@ -868,7 +868,7 @@ namespace Leon::Editor {
                 std::string filename = entry.path().filename().string();
                 std::string pathStr = entry.path().string();
                 bool bIsDir = entry.is_directory(ec);
-                bool bIsSelected = SelectionSubsystem && SelectionSubsystem->IsAssetSelected(pathStr);
+                bool bIsSelected = Context && Context->GetSelection().IsAssetSelected(pathStr);
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -878,11 +878,11 @@ namespace Leon::Editor {
                 // Selectable row
                 if (ImGui::Selectable(filename.c_str(), bIsSelected, ImGuiSelectableFlags_SpanAllColumns)) {
                     bool bCtrl = ImGui::GetIO().KeyCtrl;
-                    if (SelectionSubsystem) {
+                    if (Context) {
                         if (bCtrl) {
-                            SelectionSubsystem->ToggleAssetSelection(pathStr);
+                            Context->GetSelection().ToggleAssetSelection(pathStr);
                         } else {
-                            SelectionSubsystem->SelectAsset(pathStr, false);
+                            Context->GetSelection().SelectAsset(pathStr, false);
                         }
                     }
                 }
@@ -900,8 +900,8 @@ namespace Leon::Editor {
 
                 // Context Menu
                 if (ImGui::BeginPopupContextItem("AssetListRowContext")) {
-                    if (SelectionSubsystem)
-                        SelectionSubsystem->SelectAsset(pathStr, false);
+                    if (Context)
+                        Context->GetSelection().SelectAsset(pathStr, false);
                     ImGui::TextDisabled("%s", filename.c_str());
                     ImGui::Separator();
                     if (ImGui::MenuItem("Open"))
@@ -966,8 +966,8 @@ namespace Leon::Editor {
         ImGui::Separator();
         ImGui::Spacing();
 
-        if (InSelectedCount > 0 && SelectionSubsystem) {
-            std::string primary = SelectionSubsystem->GetPrimarySelectedAsset();
+        if (InSelectedCount > 0 && Context) {
+            std::string primary = Context->GetSelection().GetPrimarySelectedAsset();
             std::string selName = fs::path(primary).filename().string();
             ImGui::TextDisabled("%d Assets  |  %d Selected (%s)", InTotalItems, InSelectedCount, selName.c_str());
         } else {
@@ -987,8 +987,8 @@ namespace Leon::Editor {
         }
 
         fs::create_directory(newPath, ec);
-        if (!ec && SelectionSubsystem) {
-            SelectionSubsystem->SelectAsset(newPath.string());
+        if (!ec && Context) {
+            Context->GetSelection().SelectAsset(newPath.string());
         }
     }
 
@@ -1020,8 +1020,8 @@ namespace Leon::Editor {
             }
         }
 
-        if (!newAssetPath.empty() && SelectionSubsystem) {
-            SelectionSubsystem->SelectAsset(newAssetPath.string());
+        if (!newAssetPath.empty() && Context) {
+            Context->GetSelection().SelectAsset(newAssetPath.string());
         }
     }
 
@@ -1042,8 +1042,8 @@ namespace Leon::Editor {
             fs::path src(selectedFile);
             fs::path dst = CurrentDirectory / src.filename();
             fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec);
-            if (!ec && SelectionSubsystem) {
-                SelectionSubsystem->SelectAsset(dst.string());
+            if (!ec && Context) {
+                Context->GetSelection().SelectAsset(dst.string());
             }
         }
     }
@@ -1062,8 +1062,8 @@ namespace Leon::Editor {
         }
 
         fs::copy_file(InPath, copyPath, ec);
-        if (!ec && SelectionSubsystem) {
-            SelectionSubsystem->SelectAsset(copyPath.string());
+        if (!ec && Context) {
+            Context->GetSelection().SelectAsset(copyPath.string());
         }
     }
 
@@ -1112,8 +1112,8 @@ namespace Leon::Editor {
             fs::remove(InPath, ec);
         }
 
-        if (SelectionSubsystem) {
-            SelectionSubsystem->DeselectAsset(InPath.string());
+        if (Context) {
+            Context->GetSelection().DeselectAsset(InPath.string());
         }
     }
 

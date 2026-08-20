@@ -5,6 +5,7 @@
 #include "Core/FProjectPaths.hpp"
 #include "Core/FWindow.hpp"
 #include "Editor/UI/FEditorTheme.hpp"
+#include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/FMapSerializer.hpp"
 
 #include <GLFW/glfw3.h>
@@ -87,31 +88,29 @@ namespace Leon::Editor {
         ProjectHub.LoadRecentProjects(EditorSavedDir);
         ProjectHub.SetOnProjectSelected([this](const std::string& path) { OpenProject(path); });
 
-        // Setup Selection & Transaction Subsystems & Panels
-        ContentBrowser.SetSelectionSubsystem(&SelectionSubsystem);
-        Outliner.SetSelectionSubsystem(&SelectionSubsystem);
-        Details.SetSelectionSubsystem(&SelectionSubsystem);
-        Details.SetTransactionSubsystem(&TransactionSubsystem);
-        Viewport.SetSelectionSubsystem(&SelectionSubsystem);
+        // Setup Context & Panels
+        Context.GetSelection().RegisterActorSelectionCallback(
+            [this](const std::vector<AActor*>&) { SelectedActor = Context.GetSelection().GetPrimarySelectedActor(); });
 
-        SelectionSubsystem.SetOnActorSelectionChanged([this](const std::unordered_set<AActor*>&) {
-            SelectedActor = SelectionSubsystem.GetPrimarySelectedActor();
-        });
+        ContentBrowser.SetEditorContext(&Context);
+        Outliner.SetEditorContext(&Context);
+        Details.SetEditorContext(&Context);
+        Viewport.SetEditorContext(&Context);
 
         // Setup Outliner callbacks
         Outliner.SetOnActorFocus([this](AActor* actor) { Viewport.FocusOnActor(actor); });
 
         // Setup Viewport callback
-        Viewport.SetOnActorSelected([this](AActor* actor) { SelectionSubsystem.SelectActor(actor, false); });
+        Viewport.SetOnActorSelected([this](AActor* actor) { Context.GetSelection().SelectActor(actor, false); });
         Viewport.SetOnActorSpawned([this](AActor* actor) {
-            SelectionSubsystem.SelectActor(actor, false);
+            Context.GetSelection().SelectActor(actor, false);
             OutputLog.AddLog(ELogLevel::Info, "World",
                              "Spawned actor via drop: " + (actor ? actor->GetName() : "null"));
         });
 
         // Setup Place Actors callback
         PlaceActors.SetOnActorSpawned([this](AActor* actor) {
-            SelectionSubsystem.SelectActor(actor, false);
+            Context.GetSelection().SelectActor(actor, false);
             Viewport.FocusOnActor(actor);
             OutputLog.AddLog(ELogLevel::Info, "World", "Spawned actor: " + (actor ? actor->GetName() : "null"));
         });
@@ -136,9 +135,21 @@ namespace Leon::Editor {
         OutputLog.AddLog(ELogLevel::Info, "Editor", "LeonEditor suite ready (Inter typography active)");
 
         // Check command-line argument or environment for direct project boot
-        const char* envProj = std::getenv("LEON_PROJECT");
-        if (envProj && std::strlen(envProj) > 0 && fs::exists(envProj)) {
-            OpenProject(envProj);
+        std::string envProjStr;
+#if defined(_WIN32)
+        char* envVal = nullptr;
+        size_t len = 0;
+        if (_dupenv_s(&envVal, &len, "LEON_PROJECT") == 0 && envVal) {
+            envProjStr = envVal;
+            std::free(envVal);
+        }
+#else
+        if (const char* envVal = std::getenv("LEON_PROJECT")) {
+            envProjStr = envVal;
+        }
+#endif
+        if (!envProjStr.empty() && fs::exists(envProjStr)) {
+            OpenProject(envProjStr);
             bShowProjectHub = false;
         } else {
             // Default to standalone launcher / welcome screen
@@ -180,23 +191,26 @@ namespace Leon::Editor {
             return;
         }
 
-        // Configure Content Browser
-        std::string contentDir = FProjectPaths::ProjectContentDir();
-        UAssetManager::SetContentRoot(contentDir);
-        ContentBrowser.SetContentDirectory(contentDir);
-
+        Context.SetActiveProjectPath(ActiveProjectPath);
         ProjectHub.AddRecentProject(ActiveProjectPath);
-        OutputLog.AddLog(ELogLevel::Info, "Project", "Opened project: " + ActiveProjectDescriptor.ProjectName);
+
+        // Update Content Browser root to project Content directory
+        std::string contentDir = FProjectPaths::ProjectContentDir();
+        ContentBrowser.SetContentDirectory(contentDir);
 
         // Load Default Map from descriptor
         std::string defaultMap = ActiveProjectDescriptor.DefaultMap;
-        std::string resolvedMapPath = FProjectPaths::ResolveVirtualPath(defaultMap);
-        if (!fs::exists(resolvedMapPath) && !defaultMap.ends_with(".lmap")) {
-            resolvedMapPath += ".lmap";
-        }
-
-        if (fs::exists(resolvedMapPath)) {
-            LoadMap(resolvedMapPath);
+        if (!defaultMap.empty()) {
+            std::string resolvedMap = FProjectPaths::ResolveVirtualPath(defaultMap);
+            if (!resolvedMap.ends_with(".lmap")) {
+                resolvedMap += ".lmap";
+            }
+            if (fs::exists(resolvedMap)) {
+                LoadMap(resolvedMap);
+            } else {
+                LE_CORE_WARN("FEditorApp: Default map not found '{0}', starting with empty level", resolvedMap);
+                LoadMap("");
+            }
         } else {
             // Create a blank world
             if (EditorWorld) {
@@ -207,6 +221,8 @@ namespace Leon::Editor {
             EditorWorld->InitWorld();
             ActiveMapPath.clear();
             ActiveMapName = "Untitled";
+            Context.SetActiveWorld(EditorWorld.get());
+            Context.SetActiveMapPath(ActiveMapPath);
         }
 
         bShowProjectHub = false;
@@ -219,7 +235,7 @@ namespace Leon::Editor {
     }
 
     void FEditorApp::LoadMap(const std::string& InMapPath) {
-        if (!fs::exists(InMapPath)) {
+        if (!InMapPath.empty() && !fs::exists(InMapPath)) {
             LE_CORE_ERROR("FEditorApp: Map file not found '{0}'", InMapPath);
             OutputLog.AddLog(ELogLevel::Error, "Map", "Map not found: " + InMapPath);
             return;
@@ -234,20 +250,31 @@ namespace Leon::Editor {
         EditorWorld = UWorld::Create("EditorWorld");
         EditorWorld->InitWorld();
 
-        FMapSerializer serializer(EditorWorld);
-        if (serializer.Deserialize(InMapPath)) {
-            ActiveMapPath = InMapPath;
-            ActiveMapName = fs::path(InMapPath).stem().string();
+        if (!InMapPath.empty()) {
+            FMapSerializer serializer(EditorWorld);
+            if (serializer.Deserialize(InMapPath)) {
+                ActiveMapPath = InMapPath;
+                ActiveMapName = fs::path(InMapPath).stem().string();
+                SelectedActor = nullptr;
+                Outliner.SetSelectedActor(nullptr);
+                Context.SetActiveWorld(EditorWorld.get());
+                Context.SetActiveMapPath(ActiveMapPath);
+                OutputLog.AddLog(ELogLevel::Info, "Map",
+                                 "Loaded map: " + ActiveMapName + " (" +
+                                     std::to_string(EditorWorld->GetAllActors().size()) + " actors)");
+                LE_CORE_INFO("FEditorApp: Successfully loaded map '{0}' ({1} actors)", ActiveMapName,
+                             EditorWorld->GetAllActors().size());
+            } else {
+                OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to deserialize map: " + InMapPath);
+                LE_CORE_ERROR("FEditorApp: Failed to deserialize map '{0}'", InMapPath);
+            }
+        } else {
+            ActiveMapPath.clear();
+            ActiveMapName = "Untitled";
             SelectedActor = nullptr;
             Outliner.SetSelectedActor(nullptr);
-            OutputLog.AddLog(ELogLevel::Info, "Map",
-                             "Loaded map: " + ActiveMapName + " (" +
-                                 std::to_string(EditorWorld->GetAllActors().size()) + " actors)");
-            LE_CORE_INFO("FEditorApp: Successfully loaded map '{0}' ({1} actors)", ActiveMapName,
-                         EditorWorld->GetAllActors().size());
-        } else {
-            OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to deserialize map: " + InMapPath);
-            LE_CORE_ERROR("FEditorApp: Failed to deserialize map '{0}'", InMapPath);
+            Context.SetActiveWorld(EditorWorld.get());
+            Context.SetActiveMapPath(ActiveMapPath);
         }
 
         UpdateWindowTitle();
@@ -258,95 +285,90 @@ namespace Leon::Editor {
             return;
 
         if (ActiveMapPath.empty()) {
-            if (!ActiveProjectPath.empty()) {
-                ActiveMapPath = (fs::path(FProjectPaths::ProjectContentDir()) / "Maps" / "NewMap.lmap").string();
-                ActiveMapName = "NewMap";
-            } else {
+            std::string contentDir = FProjectPaths::ProjectContentDir();
+            std::string mapsDir = (fs::path(contentDir) / "Maps").string();
+            fs::create_directories(mapsDir);
+
+            std::string savePath = FEditorFileDialog::SaveFile("Leon Map (*.lmap)\0*.lmap\0", "lmap", mapsDir.c_str());
+            if (savePath.empty())
                 return;
-            }
+
+            ActiveMapPath = savePath;
+            ActiveMapName = fs::path(savePath).stem().string();
+            Context.SetActiveMapPath(ActiveMapPath);
         }
 
         FMapSerializer serializer(EditorWorld);
         if (serializer.Serialize(ActiveMapPath)) {
             OutputLog.AddLog(ELogLevel::Info, "Map", "Saved map: " + ActiveMapPath);
-            LE_CORE_INFO("FEditorApp: Saved map to '{0}'", ActiveMapPath);
+            LE_CORE_INFO("FEditorApp: Successfully saved map '{0}'", ActiveMapPath);
+            UpdateWindowTitle();
         } else {
             OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to save map: " + ActiveMapPath);
-            LE_CORE_ERROR("FEditorApp: Failed to save map to '{0}'", ActiveMapPath);
+            LE_CORE_ERROR("FEditorApp: Failed to save map '{0}'", ActiveMapPath);
         }
-
-        UpdateWindowTitle();
     }
 
     void FEditorApp::BakeLightmaps(bool bInProduction) {
-        if (ActiveMapPath.empty() || ActiveProjectPath.empty())
+        if (ActiveProjectPath.empty() || ActiveMapPath.empty()) {
+            OutputLog.AddLog(ELogLevel::Warning, "Build", "Cannot bake lightmaps: no map is active.");
             return;
-
-        std::string toolExe = (fs::path("Tools") / "Lightmass" / "LightmassTool.exe").string();
-        if (!fs::exists(toolExe)) {
-            toolExe = (fs::path("out") / "Engine" / "_tools" / "Lightmass" / "LightmassTool.exe").string();
         }
 
-        std::string quality = bInProduction ? "production" : "draft";
-        std::string cmd = toolExe + " bake --project \"" + ActiveProjectPath + "\" --map \"" + ActiveMapName +
-                          "\" --quality " + quality;
-        OutputLog.AddLog(ELogLevel::Info, "Lightmass", "Baking lightmaps (" + quality + ")...");
-        LE_CORE_INFO("FEditorApp: Launching bake command: {0}", cmd);
-        std::system(cmd.c_str());
+        OutputLog.AddLog(ELogLevel::Info, "Build",
+                         bInProduction ? "Starting production bake..." : "Starting draft bake...");
+
+        std::string mode = bInProduction ? "production" : "draft";
+        std::string script = (fs::path("Scripts") / "bake_lightmaps.py").string();
+
+        std::string cmd = "python " + script + " --project \"" + ActiveProjectPath + "\" --quality " + mode;
+#if defined(_WIN32)
+        cmd = "start /B " + cmd;
+#else
+        cmd = cmd + " &";
+#endif
+        int res = std::system(cmd.c_str());
+        (void)res;
+        OutputLog.AddLog(ELogLevel::Info, "Build", "Lightmass baker dispatched asynchronously.");
     }
 
     void FEditorApp::LaunchGame() {
-        if (ActiveProjectPath.empty())
+        if (ActiveProjectPath.empty()) {
+            OutputLog.AddLog(ELogLevel::Warning, "Run", "Cannot launch game: no active project.");
             return;
-        std::string projName = ActiveProjectDescriptor.ProjectName;
-        std::string gameExe = (fs::path("out") / "Projects" / projName / "_project" / (projName + ".exe")).string();
-        if (!fs::exists(gameExe)) {
-            gameExe = (fs::path("out") / "Projects" / projName / (projName + ".exe")).string();
         }
 
-        if (fs::exists(gameExe)) {
-            std::string cmd = "\"" + gameExe + "\"";
-            OutputLog.AddLog(ELogLevel::Info, "Game", "Launching game executable: " + gameExe);
-            LE_CORE_INFO("FEditorApp: Launching game executable: {0}", cmd);
-            std::system(cmd.c_str());
-        } else {
-            OutputLog.AddLog(ELogLevel::Warning, "Game", "Game executable not found. Build project first.");
-            LE_CORE_WARN("FEditorApp: Game executable not found at '{0}'. Build project first.", gameExe);
-        }
+        SaveCurrentMap();
+
+        std::string script = (fs::path("Scripts") / "run_project.py").string();
+        std::string cmd = "python " + script + " --project \"" + ActiveProjectPath + "\"";
+#if defined(_WIN32)
+        cmd = "start " + cmd;
+#else
+        cmd = cmd + " &";
+#endif
+        int res = std::system(cmd.c_str());
+        (void)res;
+        OutputLog.AddLog(ELogLevel::Info, "Run", "Game instance launched.");
     }
 
     void FEditorApp::ResetDefaultLayout() {
-        const ImGuiViewport* ViewportInfo = ImGui::GetMainViewport();
-        const ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
-
+        ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
         ImGui::DockBuilderRemoveNode(DockspaceId);
         ImGui::DockBuilderAddNode(DockspaceId, ImGuiDockNodeFlags_DockSpace);
-        ImGui::DockBuilderSetNodeSize(DockspaceId, ViewportInfo->WorkSize);
+        ImGui::DockBuilderSetNodeSize(DockspaceId, ImGui::GetMainViewport()->Size);
 
         ImGuiID dockMain = DockspaceId;
-
-        // 1. Top toolbar strip (over all panels)
-        ImGuiID dockTop = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Up, 0.055f, nullptr, &dockMain);
-
-        // 2. Bottom panel (Content Browser + Output Log tabs)
-        ImGuiID dockBottom = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Down, 0.28f, nullptr, &dockMain);
-
-        // 3. Left panel (Place Actors palette)
         ImGuiID dockLeft = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Left, 0.18f, nullptr, &dockMain);
+        ImGuiID dockRight = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Right, 0.28f, nullptr, &dockMain);
+        ImGuiID dockBottom = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Down, 0.30f, nullptr, &dockMain);
+        ImGuiID dockRightTop = ImGui::DockBuilderSplitNode(dockRight, ImGuiDir_Up, 0.50f, nullptr, &dockRight);
+        ImGuiID dockRightBottom = dockRight;
 
-        // 4. Right panel (Outliner / Settings / Details)
-        ImGuiID dockRight = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Right, 0.26f, nullptr, &dockMain);
-        ImGuiID dockRightBottom = ImGui::DockBuilderSplitNode(dockRight, ImGuiDir_Down, 0.52f, nullptr, &dockRight);
-        ImGuiID dockRightTop = dockRight;
-
-        // Dock windows:
-        // Top
-        ImGui::DockBuilderDockWindow("##EditorToolbar", dockTop);
-
-        // Left
+        // Left: Place Actors
         ImGui::DockBuilderDockWindow("Place Actors", dockLeft);
 
-        // Center Viewport
+        // Center: Viewport
         ImGui::DockBuilderDockWindow("Viewport", dockMain);
 
         // Right Top: World Outliner, World Settings, Project Settings
@@ -453,12 +475,6 @@ namespace Leon::Editor {
             }
         }
 
-        if (EditorWorld) {
-            EditorWorld->EndPlay();
-            EditorWorld->Clear();
-            EditorWorld.reset();
-        }
-
         if (bImGuiReady) {
             ImGui_ImplOpenGL3_Shutdown();
             ImGui_ImplGlfw_Shutdown();
@@ -528,11 +544,11 @@ namespace Leon::Editor {
             }
 
             if (ImGui::BeginMenu("Edit")) {
-                if (ImGui::MenuItem("Undo", "Ctrl+Z", false, History.CanUndo())) {
-                    History.Undo();
+                if (ImGui::MenuItem("Undo", "Ctrl+Z", false, Context.GetHistory().CanUndo())) {
+                    Context.GetHistory().Undo();
                 }
-                if (ImGui::MenuItem("Redo", "Ctrl+Y", false, History.CanRedo())) {
-                    History.Redo();
+                if (ImGui::MenuItem("Redo", "Ctrl+Y", false, Context.GetHistory().CanRedo())) {
+                    Context.GetHistory().Redo();
                 }
                 ImGui::EndMenu();
             }

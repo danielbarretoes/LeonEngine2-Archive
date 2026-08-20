@@ -430,3 +430,59 @@ World 3D → Light gizmos (F2) → AHUD widgets + PrintString → F1 Diagnostics
 - **`F`** = Structs and value types (`FTransformComponent`, `FUIRenderer`, `FOnScreenDebugMessage`, `FGameModeConfig`, `FTimestep`).
 - **`E`** = Enumerations (`ETextAlignment`, `ESlateVisibility`, `EInputMode`, `EButtonState`, `EShadowFilterMode`).
 - **`T`** = Templates and container wrappers (`TRef`, `TScope`).
+
+---
+
+## 11. Editor Architecture (Context-Driven Pattern)
+
+The Leon Engine Editor (`Editor/`) follows an **Unreal Engine-inspired Context-Driven architecture**. Instead of fragmented or over-engineered subsystem patterns, all editing state, selection sets, and undo/redo stacks are managed through a centralized `FEditorContext` that serves as the single source of truth for all panels.
+
+### 11.1 File Structure & Modular Organization
+
+```text
+Editor/
+├── Source/
+│   ├── Public/Editor/
+│   │   ├── FEditorApp.hpp               # Out-of-process editor application host
+│   │   ├── Context/                     # Single source of truth for editing state
+│   │   │   ├── FEditorContext.hpp       # Central coordinator (World, Map, Selection, History)
+│   │   │   ├── FEditorSelection.hpp     # Multi-actor and multi-asset selection state
+│   │   │   └── FEditorHistory.hpp       # Undo / Redo command stack
+│   │   ├── Commands/                    # Reversible action command interface
+│   │   │   └── IEditorCommand.hpp       # Base command contract (Execute, Undo)
+│   │   ├── Panels/                      # Independent ImGui panels
+│   │   │   ├── FViewportPanel.hpp       # 3D interactive viewport + camera + gizmos + drop target
+│   │   │   ├── FOutlinerPanel.hpp       # World outliner actor hierarchy tree
+│   │   │   ├── FDetailsPanel.hpp        # Property inspector & component editor
+│   │   │   ├── FContentBrowserPanel.hpp # Asset browser (Grid/List, search, import, breadcrumbs)
+│   │   │   ├── FToolbarPanel.hpp        # Top toolbar actions (Save, Bake, Hub, Run, Layout)
+│   │   │   ├── FPlaceActorsPanel.hpp    # Fast actor spawn palette + drag source
+│   │   │   ├── FProjectHubPanel.hpp     # Project launcher & recent projects
+│   │   │   ├── FOutputLogPanel.hpp      # Console logs & diagnostics
+│   │   │   ├── FWorldSettingsPanel.hpp  # Level gravity, gamemode, audio settings
+│   │   │   └── FProjectSettingsPanel.hpp# Project descriptor settings (.lproject)
+│   │   ├── Gizmos/                      # 3D interactive manipulation tools
+│   │   │   └── FTransformGizmo.hpp      # Translate, Rotate, Scale gizmos with snapping
+│   │   ├── UI/                          # Reusable UI styling, widgets and vector icons
+│   │   │   ├── FEditorTheme.hpp         # Unreal Dark theme & typography loader
+│   │   │   ├── FLucideIcons.hpp         # Vector-based Lucide icon rasterizer
+│   │   │   └── FEditorWidgets.hpp       # Shared ImGui controls (XYZ colored vectors, search)
+│   │   ├── Utils/                       # Platform utilities
+│   │   │   └── FEditorFileDialog.hpp    # Native file open/save dialogs
+│   │   └── Window/                      # GLFW and docking window orchestration
+│   │       └── FEditorWindow.hpp        # Window wrapper and configuration state
+│   └── Private/                         # Matching .cpp implementations
+```
+
+### 11.2 Architectural Principles
+
+1. **Centralized Context (`FEditorContext`)**:
+   - `FEditorContext` owns `FEditorSelection` and `FEditorHistory`.
+   - Panels receive `FEditorContext*` and subscribe to selection/transaction changes without direct inter-panel coupling.
+2. **Reversible Commands (`IEditorCommand`)**:
+   - Operations that mutate actor state, delete actors, or change transforms execute via `IEditorCommand` through `Context.GetHistory().ExecuteCommand(...)` for full `Ctrl+Z` / `Ctrl+Y` support.
+3. **Consistent UI Primitives (`FEditorWidgets`)**:
+   - All panels share standard Unreal-style property rows, labeled XYZ vectors (with Red/Green/Blue color badges and reset buttons), and search filter inputs.
+4. **Decoupled 3D Interaction (`FTransformGizmo`)**:
+   - Viewport handles camera raycasts, screen-to-world projections, and marquee box selection; the transform gizmo manages axis handles, plane snapping, and coordinate spaces (World vs Local).
+

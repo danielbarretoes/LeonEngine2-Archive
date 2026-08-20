@@ -1,9 +1,10 @@
 #pragma once
 
 #include "Core/Base.hpp"
+#include <memory>
 #include <string>
 
-namespace Leon::Editor {
+namespace Leon {
 
     /**
      * @brief Interface for undoable editor commands.
@@ -14,7 +15,7 @@ namespace Leon::Editor {
 
         virtual void Execute() = 0;
         virtual void Undo() = 0;
-        virtual std::string GetDescription() const = 0;
+        [[nodiscard]] virtual std::string GetDescription() const = 0;
     };
 
-} // namespace Leon::Editor
+} // namespace Leon

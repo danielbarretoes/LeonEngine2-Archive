@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/Base.hpp"
-#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
+#include "Editor/Context/FEditorContext.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
 
@@ -24,7 +24,7 @@ namespace Leon::Editor {
 
         FOutlinerPanel() = default;
 
-        void SetSelectionSubsystem(FEditorSelectionSubsystem* InSubsystem) { SelectionSubsystem = InSubsystem; }
+        void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
         void SetOnActorSelected(FOnActorSelected InCallback) { OnActorSelected = std::move(InCallback); }
         void SetOnActorFocus(FOnActorFocus InCallback) { OnActorFocus = std::move(InCallback); }
 
@@ -42,7 +42,7 @@ namespace Leon::Editor {
         void SpawnNewActor(UWorld& InWorld, const std::string& InType);
         bool PassesCategoryFilter(AActor* InActor) const;
 
-        FEditorSelectionSubsystem* SelectionSubsystem = nullptr;
+        FEditorContext* Context = nullptr;
         FOnActorSelected OnActorSelected;
         FOnActorFocus OnActorFocus;
 
@@ -61,3 +61,8 @@ namespace Leon::Editor {
     };
 
 } // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::EOutlinerFilterCategory;
+    using Editor::FOutlinerPanel;
+} // namespace Leon

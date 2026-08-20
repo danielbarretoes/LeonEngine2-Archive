@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Core/Base.hpp"
-#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
+#include "Editor/Context/FEditorContext.hpp"
+
 #include <filesystem>
 #include <functional>
 #include <string>
@@ -18,7 +19,7 @@ namespace Leon::Editor {
     /**
      * @brief Professional Unreal Engine–inspired Content Browser panel with advanced search filters,
      * Grid and List view modes, dynamic Add/Create menus, asset import pipeline, interactive breadcrumbs,
-     * and integration with FEditorSelectionSubsystem.
+     * and integration with FEditorContext.
      */
     class FContentBrowserPanel {
     public:
@@ -29,7 +30,7 @@ namespace Leon::Editor {
         ~FContentBrowserPanel();
 
         void SetContentDirectory(const std::string& InContentDir);
-        void SetSelectionSubsystem(FEditorSelectionSubsystem* InSubsystem) { SelectionSubsystem = InSubsystem; }
+        void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
         void SetOnMapSelected(FOnMapSelected InCallback) { OnMapSelected = std::move(InCallback); }
         void SetOnSaveAll(FOnSaveAll InCallback) { OnSaveAll = std::move(InCallback); }
 
@@ -80,8 +81,8 @@ namespace Leon::Editor {
         std::vector<std::filesystem::path> History;
         int HistoryIndex = -1;
 
-        // Subsystems and Callbacks
-        FEditorSelectionSubsystem* SelectionSubsystem = nullptr;
+        // Context and Callbacks
+        FEditorContext* Context = nullptr;
         FOnMapSelected OnMapSelected;
         FOnSaveAll OnSaveAll;
 
@@ -101,3 +102,8 @@ namespace Leon::Editor {
     };
 
 } // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::EContentBrowserViewMode;
+    using Editor::FContentBrowserPanel;
+} // namespace Leon

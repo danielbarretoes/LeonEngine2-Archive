@@ -96,6 +96,9 @@ namespace Leon {
         void Render(const FPerspectiveCamera& InCamera);
         void RenderScene(const FPerspectiveCamera& InCamera) { Render(InCamera); }
 
+        void SetWorld(UWorld* InWorld) { World = InWorld; }
+        UWorld* GetWorld() const { return World; }
+
         /**
          * @brief Called when the viewport dimensions change. Resizes viewport-dependent FBOs.
          */

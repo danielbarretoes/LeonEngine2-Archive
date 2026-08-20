@@ -1,4 +1,4 @@
-#include "Editor/FViewportPanel.hpp"
+#include "Editor/Panels/FViewportPanel.hpp"
 #include "Core/FLog.hpp"
 #include "Editor/Panels/FPlaceActorsPanel.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
@@ -40,7 +40,7 @@ namespace Leon::Editor {
 
         // Hotkey 'F' to focus selected actor
         if (ImGui::IsKeyPressed(ImGuiKey_F, false) && !io.WantTextInput) {
-            AActor* primaryActor = SelectionSubsystem ? SelectionSubsystem->GetPrimarySelectedActor() : nullptr;
+            AActor* primaryActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : nullptr;
             if (primaryActor) {
                 FocusOnActor(primaryActor);
             }
@@ -51,13 +51,11 @@ namespace Leon::Editor {
             CameraSpeed = std::clamp(CameraSpeed + io.MouseWheel * 1.5f, 1.0f, 50.0f);
         }
 
-        // Unreal-style RMB Free-fly
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Right) && ImGui::IsWindowHovered()) {
-            float speed = CameraSpeed;
-            if (io.KeyShift)
-                speed *= 2.5f;
-
+        // RMB Navigation (Unreal style: WASD + QE)
+        if (ImGui::IsMouseDown(1) && ImGui::IsWindowHovered()) {
+            float speed = CameraSpeed * (io.KeyShift ? 3.0f : 1.0f);
             glm::vec3 moveDir(0.0f);
+
             if (ImGui::IsKeyDown(ImGuiKey_W))
                 moveDir += EditorCamera.GetForwardDirection();
             if (ImGui::IsKeyDown(ImGuiKey_S))
@@ -78,121 +76,137 @@ namespace Leon::Editor {
             // Mouse Look
             if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f) {
                 float sens = 0.15f;
-                float newYaw = EditorCamera.GetYaw() + io.MouseDelta.x * sens;
-                float newPitch = std::clamp(EditorCamera.GetPitch() - io.MouseDelta.y * sens, -89.0f, 89.0f);
-                EditorCamera.SetRotation(newPitch, newYaw);
+                float yaw = EditorCamera.GetYaw() + io.MouseDelta.x * sens;
+                float pitch = std::clamp(EditorCamera.GetPitch() - io.MouseDelta.y * sens, -89.0f, 89.0f);
+                EditorCamera.SetRotation(pitch, yaw);
             }
         }
     }
 
     void FViewportPanel::RenderWorld(UWorld& InWorld, uint32_t InWidth, uint32_t InHeight) {
+        if (InWidth == 0 || InHeight == 0)
+            return;
+
         if (!WorldRenderer) {
             WorldRenderer = std::make_unique<FWorldRenderer>(&InWorld);
+        } else {
+            WorldRenderer->SetWorld(&InWorld);
         }
 
         WorldRenderer->OnViewportResize(InWidth, InHeight);
-        float aspect = static_cast<float>(InWidth) / static_cast<float>(std::max(1u, InHeight));
-        EditorCamera.SetProjection(EditorCamera.GetFOV(), aspect, EditorCamera.GetNearClip(),
-                                   EditorCamera.GetFarClip());
+
+        float aspect = static_cast<float>(InWidth) / static_cast<float>(InHeight);
+        EditorCamera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
 
         WorldRenderer->SetWireframeEnabled(ShadingMode == EViewportShadingMode::Wireframe);
         WorldRenderer->Render(EditorCamera);
     }
 
     void FViewportPanel::DrawViewportToolbar() {
-        // Transform Tool Buttons: Select (Q), Move (W), Rotate (E), Scale (R)
-        EGizmoOperation currentOp = Gizmo.GetOperation();
+        float btnWidth = 26.0f;
+        float btnHeight = 24.0f;
+        ImVec2 toolBtnSize(btnWidth, btnHeight);
 
-        auto DrawToolBtn = [this, currentOp](const char* label, EGizmoOperation op, const char* tooltip) {
-            bool bActive = (currentOp == op);
-            if (bActive)
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.45f, 0.8f, 1.0f));
-            if (ImGui::Button(label, ImVec2(30.0f, 24.0f))) {
-                Gizmo.SetOperation(op);
+        // Tool Selection: Q = Select, W = Translate, E = Rotate, R = Scale
+        auto DrawToolBtn = [&](EGizmoOperation Op, const char* label, const char* tooltip) {
+            bool bActive = (Gizmo.GetOperation() == Op);
+            if (bActive) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.22f, 0.45f, 0.78f, 1.0f));
             }
-            if (bActive)
+            if (ImGui::Button(label, toolBtnSize)) {
+                Gizmo.SetOperation(Op);
+            }
+            if (bActive) {
                 ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered())
+            }
+            if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("%s", tooltip);
+            }
             ImGui::SameLine();
         };
 
-        DrawToolBtn("Q##SelectTool", EGizmoOperation::Select, "Select (Q)");
-        DrawToolBtn("W##MoveTool", EGizmoOperation::Translate, "Translate / Move (W)");
-        DrawToolBtn("E##RotateTool", EGizmoOperation::Rotate, "Rotate (E)");
-        DrawToolBtn("R##ScaleTool", EGizmoOperation::Scale, "Scale (R)");
+        DrawToolBtn(EGizmoOperation::Select, "Q", "Select (Q)");
+        DrawToolBtn(EGizmoOperation::Translate, "W", "Translate (W)");
+        DrawToolBtn(EGizmoOperation::Rotate, "E", "Rotate (E)");
+        DrawToolBtn(EGizmoOperation::Scale, "R", "Scale (R)");
 
-        ImGui::TextDisabled("|");
+        ImGui::Spacing();
         ImGui::SameLine();
 
-        // Coordinate System: World / Local
-        EGizmoMode currentMode = Gizmo.GetMode();
-        if (ImGui::Button(currentMode == EGizmoMode::World ? "World" : "Local", ImVec2(52.0f, 24.0f))) {
-            Gizmo.SetMode(currentMode == EGizmoMode::World ? EGizmoMode::Local : EGizmoMode::World);
+        // Coordinate Space Toggle: World / Local
+        bool bWorld = (Gizmo.GetMode() == EGizmoMode::World);
+        if (ImGui::Button(bWorld ? "World" : "Local", ImVec2(50.0f, btnHeight))) {
+            Gizmo.SetMode(bWorld ? EGizmoMode::Local : EGizmoMode::World);
         }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Toggle World / Local coordinate space");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Coordinate Mode: %s", bWorld ? "World Space" : "Local Space");
+        }
 
         ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
 
-        // Snapping Controls
+        // Snapping Toggle
         bool bSnap = Gizmo.IsSnappingEnabled();
-        if (bSnap)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.50f, 0.28f, 1.0f));
-        if (ImGui::Button("Snap", ImVec2(48.0f, 24.0f))) {
+        if (bSnap) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.55f, 0.35f, 1.0f));
+        }
+        if (ImGui::Button("Snap", ImVec2(44.0f, btnHeight))) {
             Gizmo.SetSnappingEnabled(!bSnap);
         }
-        if (bSnap)
+        if (bSnap) {
             ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Toggle Grid & Angle Snapping");
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Grid Snapping: %s", bSnap ? "Enabled" : "Disabled");
+        }
 
         ImGui::SameLine();
 
-        // Snap value selector popup
-        if (ImGui::Button("##SnapSettings", ImVec2(20.0f, 24.0f))) {
+        // Snapping Value Dropdown
+        if (ImGui::Button("##SnapMenu", ImVec2(18.0f, btnHeight))) {
             ImGui::OpenPopup("SnapSettingsPopup");
         }
         if (ImGui::BeginPopup("SnapSettingsPopup")) {
-            ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "Snapping Increments");
+            ImGui::TextDisabled("Snap Settings");
             ImGui::Separator();
 
-            float transSnap = Gizmo.GetTranslationSnap();
-            if (ImGui::RadioButton("Move: 10 units", transSnap == 10.0f))
-                Gizmo.SetTranslationSnap(10.0f);
-            if (ImGui::RadioButton("Move: 50 units", transSnap == 50.0f))
-                Gizmo.SetTranslationSnap(50.0f);
-            if (ImGui::RadioButton("Move: 100 units", transSnap == 100.0f))
-                Gizmo.SetTranslationSnap(100.0f);
+            ImGui::Text("Translation Snap");
+            float tSnaps[] = {1.0f, 5.0f, 10.0f, 50.0f, 100.0f};
+            for (float s : tSnaps) {
+                char lbl[32];
+                snprintf(lbl, sizeof(lbl), "%.0f units", s);
+                if (ImGui::MenuItem(lbl, nullptr, Gizmo.GetTranslationSnap() == s)) {
+                    Gizmo.SetTranslationSnap(s);
+                }
+            }
 
             ImGui::Separator();
-            float rotSnap = Gizmo.GetRotationSnap();
-            if (ImGui::RadioButton("Rotate: 15 deg", rotSnap == 15.0f))
-                Gizmo.SetRotationSnap(15.0f);
-            if (ImGui::RadioButton("Rotate: 45 deg", rotSnap == 45.0f))
-                Gizmo.SetRotationSnap(45.0f);
-            if (ImGui::RadioButton("Rotate: 90 deg", rotSnap == 90.0f))
-                Gizmo.SetRotationSnap(90.0f);
+            ImGui::Text("Rotation Snap");
+            float rSnaps[] = {5.0f, 15.0f, 45.0f, 90.0f};
+            for (float s : rSnaps) {
+                char lbl[32];
+                snprintf(lbl, sizeof(lbl), "%.0f deg", s);
+                if (ImGui::MenuItem(lbl, nullptr, Gizmo.GetRotationSnap() == s)) {
+                    Gizmo.SetRotationSnap(s);
+                }
+            }
 
             ImGui::Separator();
-            float scaleSnap = Gizmo.GetScaleSnap();
-            if (ImGui::RadioButton("Scale: 0.25", scaleSnap == 0.25f))
-                Gizmo.SetScaleSnap(0.25f);
-            if (ImGui::RadioButton("Scale: 0.50", scaleSnap == 0.5f))
-                Gizmo.SetScaleSnap(0.5f);
-            if (ImGui::RadioButton("Scale: 1.00", scaleSnap == 1.0f))
-                Gizmo.SetScaleSnap(1.0f);
+            ImGui::Text("Scale Snap");
+            float sSnaps[] = {0.1f, 0.25f, 0.5f, 1.0f};
+            for (float s : sSnaps) {
+                char lbl[32];
+                snprintf(lbl, sizeof(lbl), "%.2f", s);
+                if (ImGui::MenuItem(lbl, nullptr, Gizmo.GetScaleSnap() == s)) {
+                    Gizmo.SetScaleSnap(s);
+                }
+            }
 
             ImGui::EndPopup();
         }
 
         ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
 
-        // View Mode: Perspective / Orthographic
+        // View Mode: Perspective / Top / Front / Side
         const char* viewModeNames[] = {"Perspective", "Top", "Front", "Side"};
         ImGui::SetNextItemWidth(100.0f);
         int vmIdx = static_cast<int>(ViewMode);
@@ -269,17 +283,17 @@ namespace Leon::Editor {
                     bool bCtrl = ImGui::GetIO().KeyCtrl;
                     bool bShift = ImGui::GetIO().KeyShift;
 
-                    if (SelectionSubsystem) {
+                    if (Context) {
                         if (hitActor) {
                             if (bCtrl) {
-                                SelectionSubsystem->ToggleActorSelection(hitActor);
+                                Context->GetSelection().ToggleActorSelection(hitActor);
                             } else if (bShift) {
-                                SelectionSubsystem->SelectActor(hitActor, true);
+                                Context->GetSelection().SelectActor(hitActor, true);
                             } else {
-                                SelectionSubsystem->SelectActor(hitActor, false);
+                                Context->GetSelection().SelectActor(hitActor, false);
                             }
                         } else if (!bCtrl && !bShift) {
-                            SelectionSubsystem->ClearActorSelection();
+                            Context->GetSelection().ClearActorSelection();
                         }
                     }
 
@@ -290,7 +304,7 @@ namespace Leon::Editor {
             }
 
             // Active Primary Selected Actor
-            AActor* activeActor = SelectionSubsystem ? SelectionSubsystem->GetPrimarySelectedActor() : InSelectedActor;
+            AActor* activeActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : InSelectedActor;
 
             // Draw Selection Wireframe
             if (activeActor) {
@@ -302,64 +316,47 @@ namespace Leon::Editor {
                 Gizmo.Draw(activeActor, EditorCamera, vpMin.x, vpMin.y, vpSize.x, vpSize.y);
             }
 
-            // Drag & Drop Targets
-            if (ImGui::BeginDragDropTarget()) {
-                ImVec2 mousePos = ImGui::GetMousePos();
-                glm::vec2 screenPos(mousePos.x, mousePos.y);
-
-                if (const ImGuiPayload* payload = ImGui::GetDragDropPayload()) {
-                    if (strcmp(payload->DataType, "CONTENT_BROWSER_ASSET") == 0) {
-                        std::string assetPath = static_cast<const char*>(payload->Data);
-                        bool bIsMaterial = (assetPath.find(".lmat") != std::string::npos);
-
-                        if (bIsMaterial && InWorld) {
-                            AActor* hoveredActor = PickActorAtScreenPos(*InWorld, screenPos, vpMin, vpSize);
-                            if (hoveredActor) {
-                                DrawSelectionOutline(hoveredActor, vpMin, vpSize);
-                            }
-                        } else {
-                            glm::vec3 dropPos = GetWorldRayIntersection(screenPos, vpMin, vpSize);
-                            DrawPlacementGhost(dropPos, vpMin, vpSize, "Mesh Asset");
-                        }
-                    } else if (strcmp(payload->DataType, "PLACE_ACTOR_TYPE") == 0) {
-                        glm::vec3 dropPos = GetWorldRayIntersection(screenPos, vpMin, vpSize);
-                        const char* typeName = static_cast<const char*>(payload->Data);
-                        DrawPlacementGhost(dropPos, vpMin, vpSize, typeName);
-                    }
-                }
-
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ASSET")) {
-                    std::string assetPath = static_cast<const char*>(payload->Data);
-                    bool bIsMaterial = (assetPath.find(".lmat") != std::string::npos);
-
-                    if (bIsMaterial && InWorld) {
-                        AActor* hitActor = PickActorAtScreenPos(*InWorld, screenPos, vpMin, vpSize);
-                        if (hitActor) {
-                            if (!hitActor->HasComponent<FMaterialComponent>()) {
-                                hitActor->AddComponent<FMaterialComponent>();
-                            }
-                            hitActor->GetComponent<FMaterialComponent>().AssetPath = assetPath;
-                        }
-                    } else if (InWorld) {
-                        glm::vec3 dropPos = GetWorldRayIntersection(screenPos, vpMin, vpSize);
-                        AActor* spawned = FPlaceActorsPanel::SpawnActorAt(*InWorld, "Cube", dropPos);
-                        if (spawned) {
-                            if (spawned->HasComponent<FStaticMeshComponent>()) {
-                                spawned->GetComponent<FStaticMeshComponent>().AssetPath = assetPath;
-                            }
-                            if (OnActorSpawned)
-                                OnActorSpawned(spawned);
-                        }
-                    }
-                }
-
+            // Drag and Drop Targets from Place Actors & Content Browser
+            if (InWorld && ImGui::BeginDragDropTarget()) {
+                // Actor Spawning from Place Actors
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("PLACE_ACTOR_TYPE")) {
-                    if (InWorld) {
-                        std::string typeName = static_cast<const char*>(payload->Data);
-                        glm::vec3 dropPos = GetWorldRayIntersection(screenPos, vpMin, vpSize);
-                        AActor* spawned = FPlaceActorsPanel::SpawnActorAt(*InWorld, typeName, dropPos);
-                        if (spawned && OnActorSpawned) {
-                            OnActorSpawned(spawned);
+                    const char* actorType = static_cast<const char*>(payload->Data);
+                    if (actorType) {
+                        glm::vec3 spawnPos = GetWorldRayIntersection(
+                            glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
+                        AActor* spawned = FPlaceActorsPanel::SpawnActorAt(*InWorld, actorType, spawnPos);
+                        if (spawned) {
+                            if (Context) {
+                                Context->GetSelection().SelectActor(spawned, false);
+                            }
+                            if (OnActorSpawned) {
+                                OnActorSpawned(spawned);
+                            }
+                        }
+                    }
+                }
+
+                // Mesh Spawning from Content Browser
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ASSET")) {
+                    const char* assetPath = static_cast<const char*>(payload->Data);
+                    if (assetPath) {
+                        std::string pathStr(assetPath);
+                        if (pathStr.ends_with(".obj") || pathStr.ends_with(".fbx") || pathStr.ends_with(".gltf")) {
+                            glm::vec3 spawnPos = GetWorldRayIntersection(
+                                glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
+                            AActor* spawned = InWorld->SpawnActor<AActor>("DroppedMesh");
+                            if (spawned) {
+                                auto& tc = spawned->AddComponent<FTransformComponent>();
+                                tc.Translation = spawnPos;
+                                auto& sm = spawned->AddComponent<FStaticMeshComponent>();
+                                sm.AssetPath = pathStr;
+                                if (Context) {
+                                    Context->GetSelection().SelectActor(spawned, false);
+                                }
+                                if (OnActorSpawned) {
+                                    OnActorSpawned(spawned);
+                                }
+                            }
                         }
                     }
                 }
@@ -367,17 +364,13 @@ namespace Leon::Editor {
                 ImGui::EndDragDropTarget();
             }
 
-            // Viewport Statistics & Info Overlay
+            // Statistics Overlay
             if (bShowStatistics && InWorld) {
                 DrawViewportOverlay(InMapName, activeActor, static_cast<uint32_t>(InWorld->GetAllActors().size()));
             }
 
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FViewportPanel: Exception during Draw: {0}", e.what());
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Viewport Error: %s", e.what());
-        } catch (...) {
-            LE_CORE_ERROR("FViewportPanel: Unknown exception during Draw");
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Viewport: Unknown error encountered");
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Viewport Error: %s", e.what());
         }
 
         ImGui::End();
@@ -386,72 +379,72 @@ namespace Leon::Editor {
     void FViewportPanel::ProcessMarqueeSelection(UWorld& InWorld, const ImVec2& InViewportMin,
                                                  const ImVec2& InViewportSize) {
         ImGuiIO& io = ImGui::GetIO();
-        ImVec2 mousePos = io.MousePos;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
 
         if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !Gizmo.IsDragging()) {
-            if (mousePos.y > InViewportMin.y + 36.0f) {
+            if (io.KeyShift || io.KeyCtrl) {
                 bMarqueeSelecting = true;
-                MarqueeStart = mousePos;
-                MarqueeEnd = mousePos;
+                MarqueeStart = io.MousePos;
+                MarqueeEnd = io.MousePos;
             }
         }
 
         if (bMarqueeSelecting) {
-            if (ImGui::IsMouseDown(0)) {
-                MarqueeEnd = mousePos;
+            MarqueeEnd = io.MousePos;
 
-                float minX = std::min(MarqueeStart.x, MarqueeEnd.x);
-                float maxX = std::max(MarqueeStart.x, MarqueeEnd.x);
-                float minY = std::min(MarqueeStart.y, MarqueeEnd.y);
-                float maxY = std::max(MarqueeStart.y, MarqueeEnd.y);
+            // Draw translucent marquee box
+            ImVec2 bMin(std::min(MarqueeStart.x, MarqueeEnd.x), std::min(MarqueeStart.y, MarqueeEnd.y));
+            ImVec2 bMax(std::max(MarqueeStart.x, MarqueeEnd.x), std::max(MarqueeStart.y, MarqueeEnd.y));
 
-                if (maxX - minX > 6.0f || maxY - minY > 6.0f) {
-                    ImDrawList* drawList = ImGui::GetWindowDrawList();
-                    drawList->AddRectFilled(ImVec2(minX, minY), ImVec2(maxX, maxY), IM_COL32(30, 140, 255, 45));
-                    drawList->AddRect(ImVec2(minX, minY), ImVec2(maxX, maxY), IM_COL32(60, 180, 255, 220), 0.0f, 0,
-                                      1.5f);
-                }
-            } else if (ImGui::IsMouseReleased(0)) {
-                float minX = std::min(MarqueeStart.x, MarqueeEnd.x);
-                float maxX = std::max(MarqueeStart.x, MarqueeEnd.x);
-                float minY = std::min(MarqueeStart.y, MarqueeEnd.y);
-                float maxY = std::max(MarqueeStart.y, MarqueeEnd.y);
+            drawList->AddRectFilled(bMin, bMax, IM_COL32(50, 150, 255, 45));
+            drawList->AddRect(bMin, bMax, IM_COL32(80, 180, 255, 200), 0.0f, 0, 1.5f);
 
-                if (maxX - minX > 8.0f && maxY - minY > 8.0f) {
-                    glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
-                    std::vector<AActor*> selectedActors;
-
-                    for (const auto& actorPtr : InWorld.GetAllActors()) {
-                        AActor* actor = actorPtr.get();
-                        if (!actor || !actor->HasComponent<FTransformComponent>())
-                            continue;
-
-                        glm::vec3 pos = actor->GetComponent<FTransformComponent>().Translation;
-                        glm::vec4 clip = vp * glm::vec4(pos, 1.0f);
-                        if (clip.w > 0.001f) {
-                            glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                            float sx = InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x;
-                            float sy = InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y;
-
-                            if (sx >= minX && sx <= maxX && sy >= minY && sy <= maxY) {
-                                selectedActors.push_back(actor);
-                            }
-                        }
-                    }
-
-                    if (!selectedActors.empty() && SelectionSubsystem) {
-                        SelectionSubsystem->SetSelectedActors(selectedActors);
-                    }
-                }
+            if (ImGui::IsMouseReleased(0)) {
                 bMarqueeSelecting = false;
+
+                glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+                std::vector<AActor*> enclosedActors;
+
+                for (const auto& actor : InWorld.GetAllActors()) {
+                    if (!actor || !actor->template HasComponent<FTransformComponent>())
+                        continue;
+
+                    const auto& tc = actor->template GetComponent<FTransformComponent>();
+                    glm::vec4 clip = vp * glm::vec4(tc.Translation, 1.0f);
+                    if (clip.w <= 0.001f)
+                        continue;
+
+                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                    ImVec2 screenPos(InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x,
+                                     InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y);
+
+                    if (screenPos.x >= bMin.x && screenPos.x <= bMax.x && screenPos.y >= bMin.y &&
+                        screenPos.y <= bMax.y) {
+                        enclosedActors.push_back(actor.get());
+                    }
+                }
+
+                if (Context) {
+                    if (io.KeyShift) {
+                        for (AActor* a : enclosedActors) {
+                            Context->GetSelection().SelectActor(a, true);
+                        }
+                    } else {
+                        Context->GetSelection().SetSelectedActors(enclosedActors);
+                    }
+                }
             }
         }
     }
 
     AActor* FViewportPanel::PickActorAtScreenPos(UWorld& InWorld, const glm::vec2& InScreenPos,
                                                  const ImVec2& InViewportMin, const ImVec2& InViewportSize) {
+        if (InViewportSize.x <= 0.0f || InViewportSize.y <= 0.0f)
+            return nullptr;
+
         float relX = (InScreenPos.x - InViewportMin.x) / InViewportSize.x;
         float relY = (InScreenPos.y - InViewportMin.y) / InViewportSize.y;
+
         if (relX < 0.0f || relX > 1.0f || relY < 0.0f || relY > 1.0f)
             return nullptr;
 
@@ -468,25 +461,27 @@ namespace Leon::Editor {
         glm::vec3 rayDir = glm::normalize(glm::vec3(farPoint - nearPoint));
 
         AActor* closestActor = nullptr;
-        float closestDist = 1e9f;
+        float closestDist = 10000.0f;
 
-        for (const auto& actorPtr : InWorld.GetAllActors()) {
-            AActor* actor = actorPtr.get();
-            if (!actor || !actor->HasComponent<FTransformComponent>())
+        for (const auto& actor : InWorld.GetAllActors()) {
+            if (!actor || !actor->template HasComponent<FTransformComponent>())
                 continue;
 
-            const auto& tc = actor->GetComponent<FTransformComponent>();
+            const auto& tc = actor->template GetComponent<FTransformComponent>();
             glm::vec3 toActor = tc.Translation - rayOrigin;
             float proj = glm::dot(toActor, rayDir);
-            if (proj < 0.0f)
-                continue;
 
-            glm::vec3 perp = toActor - rayDir * proj;
-            float radius = std::max(0.5f, std::max(tc.Scale.x, std::max(tc.Scale.y, tc.Scale.z)) * 0.8f);
+            if (proj > 0.0f && proj < closestDist) {
+                glm::vec3 perp = toActor - rayDir * proj;
+                float maxScale = std::max(tc.Scale.x, std::max(tc.Scale.y, tc.Scale.z));
+                float radius = maxScale * 0.75f;
+                if (radius < 0.5f)
+                    radius = 0.5f;
 
-            if (glm::length(perp) < radius && proj < closestDist) {
-                closestDist = proj;
-                closestActor = actor;
+                if (glm::length(perp) <= radius) {
+                    closestDist = proj;
+                    closestActor = actor.get();
+                }
             }
         }
 
@@ -495,8 +490,12 @@ namespace Leon::Editor {
 
     glm::vec3 FViewportPanel::GetWorldRayIntersection(const glm::vec2& InScreenPos, const ImVec2& InViewportMin,
                                                       const ImVec2& InViewportSize) {
+        if (InViewportSize.x <= 0.0f || InViewportSize.y <= 0.0f)
+            return glm::vec3(0.0f);
+
         float relX = (InScreenPos.x - InViewportMin.x) / InViewportSize.x;
         float relY = (InScreenPos.y - InViewportMin.y) / InViewportSize.y;
+
         float ndcX = relX * 2.0f - 1.0f;
         float ndcY = 1.0f - relY * 2.0f;
 
@@ -604,7 +603,7 @@ namespace Leon::Editor {
                                 IM_COL32(14, 15, 18, 190), 4.0f);
 
         const char* selName = InSelectedActor ? InSelectedActor->GetName().c_str() : "None";
-        size_t selCount = SelectionSubsystem ? SelectionSubsystem->GetSelectedActorCount() : (InSelectedActor ? 1 : 0);
+        size_t selCount = Context ? Context->GetSelection().GetSelectedActorCount() : (InSelectedActor ? 1 : 0);
 
         char statsText[256];
         snprintf(statsText, sizeof(statsText), "Map: %s  |  FPS: %.0f (%.1f ms)  |  Actors: %u  |  Selected: %zu (%s)",

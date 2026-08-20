@@ -31,7 +31,10 @@ include("${LEON_ENGINE_ROOT}/CMake/LeonCompileOptions.cmake")
 
 add_library(LeonEditorCore STATIC
     Source/Private/FEditorApp.cpp
-    Source/Private/FViewportPanel.cpp
+    Source/Private/Context/FEditorContext.cpp
+    Source/Private/Context/FEditorSelection.cpp
+    Source/Private/Context/FEditorHistory.cpp
+    Source/Private/Panels/FViewportPanel.cpp
     Source/Private/Panels/FProjectHubPanel.cpp
     Source/Private/Panels/FOutlinerPanel.cpp
     Source/Private/Panels/FDetailsPanel.cpp
@@ -41,12 +44,10 @@ add_library(LeonEditorCore STATIC
     Source/Private/Panels/FPlaceActorsPanel.cpp
     Source/Private/Panels/FWorldSettingsPanel.cpp
     Source/Private/Panels/FProjectSettingsPanel.cpp
-    Source/Private/Subsystems/FEditorSelectionSubsystem.cpp
-    Source/Private/Subsystems/FEditorTransactionSubsystem.cpp
+    Source/Private/Gizmos/FTransformGizmo.cpp
     Source/Private/UI/FEditorTheme.cpp
     Source/Private/UI/FLucideIcons.cpp
-    Source/Private/Commands/FEditorHistory.cpp
-    Source/Private/Gizmos/FTransformGizmo.cpp
+    Source/Private/UI/FEditorWidgets.cpp
     Source/Private/Utils/FEditorFileDialog.cpp
     Source/Private/Window/FEditorWindow.cpp
 )
