@@ -111,6 +111,10 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
         GLuint edgeTex = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &edgeTex);
         glTextureStorage2D(edgeTex, 1, GL_RGBA8, 16, 16);
+        glTextureParameteri(edgeTex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(edgeTex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(edgeTex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(edgeTex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         std::vector<uint8_t> edgeData(16 * 16 * 4, 0);
         for (int y = 0; y < 16; ++y) {
@@ -183,6 +187,10 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
         GLuint pointTex = 0;
         glCreateTextures(GL_TEXTURE_2D, 1, &pointTex);
         glTextureStorage2D(pointTex, 1, GL_RGBA8, 16, 16);
+        glTextureParameteri(pointTex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(pointTex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(pointTex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(pointTex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         std::vector<uint8_t> pointData(16 * 16 * 4, 0);
         size_t centerIdx = (8 * 16 + 8) * 4;

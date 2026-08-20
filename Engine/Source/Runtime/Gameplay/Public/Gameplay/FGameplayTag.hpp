@@ -29,6 +29,7 @@ namespace Leon {
         bool IsEmpty() const { return Tags.empty(); }
         bool HasTag(FGameplayTag InTag) const;
         bool HasAny(const FGameplayTagContainer& InOther) const;
+        bool HasAll(const FGameplayTagContainer& InOther) const;
         void AddTag(FGameplayTag InTag);
         void RemoveTag(FGameplayTag InTag);
         void Clear() { Tags.clear(); }

@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <string>
 
-namespace Leon {
+namespace Leon::Editor {
 
     class FEditorWidgets {
     public:
@@ -20,4 +20,8 @@ namespace Leon {
                                     const char* InHint = "Search...");
     };
 
+} // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::FEditorWidgets;
 } // namespace Leon

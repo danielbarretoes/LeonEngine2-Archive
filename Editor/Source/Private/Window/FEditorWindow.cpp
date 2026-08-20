@@ -13,7 +13,7 @@ namespace Leon::Editor {
     static uint8_t GLFWEditorWindowCount = 0;
 
     static void GLFWErrorCallback(int InError, const char* InDescription) {
-        LE_CORE_ERROR("GLFW Editor Window Error ({0}): {1}", InError, InDescription);
+        LE_CORE_ERROR("GLFW Editor Window Error ({}): {}", InError, InDescription);
     }
 
     FEditorWindow::FEditorWindow(const FEditorWindowProps& InProps) {
@@ -30,7 +30,7 @@ namespace Leon::Editor {
         WindowHeight = InProps.Height;
         bVSync = InProps.bVSync;
 
-        LE_CORE_INFO("FEditorWindow: Creating editor window \"{0}\" ({1}x{2})", BaseTitle, WindowWidth, WindowHeight);
+        LE_CORE_INFO("FEditorWindow: Creating editor window \"{}\" ({}x{})", BaseTitle, WindowWidth, WindowHeight);
 
         if (GLFWEditorWindowCount == 0) {
             int success = glfwInit();

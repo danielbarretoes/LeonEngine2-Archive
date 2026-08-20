@@ -33,7 +33,15 @@ namespace Leon {
             FGameplayTagContainer other;
             other.AddTag(shotgun);
             CHECK(container.HasAny(other));
-            CHECK_FALSE(other.HasAny(container));
+            CHECK(other.HasAny(container));
+            CHECK(container.HasAll(other));
+            CHECK_FALSE(other.HasAll(container));
+
+            const FGameplayTag sniper = FGameplayTagRegistry::RequestTag("Weapon.Sniper");
+            FGameplayTagContainer disjoint;
+            disjoint.AddTag(sniper);
+            CHECK_FALSE(container.HasAny(disjoint));
+            CHECK_FALSE(disjoint.HasAny(container));
 
             container.RemoveTag(rifle);
             CHECK_FALSE(container.HasTag(rifle));

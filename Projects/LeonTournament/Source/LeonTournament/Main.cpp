@@ -76,6 +76,7 @@ namespace {
 
 int main(int argc, char** argv) {
     Leon::FOpenGLRenderDriver::Register();
+    Leon::FJoltPhysicsDriver::Register();
     Leon::UIpNetDriver::SetTransportFactory([]() { return std::make_unique<Leon::FENetTransport>(); });
 
     auto& registry = Leon::UClassRegistry::Get();

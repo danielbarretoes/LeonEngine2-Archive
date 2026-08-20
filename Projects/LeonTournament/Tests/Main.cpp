@@ -34,6 +34,7 @@
 int main(int argc, char** argv) {
     Leon::Test::BindLeonTournamentProject();
     Leon::UIpNetDriver::SetTransportFactory([]() { return std::make_unique<Leon::FENetTransport>(); });
+    Leon::FJoltPhysicsDriver::Register();
 
     auto& registry = Leon::UClassRegistry::Get();
     registry.RegisterClass<Leon::ALeonTournamentGameMode>("ALeonTournamentGameMode");

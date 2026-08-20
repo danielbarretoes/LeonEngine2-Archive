@@ -9,6 +9,7 @@
 int main() {
     try {
         Leon::FOpenGLRenderDriver::Register();
+        Leon::FJoltPhysicsDriver::Register();
 
         Leon::Editor::FEditorApp App;
         App.Run();

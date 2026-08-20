@@ -1557,11 +1557,4 @@ namespace Leon {
         return "5.3.0";
     }
 
-    namespace {
-        struct FJoltAutoRegister {
-            FJoltAutoRegister() { FJoltPhysicsDriver::Register(); }
-        };
-        static FJoltAutoRegister GJoltAutoRegister;
-    } // namespace
-
 } // namespace Leon

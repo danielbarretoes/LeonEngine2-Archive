@@ -9,6 +9,10 @@
 namespace Leon::Editor {
 
     void FTransformGizmo::ProcessHotkeys() {
+        if (ImGui::GetIO().WantTextInput) {
+            return;
+        }
+
         if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
             // Right-click is camera free-fly; ignore gizmo hotkeys
             return;

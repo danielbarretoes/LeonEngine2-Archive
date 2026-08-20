@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-namespace Leon {
+namespace Leon::Editor {
 
     void FEditorSelection::SelectActor(AActor* InActor, bool bAddToSelection) {
         if (!InActor) {
@@ -173,4 +173,4 @@ namespace Leon {
         }
     }
 
-} // namespace Leon
+} // namespace Leon::Editor

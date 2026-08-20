@@ -1,5 +1,6 @@
 #include "Editor/Panels/FDetailsPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
 
@@ -21,84 +22,6 @@ namespace Leon::Editor {
             std::transform(textLower.begin(), textLower.end(), textLower.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return textLower.find(InFilter) != std::string::npos;
-        }
-
-        bool DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f,
-                             float columnWidth = 100.0f) {
-            bool bModified = false;
-            ImGui::PushID(label.c_str());
-
-            ImGui::Columns(2);
-            ImGui::SetColumnWidth(0, columnWidth);
-            ImGui::Text("%s", label.c_str());
-            ImGui::NextColumn();
-
-            ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth() - 32.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 2));
-
-            float lineHeight = ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2.0f;
-            ImVec2 buttonSize = {lineHeight + 3.0f, lineHeight};
-
-            // X
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.15f, 1.0f));
-            if (ImGui::Button("X", buttonSize)) {
-                values.x = resetValue;
-                bModified = true;
-            }
-            ImGui::PopStyleColor();
-            ImGui::SameLine();
-            if (ImGui::DragFloat("##X", &values.x, 0.1f, 0.0f, 0.0f, "%.2f"))
-                bModified = true;
-            ImGui::PopItemWidth();
-            ImGui::SameLine();
-
-            // Y
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
-            if (ImGui::Button("Y", buttonSize)) {
-                values.y = resetValue;
-                bModified = true;
-            }
-            ImGui::PopStyleColor();
-            ImGui::SameLine();
-            if (ImGui::DragFloat("##Y", &values.y, 0.1f, 0.0f, 0.0f, "%.2f"))
-                bModified = true;
-            ImGui::PopItemWidth();
-            ImGui::SameLine();
-
-            // Z
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.25f, 0.8f, 1.0f));
-            if (ImGui::Button("Z", buttonSize)) {
-                values.z = resetValue;
-                bModified = true;
-            }
-            ImGui::PopStyleColor();
-            ImGui::SameLine();
-            if (ImGui::DragFloat("##Z", &values.z, 0.1f, 0.0f, 0.0f, "%.2f"))
-                bModified = true;
-            ImGui::PopItemWidth();
-
-            // Reset to Default button (↶)
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-            if (ImGui::SmallButton("##ResetAll")) {
-                values = glm::vec3(resetValue);
-                bModified = true;
-            }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Reset to Default");
-            }
-            ImVec2 rMin = ImGui::GetItemRectMin();
-            ImVec2 rMax = ImGui::GetItemRectMax();
-            FLucideIcons::DrawIcon(ImGui::GetWindowDrawList(), ImVec2(rMin.x + 2.0f, rMin.y + 2.0f),
-                                   ImVec2(rMax.x - 2.0f, rMax.y - 2.0f), ELucideIcon::RefreshCw,
-                                   IM_COL32(180, 180, 190, 255));
-            ImGui::PopStyleColor();
-
-            ImGui::PopStyleVar();
-            ImGui::Columns(1);
-            ImGui::PopID();
-
-            return bModified;
         }
 
     } // namespace
@@ -127,12 +50,7 @@ namespace Leon::Editor {
             }
 
             // Search Bar
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 30.0f);
-            ImGui::InputTextWithHint("##DetailsSearch", "Search Details...", SearchBuffer, sizeof(SearchBuffer));
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X##ClearDetailsSearch")) {
-                SearchBuffer[0] = '\0';
-            }
+            FEditorWidgets::DrawSearchInput("DetailsSearch", SearchBuffer, sizeof(SearchBuffer), "Search Details...");
 
             ImGui::Separator();
             ImGui::Spacing();
@@ -148,7 +66,7 @@ namespace Leon::Editor {
             }
 
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FDetailsPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FDetailsPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Details Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FDetailsPanel: Unknown exception during Draw");
@@ -223,7 +141,7 @@ namespace Leon::Editor {
                 }
 
                 if (bSameLoc) {
-                    if (DrawVec3Control("Location", firstLoc, 0.0f)) {
+                    if (FEditorWidgets::DrawVec3Control("Location", firstLoc, 0.0f)) {
                         for (AActor* act : InActors)
                             act->SetActorLocation(firstLoc);
                     }
@@ -252,32 +170,32 @@ namespace Leon::Editor {
 
             if (bLocalTransformMode) {
                 glm::vec3 relLoc = InActor.GetRelativeLocation();
-                if (DrawVec3Control("Relative Location", relLoc, 0.0f)) {
+                if (FEditorWidgets::DrawVec3Control("Relative Location", relLoc, 0.0f)) {
                     InActor.SetRelativeLocation(relLoc);
                 }
 
                 glm::vec3 relRot = InActor.GetRelativeRotation();
-                if (DrawVec3Control("Relative Rotation", relRot, 0.0f)) {
+                if (FEditorWidgets::DrawVec3Control("Relative Rotation", relRot, 0.0f)) {
                     InActor.SetRelativeRotation(relRot);
                 }
 
                 glm::vec3 relScale = InActor.GetRelativeScale();
-                if (DrawVec3Control("Relative Scale", relScale, 1.0f)) {
+                if (FEditorWidgets::DrawVec3Control("Relative Scale", relScale, 1.0f)) {
                     InActor.SetRelativeScale(relScale);
                 }
             } else {
                 glm::vec3 location = InActor.GetActorLocation();
-                if (DrawVec3Control("Location", location, 0.0f)) {
+                if (FEditorWidgets::DrawVec3Control("Location", location, 0.0f)) {
                     InActor.SetActorLocation(location);
                 }
 
                 glm::vec3 rotation = InActor.GetActorRotation();
-                if (DrawVec3Control("Rotation", rotation, 0.0f)) {
+                if (FEditorWidgets::DrawVec3Control("Rotation", rotation, 0.0f)) {
                     InActor.SetActorRotation(rotation);
                 }
 
                 glm::vec3 scale = InActor.GetActorScale();
-                if (DrawVec3Control("Scale", scale, 1.0f)) {
+                if (FEditorWidgets::DrawVec3Control("Scale", scale, 1.0f)) {
                     InActor.SetActorScale(scale);
                 }
             }
@@ -506,8 +424,8 @@ namespace Leon::Editor {
 
         if (ImGui::CollapsingHeader("Box Collision Component", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto& col = InActor.GetComponent<FBoxCollisionComponent>();
-            DrawVec3Control("Min Extent", col.LocalMin, -0.5f);
-            DrawVec3Control("Max Extent", col.LocalMax, 0.5f);
+            FEditorWidgets::DrawVec3Control("Min Extent", col.LocalMin, -0.5f);
+            FEditorWidgets::DrawVec3Control("Max Extent", col.LocalMax, 0.5f);
             ImGui::Checkbox("Block Movement", &col.bBlockMovement);
         }
     }

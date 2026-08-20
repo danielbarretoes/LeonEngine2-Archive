@@ -38,7 +38,7 @@ namespace Leon::Editor {
 
             return spawned;
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FPlaceActorsPanel: Exception in SpawnActorAt: {0}", e.what());
+            LE_CORE_ERROR("FPlaceActorsPanel: Exception in SpawnActorAt: {}", e.what());
             return nullptr;
         }
     }
@@ -111,7 +111,7 @@ namespace Leon::Editor {
                 drawPlaceItem("   Trigger Volume", "TriggerVolume", ELucideIcon::Activity, IM_COL32(255, 180, 50, 255));
             }
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FPlaceActorsPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FPlaceActorsPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Place Actors Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FPlaceActorsPanel: Unknown exception during Draw");

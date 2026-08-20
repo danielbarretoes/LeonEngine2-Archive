@@ -138,7 +138,7 @@ namespace Leon::Editor {
             FontSmall = InIO.Fonts->AddFontFromFileTTF(regularTtf.c_str(), 13.0f, &config);
 
             InIO.FontDefault = FontRegular;
-            LE_CORE_INFO("FEditorTheme: Loaded Inter fonts from '{0}'", regularTtf);
+            LE_CORE_INFO("FEditorTheme: Loaded Inter fonts from '{}'", regularTtf);
         } else {
             InIO.Fonts->AddFontDefault();
             LE_CORE_WARN("FEditorTheme: Inter font not found on disk, using ImGui default font");

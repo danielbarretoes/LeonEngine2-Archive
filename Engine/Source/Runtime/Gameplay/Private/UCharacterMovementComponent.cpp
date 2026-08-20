@@ -307,12 +307,12 @@ namespace Leon {
         const glm::vec3 savedRequested = RequestedVelocity;
         const bool bSavedRequested = bHasRequestedVelocity;
         int32_t steps = 0;
-        while (MovementAccumulator >= kPhysicsFixedDeltaSeconds && steps < kPhysicsMaxSubsteps) {
+        while (MovementAccumulator >= kPhysicsFixedDeltaSeconds - 0.001f && steps < kPhysicsMaxSubsteps) {
             PendingInputVector = savedInput;
             RequestedVelocity = savedRequested;
             bHasRequestedVelocity = bSavedRequested;
             PerformMovement(kPhysicsFixedDeltaSeconds);
-            MovementAccumulator -= kPhysicsFixedDeltaSeconds;
+            MovementAccumulator = std::max(MovementAccumulator - kPhysicsFixedDeltaSeconds, 0.0f);
             ++steps;
         }
         if (steps >= kPhysicsMaxSubsteps)

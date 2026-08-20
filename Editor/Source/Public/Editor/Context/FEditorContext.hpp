@@ -8,8 +8,12 @@
 #include <string>
 
 namespace Leon {
-
     class UWorld;
+}
+
+namespace Leon::Editor {
+
+    using Leon::UWorld;
 
     /**
      * @brief Centralized state container and event bus for the LeonEditor.
@@ -62,4 +66,8 @@ namespace Leon {
         std::vector<FProjectChangedCallback> ProjectChangedCallbacks;
     };
 
+} // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::FEditorContext;
 } // namespace Leon

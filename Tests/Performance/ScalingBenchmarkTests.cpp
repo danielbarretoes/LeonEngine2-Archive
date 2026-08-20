@@ -97,6 +97,7 @@ TEST_SUITE("Performance scaling benchmarks") {
             Report("PhysicsWorldTick", count, worldMs, frames);
             CHECK(physMs / frames < 8.0f);
         }
+        Leon::FPhysicsModule::Unregister();
     }
 
     TEST_CASE("character tick scaling") {

@@ -60,15 +60,12 @@ TEST_SUITE("Shader GPU - Skybox.glsl equirect wrap") {
         glm::mat4 proj = glm::perspective(glm::radians(70.0f), 1.0f, 0.1f, 1000.0f);
 
         fbo->Bind();
-        Leon::FRenderCommand::SetViewport(0, 0, width, height);
-        Leon::FRenderCommand::SetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        Leon::FRenderCommand::SetDepthTesting(true);
-        Leon::FRenderCommand::SetDepthMask(true);
-        Leon::FRenderCommand::SetDepthFunc(Leon::EDepthFunc::LessEqual);
-        Leon::FRenderCommand::SetCulling(false);
-        Leon::FRenderCommand::SetBlendState(false);
-        Leon::FRenderCommand::Clear();
-        Leon::FRenderCommand::SetDepthMask(false);
+        glViewport(0, 0, width, height);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_BLEND);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         shader->Bind();
         shader->SetMat4("u_View", glm::value_ptr(view));
@@ -82,6 +79,8 @@ TEST_SUITE("Shader GPU - Skybox.glsl equirect wrap") {
         Leon::FRenderCommand::DrawIndexed(cube);
 
         std::vector<float> pixels(static_cast<size_t>(width) * height * 4);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo->GetRendererID());
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
         glReadPixels(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_FLOAT, pixels.data());
         fbo->Unbind();
 

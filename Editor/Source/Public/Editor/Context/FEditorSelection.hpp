@@ -7,8 +7,12 @@
 #include <vector>
 
 namespace Leon {
-
     class AActor;
+}
+
+namespace Leon::Editor {
+
+    using Leon::AActor;
 
     class FEditorSelection {
     public:
@@ -60,4 +64,8 @@ namespace Leon {
         std::vector<FAssetSelectionCallback> AssetSelectionCallbacks;
     };
 
+} // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::FEditorSelection;
 } // namespace Leon

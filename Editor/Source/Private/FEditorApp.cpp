@@ -7,6 +7,7 @@
 #include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/FMapSerializer.hpp"
+#include "Gameplay/AActor.hpp"
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -177,7 +178,7 @@ namespace Leon::Editor {
 
     void FEditorApp::OpenProject(const std::string& InProjectPath) {
         if (InProjectPath.empty() || !fs::exists(InProjectPath)) {
-            LE_CORE_ERROR("FEditorApp: Cannot open invalid project path '{0}'", InProjectPath);
+            LE_CORE_ERROR("FEditorApp: Cannot open invalid project path '{}'", InProjectPath);
             OutputLog.AddLog(ELogLevel::Error, "Project", "Cannot open invalid project: " + InProjectPath);
             return;
         }
@@ -186,7 +187,7 @@ namespace Leon::Editor {
         FProjectPaths::SetProjectRoot(ActiveProjectPath);
 
         if (!ActiveProjectDescriptor.Load(ActiveProjectPath)) {
-            LE_CORE_ERROR("FEditorApp: Failed to load descriptor from '{0}'", ActiveProjectPath);
+            LE_CORE_ERROR("FEditorApp: Failed to load descriptor from '{}'", ActiveProjectPath);
             OutputLog.AddLog(ELogLevel::Error, "Project", "Failed to parse descriptor: " + ActiveProjectPath);
             return;
         }
@@ -208,7 +209,7 @@ namespace Leon::Editor {
             if (fs::exists(resolvedMap)) {
                 LoadMap(resolvedMap);
             } else {
-                LE_CORE_WARN("FEditorApp: Default map not found '{0}', starting with empty level", resolvedMap);
+                LE_CORE_WARN("FEditorApp: Default map not found '{}', starting with empty level", resolvedMap);
                 LoadMap("");
             }
         } else {
@@ -231,12 +232,12 @@ namespace Leon::Editor {
         }
 
         UpdateWindowTitle();
-        LE_CORE_INFO("FEditorApp: Opened project '{0}'", ActiveProjectDescriptor.ProjectName);
+        LE_CORE_INFO("FEditorApp: Opened project '{}'", ActiveProjectDescriptor.ProjectName);
     }
 
     void FEditorApp::LoadMap(const std::string& InMapPath) {
         if (!InMapPath.empty() && !fs::exists(InMapPath)) {
-            LE_CORE_ERROR("FEditorApp: Map file not found '{0}'", InMapPath);
+            LE_CORE_ERROR("FEditorApp: Map file not found '{}'", InMapPath);
             OutputLog.AddLog(ELogLevel::Error, "Map", "Map not found: " + InMapPath);
             return;
         }
@@ -262,11 +263,11 @@ namespace Leon::Editor {
                 OutputLog.AddLog(ELogLevel::Info, "Map",
                                  "Loaded map: " + ActiveMapName + " (" +
                                      std::to_string(EditorWorld->GetAllActors().size()) + " actors)");
-                LE_CORE_INFO("FEditorApp: Successfully loaded map '{0}' ({1} actors)", ActiveMapName,
+                LE_CORE_INFO("FEditorApp: Successfully loaded map '{}' ({} actors)", ActiveMapName,
                              EditorWorld->GetAllActors().size());
             } else {
                 OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to deserialize map: " + InMapPath);
-                LE_CORE_ERROR("FEditorApp: Failed to deserialize map '{0}'", InMapPath);
+                LE_CORE_ERROR("FEditorApp: Failed to deserialize map '{}'", InMapPath);
             }
         } else {
             ActiveMapPath.clear();
@@ -301,11 +302,11 @@ namespace Leon::Editor {
         FMapSerializer serializer(EditorWorld);
         if (serializer.Serialize(ActiveMapPath)) {
             OutputLog.AddLog(ELogLevel::Info, "Map", "Saved map: " + ActiveMapPath);
-            LE_CORE_INFO("FEditorApp: Successfully saved map '{0}'", ActiveMapPath);
+            LE_CORE_INFO("FEditorApp: Successfully saved map '{}'", ActiveMapPath);
             UpdateWindowTitle();
         } else {
             OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to save map: " + ActiveMapPath);
-            LE_CORE_ERROR("FEditorApp: Failed to save map '{0}'", ActiveMapPath);
+            LE_CORE_ERROR("FEditorApp: Failed to save map '{}'", ActiveMapPath);
         }
     }
 
@@ -398,10 +399,10 @@ namespace Leon::Editor {
             try {
                 DrawFn();
             } catch (const std::exception& e) {
-                LE_CORE_ERROR("Exception in panel '{0}': {1}", PanelName, e.what());
+                LE_CORE_ERROR("Exception in panel '{}': {}", PanelName, e.what());
                 OutputLog.AddLog(ELogLevel::Error, PanelName, std::string("Unhandled exception: ") + e.what());
             } catch (...) {
-                LE_CORE_ERROR("Unknown exception in panel '{0}'", PanelName);
+                LE_CORE_ERROR("Unknown exception in panel '{}'", PanelName);
                 OutputLog.AddLog(ELogLevel::Error, PanelName, "Unknown exception caught during render");
             }
         };

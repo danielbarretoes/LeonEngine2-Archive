@@ -101,7 +101,7 @@ namespace Leon::Editor {
 
             ImGui::EndChild();
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FOutputLogPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FOutputLogPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Output Log Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FOutputLogPanel: Unknown exception during Draw");

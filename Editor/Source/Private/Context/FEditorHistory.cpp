@@ -1,6 +1,6 @@
 #include "Editor/Context/FEditorHistory.hpp"
 
-namespace Leon {
+namespace Leon::Editor {
 
     FEditorHistory::FEditorHistory(size_t InMaxUndoSteps) : MaxUndoSteps(InMaxUndoSteps) {}
 
@@ -63,4 +63,4 @@ namespace Leon {
         RedoStack.clear();
     }
 
-} // namespace Leon
+} // namespace Leon::Editor

@@ -344,7 +344,7 @@ namespace Leon::Editor {
                                            "%s", StatusMessage.c_str());
                     }
                 } catch (const std::exception& e) {
-                    LE_CORE_ERROR("FProjectHubPanel: Exception in DrawFullscreen: {0}", e.what());
+                    LE_CORE_ERROR("FProjectHubPanel: Exception in DrawFullscreen: {}", e.what());
                     ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Launcher Error: %s", e.what());
                 }
             }

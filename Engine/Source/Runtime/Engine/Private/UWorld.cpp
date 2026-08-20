@@ -26,94 +26,6 @@
 
 namespace Leon {
 
-    namespace {
-
-        bool AABBsOverlap(const glm::vec3& AMin, const glm::vec3& AMax, const glm::vec3& BMin, const glm::vec3& BMax) {
-            return AMin.x <= BMax.x && AMax.x >= BMin.x && AMin.y <= BMax.y && AMax.y >= BMin.y && AMin.z <= BMax.z &&
-                   AMax.z >= BMin.z;
-        }
-
-        void TransformAABBCorners(const glm::vec3& InLocalMin, const glm::vec3& InLocalMax, const glm::mat4& InWorld,
-                                  glm::vec3& OutMin, glm::vec3& OutMax) {
-            OutMin = glm::vec3(std::numeric_limits<float>::max());
-            OutMax = glm::vec3(-std::numeric_limits<float>::max());
-            const glm::vec3 corners[8] = {
-                {InLocalMin.x, InLocalMin.y, InLocalMin.z}, {InLocalMax.x, InLocalMin.y, InLocalMin.z},
-                {InLocalMin.x, InLocalMax.y, InLocalMin.z}, {InLocalMax.x, InLocalMax.y, InLocalMin.z},
-                {InLocalMin.x, InLocalMin.y, InLocalMax.z}, {InLocalMax.x, InLocalMin.y, InLocalMax.z},
-                {InLocalMin.x, InLocalMax.y, InLocalMax.z}, {InLocalMax.x, InLocalMax.y, InLocalMax.z},
-            };
-            for (const glm::vec3& c : corners) {
-                glm::vec3 w = glm::vec3(InWorld * glm::vec4(c, 1.0f));
-                OutMin = glm::min(OutMin, w);
-                OutMax = glm::max(OutMax, w);
-            }
-        }
-
-        bool GetActorWorldAABB(AActor& InActor, ECollisionChannel InQuery, glm::vec3& OutMin, glm::vec3& OutMax,
-                               ECollisionChannel& OutChannel) {
-            if (!InActor.HasComponent<FTransformComponent>())
-                return false;
-            const glm::mat4 world = InActor.GetComponent<FTransformComponent>().GetTransform();
-
-            if (InActor.HasComponent<FBoxCollisionComponent>()) {
-                const auto& box = InActor.GetComponent<FBoxCollisionComponent>();
-                if (!box.bBlockMovement)
-                    return false;
-                if (!TraceChannelAccepts(InQuery, box.Channel))
-                    return false;
-                TransformAABBCorners(box.LocalMin, box.LocalMax, world, OutMin, OutMax);
-                OutChannel = box.Channel;
-                return true;
-            }
-
-            const ECollisionChannel implicit = ECollisionChannel::WorldStatic;
-            if (!TraceChannelAccepts(InQuery, implicit))
-                return false;
-
-            if (InActor.HasComponent<FStaticMeshComponent>()) {
-                const auto& smc = InActor.GetComponent<FStaticMeshComponent>();
-                if (smc.Mobility != EComponentMobility::Static || !smc.StaticMesh)
-                    return false;
-                TransformAABBCorners(smc.StaticMesh->GetBoundsMin(), smc.StaticMesh->GetBoundsMax(), world, OutMin,
-                                     OutMax);
-                OutChannel = implicit;
-                return true;
-            }
-
-            if (InActor.HasComponent<FMeshComponent>()) {
-                const auto& mesh = InActor.GetComponent<FMeshComponent>();
-                if (mesh.Mobility != EComponentMobility::Static)
-                    return false;
-                glm::vec3 localMin(-0.5f);
-                glm::vec3 localMax(0.5f);
-                if (mesh.MeshType == "Cube") {
-                    float h = mesh.MeshSize * 0.5f;
-                    localMin = glm::vec3(-h);
-                    localMax = glm::vec3(h);
-                } else if (mesh.MeshType == "Plane") {
-                    localMin = glm::vec3(-mesh.MeshWidth * 0.5f, -0.05f, -mesh.MeshDepth * 0.5f);
-                    localMax = glm::vec3(mesh.MeshWidth * 0.5f, 0.05f, mesh.MeshDepth * 0.5f);
-                } else if (mesh.MeshType == "Sphere") {
-                    localMin = glm::vec3(-mesh.MeshRadius);
-                    localMax = glm::vec3(mesh.MeshRadius);
-                } else if (mesh.MeshType == "Cylinder" || mesh.MeshType == "Cone") {
-                    localMin = glm::vec3(-mesh.MeshRadius, -mesh.MeshHeight * 0.5f, -mesh.MeshRadius);
-                    localMax = glm::vec3(mesh.MeshRadius, mesh.MeshHeight * 0.5f, mesh.MeshRadius);
-                } else {
-                    localMin = glm::vec3(-mesh.MeshWidth * 0.5f, -mesh.MeshHeight * 0.5f, -mesh.MeshDepth * 0.5f);
-                    localMax = glm::vec3(mesh.MeshWidth * 0.5f, mesh.MeshHeight * 0.5f, mesh.MeshDepth * 0.5f);
-                }
-                TransformAABBCorners(localMin, localMax, world, OutMin, OutMax);
-                OutChannel = implicit;
-                return true;
-            }
-
-            return false;
-        }
-
-    } // namespace
-
     TRef<UWorld> UWorld::Create(const std::string& InName) {
         return CreateRef<UWorld>(InName);
     }
@@ -197,9 +109,7 @@ namespace Leon {
     }
 
     void UWorld::Tick(FTimestep InTs) {
-        float deltaSeconds = std::min(InTs.GetSeconds(), kPhysicsMaxFrameDeltaSeconds);
-        if (deltaSeconds < 0.0f)
-            deltaSeconds = 0.0f;
+        float deltaSeconds = std::max(InTs.GetSeconds(), 0.0f);
         bIsTicking = true;
 
         if (NetDriver) {
@@ -675,8 +585,7 @@ namespace Leon {
                 if (!prim || prim->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
                     continue;
                 candidates.push_back(prim);
-                // Physics-backed overlaps come from DrainContacts; AABB is fallback only.
-                if (prim->GetGenerateOverlapEvents() && !prim->GetPhysicsBody())
+                if (prim->GetGenerateOverlapEvents())
                     generators.push_back(prim);
             }
         }

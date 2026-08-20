@@ -58,6 +58,14 @@ namespace Leon {
         return false;
     }
 
+    bool FGameplayTagContainer::HasAll(const FGameplayTagContainer& InOther) const {
+        for (const FGameplayTag& tag : InOther.Tags) {
+            if (!HasTag(tag))
+                return false;
+        }
+        return true;
+    }
+
     void FGameplayTagContainer::AddTag(FGameplayTag InTag) {
         if (!InTag.IsValid() || HasTag(InTag))
             return;

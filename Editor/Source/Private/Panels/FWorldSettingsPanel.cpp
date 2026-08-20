@@ -28,7 +28,7 @@ namespace Leon::Editor {
                 ImGui::DragFloat("Global Gravity Z", &Gravity, 0.1f, -50.0f, 50.0f);
             }
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FWorldSettingsPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FWorldSettingsPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "World Settings Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FWorldSettingsPanel: Unknown exception during Draw");

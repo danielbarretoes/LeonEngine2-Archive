@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace Leon {
+namespace Leon::Editor {
 
     class FEditorHistory {
     public:
@@ -31,4 +31,8 @@ namespace Leon {
         std::vector<std::unique_ptr<IEditorCommand>> RedoStack;
     };
 
+} // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::FEditorHistory;
 } // namespace Leon

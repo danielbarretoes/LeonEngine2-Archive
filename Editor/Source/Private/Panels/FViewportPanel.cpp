@@ -46,6 +46,15 @@ namespace Leon::Editor {
             }
         }
 
+        // Hotkey 'Delete' to delete selected actor
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && !io.WantTextInput && Context) {
+            AActor* primaryActor = Context->GetSelection().GetPrimarySelectedActor();
+            if (primaryActor && Context->GetActiveWorld()) {
+                Context->GetActiveWorld()->DestroyActor(primaryActor);
+                Context->GetSelection().ClearActorSelection();
+            }
+        }
+
         // Camera Speed adjustment via mouse wheel
         if (ImGui::IsWindowHovered() && io.MouseWheel != 0.0f) {
             CameraSpeed = std::clamp(CameraSpeed + io.MouseWheel * 1.5f, 1.0f, 50.0f);
@@ -502,6 +511,9 @@ namespace Leon::Editor {
         glm::mat4 invVP = glm::inverse(EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix());
         glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
         glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+        if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
+            return glm::vec3(0.0f);
+
         nearPoint /= nearPoint.w;
         farPoint /= farPoint.w;
 

@@ -44,6 +44,7 @@ namespace Leon::Editor {
         void DrawAssetGrid(const std::vector<std::filesystem::directory_entry>& InEntries);
         void DrawAssetList(const std::vector<std::filesystem::directory_entry>& InEntries);
         void DrawFooter(int InTotalItems, int InSelectedCount);
+        void DrawRenameModal();
 
         void DrawTextureThumbnail(ImDrawList* InDrawList, ImVec2 InMin, ImVec2 InMax,
                                   const std::filesystem::path& InPath);

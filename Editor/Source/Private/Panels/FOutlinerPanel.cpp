@@ -165,7 +165,7 @@ namespace Leon::Editor {
             ImGui::TextDisabled("%zu Actors  |  %zu Selected", totalCount, selCount);
 
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FOutlinerPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FOutlinerPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Outliner Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FOutlinerPanel: Unknown exception during Draw");

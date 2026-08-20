@@ -63,6 +63,7 @@ namespace {
 
 int main(int argc, char** argv) {
     Leon::FOpenGLRenderDriver::Register();
+    Leon::FJoltPhysicsDriver::Register();
 
     auto& registry = Leon::UClassRegistry::Get();
     registry.RegisterClass<Leon::ASandboxGameMode>("ASandboxGameMode");

@@ -3,7 +3,7 @@
 
 #include <imgui.h>
 
-namespace Leon {
+namespace Leon::Editor {
 
     bool FEditorWidgets::DrawVec3Control(const std::string& InLabel, glm::vec3& InValues, float InResetValue,
                                          float InColumnWidth) {
@@ -27,9 +27,9 @@ namespace Leon {
         }
         ImVec2 resetBtnMin = ImGui::GetItemRectMin();
         ImVec2 resetBtnMax = ImGui::GetItemRectMax();
-        Editor::FLucideIcons::DrawIcon(ImGui::GetWindowDrawList(), ImVec2(resetBtnMin.x + 2.0f, resetBtnMin.y + 2.0f),
-                                       ImVec2(resetBtnMax.x - 2.0f, resetBtnMax.y - 2.0f),
-                                       Editor::ELucideIcon::RefreshCw, IM_COL32(180, 185, 195, 255));
+        FLucideIcons::DrawIcon(ImGui::GetWindowDrawList(), ImVec2(resetBtnMin.x + 2.0f, resetBtnMin.y + 2.0f),
+                               ImVec2(resetBtnMax.x - 2.0f, resetBtnMax.y - 2.0f),
+                               ELucideIcon::RefreshCw, IM_COL32(180, 185, 195, 255));
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Reset all components to default");
         }
@@ -121,4 +121,4 @@ namespace Leon {
         return bChanged;
     }
 
-} // namespace Leon
+} // namespace Leon::Editor

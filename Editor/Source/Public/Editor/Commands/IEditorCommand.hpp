@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace Leon {
+namespace Leon::Editor {
 
     /**
      * @brief Interface for undoable editor commands.
@@ -18,4 +18,8 @@ namespace Leon {
         [[nodiscard]] virtual std::string GetDescription() const = 0;
     };
 
+} // namespace Leon::Editor
+
+namespace Leon {
+    using Editor::IEditorCommand;
 } // namespace Leon

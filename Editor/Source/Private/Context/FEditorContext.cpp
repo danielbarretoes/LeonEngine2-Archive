@@ -1,6 +1,6 @@
 #include "Editor/Context/FEditorContext.hpp"
 
-namespace Leon {
+namespace Leon::Editor {
 
     FEditorContext::FEditorContext() : ActiveWorld(nullptr) {}
 
@@ -42,4 +42,4 @@ namespace Leon {
         ProjectChangedCallbacks.push_back(std::move(InCallback));
     }
 
-} // namespace Leon
+} // namespace Leon::Editor

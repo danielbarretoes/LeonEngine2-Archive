@@ -57,7 +57,7 @@ namespace Leon::Editor {
                 }
             }
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FProjectSettingsPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FProjectSettingsPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Project Settings Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FProjectSettingsPanel: Unknown exception during Draw");

@@ -1,5 +1,6 @@
 #include "Editor/Panels/FContentBrowserPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 
@@ -189,6 +190,7 @@ namespace Leon::Editor {
     }
 
     void FContentBrowserPanel::SetContentDirectory(const std::string& InContentDir) {
+        DestroyThumbnails();
         std::error_code ec;
         if (!InContentDir.empty() && fs::exists(InContentDir, ec) && !ec) {
             BaseContentPath = fs::canonical(InContentDir, ec);
@@ -301,8 +303,10 @@ namespace Leon::Editor {
             DrawAssetView();
 
             ImGui::Columns(1);
+
+            DrawRenameModal();
         } catch (const std::exception& e) {
-            LE_CORE_ERROR("FContentBrowserPanel: Exception during Draw: {0}", e.what());
+            LE_CORE_ERROR("FContentBrowserPanel: Exception during Draw: {}", e.what());
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Content Browser Error: %s", e.what());
         } catch (...) {
             LE_CORE_ERROR("FContentBrowserPanel: Unknown exception during Draw");
@@ -613,14 +617,8 @@ namespace Leon::Editor {
             return;
 
         // Search Bar
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 30.0f);
-        ImGui::InputTextWithHint("##AssetSearchInput",
-                                 "Search Assets (e.g. character, type:StaticMesh, type:Texture)...", SearchBuffer,
-                                 sizeof(SearchBuffer));
-        ImGui::SameLine();
-        if (ImGui::SmallButton("X##ClearSearch")) {
-            SearchBuffer[0] = '\0';
-        }
+        FEditorWidgets::DrawSearchInput("AssetSearchInput", SearchBuffer, sizeof(SearchBuffer),
+                                        "Search Assets (e.g. character, type:StaticMesh, type:Texture)...");
 
         ImGui::Separator();
         ImGui::Spacing();
@@ -1114,6 +1112,49 @@ namespace Leon::Editor {
 
         if (Context) {
             Context->GetSelection().DeselectAsset(InPath.string());
+        }
+    }
+
+    void FContentBrowserPanel::DrawRenameModal() {
+        if (bRenamingItem) {
+            ImGui::OpenPopup("Rename Asset / Folder");
+            bRenamingItem = false;
+        }
+
+        if (ImGui::BeginPopupModal("Rename Asset / Folder", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Enter new name:");
+            ImGui::SetNextItemWidth(300.0f);
+            bool bEnterPressed = ImGui::InputText("##NewNameInput", RenameBuffer, sizeof(RenameBuffer),
+                                                 ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            auto PerformRename = [this]() {
+                if (RenameBuffer[0] != '\0' && !RenameTargetPath.empty()) {
+                    std::error_code ec;
+                    fs::path newPath = RenameTargetPath.parent_path() / RenameBuffer;
+                    if (!fs::exists(newPath, ec) && !ec) {
+                        fs::rename(RenameTargetPath, newPath, ec);
+                        if (!ec && Context) {
+                            Context->GetSelection().SelectAsset(newPath.string(), false);
+                        }
+                    }
+                }
+                ImGui::CloseCurrentPopup();
+            };
+
+            if (ImGui::Button("Rename", ImVec2(100.0f, 0)) || bEnterPressed) {
+                PerformRename();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(100.0f, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
         }
     }
 
