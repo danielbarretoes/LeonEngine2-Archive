@@ -67,8 +67,9 @@ namespace Leon {
          * Scale root slots/fonts from last AppliedScale to the current window scale.
          * When InDesignContentHeight > 0, uses LayoutScaleFit so tall menus stay on-screen.
          */
-        static float SyncResolutionScale(UCanvasPanel& InRoot, float& InOutAppliedScale, glm::vec2& InOutAppliedViewport,
-                                         float InDesignContentHeight = 0.0f, float InVerticalMargin = 96.0f);
+        static float SyncResolutionScale(UCanvasPanel& InRoot, float& InOutAppliedScale,
+                                         glm::vec2& InOutAppliedViewport, float InDesignContentHeight = 0.0f,
+                                         float InVerticalMargin = 96.0f);
 
         /** True on rising edge of a gamepad button (respects FInputSettings). */
         static bool GamepadEdge(int InButton, bool& InOutWasDown);

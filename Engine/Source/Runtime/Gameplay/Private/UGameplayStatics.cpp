@@ -58,8 +58,7 @@ namespace Leon {
         return pc ? pc->GetPawn() : nullptr;
     }
 
-    bool UGameplayStatics::SpawnEmitterAtLocation(UWorld* InWorld,
-                                                  const FParticleEmitterSettings& InSettings,
+    bool UGameplayStatics::SpawnEmitterAtLocation(UWorld* InWorld, const FParticleEmitterSettings& InSettings,
                                                   const glm::vec3& InLocation) {
         if (!InWorld)
             return false;

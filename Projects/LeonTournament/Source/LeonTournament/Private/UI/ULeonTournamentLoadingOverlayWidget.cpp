@@ -10,13 +10,17 @@ namespace Leon {
 
     namespace {
         constexpr float kFsStatus = FLeonTournamentUILayout::kFsCaption;
-        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH);
+        }
     } // namespace
 
     ULeonTournamentLoadingOverlayWidget::ULeonTournamentLoadingOverlayWidget(const std::string& InName)
         : UUserWidget(InName) {}
 
-    void ULeonTournamentLoadingOverlayWidget::Construct() { Build(); }
+    void ULeonTournamentLoadingOverlayWidget::Construct() {
+        Build();
+    }
 
     void ULeonTournamentLoadingOverlayWidget::Build() {
         FUIRenderer::Init();

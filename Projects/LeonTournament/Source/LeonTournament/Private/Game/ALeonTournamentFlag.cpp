@@ -121,8 +121,8 @@ namespace Leon {
         if (!shader)
             return;
         auto va = FMeshPrimitives::CreateCylinder(0.12f, 0.12f, 0.9f, 10, true);
-        FMeshComponent& mesh = HasComponent<FMeshComponent>() ? GetComponent<FMeshComponent>()
-                                                              : AddComponent<FMeshComponent>(va, shader);
+        FMeshComponent& mesh =
+            HasComponent<FMeshComponent>() ? GetComponent<FMeshComponent>() : AddComponent<FMeshComponent>(va, shader);
         mesh.VertexArray = va;
         mesh.Shader = shader;
         mesh.MeshType = "FlagBanner";

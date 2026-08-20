@@ -80,8 +80,8 @@ namespace Leon {
         VertexArray = FVertexArray::Create();
         VertexBuffer = FVertexBuffer::Create(MaxUIVertices * sizeof(FUIVertex));
         VertexBuffer->SetLayout({{EShaderDataType::Float2, "aPos"},
-                                   {EShaderDataType::Float2, "aTexCoord"},
-                                   {EShaderDataType::Float4, "aColor"}});
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float4, "aColor"}});
         VertexArray->AddVertexBuffer(VertexBuffer);
 
         QuadVertices.reserve(4096);
@@ -109,8 +109,8 @@ namespace Leon {
 
         ViewportWidth = InViewportWidth > 0 ? InViewportWidth : 1280;
         ViewportHeight = InViewportHeight > 0 ? InViewportHeight : 720;
-        OrthoMatrix = glm::ortho(0.0f, static_cast<float>(ViewportWidth), static_cast<float>(ViewportHeight),
-                                   0.0f, -1.0f, 1.0f);
+        OrthoMatrix =
+            glm::ortho(0.0f, static_cast<float>(ViewportWidth), static_cast<float>(ViewportHeight), 0.0f, -1.0f, 1.0f);
 
         QuadVertices.clear();
         TextVertices.clear();

@@ -99,9 +99,7 @@ namespace Leon {
 
         static FGPUInfo GetGPUInfo() { return RenderAPI ? RenderAPI->GetGPUInfo() : FGPUInfo{}; }
 
-        static FGPUVRAMStats GetGPUVRAMStats() {
-            return RenderAPI ? RenderAPI->GetGPUVRAMStats() : FGPUVRAMStats{};
-        }
+        static FGPUVRAMStats GetGPUVRAMStats() { return RenderAPI ? RenderAPI->GetGPUVRAMStats() : FGPUVRAMStats{}; }
 
         static void BeginGPUTimeQuery(uint32_t InSlot) {
             if (RenderAPI)
@@ -115,9 +113,7 @@ namespace Leon {
             if (RenderAPI)
                 RenderAPI->ResolveGPUTimeQueries();
         }
-        static float GetGPUTimeMs(uint32_t InSlot) {
-            return RenderAPI ? RenderAPI->GetGPUTimeMs(InSlot) : 0.0f;
-        }
+        static float GetGPUTimeMs(uint32_t InSlot) { return RenderAPI ? RenderAPI->GetGPUTimeMs(InSlot) : 0.0f; }
 
         static void InvalidateShaderBindingCache() {
             if (RenderAPI)

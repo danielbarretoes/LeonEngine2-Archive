@@ -12,6 +12,6 @@ namespace Leon {
 
     /** Applies weapon config path override or the procedural crosshair to a HUD image. */
     void LeonTournamentApplyCrosshairBrush(UImage& InImage, ELeonTournamentWeaponId InId,
-                                         const FLeonTournamentWeaponConfig& InConfig);
+                                           const FLeonTournamentWeaponConfig& InConfig);
 
 } // namespace Leon

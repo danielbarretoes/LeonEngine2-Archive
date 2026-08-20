@@ -26,9 +26,13 @@ namespace Leon {
             FloorZ = character->GetFloorZ();
     }
 
-    void UCharacterMovementComponent::AddInputVector(const glm::vec3& InWorldAccel) { PendingInputVector += InWorldAccel; }
+    void UCharacterMovementComponent::AddInputVector(const glm::vec3& InWorldAccel) {
+        PendingInputVector += InWorldAccel;
+    }
 
-    void UCharacterMovementComponent::ConsumeInputVector() { PendingInputVector = glm::vec3(0.0f); }
+    void UCharacterMovementComponent::ConsumeInputVector() {
+        PendingInputVector = glm::vec3(0.0f);
+    }
 
     void UCharacterMovementComponent::AddImpulse(const glm::vec3& InImpulse) {
         Velocity += InImpulse;
@@ -43,7 +47,8 @@ namespace Leon {
         MovementMode = InMode;
         if (auto* character = GetCharacter())
             character->OnMovementModeChanged(prev, InMode);
-        if (prev == EMovementMode::Falling && (InMode == EMovementMode::Walking || InMode == EMovementMode::NavWalking)) {
+        if (prev == EMovementMode::Falling &&
+            (InMode == EMovementMode::Walking || InMode == EMovementMode::NavWalking)) {
             JumpCurrentCount = 0;
             if (auto* character = GetCharacter()) {
                 FHitResult land;
@@ -65,9 +70,13 @@ namespace Leon {
         return false;
     }
 
-    void UCharacterMovementComponent::Jump() { bPressedJump = true; }
+    void UCharacterMovementComponent::Jump() {
+        bPressedJump = true;
+    }
 
-    void UCharacterMovementComponent::StopJumping() { bPressedJump = false; }
+    void UCharacterMovementComponent::StopJumping() {
+        bPressedJump = false;
+    }
 
     bool UCharacterMovementComponent::DoJump() {
         if (!CanJump())

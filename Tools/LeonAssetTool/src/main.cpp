@@ -432,8 +432,8 @@ int ExecuteImport(const std::string& InRawDir, const std::string& InContentDir, 
                         importedMeshes++;
                         std::cout << "    [SAVED] " << outRelPath << " Verts: " << mesh->GetVertices().size()
                                   << ", Indices: " << mesh->GetIndices().size()
-                                  << ", Submeshes: " << mesh->GetSubmeshes().size()
-                                  << ", LODs: " << mesh->GetLODCount() << "\n";
+                                  << ", Submeshes: " << mesh->GetSubmeshes().size() << ", LODs: " << mesh->GetLODCount()
+                                  << "\n";
                         return true;
                     }
                     std::cerr << "  [ERROR] Failed to save native mesh: " << outFilePath.string() << "\n";

@@ -27,11 +27,21 @@
 namespace Leon {
 
     namespace {
-        ULeonTournamentGameInstance* GI() { return FLeonTournamentUILayout::GI(); }
-        bool GamepadEdge(int InButton, bool& InOutWasDown) { return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown); }
-        ALeonTournamentGameMode* GM(APlayerController* InPC) { return FLeonTournamentUILayout::GM(InPC); }
-        ALeonTournamentGameState* GS(APlayerController* InPC) { return FLeonTournamentUILayout::GS(InPC); }
-        bool IsClientWorld(APlayerController* InPC) { return FLeonTournamentUILayout::IsClientWorld(InPC); }
+        ULeonTournamentGameInstance* GI() {
+            return FLeonTournamentUILayout::GI();
+        }
+        bool GamepadEdge(int InButton, bool& InOutWasDown) {
+            return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown);
+        }
+        ALeonTournamentGameMode* GM(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GM(InPC);
+        }
+        ALeonTournamentGameState* GS(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GS(InPC);
+        }
+        bool IsClientWorld(APlayerController* InPC) {
+            return FLeonTournamentUILayout::IsClientWorld(InPC);
+        }
         constexpr float kFsCaption = FLeonTournamentUILayout::kFsCaption;
         constexpr float kFsBody = FLeonTournamentUILayout::kFsBody;
         constexpr float kFsLabel = FLeonTournamentUILayout::kFsLabel;
@@ -44,7 +54,9 @@ namespace Leon {
         constexpr float kFsVital = FLeonTournamentUILayout::kFsVital;
         constexpr float kFsBanner = FLeonTournamentUILayout::kFsBanner;
 
-        FMargin BoxTL(float InX, float InY, float InW, float InH) { return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH); }
+        FMargin BoxTL(float InX, float InY, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH);
+        }
         FMargin BoxBL(float InX, float InBottom, float InW, float InH) {
             return FLeonTournamentUILayout::BoxBL(InX, InBottom, InW, InH);
         }
@@ -57,7 +69,9 @@ namespace Leon {
         FMargin BoxBC(float InBottom, float InW, float InH, float InOx = 0.0f) {
             return FLeonTournamentUILayout::BoxBC(InBottom, InW, InH, InOx);
         }
-        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH);
+        }
         glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f, float InPadY = 6.0f) {
             return FLeonTournamentUILayout::MeasurePadded(InText, InScale, InPadX, InPadY);
         }
@@ -113,8 +127,7 @@ namespace Leon {
         const float tableSectionH = FUIRenderer::MeasureString("TEAM", kFsCaption).y + 4.0f;
         constexpr int kEstimatedDataRows = 10;
         constexpr int kEstimatedSections = 2;
-        const float tableH =
-            tableHeaderH + kEstimatedSections * tableSectionH + kEstimatedDataRows * tableRowH + 8.0f;
+        const float tableH = tableHeaderH + kEstimatedSections * tableSectionH + kEstimatedDataRows * tableRowH + 8.0f;
         const float footerH = MeasurePadded("T1  99     T2  99", kFsCaption).y;
         const float panelPad = 28.0f;
         const float panelW = 880.0f;
@@ -146,8 +159,7 @@ namespace Leon {
                                 {"D", 0.7f, ETextAlignment::Center},
                                 {"A", 0.7f, ETextAlignment::Center}});
         FLeonTournamentUILayout::ApplyScoreboardTableTheme(*ScoreTable);
-        Root->AddChild(ScoreTable, FAnchors::Center(),
-                       BoxC(0.0f, y + tableH * 0.5f, panelW - panelPad * 2.0f, tableH));
+        Root->AddChild(ScoreTable, FAnchors::Center(), BoxC(0.0f, y + tableH * 0.5f, panelW - panelPad * 2.0f, tableH));
         y += tableH + 12.0f;
 
         FooterText = std::make_shared<UTextBlock>("SBFooter");
@@ -181,7 +193,8 @@ namespace Leon {
         if (!gs || !ScoreTable)
             return;
 
-        auto* localPs = OwningPlayer ? dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState()) : nullptr;
+        auto* localPs =
+            OwningPlayer ? dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer->GetPlayerState()) : nullptr;
         const auto ranked = gs->GetSortedScoreboard();
 
         std::vector<FTableRow> rows;
@@ -226,6 +239,5 @@ namespace Leon {
             FooterText->SetText(foot);
         }
     }
-
 
 } // namespace Leon

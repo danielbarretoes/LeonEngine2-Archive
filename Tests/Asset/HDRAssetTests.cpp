@@ -126,5 +126,4 @@ TEST_SUITE("HDR Asset Pipeline Tests") {
         glm::vec3 expectedPlusX = SampleAtmosphericSky(glm::vec3(1.0f, 0.0f, 0.0f), zenith, horizon, ground);
         CHECK(sampledPlusX.r == doctest::Approx(expectedPlusX.r).epsilon(0.08f));
     }
-
 }

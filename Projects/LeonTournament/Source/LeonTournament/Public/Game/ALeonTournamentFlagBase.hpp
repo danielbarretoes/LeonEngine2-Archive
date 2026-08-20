@@ -9,7 +9,8 @@ namespace Leon {
     class ALeonTournamentFlagBase : public AActor {
     public:
         ALeonTournamentFlagBase() = default;
-        ALeonTournamentFlagBase(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentFlagBase");
+        ALeonTournamentFlagBase(entt::entity InHandle, UWorld* InWorld,
+                                const std::string& InName = "LeonTournamentFlagBase");
 
         void BeginPlay() override;
 

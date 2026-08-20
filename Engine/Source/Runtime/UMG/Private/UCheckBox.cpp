@@ -3,9 +3,13 @@
 
 namespace Leon {
 
-    UCheckBox::UCheckBox(const std::string& InName) : UWidget(InName) { Size = {22.0f, 22.0f}; }
+    UCheckBox::UCheckBox(const std::string& InName) : UWidget(InName) {
+        Size = {22.0f, 22.0f};
+    }
 
-    void UCheckBox::SetIsChecked(bool bInChecked) { bIsChecked = bInChecked; }
+    void UCheckBox::SetIsChecked(bool bInChecked) {
+        bIsChecked = bInChecked;
+    }
 
     void UCheckBox::Paint(const FGeometry& InAllottedGeometry) {
         UWidget::Paint(InAllottedGeometry);

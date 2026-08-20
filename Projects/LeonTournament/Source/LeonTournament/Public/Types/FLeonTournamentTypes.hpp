@@ -58,7 +58,12 @@ namespace Leon {
         return static_cast<ELeonTournamentPlayableMap>((cur + count - 1) % count);
     }
 
-    enum class ELeonTournamentGameModeId : uint8_t { TeamDeathmatch = 0, FreeForAll = 1, CaptureTheFlag = 2, Count = 3 };
+    enum class ELeonTournamentGameModeId : uint8_t {
+        TeamDeathmatch = 0,
+        FreeForAll = 1,
+        CaptureTheFlag = 2,
+        Count = 3
+    };
 
     inline const char* LeonTournamentGameModeName(ELeonTournamentGameModeId InMode) {
         switch (InMode) {

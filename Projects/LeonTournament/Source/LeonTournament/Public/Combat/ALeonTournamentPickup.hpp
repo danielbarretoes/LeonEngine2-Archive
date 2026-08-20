@@ -11,7 +11,8 @@ namespace Leon {
     class ALeonTournamentPickup : public APickup {
     public:
         ALeonTournamentPickup() = default;
-        ALeonTournamentPickup(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentPickup");
+        ALeonTournamentPickup(entt::entity InHandle, UWorld* InWorld,
+                              const std::string& InName = "LeonTournamentPickup");
 
         void SetPickupActive(bool bInActive) override;
 

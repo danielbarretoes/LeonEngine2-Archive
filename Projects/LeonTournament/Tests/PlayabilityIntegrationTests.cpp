@@ -479,8 +479,8 @@ namespace Leon {
 
         TEST_CASE("playable lighting is directional only and idempotent") {
             FMatchWorld f;
-            FLeonTournamentArenaBuilder::SpawnPointLight(f.World.get(), "PL_Junk", {0.0f, 4.0f, 0.0f}, {1.0f, 1.0f, 1.0f},
-                                                         8.0f, 12.0f);
+            FLeonTournamentArenaBuilder::SpawnPointLight(f.World.get(), "PL_Junk", {0.0f, 4.0f, 0.0f},
+                                                         {1.0f, 1.0f, 1.0f}, 8.0f, 12.0f);
             FLeonTournamentArenaBuilder::SpawnSpotLight(f.World.get(), "Spot_Junk", {0.0f, 6.0f, 0.0f},
                                                         {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, 10.0f, 16.0f, 15.0f,
                                                         25.0f);

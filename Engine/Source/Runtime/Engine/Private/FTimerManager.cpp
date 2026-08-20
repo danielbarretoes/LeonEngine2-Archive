@@ -47,7 +47,9 @@ namespace Leon {
         InOutHandle.Invalidate();
     }
 
-    bool FTimerManager::IsTimerActive(const FTimerHandle& InHandle) const { return IsHandleLive(InHandle); }
+    bool FTimerManager::IsTimerActive(const FTimerHandle& InHandle) const {
+        return IsHandleLive(InHandle);
+    }
 
     float FTimerManager::GetTimerRemaining(const FTimerHandle& InHandle) const {
         if (!IsHandleLive(InHandle))

@@ -5,7 +5,9 @@
 
 namespace Leon {
 
-    void UGameInstance::Shutdown() { ShutdownNetDriver(); }
+    void UGameInstance::Shutdown() {
+        ShutdownNetDriver();
+    }
 
     bool UGameInstance::StartListenServer(UWorld* InWorld, uint16_t InPort) {
         // Flow: listen session

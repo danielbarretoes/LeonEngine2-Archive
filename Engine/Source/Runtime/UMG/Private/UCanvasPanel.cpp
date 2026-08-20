@@ -59,9 +59,9 @@ namespace Leon {
     }
 
     bool UCanvasPanel::RemoveChild(const TRef<UWidget>& InChild) {
-        Slots.erase(std::remove_if(Slots.begin(), Slots.end(),
-                                     [&](const FCanvasPanelSlot& s) { return s.Content == InChild; }),
-                      Slots.end());
+        Slots.erase(
+            std::remove_if(Slots.begin(), Slots.end(), [&](const FCanvasPanelSlot& s) { return s.Content == InChild; }),
+            Slots.end());
         return UPanelWidget::RemoveChild(InChild);
     }
 

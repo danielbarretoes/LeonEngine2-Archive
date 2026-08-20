@@ -40,8 +40,7 @@ namespace Leon {
 
     glm::mat4 USceneComponent::GetRelativeMatrix() const {
         return glm::translate(glm::mat4(1.0f), RelativeLocation) *
-               glm::toMat4(glm::quat(glm::radians(RelativeRotation))) *
-               glm::scale(glm::mat4(1.0f), RelativeScale);
+               glm::toMat4(glm::quat(glm::radians(RelativeRotation))) * glm::scale(glm::mat4(1.0f), RelativeScale);
     }
 
     glm::mat4 USceneComponent::GetComponentWorldMatrix() const {
@@ -72,8 +71,7 @@ namespace Leon {
         return RelativeScale;
     }
 
-    void USceneComponent::SetWorldLocationAndRotation(const glm::vec3& InLocation,
-                                                      const glm::vec3& InEulerDegrees) {
+    void USceneComponent::SetWorldLocationAndRotation(const glm::vec3& InLocation, const glm::vec3& InEulerDegrees) {
         // Flow: physics → component
         // 1. RootComponent: actor owns world pose (relative stays identity)
         // 2. Attached: solve relative from parent world inverse

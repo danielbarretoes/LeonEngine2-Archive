@@ -13,7 +13,8 @@ namespace Leon {
     class ALeonTournamentGameState : public AGameState {
     public:
         ALeonTournamentGameState() = default;
-        ALeonTournamentGameState(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentGameState");
+        ALeonTournamentGameState(entt::entity InHandle, UWorld* InWorld,
+                                 const std::string& InName = "LeonTournamentGameState");
 
         ELeonTournamentMatchState GetMatchState() const { return MatchState; }
         void SetMatchState(ELeonTournamentMatchState InState);

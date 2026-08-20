@@ -19,7 +19,7 @@ namespace Leon {
     } // namespace
 
     ALeonTournamentTransitionGameMode::ALeonTournamentTransitionGameMode(entt::entity InHandle, UWorld* InWorld,
-                                                                           const std::string& InName)
+                                                                         const std::string& InName)
         : AGameModeBase(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentTransitionGameMode");
         DefaultPawnClass = "None";

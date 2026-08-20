@@ -8,7 +8,8 @@
 namespace Leon {
 
     /**
-     * @brief Sound asset (Unreal USoundWave lite). Resolves virtual/physical path; playback reads the file via miniaudio.
+     * @brief Sound asset (Unreal USoundWave lite). Resolves virtual/physical path; playback reads the file via
+     * miniaudio.
      */
     class USoundWave : public UObject {
     public:

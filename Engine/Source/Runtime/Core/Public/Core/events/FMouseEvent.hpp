@@ -82,8 +82,4 @@ namespace Leon {
         EVENT_CLASS_TYPE(MouseButtonReleased)
     };
 
-
-
-
-
 } // namespace Leon

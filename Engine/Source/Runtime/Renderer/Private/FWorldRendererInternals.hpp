@@ -49,8 +49,7 @@ namespace Leon {
         }
         const glm::vec3 center = glm::vec3(InWorld * glm::vec4(InComp.StaticMesh->GetSphereCenter(), 1.0f));
         const float radius = InComp.StaticMesh->GetSphereRadius() * MaxAffineScale(InWorld);
-        const float screen =
-            ComputeProjectedScreenHeight(center, radius, InCamera->GetPosition(), InCamera->GetFOV());
+        const float screen = ComputeProjectedScreenHeight(center, radius, InCamera->GetPosition(), InCamera->GetFOV());
         InComp.CurrentLOD = SelectStaticMeshLOD(screen, InComp.CurrentLOD, count);
         return InComp.CurrentLOD;
     }
@@ -179,7 +178,7 @@ namespace Leon {
     }
 
     inline bool IsStaticMeshCulled(const glm::mat4& InWorld, const FStaticMeshComponent& InMesh,
-                            const FFrustumPlanes& InFrustum) {
+                                   const FFrustumPlanes& InFrustum) {
         if (!InMesh.bVisible)
             return true;
         if (!InMesh.StaticMesh)
@@ -195,7 +194,7 @@ namespace Leon {
     }
 
     inline bool IsSkeletalMeshCulled(const glm::mat4& InWorld, const FSkinnedMeshRenderState& InMesh,
-                              const FFrustumPlanes& InFrustum) {
+                                     const FFrustumPlanes& InFrustum) {
         if (!InMesh.bVisible)
             return true;
         if (!InMesh.SkeletalMesh)
@@ -215,7 +214,7 @@ namespace Leon {
     }
 
     inline glm::mat4 SkeletalModelMatrix(const glm::mat4& InWorld, const FSkinnedMeshRenderState& InMesh,
-                                  const glm::mat4& InSubmeshLocal) {
+                                         const glm::mat4& InSubmeshLocal) {
         glm::mat4 relative = glm::translate(glm::mat4(1.0f), InMesh.RelativeLocation) *
                              glm::toMat4(glm::quat(glm::radians(InMesh.RelativeRotation))) *
                              glm::scale(glm::mat4(1.0f), InMesh.RelativeScale);
@@ -238,7 +237,7 @@ namespace Leon {
     }
 
     inline bool IsProceduralMeshCulled(const glm::mat4& InWorld, const FMeshComponent& InMesh,
-                                const FFrustumPlanes& InFrustum) {
+                                       const FFrustumPlanes& InFrustum) {
         glm::vec3 e = ProceduralMeshLocalExtent(InMesh);
         glm::vec3 localMin(-e), localMax(e);
         glm::vec3 wMin, wMax;
@@ -323,7 +322,7 @@ namespace Leon {
     }
 
     inline void BindLightmapUniforms(FShader& InShader, bool bUseLightmap, bool bUseTexCoord, const glm::vec2& InScale,
-                              const glm::vec2& InBias, const TRef<FTexture2D>& InTexture) {
+                                     const glm::vec2& InBias, const TRef<FTexture2D>& InTexture) {
         if (bUseLightmap && InTexture) {
             InTexture->Bind(12);
             InShader.SetInt("u_Lightmap", 12);

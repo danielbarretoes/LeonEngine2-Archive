@@ -23,7 +23,7 @@ namespace Leon {
     class FLightmapBuilder {
     public:
         static bool PackCharts(std::vector<FLightmapChart>& InOutCharts, uint32_t& OutAtlasWidth,
-                                uint32_t& OutAtlasHeight, uint32_t InPadding = 2);
+                               uint32_t& OutAtlasHeight, uint32_t InPadding = 2);
 
         static uint32_t NextPowerOfTwo(uint32_t InValue);
     };

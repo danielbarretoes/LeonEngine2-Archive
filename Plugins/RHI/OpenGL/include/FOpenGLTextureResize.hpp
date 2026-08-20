@@ -6,8 +6,7 @@
 
 namespace Leon::FOpenGLTextureResize {
 
-    inline void ComputeTargetSize(uint32_t InSrcW, uint32_t InSrcH, uint32_t InMaxDim, uint32_t& OutW,
-                                  uint32_t& OutH) {
+    inline void ComputeTargetSize(uint32_t InSrcW, uint32_t InSrcH, uint32_t InMaxDim, uint32_t& OutW, uint32_t& OutH) {
         OutW = InSrcW;
         OutH = InSrcH;
         if (InMaxDim == 0 || std::max(InSrcW, InSrcH) <= InMaxDim)
@@ -42,8 +41,8 @@ namespace Leon::FOpenGLTextureResize {
         }
     }
 
-    inline std::vector<uint8_t> DownscaleU8(const uint8_t* InSrc, uint32_t InSrcW, uint32_t InSrcH,
-                                            uint32_t InChannels, uint32_t InDstW, uint32_t InDstH) {
+    inline std::vector<uint8_t> DownscaleU8(const uint8_t* InSrc, uint32_t InSrcW, uint32_t InSrcH, uint32_t InChannels,
+                                            uint32_t InDstW, uint32_t InDstH) {
         std::vector<uint8_t> out(static_cast<size_t>(InDstW) * InDstH * InChannels);
         if (InSrcW == InDstW && InSrcH == InDstH) {
             std::copy(InSrc, InSrc + out.size(), out.begin());

@@ -41,8 +41,9 @@ namespace Leon {
     // =========================================================================
     // PASS 1: Cascaded Shadow Pass (OpenGL 4.5 Texture2DArray)
     // =========================================================================
-    void FWorldRenderer::DrawShadowCasters(const glm::mat4& InLightSpace, bool bInCullFront, float InPointShadowFarPlane,
-                                           const glm::vec3& InPointLightPos, bool bInDrawSkinnedCasters) {
+    void FWorldRenderer::DrawShadowCasters(const glm::mat4& InLightSpace, bool bInCullFront,
+                                           float InPointShadowFarPlane, const glm::vec3& InPointLightPos,
+                                           bool bInDrawSkinnedCasters) {
         if (!ShadowDepthShader || !World)
             return;
         const FFrustumPlanes lightFrustum = ExtractFrustumPlanes(InLightSpace);
@@ -92,8 +93,8 @@ namespace Leon {
                 if (submesh.IndexCount == 0)
                     continue;
                 glm::mat4 model = world * submesh.LocalTransform;
-                TRef<FMaterialInstance> matInst = ResolveStaticSubmeshMaterial(
-                    *staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
+                TRef<FMaterialInstance> matInst =
+                    ResolveStaticSubmeshMaterial(*staticMeshComp.StaticMesh, submesh, staticMeshComp.MaterialOverrides);
                 ApplyShadowCasterRasterState(matInst.get(), bInCullFront);
                 ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
                 BindShadowCasterAlpha(*ShadowDepthShader, matInst.get());

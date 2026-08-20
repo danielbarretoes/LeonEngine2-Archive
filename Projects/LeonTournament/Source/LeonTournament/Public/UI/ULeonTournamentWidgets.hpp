@@ -135,8 +135,7 @@ namespace Leon {
         void Tick(float InDeltaTime) override;
         bool IsCrosshairVisible() const {
             return IsVisible() &&
-                   ((CrosshairImage && CrosshairImage->IsVisible()) ||
-                    (CrosshairText && CrosshairText->IsVisible()));
+                   ((CrosshairImage && CrosshairImage->IsVisible()) || (CrosshairText && CrosshairText->IsVisible()));
         }
         const std::string& GetCrosshairGlyph() const {
             static const std::string empty;

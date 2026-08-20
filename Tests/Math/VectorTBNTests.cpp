@@ -6,17 +6,15 @@
 TEST_SUITE("Math - Vector & TBN Invariants") {
 
     TEST_CASE("TBN Basis Orthonormality across Cardinal and Oblique Normals") {
-        std::vector<glm::vec3> testNormals = {
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(-1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f),
-            glm::vec3(0.0f, -1.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f),
-            glm::vec3(0.0f, 0.0f, -1.0f),
-            glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)),
-            glm::normalize(glm::vec3(-0.707f, 0.5f, 0.5f)),
-            glm::normalize(glm::vec3(0.123f, -0.456f, 0.789f))
-        };
+        std::vector<glm::vec3> testNormals = {glm::vec3(1.0f, 0.0f, 0.0f),
+                                              glm::vec3(-1.0f, 0.0f, 0.0f),
+                                              glm::vec3(0.0f, 1.0f, 0.0f),
+                                              glm::vec3(0.0f, -1.0f, 0.0f),
+                                              glm::vec3(0.0f, 0.0f, 1.0f),
+                                              glm::vec3(0.0f, 0.0f, -1.0f),
+                                              glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)),
+                                              glm::normalize(glm::vec3(-0.707f, 0.5f, 0.5f)),
+                                              glm::normalize(glm::vec3(0.123f, -0.456f, 0.789f))};
 
         const float eps = 1e-5f;
 

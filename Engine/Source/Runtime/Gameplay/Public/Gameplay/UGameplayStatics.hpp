@@ -69,8 +69,8 @@ namespace Leon {
          * @return number of actors that took damage.
          */
         static int32_t ApplyRadialDamage(UWorld* InWorld, float BaseDamage, const glm::vec3& Origin, float DamageRadius,
-                                         AActor* DamageInstigator, AActor* DamageCauser,
-                                         float MinimumDamage = 0.0f, AActor* IgnoreActor = nullptr);
+                                         AActor* DamageInstigator, AActor* DamageCauser, float MinimumDamage = 0.0f,
+                                         AActor* IgnoreActor = nullptr);
     };
 
     /**

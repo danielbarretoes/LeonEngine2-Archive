@@ -8,65 +8,65 @@
 #include <cstring>
 
 namespace Leon {
-namespace {
+    namespace {
 
-    constexpr float kPI = 3.14159265358979323846f;
-    constexpr float kEpsilon = 1e-4f;
+        constexpr float kPI = 3.14159265358979323846f;
+        constexpr float kEpsilon = 1e-4f;
 
-    uint32_t HashCombine(uint64_t Seed, uint32_t X, uint32_t Y, uint32_t Sample) {
-        uint64_t h = Seed;
-        h ^= static_cast<uint64_t>(X) + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
-        h ^= static_cast<uint64_t>(Y) + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
-        h ^= static_cast<uint64_t>(Sample) + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
-        return static_cast<uint32_t>(h);
-    }
+        uint32_t HashCombine(uint64_t Seed, uint32_t X, uint32_t Y, uint32_t Sample) {
+            uint64_t h = Seed;
+            h ^= static_cast<uint64_t>(X) + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+            h ^= static_cast<uint64_t>(Y) + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+            h ^= static_cast<uint64_t>(Sample) + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+            return static_cast<uint32_t>(h);
+        }
 
-    float RadicalInverseVdC(uint32_t bits) {
-        bits = (bits << 16u) | (bits >> 16u);
-        bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-        bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-        bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-        bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-        return static_cast<float>(bits) * 2.3283064365386963e-10f;
-    }
+        float RadicalInverseVdC(uint32_t bits) {
+            bits = (bits << 16u) | (bits >> 16u);
+            bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+            bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+            bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+            bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+            return static_cast<float>(bits) * 2.3283064365386963e-10f;
+        }
 
-    glm::vec2 HammersleyLocal(uint32_t i, uint32_t N) {
-        return {static_cast<float>(i) / static_cast<float>(N), RadicalInverseVdC(i)};
-    }
+        glm::vec2 HammersleyLocal(uint32_t i, uint32_t N) {
+            return {static_cast<float>(i) / static_cast<float>(N), RadicalInverseVdC(i)};
+        }
 
-    bool RayTriangle(const glm::vec3& Orig, const glm::vec3& Dir, const glm::vec3& V0, const glm::vec3& V1,
-                      const glm::vec3& V2, float& OutT, glm::vec3& OutBary) {
-        glm::vec3 e1 = V1 - V0;
-        glm::vec3 e2 = V2 - V0;
-        glm::vec3 pvec = glm::cross(Dir, e2);
-        float det = glm::dot(e1, pvec);
-        if (std::abs(det) < 1e-8f)
-            return false;
-        float invDet = 1.0f / det;
-        glm::vec3 tvec = Orig - V0;
-        float u = glm::dot(tvec, pvec) * invDet;
-        if (u < 0.0f || u > 1.0f)
-            return false;
-        glm::vec3 qvec = glm::cross(tvec, e1);
-        float v = glm::dot(Dir, qvec) * invDet;
-        if (v < 0.0f || u + v > 1.0f)
-            return false;
-        float t = glm::dot(e2, qvec) * invDet;
-        if (t <= kEpsilon)
-            return false;
-        OutT = t;
-        OutBary = {1.0f - u - v, u, v};
-        return true;
-    }
+        bool RayTriangle(const glm::vec3& Orig, const glm::vec3& Dir, const glm::vec3& V0, const glm::vec3& V1,
+                         const glm::vec3& V2, float& OutT, glm::vec3& OutBary) {
+            glm::vec3 e1 = V1 - V0;
+            glm::vec3 e2 = V2 - V0;
+            glm::vec3 pvec = glm::cross(Dir, e2);
+            float det = glm::dot(e1, pvec);
+            if (std::abs(det) < 1e-8f)
+                return false;
+            float invDet = 1.0f / det;
+            glm::vec3 tvec = Orig - V0;
+            float u = glm::dot(tvec, pvec) * invDet;
+            if (u < 0.0f || u > 1.0f)
+                return false;
+            glm::vec3 qvec = glm::cross(tvec, e1);
+            float v = glm::dot(Dir, qvec) * invDet;
+            if (v < 0.0f || u + v > 1.0f)
+                return false;
+            float t = glm::dot(e2, qvec) * invDet;
+            if (t <= kEpsilon)
+                return false;
+            OutT = t;
+            OutBary = {1.0f - u - v, u, v};
+            return true;
+        }
 
-} // namespace
+    } // namespace
 
     float FLightBaker::PointAttenuation(float InDistance, float InRadius) {
         return DistanceAttenuationUE4(InDistance, InRadius);
     }
 
-    float FLightBaker::SpotConeFactor(const glm::vec3& InLightDir, const glm::vec3& InToLight,
-                                        float InCutOffDeg, float InOuterCutOffDeg) {
+    float FLightBaker::SpotConeFactor(const glm::vec3& InLightDir, const glm::vec3& InToLight, float InCutOffDeg,
+                                      float InOuterCutOffDeg) {
         return SpotConeAttenuation(InLightDir, InToLight, InCutOffDeg, InOuterCutOffDeg);
     }
 
@@ -74,9 +74,8 @@ namespace {
         return ::Leon::CosineSampleHemisphere(glm::vec2(InU1, InU2), InNormal);
     }
 
-    bool FLightBaker::IntersectScene(const FLightBakerScene& InScene, const glm::vec3& InOrigin,
-                                       const glm::vec3& InDir, float InMaxT, float& OutT, uint32_t& OutTri,
-                                       glm::vec3& OutBary) {
+    bool FLightBaker::IntersectScene(const FLightBakerScene& InScene, const glm::vec3& InOrigin, const glm::vec3& InDir,
+                                     float InMaxT, float& OutT, uint32_t& OutTri, glm::vec3& OutBary) {
         bool hit = false;
         float bestT = InMaxT;
         for (uint32_t ti = 0; ti < InScene.Triangles.size(); ++ti) {
@@ -99,8 +98,7 @@ namespace {
         return hit;
     }
 
-    static bool IsShadowed(const FLightBakerScene& Scene, const glm::vec3& Origin, const glm::vec3& Dir,
-                             float MaxT) {
+    static bool IsShadowed(const FLightBakerScene& Scene, const glm::vec3& Origin, const glm::vec3& Dir, float MaxT) {
         float t;
         uint32_t tri;
         glm::vec3 bary;
@@ -169,8 +167,8 @@ namespace {
             float NdotL = LambertNdotL(Normal, L);
             if (NdotL <= 0.0f)
                 continue;
-            float cone = FLightBaker::SpotConeFactor(sl.Light.Direction, toLight, sl.Light.CutOff,
-                                                     sl.Light.OuterCutOff);
+            float cone =
+                FLightBaker::SpotConeFactor(sl.Light.Direction, toLight, sl.Light.CutOff, sl.Light.OuterCutOff);
             if (cone <= 0.0f)
                 continue;
             if (IsShadowed(Scene, Pos + Normal * kEpsilon * 2.0f, L, dist - kEpsilon))
@@ -196,7 +194,7 @@ namespace {
     }
 
     void FLightBaker::Bake(const FLightBakerScene& InScene, const FLightBakerSettings& InSettings,
-                             std::vector<float>& OutRGBA32F) {
+                           std::vector<float>& OutRGBA32F) {
         const uint32_t W = InScene.AtlasWidth;
         const uint32_t H = InScene.AtlasHeight;
         OutRGBA32F.assign(static_cast<size_t>(W) * H * 4, 0.0f);
@@ -220,9 +218,7 @@ namespace {
             const auto& v1 = InScene.Vertices[tri.I1];
             const auto& v2 = InScene.Vertices[tri.I2];
 
-            auto toAtlas = [&](const glm::vec2& uv) -> glm::vec2 {
-                return uv * chart.Scale + chart.Bias;
-            };
+            auto toAtlas = [&](const glm::vec2& uv) -> glm::vec2 { return uv * chart.Scale + chart.Bias; };
 
             glm::vec2 a = toAtlas(v0.LightmapUV);
             glm::vec2 b = toAtlas(v1.LightmapUV);
@@ -248,8 +244,7 @@ namespace {
                     coverage[idx] = 1.0f;
                     chartOf[idx] = static_cast<int>(tri.ChartIndex);
                     positions[idx] = FLightmapUV::Interpolate(v0.Position, v1.Position, v2.Position, bary);
-                    normals[idx] =
-                        glm::normalize(FLightmapUV::Interpolate(v0.Normal, v1.Normal, v2.Normal, bary));
+                    normals[idx] = glm::normalize(FLightmapUV::Interpolate(v0.Normal, v1.Normal, v2.Normal, bary));
                     glm::vec3 albedo = FLightmapUV::Interpolate(v0.Albedo, v1.Albedo, v2.Albedo, bary);
                     float metallic = v0.Metallic * bary.x + v1.Metallic * bary.y + v2.Metallic * bary.z;
                     albedos[idx] = albedo * (1.0f - metallic);
@@ -289,8 +284,7 @@ namespace {
                     float tHit;
                     uint32_t hitTri;
                     glm::vec3 bary;
-                    bool hit =
-                        IntersectScene(InScene, pos + n * kEpsilon * 2.0f, dir, 1e6f, tHit, hitTri, bary);
+                    bool hit = IntersectScene(InScene, pos + n * kEpsilon * 2.0f, dir, 1e6f, tHit, hitTri, bary);
 
                     if (!hit) {
                         skyAccum += kPI * SampleBakeEnvironment(InScene, dir);
@@ -304,8 +298,7 @@ namespace {
                     const auto& hv1 = InScene.Vertices[tri.I1];
                     const auto& hv2 = InScene.Vertices[tri.I2];
                     glm::vec3 hitPos = FLightmapUV::Interpolate(hv0.Position, hv1.Position, hv2.Position, bary);
-                    glm::vec3 hitN =
-                        glm::normalize(FLightmapUV::Interpolate(hv0.Normal, hv1.Normal, hv2.Normal, bary));
+                    glm::vec3 hitN = glm::normalize(FLightmapUV::Interpolate(hv0.Normal, hv1.Normal, hv2.Normal, bary));
                     glm::vec3 hitAlbedo =
                         FLightmapUV::Interpolate(hv0.Albedo, hv1.Albedo, hv2.Albedo, bary) *
                         (1.0f - (hv0.Metallic * bary.x + hv1.Metallic * bary.y + hv2.Metallic * bary.z));
@@ -323,8 +316,7 @@ namespace {
                         float t2;
                         uint32_t tri2;
                         glm::vec3 bary2;
-                        if (!IntersectScene(InScene, curPos + curN * kEpsilon * 2.0f, dir2, 1e6f, t2, tri2,
-                                            bary2)) {
+                        if (!IntersectScene(InScene, curPos + curN * kEpsilon * 2.0f, dir2, 1e6f, t2, tri2, bary2)) {
                             Epath += throughput * SampleBakeEnvironment(InScene, dir2);
                             break;
                         }

@@ -86,7 +86,8 @@ namespace Leon {
         return EBTNodeResult::InProgress;
     }
 
-    UBTTask_Native::UBTTask_Native(const std::string& InName, FBTNativeTask InFn) : UBTTaskNode(InName), Fn(std::move(InFn)) {}
+    UBTTask_Native::UBTTask_Native(const std::string& InName, FBTNativeTask InFn)
+        : UBTTaskNode(InName), Fn(std::move(InFn)) {}
 
     EBTNodeResult UBTTask_Native::ExecuteTask(UBehaviorTreeComponent& InOwner, float DeltaSeconds) {
         return Fn ? Fn(InOwner, DeltaSeconds) : EBTNodeResult::Failed;

@@ -21,7 +21,8 @@ namespace Leon::TestFixtures {
         return data;
     }
 
-    inline std::vector<float> CreateHemisphereStepHDR(int width, int height, glm::vec3 topColor, glm::vec3 bottomColor) {
+    inline std::vector<float> CreateHemisphereStepHDR(int width, int height, glm::vec3 topColor,
+                                                      glm::vec3 bottomColor) {
         std::vector<float> data(static_cast<size_t>(width) * height * 4, 0.0f);
         for (int y = 0; y < height; ++y) {
             glm::vec3 col = (y < height / 2) ? topColor : bottomColor;
@@ -36,7 +37,8 @@ namespace Leon::TestFixtures {
         return data;
     }
 
-    inline std::vector<float> CreateSmoothGradientHDR(int width, int height, glm::vec3 zenithColor, glm::vec3 horizonColor, glm::vec3 groundColor) {
+    inline std::vector<float> CreateSmoothGradientHDR(int width, int height, glm::vec3 zenithColor,
+                                                      glm::vec3 horizonColor, glm::vec3 groundColor) {
         std::vector<float> data(static_cast<size_t>(width) * height * 4, 0.0f);
         for (int y = 0; y < height; ++y) {
             float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(height);
@@ -58,7 +60,8 @@ namespace Leon::TestFixtures {
         return data;
     }
 
-    inline std::vector<float> CreateSyntheticSolarHDR(int width, int height, glm::vec3 skyColor, glm::vec3 sunColor, int sunX, int sunY, int sunRadius) {
+    inline std::vector<float> CreateSyntheticSolarHDR(int width, int height, glm::vec3 skyColor, glm::vec3 sunColor,
+                                                      int sunX, int sunY, int sunRadius) {
         std::vector<float> data(static_cast<size_t>(width) * height * 4, 0.0f);
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {

@@ -27,7 +27,7 @@ namespace Leon {
                 return std::hash<uint64_t>{}(InGuid.High) ^ (std::hash<uint64_t>{}(InGuid.Low) << 1);
             }
         };
-    }
+    } // namespace
 
     UNetConnection* UNetDriver::AddConnection() {
         auto conn = std::make_shared<UNetConnection>();
@@ -193,7 +193,8 @@ namespace Leon {
             actor->SerializeReplication(blob);
             FNetBlob::WriteBlob(OutBytes, blob);
         }
-        FFrameProfiler::Working().ReplicatedActors = static_cast<int32_t>(pawns.size() + players.size() + repActors.size());
+        FFrameProfiler::Working().ReplicatedActors =
+            static_cast<int32_t>(pawns.size() + players.size() + repActors.size());
     }
 
     void UNetDriver::ApplySnapshot(const std::vector<uint8_t>& InBytes) {

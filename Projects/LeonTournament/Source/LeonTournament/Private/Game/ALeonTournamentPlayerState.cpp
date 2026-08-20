@@ -2,7 +2,8 @@
 
 namespace Leon {
 
-    ALeonTournamentPlayerState::ALeonTournamentPlayerState(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
+    ALeonTournamentPlayerState::ALeonTournamentPlayerState(entt::entity InHandle, UWorld* InWorld,
+                                                           const std::string& InName)
         : APlayerState(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentPlayerState");
     }

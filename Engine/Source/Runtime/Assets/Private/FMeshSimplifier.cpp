@@ -174,8 +174,8 @@ namespace Leon {
             OutSubmesh = InSubmesh;
             OutSubmesh.IndexOffset = static_cast<uint32_t>(OutIndices.size());
             OutSubmesh.VertexOffset = static_cast<uint32_t>(OutVertices.size());
-            const uint32_t indexEnd = std::min(InSubmesh.IndexOffset + InSubmesh.IndexCount,
-                                               static_cast<uint32_t>(InIndices.size()));
+            const uint32_t indexEnd =
+                std::min(InSubmesh.IndexOffset + InSubmesh.IndexCount, static_cast<uint32_t>(InIndices.size()));
             for (uint32_t i = InSubmesh.IndexOffset; i < indexEnd; ++i) {
                 const uint32_t vi = InIndices[i];
                 if (vi >= InVertices.size())

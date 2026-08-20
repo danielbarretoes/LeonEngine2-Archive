@@ -255,11 +255,11 @@ namespace Leon {
         glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)count, GL_UNSIGNED_INT, nullptr, (GLsizei)InInstanceCount);
     }
 
-    void FOpenGLRenderAPI::DrawIndexedOffsetInstanced(const TRef<FVertexArray>& InVertexArray, unsigned int InIndexCount,
-                                                      unsigned int InIndexOffset, unsigned int InInstanceCount) {
+    void FOpenGLRenderAPI::DrawIndexedOffsetInstanced(const TRef<FVertexArray>& InVertexArray,
+                                                      unsigned int InIndexCount, unsigned int InIndexOffset,
+                                                      unsigned int InInstanceCount) {
         glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)InIndexCount, GL_UNSIGNED_INT,
-                                (const void*)(uintptr_t)(InIndexOffset * sizeof(uint32_t)),
-                                (GLsizei)InInstanceCount);
+                                (const void*)(uintptr_t)(InIndexOffset * sizeof(uint32_t)), (GLsizei)InInstanceCount);
     }
 
     void FOpenGLRenderAPI::DrawLines(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {
@@ -332,6 +332,8 @@ namespace Leon {
         return GPUResolvedMs[InSlot];
     }
 
-    void FOpenGLRenderAPI::InvalidateShaderBindingCache() { FOpenGLShader::InvalidateBoundCache(); }
+    void FOpenGLRenderAPI::InvalidateShaderBindingCache() {
+        FOpenGLShader::InvalidateBoundCache();
+    }
 
 } // namespace Leon

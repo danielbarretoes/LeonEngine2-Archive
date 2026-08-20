@@ -34,8 +34,7 @@ namespace Leon {
          * 2. Listen on InPort and bind the driver to InWorld
          */
         bool StartListenServer(UWorld* InWorld, uint16_t InPort = UIpNetDriver::DefaultPort);
-        bool ConnectToHost(UWorld* InWorld, const std::string& InAddress,
-                           uint16_t InPort = UIpNetDriver::DefaultPort);
+        bool ConnectToHost(UWorld* InWorld, const std::string& InAddress, uint16_t InPort = UIpNetDriver::DefaultPort);
         void ShutdownNetDriver();
         UIpNetDriver* GetIpNetDriver() const { return SessionNetDriver.get(); }
 

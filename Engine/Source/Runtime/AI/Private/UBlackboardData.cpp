@@ -7,7 +7,9 @@ namespace Leon {
 
     UBlackboardData::UBlackboardData(const std::string& InName) : UObject(InName) {}
 
-    void UBlackboardData::AddKey(const FBlackboardKey& InKey) { Keys.push_back(InKey); }
+    void UBlackboardData::AddKey(const FBlackboardKey& InKey) {
+        Keys.push_back(InKey);
+    }
 
     const FBlackboardKey* UBlackboardData::FindKey(const std::string& InName) const {
         for (const auto& key : Keys) {

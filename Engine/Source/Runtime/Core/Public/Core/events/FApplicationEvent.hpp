@@ -32,5 +32,4 @@ namespace Leon {
         EVENT_CLASS_CATEGORY(EventCategoryApplication)
     };
 
-
 } // namespace Leon

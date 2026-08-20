@@ -152,8 +152,8 @@ namespace Leon {
             else
                 ensureBox(floor, {0.5f, 0.5f, 0.5f});
         }
-        for (const char* name : {"LabWallN", "LabWallS", "LabWallW", "LabWallE", "JumpPadLow", "JumpPadHigh",
-                                 "FallLedge"}) {
+        for (const char* name :
+             {"LabWallN", "LabWallS", "LabWallW", "LabWallE", "JumpPadLow", "JumpPadHigh", "FallLedge"}) {
             ensureBox(World->FindActorByName(name), {0.5f, 0.5f, 0.5f});
         }
     }
@@ -164,14 +164,22 @@ namespace Leon {
         // Map actors (LabFloor + walls) provide textured/bakeable geometry — skip duplicates.
         if (World->FindActorByName("LabFloor"))
             return;
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabFloor", {0.0f, -0.25f, 0.0f}, {32.0f, 0.5f, 32.0f}, {0.22f, 0.24f, 0.26f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallN", {0.0f, 1.5f, -16.0f}, {32.0f, 3.0f, 0.5f}, {0.18f, 0.2f, 0.22f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallS", {0.0f, 1.5f, 16.0f}, {32.0f, 3.0f, 0.5f}, {0.18f, 0.2f, 0.22f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallW", {-16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f}, {0.18f, 0.2f, 0.22f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallE", {16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f}, {0.18f, 0.2f, 0.22f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "JumpPadLow", {6.0f, 0.6f, 6.0f}, {4.0f, 1.2f, 4.0f}, {0.32f, 0.38f, 0.48f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "JumpPadHigh", {6.0f, 1.8f, 12.0f}, {3.0f, 0.4f, 3.0f}, {0.42f, 0.32f, 0.22f});
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "FallLedge", {-8.0f, 1.2f, 8.0f}, {3.5f, 2.4f, 2.0f}, {0.28f, 0.30f, 0.34f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabFloor", {0.0f, -0.25f, 0.0f}, {32.0f, 0.5f, 32.0f},
+                                                    {0.22f, 0.24f, 0.26f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallN", {0.0f, 1.5f, -16.0f}, {32.0f, 3.0f, 0.5f},
+                                                    {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallS", {0.0f, 1.5f, 16.0f}, {32.0f, 3.0f, 0.5f},
+                                                    {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallW", {-16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f},
+                                                    {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "LabWallE", {16.0f, 1.5f, 0.0f}, {0.5f, 3.0f, 32.0f},
+                                                    {0.18f, 0.2f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "JumpPadLow", {6.0f, 0.6f, 6.0f}, {4.0f, 1.2f, 4.0f},
+                                                    {0.32f, 0.38f, 0.48f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "JumpPadHigh", {6.0f, 1.8f, 12.0f}, {3.0f, 0.4f, 3.0f},
+                                                    {0.42f, 0.32f, 0.22f});
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, "FallLedge", {-8.0f, 1.2f, 8.0f}, {3.5f, 2.4f, 2.0f},
+                                                    {0.28f, 0.30f, 0.34f});
     }
 
     void ALeonTournamentAnimLabGameMode::SpawnLabWeaponPickups() {

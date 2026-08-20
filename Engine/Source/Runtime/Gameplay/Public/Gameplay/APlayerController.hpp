@@ -49,9 +49,7 @@ namespace Leon {
         }
 
         /** @brief True when UI widgets should receive mouse events. */
-        bool IsUIInputAllowed() const {
-            return InputMode == EInputMode::UIOnly || InputMode == EInputMode::GameAndUI;
-        }
+        bool IsUIInputAllowed() const { return InputMode == EInputMode::UIOnly || InputMode == EInputMode::GameAndUI; }
 
         void SetViewTarget(AActor* InNewTarget);
         void SetViewTargetWithBlend(AActor* InNewTarget, float InBlendTime);

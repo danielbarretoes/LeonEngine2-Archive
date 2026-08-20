@@ -42,8 +42,7 @@ namespace Leon {
     void ALeonTournamentPlayerController::Tick(float DeltaSeconds) {
         APlayerController::Tick(DeltaSeconds);
         auto* gs = World ? dynamic_cast<ALeonTournamentGameState*>(World->GetGameState()) : nullptr;
-        const ELeonTournamentMatchState state =
-            gs ? gs->GetMatchState() : ELeonTournamentMatchState::MainMenu;
+        const ELeonTournamentMatchState state = gs ? gs->GetMatchState() : ELeonTournamentMatchState::MainMenu;
         const bool bInMatch =
             state == ELeonTournamentMatchState::Playing || state == ELeonTournamentMatchState::Starting;
         auto* gm = World ? dynamic_cast<ALeonTournamentGameMode*>(World->GetGameMode()) : nullptr;
@@ -71,10 +70,9 @@ namespace Leon {
              FInput::IsGamepadButtonPressed(GamepadButton::Y, input.GamepadId)))
             bScoreboardHeld = true;
 
-        const bool bEsc =
-            FInput::IsKeyPressed(Key::Escape) ||
-            (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
-             FInput::IsGamepadButtonPressed(GamepadButton::Start, input.GamepadId));
+        const bool bEsc = FInput::IsKeyPressed(Key::Escape) ||
+                          (input.bEnableGamepad && FInput::IsGamepadConnected(input.GamepadId) &&
+                           FInput::IsGamepadButtonPressed(GamepadButton::Start, input.GamepadId));
         bEscapePressed = bEsc && !bEscapeWasDown;
         bEscapeWasDown = bEsc;
 

@@ -67,8 +67,8 @@ namespace Leon {
             const glm::vec3 oHalf = other->GetOverlapQueryHalfExtent();
             const glm::vec3 oMin = oPos - oHalf;
             const glm::vec3 oMax = oPos + oHalf;
-            const bool overlaps = (myMin.x <= oMax.x && myMax.x >= oMin.x) && (myMin.y <= oMax.y && myMax.y >= oMin.y) &&
-                                  (myMin.z <= oMax.z && myMax.z >= oMin.z);
+            const bool overlaps = (myMin.x <= oMax.x && myMax.x >= oMin.x) &&
+                                  (myMin.y <= oMax.y && myMax.y >= oMin.y) && (myMin.z <= oMax.z && myMax.z >= oMin.z);
             if (!overlaps)
                 continue;
 

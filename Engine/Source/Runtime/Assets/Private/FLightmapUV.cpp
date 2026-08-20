@@ -12,7 +12,7 @@ namespace Leon {
     }
 
     bool FLightmapUV::ComputeBarycentric(const glm::vec2& InP, const glm::vec2& InA, const glm::vec2& InB,
-                                           const glm::vec2& InC, glm::vec3& OutBary) {
+                                         const glm::vec2& InC, glm::vec3& OutBary) {
         glm::vec2 v0 = InB - InA;
         glm::vec2 v1 = InC - InA;
         glm::vec2 v2 = InP - InA;
@@ -28,7 +28,7 @@ namespace Leon {
     }
 
     glm::vec3 FLightmapUV::Interpolate(const glm::vec3& InA, const glm::vec3& InB, const glm::vec3& InC,
-                                         const glm::vec3& InBary) {
+                                       const glm::vec3& InBary) {
         return InA * InBary.x + InB * InBary.y + InC * InBary.z;
     }
 

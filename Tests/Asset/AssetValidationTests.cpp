@@ -36,7 +36,8 @@ TEST_SUITE("Asset Manifest & Dependency Validation Tests") {
 
     TEST_CASE("AssetManifest - Serialization Roundtrip") {
         FAssetManifest manifest;
-        manifest.RegisterImport("Raw/SampleMesh.fbx", { "Meshes/SampleMesh.lmesh", "Materials/M_SampleMesh.lmat" }, { "Materials/M_SampleMesh.lmat" });
+        manifest.RegisterImport("Raw/SampleMesh.fbx", {"Meshes/SampleMesh.lmesh", "Materials/M_SampleMesh.lmat"},
+                                {"Materials/M_SampleMesh.lmat"});
 
         std::string manifestFile = "build/manifest_test.json";
         CHECK(manifest.SaveToFile(manifestFile));

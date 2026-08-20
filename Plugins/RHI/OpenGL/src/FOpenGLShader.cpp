@@ -88,8 +88,8 @@ namespace Leon {
 
             if (trimmed.rfind("#include", 0) == 0) {
                 size_t quoteOpen = trimmed.find('"');
-                size_t quoteClose = (quoteOpen == std::string::npos) ? std::string::npos
-                                                                    : trimmed.find('"', quoteOpen + 1);
+                size_t quoteClose =
+                    (quoteOpen == std::string::npos) ? std::string::npos : trimmed.find('"', quoteOpen + 1);
                 if (quoteOpen == std::string::npos || quoteClose == std::string::npos) {
                     LE_CORE_ERROR("Malformed #include in shader (expected #include \"file\"): {0}", line);
                     out << line << '\n';
@@ -97,8 +97,7 @@ namespace Leon {
                 }
 
                 const std::string includeName = trimmed.substr(quoteOpen + 1, quoteClose - quoteOpen - 1);
-                const std::filesystem::path includePath =
-                    std::filesystem::path(InBaseDirectory) / includeName;
+                const std::filesystem::path includePath = std::filesystem::path(InBaseDirectory) / includeName;
                 const std::string includeAbs = includePath.lexically_normal().string();
                 const std::string included = ReadFile(includeAbs);
                 if (included.empty()) {

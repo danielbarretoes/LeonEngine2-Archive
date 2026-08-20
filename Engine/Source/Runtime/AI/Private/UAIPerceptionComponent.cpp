@@ -137,8 +137,7 @@ namespace Leon {
         planar.y = 0.0f;
         const glm::vec3 forward = GetSenseForward();
         const float ang = AngleDegrees(glm::vec3(forward.x, 0.0f, forward.z), planar);
-        float score = (1.0f - dist / std::max(SightConfig.SightRadius, 0.01f)) * 40.0f +
-                      (1.0f - ang / 90.0f) * 20.0f;
+        float score = (1.0f - dist / std::max(SightConfig.SightRadius, 0.01f)) * 40.0f + (1.0f - ang / 90.0f) * 20.0f;
         if (&InActor == InPrevious)
             score += 25.0f;
         return score;
@@ -174,9 +173,9 @@ namespace Leon {
             const bool bLos = HasLineOfSight(*CurrentTarget);
             Blackboard->SetValueAsBool("HasLineOfSight", bLos);
             APawn* self = GetSensePawn();
-            Blackboard->SetValueAsFloat("DistanceToTarget",
-                                        self ? PlanarDistance(self->GetActorLocation(), CurrentTarget->GetActorLocation())
-                                             : 0.0f);
+            Blackboard->SetValueAsFloat(
+                "DistanceToTarget",
+                self ? PlanarDistance(self->GetActorLocation(), CurrentTarget->GetActorLocation()) : 0.0f);
         } else {
             Blackboard->SetValueAsBool("HasLineOfSight", false);
             Blackboard->SetValueAsFloat("DistanceToTarget", 0.0f);

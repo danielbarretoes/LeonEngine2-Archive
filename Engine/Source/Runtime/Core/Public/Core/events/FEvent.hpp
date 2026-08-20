@@ -34,7 +34,6 @@ namespace Leon {
         EventCategoryMouseButton = BIT(4)
     };
 
-
 #define EVENT_CLASS_TYPE(type)                                                                                         \
     static EEventType GetStaticType() {                                                                                \
         return EEventType::type;                                                                                       \

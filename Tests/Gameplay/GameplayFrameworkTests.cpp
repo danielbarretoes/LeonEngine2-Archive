@@ -423,21 +423,20 @@ namespace Leon {
         }
 
         TEST_CASE("17. DefaultEngine.ini parsing & 18. GameMode configuration resolution") {
-            std::string testIniContent =
-                "[/Script/EngineSettings.GameMapsSettings]\n"
-                "GameDefaultMap=Projects/Sandbox/Content/Maps/ShowcaseLevel.lmap\n"
-                "GlobalDefaultGameMode=AGameModeBase\n\n"
-                "[/Script/Engine.GameModeBase]\n"
-                "DefaultPawnClass=ADefaultPawn\n"
-                "PlayerControllerClass=APlayerController\n"
-                "GameStateClass=AGameStateBase\n"
-                "PlayerStateClass=APlayerState\n\n"
-                "[/Script/Engine.DisplaySettings]\n"
-                "WindowTitle=LeonEngine2 Test Suite\n"
-                "WindowWidth=1920\n"
-                "WindowHeight=1080\n"
-                "VSync=True\n"
-                "Fullscreen=False\n";
+            std::string testIniContent = "[/Script/EngineSettings.GameMapsSettings]\n"
+                                         "GameDefaultMap=Projects/Sandbox/Content/Maps/ShowcaseLevel.lmap\n"
+                                         "GlobalDefaultGameMode=AGameModeBase\n\n"
+                                         "[/Script/Engine.GameModeBase]\n"
+                                         "DefaultPawnClass=ADefaultPawn\n"
+                                         "PlayerControllerClass=APlayerController\n"
+                                         "GameStateClass=AGameStateBase\n"
+                                         "PlayerStateClass=APlayerState\n\n"
+                                         "[/Script/Engine.DisplaySettings]\n"
+                                         "WindowTitle=LeonEngine2 Test Suite\n"
+                                         "WindowWidth=1920\n"
+                                         "WindowHeight=1080\n"
+                                         "VSync=True\n"
+                                         "Fullscreen=False\n";
 
             std::string tempIniPath = "build/Test_DefaultEngine.ini";
             std::ofstream fout(tempIniPath);
@@ -539,8 +538,8 @@ namespace Leon {
             std::string virtGame = FProjectPaths::MakeVirtualPath("Projects/TestProject/Content/Textures/T_Test.ltex");
             CHECK(virtGame == "/Game/Textures/T_Test.ltex");
 
-            std::string remapped = FProjectPaths::ResolveVirtualPath(
-                "c:/old/Projects/StaleName/Content/Animations/Idle.lanim");
+            std::string remapped =
+                FProjectPaths::ResolveVirtualPath("c:/old/Projects/StaleName/Content/Animations/Idle.lanim");
             CHECK(remapped == "Projects/TestProject/Content/Animations/Idle.lanim");
             std::string virtStale =
                 FProjectPaths::MakeVirtualPath("c:/old/Projects/StaleName/Content/Animations/Idle.lanim");
@@ -581,7 +580,8 @@ namespace Leon {
             FConfigFile gameConfig(gameIniPath);
             FConfigFile inputConfig(inputIniPath);
 
-            CHECK(engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap", "") == "/Game/Maps/MyMap");
+            CHECK(engineConfig.GetString("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap", "") ==
+                  "/Game/Maps/MyMap");
             CHECK(engineConfig.GetInt("/Script/Engine.DisplaySettings", "WindowWidth", 0) == 1920);
             CHECK(gameConfig.GetString("/Script/Engine.GameModeBase", "DefaultPawnClass", "") == "ADefaultPawn");
             CHECK(inputConfig.GetBool("/Script/Engine.InputSettings", "bEnableMouseLook", false) == true);

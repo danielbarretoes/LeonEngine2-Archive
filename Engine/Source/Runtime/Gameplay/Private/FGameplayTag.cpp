@@ -46,8 +46,8 @@ namespace Leon {
     bool FGameplayTagContainer::HasTag(FGameplayTag InTag) const {
         if (!InTag.IsValid())
             return false;
-        return std::find_if(Tags.begin(), Tags.end(),
-                            [&](const FGameplayTag& tag) { return tag == InTag; }) != Tags.end();
+        return std::find_if(Tags.begin(), Tags.end(), [&](const FGameplayTag& tag) { return tag == InTag; }) !=
+               Tags.end();
     }
 
     bool FGameplayTagContainer::HasAny(const FGameplayTagContainer& InOther) const {
@@ -65,8 +65,7 @@ namespace Leon {
     }
 
     void FGameplayTagContainer::RemoveTag(FGameplayTag InTag) {
-        Tags.erase(std::remove_if(Tags.begin(), Tags.end(),
-                                   [&](const FGameplayTag& tag) { return tag == InTag; }),
+        Tags.erase(std::remove_if(Tags.begin(), Tags.end(), [&](const FGameplayTag& tag) { return tag == InTag; }),
                    Tags.end());
     }
 

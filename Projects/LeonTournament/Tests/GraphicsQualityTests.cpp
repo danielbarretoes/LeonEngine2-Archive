@@ -131,16 +131,12 @@ TEST_SUITE("LeonTournament graphics quality") {
     TEST_CASE("VRAM estimates increase Low < Medium < High") {
         using Leon::EGraphicsQuality;
         using Leon::FGraphicsQuality;
-        const size_t low =
-            FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::Low, 1280, 720);
-        const size_t medium =
-            FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::Medium, 1280, 720);
-        const size_t high =
-            FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::High, 1280, 720);
+        const size_t low = FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::Low, 1280, 720);
+        const size_t medium = FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::Medium, 1280, 720);
+        const size_t high = FGraphicsQuality::EstimateVRAMBytes(EGraphicsQuality::High, 1280, 720);
         CHECK(low < medium);
         CHECK(medium < high);
-        const std::string label =
-            FGraphicsQuality::FormatVRAMLabel(EGraphicsQuality::High, 1280, 720);
+        const std::string label = FGraphicsQuality::FormatVRAMLabel(EGraphicsQuality::High, 1280, 720);
         CHECK(label.find("HIGH") != std::string::npos);
         CHECK(label.find("Tex 1024px") != std::string::npos);
         CHECK(label.find("MB") != std::string::npos);

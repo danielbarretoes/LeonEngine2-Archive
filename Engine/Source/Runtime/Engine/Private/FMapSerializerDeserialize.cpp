@@ -849,5 +849,4 @@ namespace Leon {
         return true;
     }
 
-
 } // namespace Leon

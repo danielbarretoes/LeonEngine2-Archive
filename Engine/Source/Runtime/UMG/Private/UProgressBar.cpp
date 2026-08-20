@@ -5,9 +5,13 @@
 
 namespace Leon {
 
-    UProgressBar::UProgressBar(const std::string& InName) : UWidget(InName) { Size = {200.0f, 12.0f}; }
+    UProgressBar::UProgressBar(const std::string& InName) : UWidget(InName) {
+        Size = {200.0f, 12.0f};
+    }
 
-    void UProgressBar::SetPercent(float InPercent) { Percent = std::clamp(InPercent, 0.0f, 1.0f); }
+    void UProgressBar::SetPercent(float InPercent) {
+        Percent = std::clamp(InPercent, 0.0f, 1.0f);
+    }
 
     void UProgressBar::Paint(const FGeometry& InAllottedGeometry) {
         UWidget::Paint(InAllottedGeometry);

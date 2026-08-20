@@ -165,8 +165,8 @@ namespace Leon {
         debugY += 14.0f;
 
         const char* keyPlaceholders[12] = {
-            "F1 HUD off",  "F2 Gizmos off", "F3 Wire off", "F4 Mat off", "F5 Geo off",  "F6 Light off",
-            "F7 IBL off",  "F8 Shadow off", "F9 Planar off", "F10 Post off", "F11 FX on", "F12 Reset",
+            "F1 HUD off", "F2 Gizmos off", "F3 Wire off",   "F4 Mat off",   "F5 Geo off", "F6 Light off",
+            "F7 IBL off", "F8 Shadow off", "F9 Planar off", "F10 Post off", "F11 FX on",  "F12 Reset",
         };
         for (int i = 0; i < 12; ++i) {
             char name[24];
@@ -313,8 +313,7 @@ namespace Leon {
     }
 
     FGraphicsPreset ULeonTournamentRenderLabWidget::ReadCurrent() const {
-        FGraphicsPreset p =
-            FGraphicsQuality::GetPreset(EGraphicsQuality::High);
+        FGraphicsPreset p = FGraphicsQuality::GetPreset(EGraphicsQuality::High);
         auto* gi = GI();
         UWorld* world = gi ? gi->GetWorld().get() : nullptr;
         if (!world && OwningPlayer)
@@ -424,7 +423,8 @@ namespace Leon {
         if (DebugViewLine) {
             char view[96];
             if (bPostView)
-                std::snprintf(view, sizeof(view), "View: %s", FRenderDebugHotkeys::PostViewName(state.PostProcessDebugMode));
+                std::snprintf(view, sizeof(view), "View: %s",
+                              FRenderDebugHotkeys::PostViewName(state.PostProcessDebugMode));
             else
                 std::snprintf(view, sizeof(view), "View: %s", FRenderDebugHotkeys::ShaderViewName(state.ShaderMode));
             DebugViewLine->SetText(view);

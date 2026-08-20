@@ -39,8 +39,8 @@ namespace Leon {
         glm::vec4 CascadeSplits{0.0f};                    // 16 bytes  (offset 416)
         glm::vec4 ShadowParams{0.0010f, 0.0035f, 0.040f,
                                0.25f}; // 16 bytes (offset 432) (x=constBias, y=slopeBias, z=normalBias, w=blendWidth)
-        glm::ivec4 ShadowSettings{1, 0, 0,
-                                  0}; // 16 bytes (offset 448) (x=filterMode, y=shadowedSpotIndex, z=cascadeCount, w=debug)
+        glm::ivec4 ShadowSettings{
+            1, 0, 0, 0}; // 16 bytes (offset 448) (x=filterMode, y=shadowedSpotIndex, z=cascadeCount, w=debug)
     }; // Total: 464 bytes
 
     /** std140 GPU directional light (PBR — single Intensity, no Phong split) */
@@ -66,9 +66,9 @@ namespace Leon {
 
     /** Binding 1 — Lighting buffer */
     struct FLightingBufferData {
-        FGpuDirectionalLight DirLight;                    // 32 bytes
-        FGpuPointLight PointLights[16];                   // 16 * 48 = 768 bytes
-        FGpuSpotLight SpotLights[8];                      // 8  * 64 = 512 bytes
+        FGpuDirectionalLight DirLight;      // 32 bytes
+        FGpuPointLight PointLights[16];     // 16 * 48 = 768 bytes
+        FGpuSpotLight SpotLights[8];        // 8  * 64 = 512 bytes
         glm::ivec4 LightCounts{0, 0, 0, 0}; // 16 bytes (x = pointCount, y = spotCount, z = shadowedPointCount)
         glm::vec4 EnvSkyColor{0.18f, 0.44f, 0.88f, 1.2f}; // xyz = sky, w = envIntensity
         glm::vec4 EnvHorizonColor{0.78f, 0.84f, 0.95f, 0.0f};

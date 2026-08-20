@@ -24,7 +24,9 @@ namespace Leon {
 
     FENetTransport::FENetTransport() = default;
 
-    FENetTransport::~FENetTransport() { Close(); }
+    FENetTransport::~FENetTransport() {
+        Close();
+    }
 
     bool FENetTransport::Listen(uint16_t InPort) {
         Close();
@@ -137,8 +139,7 @@ namespace Leon {
             auto* peer = static_cast<ENetPeer*>(slot.Peer);
             if (!peer)
                 return false;
-            ENetPacket* packet =
-                enet_packet_create(InData, InSize, bReliable ? ENET_PACKET_FLAG_RELIABLE : 0);
+            ENetPacket* packet = enet_packet_create(InData, InSize, bReliable ? ENET_PACKET_FLAG_RELIABLE : 0);
             if (!packet)
                 return false;
             if (enet_peer_send(peer, bReliable ? kChannelReliable : kChannelUnreliable, packet) != 0)
@@ -171,7 +172,9 @@ namespace Leon {
         return out;
     }
 
-    int32_t FENetTransport::GetConnectionCount() const { return static_cast<int32_t>(Peers.size()); }
+    int32_t FENetTransport::GetConnectionCount() const {
+        return static_cast<int32_t>(Peers.size());
+    }
 
     float FENetTransport::GetPeerPingMs(int32_t InConnectionId) const {
         for (const auto& slot : Peers) {

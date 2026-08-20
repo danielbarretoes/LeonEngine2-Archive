@@ -78,7 +78,7 @@ TEST_CASE("Lightmap UV validation and barycentric") {
 
     glm::vec3 bary;
     REQUIRE(FLightmapUV::ComputeBarycentric({0.5f, 0.367f}, verts[0].LightmapUV, verts[1].LightmapUV,
-                                             verts[2].LightmapUV, bary));
+                                            verts[2].LightmapUV, bary));
     CHECK(doctest::Approx(bary.x + bary.y + bary.z).epsilon(1e-3) == 1.0f);
 
     glm::vec3 p = FLightmapUV::Interpolate(verts[0].Position, verts[1].Position, verts[2].Position, bary);
@@ -537,8 +537,8 @@ namespace {
         InOutScene.Triangles.push_back({base, base + 1, base + 2, InChart, false});
     }
 
-    float MeanCoveredChannel(const std::vector<float>& InRGBA, uint32_t InWidth, uint32_t InHeight,
-                             uint32_t InX0, uint32_t InY0, uint32_t InW, uint32_t InH) {
+    float MeanCoveredChannel(const std::vector<float>& InRGBA, uint32_t InWidth, uint32_t InHeight, uint32_t InX0,
+                             uint32_t InY0, uint32_t InW, uint32_t InH) {
         float sum = 0.0f;
         int count = 0;
         for (uint32_t y = InY0; y < InY0 + InH && y < InHeight; ++y) {

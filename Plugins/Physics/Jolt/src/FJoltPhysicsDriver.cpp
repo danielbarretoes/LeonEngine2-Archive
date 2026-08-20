@@ -553,8 +553,8 @@ namespace Leon {
             BodyLockWrite lock(Scene->GetLockInterface(), Id);
             if (lock.Succeeded()) {
                 lock.GetBody().SetIsSensor(InEnabled == ECollisionEnabled::QueryOnly);
-                bPromoteToKinematic = InEnabled == ECollisionEnabled::QueryOnly &&
-                                      lock.GetBody().GetMotionType() == EMotionType::Static;
+                bPromoteToKinematic =
+                    InEnabled == ECollisionEnabled::QueryOnly && lock.GetBody().GetMotionType() == EMotionType::Static;
             }
         }
         // SetMotionType must not run while BodyLockWrite is held.
@@ -1445,8 +1445,9 @@ namespace Leon {
     }
 
     int32_t FJoltPhysicsScene::SweepCapsuleMultiByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
-                                                          float InRadius, float InHalfHeight, ECollisionChannel InChannel,
-                                                          AActor* InIgnore, std::vector<FHitResult>& OutHits) const {
+                                                          float InRadius, float InHalfHeight,
+                                                          ECollisionChannel InChannel, AActor* InIgnore,
+                                                          std::vector<FHitResult>& OutHits) const {
         OutHits.clear();
         if (!System)
             return 0;
@@ -1490,8 +1491,8 @@ namespace Leon {
         return static_cast<int32_t>(OutHits.size());
     }
 
-    bool FJoltPhysicsScene::SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd, float InRadius,
-                                                        float InHalfHeight, ECollisionChannel InChannel,
+    bool FJoltPhysicsScene::SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
+                                                        float InRadius, float InHalfHeight, ECollisionChannel InChannel,
                                                         AActor* InIgnore, FHitResult& OutHit) const {
         OutHit = {};
         std::vector<FHitResult> hits;

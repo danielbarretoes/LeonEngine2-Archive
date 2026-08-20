@@ -8,8 +8,7 @@
 namespace Leon::Test {
 
     inline void BindLeonTournamentProject() {
-        const std::string project =
-            FProjectPaths::LocateProjectFile("Projects/LeonTournament/LeonTournament.lproject");
+        const std::string project = FProjectPaths::LocateProjectFile("Projects/LeonTournament/LeonTournament.lproject");
         if (project.empty())
             return;
         FProjectPaths::SetProjectRoot(project);

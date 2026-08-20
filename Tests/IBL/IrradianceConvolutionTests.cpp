@@ -16,13 +16,9 @@ TEST_SUITE("IBL - Irradiance Convolution Invariants") {
         const float saTexel = (4.0f * Leon::PI) / static_cast<float>(W * H);
         const float lod = std::max(0.5f * std::log2(saSample / saTexel) + 1.0f, 0.0f);
 
-        std::vector<glm::vec3> testNormals = {
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f),
-            glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)),
-            glm::normalize(glm::vec3(-0.5f, -0.5f, 0.707f))
-        };
+        std::vector<glm::vec3> testNormals = {glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f),
+                                              glm::vec3(0.0f, 0.0f, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)),
+                                              glm::normalize(glm::vec3(-0.5f, -0.5f, 0.707f))};
 
         for (const auto& N : testNormals) {
             glm::vec3 irradiance(0.0f);
@@ -63,11 +59,8 @@ TEST_SUITE("IBL - Irradiance Convolution Invariants") {
 
     TEST_CASE("RGB Channel Isolation in Irradiance Convolution") {
         const int W = 32, H = 16;
-        std::vector<glm::vec3> channelColors = {
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        };
+        std::vector<glm::vec3> channelColors = {glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f),
+                                                glm::vec3(0.0f, 0.0f, 1.0f)};
 
         for (size_t c = 0; c < 3; ++c) {
             auto channelData = Leon::TestFixtures::CreateConstantHDR(W, H, channelColors[c]);

@@ -34,8 +34,8 @@ namespace Leon {
         }
 
         TEST_CASE("selector does not restart earlier sibling while child InProgress") {
-            auto fail = CreateRef<UBTTask_Native>("Fail",
-                                                  [](UBehaviorTreeComponent&, float) { return EBTNodeResult::Failed; });
+            auto fail =
+                CreateRef<UBTTask_Native>("Fail", [](UBehaviorTreeComponent&, float) { return EBTNodeResult::Failed; });
             auto wait = CreateRef<UBTTask_Wait>(0.1f);
             auto sel = CreateRef<UBTComposite_Selector>("Sel");
             sel->AddChild(fail);

@@ -5,7 +5,9 @@
 
 namespace Leon {
 
-    UScrollBox::UScrollBox(const std::string& InName) : UPanelWidget(InName) { Size = {320.0f, 180.0f}; }
+    UScrollBox::UScrollBox(const std::string& InName) : UPanelWidget(InName) {
+        Size = {320.0f, 180.0f};
+    }
 
     void UScrollBox::ClampOffset() {
         const float maxScroll = std::max(0.0f, ContentHeight - Size.y);

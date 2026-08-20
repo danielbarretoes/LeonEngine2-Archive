@@ -13,7 +13,9 @@ namespace Leon {
         MaxTextureResolution = std::max(1u, InMaxDim);
     }
 
-    uint32_t FRenderer::GetMaxTextureResolution() { return MaxTextureResolution; }
+    uint32_t FRenderer::GetMaxTextureResolution() {
+        return MaxTextureResolution;
+    }
 
     void FRenderer::Init() {
         LE_CORE_INFO("Initializing Renderer Subsystem...");

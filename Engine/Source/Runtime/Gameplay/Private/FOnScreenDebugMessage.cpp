@@ -39,8 +39,8 @@ namespace Leon {
             msg.TimeRemaining -= InDeltaSeconds;
         }
         Messages.erase(std::remove_if(Messages.begin(), Messages.end(),
-                                        [](const FOnScreenDebugMessage& msg) { return msg.TimeRemaining <= 0.0f; }),
-                         Messages.end());
+                                      [](const FOnScreenDebugMessage& msg) { return msg.TimeRemaining <= 0.0f; }),
+                       Messages.end());
     }
 
     void FOnScreenDebugMessageManager::Draw(float InViewportWidth, float InViewportHeight) {

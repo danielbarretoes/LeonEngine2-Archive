@@ -61,8 +61,8 @@ namespace Leon {
                                                   const glm::vec3& InLocation, const glm::vec3& InScale,
                                                   ELeonTournamentArenaSurface InSurface, const glm::vec3& InTint,
                                                   float InMetersPerUv) {
-        const bool planar = InSurface == ELeonTournamentArenaSurface::Floor ||
-                            InSurface == ELeonTournamentArenaSurface::Mirror;
+        const bool planar =
+            InSurface == ELeonTournamentArenaSurface::Floor || InSurface == ELeonTournamentArenaSurface::Mirror;
         const bool visibleInReflection = InSurface != ELeonTournamentArenaSurface::Floor;
         const float mpu = InMetersPerUv > 0.0f ? InMetersPerUv : MetersPerUv(InSurface);
         return FProceduralPrimitiveSpawner::SpawnMeshBox(InWorld, InName, InLocation, InScale, InTint,
@@ -87,8 +87,8 @@ namespace Leon {
                                                         const glm::vec3& InPos, const glm::vec3& InDir,
                                                         const glm::vec3& InColor, float InIntensity, float InRadius,
                                                         float InInnerDeg, float InOuterDeg, ELightMobility InMobility) {
-        return FProceduralPrimitiveSpawner::SpawnSpotLight(InWorld, InName, InPos, InDir, InColor, InIntensity, InRadius,
-                                                           InInnerDeg, InOuterDeg, InMobility);
+        return FProceduralPrimitiveSpawner::SpawnSpotLight(InWorld, InName, InPos, InDir, InColor, InIntensity,
+                                                           InRadius, InInnerDeg, InOuterDeg, InMobility);
     }
 
     void FLeonTournamentArenaBuilder::BuildGeometry(UWorld* InWorld, bool bNight) {
@@ -198,10 +198,10 @@ namespace Leon {
         if (!bNight) {
             SpawnPointLight(InWorld, "PL_UpperN", {0.0f, 7.5f, -22.0f}, warm, 9.0f, 14.0f);
             SpawnPointLight(InWorld, "PL_UpperS", {0.0f, 7.5f, 22.0f}, warm, 9.0f, 14.0f);
-            SpawnSpotLight(InWorld, "Spot_StairsW", {-26.0f, 8.5f, 0.0f}, {0.2f, -1.0f, 0.0f}, soft, 16.0f, 18.0f, 12.0f,
-                           24.0f);
-            SpawnSpotLight(InWorld, "Spot_StairsE", {26.0f, 8.5f, 0.0f}, {-0.2f, -1.0f, 0.0f}, soft, 16.0f, 18.0f, 12.0f,
-                           24.0f);
+            SpawnSpotLight(InWorld, "Spot_StairsW", {-26.0f, 8.5f, 0.0f}, {0.2f, -1.0f, 0.0f}, soft, 16.0f, 18.0f,
+                           12.0f, 24.0f);
+            SpawnSpotLight(InWorld, "Spot_StairsE", {26.0f, 8.5f, 0.0f}, {-0.2f, -1.0f, 0.0f}, soft, 16.0f, 18.0f,
+                           12.0f, 24.0f);
         }
     }
 
@@ -288,8 +288,7 @@ namespace Leon {
             FDirectionalLightComponent sun;
             sun.bEnabled = true;
             sun.Mobility = ELightMobility::Stationary;
-            sun.Light.Direction =
-                glm::normalize(glm::vec3(bNight ? 0.28f : -0.35f, -1.0f, bNight ? -0.32f : -0.45f));
+            sun.Light.Direction = glm::normalize(glm::vec3(bNight ? 0.28f : -0.35f, -1.0f, bNight ? -0.32f : -0.45f));
             sun.Light.Color = bNight ? glm::vec3(0.45f, 0.58f, 0.95f) : glm::vec3(1.0f, 0.97f, 0.90f);
             sun.Light.Intensity = bNight ? 1.6f : 3.0f;
             sunActor->AddComponent<FDirectionalLightComponent>(sun);

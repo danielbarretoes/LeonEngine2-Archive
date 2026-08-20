@@ -51,8 +51,8 @@ namespace Leon {
                 FillRect(x - thick / 2, y0, x + thick / 2, y1, r, g, b, a);
             }
 
-            void CircleOutline(int cx, int cy, int radius, int thick, unsigned char r, unsigned char g,
-                               unsigned char b, unsigned char a = 255) {
+            void CircleOutline(int cx, int cy, int radius, int thick, unsigned char r, unsigned char g, unsigned char b,
+                               unsigned char a = 255) {
                 for (int y = 0; y < kCrosshairDim; ++y) {
                     for (int x = 0; x < kCrosshairDim; ++x) {
                         const float dx = static_cast<float>(x - cx);
@@ -67,8 +67,7 @@ namespace Leon {
             TRef<FTexture2D> Bake(const std::string& InDebugName) const {
                 auto tex = FTexture2D::Create(kCrosshairDim, kCrosshairDim);
                 if (tex)
-                    tex->SetData(const_cast<unsigned char*>(rgba.data()),
-                                 static_cast<unsigned int>(rgba.size()));
+                    tex->SetData(const_cast<unsigned char*>(rgba.data()), static_cast<unsigned int>(rgba.size()));
                 (void)InDebugName;
                 return tex;
             }

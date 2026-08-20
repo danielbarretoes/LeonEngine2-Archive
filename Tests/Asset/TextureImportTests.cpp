@@ -34,7 +34,7 @@ TEST_SUITE("Texture Importer & .ltex Binary Format Tests") {
     }
 
     TEST_CASE("TextureImporter - Gloss to Roughness Inversion (R = 255 - G)") {
-        std::vector<uint8_t> glossPixels = { 0, 50, 200, 255 };
+        std::vector<uint8_t> glossPixels = {0, 50, 200, 255};
         for (auto& p : glossPixels) {
             p = 255 - p;
         }
@@ -53,10 +53,10 @@ TEST_SUITE("Texture Importer & .ltex Binary Format Tests") {
         srcTex.Header.Semantic = static_cast<uint32_t>(ETextureSemantic::Albedo);
         srcTex.Header.MipCount = 3;
 
-        FTextureMipData m0{ 0, 4, 4, std::vector<uint8_t>(4 * 4 * 4, 128) };
-        FTextureMipData m1{ 1, 2, 2, std::vector<uint8_t>(2 * 2 * 4, 128) };
-        FTextureMipData m2{ 2, 1, 1, std::vector<uint8_t>(1 * 1 * 4, 128) };
-        srcTex.Mips = { m0, m1, m2 };
+        FTextureMipData m0{0, 4, 4, std::vector<uint8_t>(4 * 4 * 4, 128)};
+        FTextureMipData m1{1, 2, 2, std::vector<uint8_t>(2 * 2 * 4, 128)};
+        FTextureMipData m2{2, 1, 1, std::vector<uint8_t>(1 * 1 * 4, 128)};
+        srcTex.Mips = {m0, m1, m2};
 
         std::string tempPath = "build/temp_test.ltex";
         CHECK(srcTex.SaveToFile(tempPath));

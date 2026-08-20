@@ -10,7 +10,10 @@ namespace Leon {
      */
     class FPerformanceTimer {
     public:
-        void Start() { Begin = std::chrono::high_resolution_clock::now(); bRunning = true; }
+        void Start() {
+            Begin = std::chrono::high_resolution_clock::now();
+            bRunning = true;
+        }
 
         float StopMs() {
             if (!bRunning)

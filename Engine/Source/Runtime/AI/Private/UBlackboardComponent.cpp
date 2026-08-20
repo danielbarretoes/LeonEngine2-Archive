@@ -13,7 +13,9 @@ namespace Leon {
             Values[key.Name] = key.DefaultValue;
     }
 
-    void UBlackboardComponent::SetValueAsBool(const std::string& InKey, bool bValue) { Values[InKey] = bValue; }
+    void UBlackboardComponent::SetValueAsBool(const std::string& InKey, bool bValue) {
+        Values[InKey] = bValue;
+    }
 
     bool UBlackboardComponent::GetValueAsBool(const std::string& InKey, bool bDefault) const {
         auto it = Values.find(InKey);
@@ -22,7 +24,9 @@ namespace Leon {
         return std::get<bool>(it->second);
     }
 
-    void UBlackboardComponent::SetValueAsInt(const std::string& InKey, int32_t InValue) { Values[InKey] = InValue; }
+    void UBlackboardComponent::SetValueAsInt(const std::string& InKey, int32_t InValue) {
+        Values[InKey] = InValue;
+    }
 
     int32_t UBlackboardComponent::GetValueAsInt(const std::string& InKey, int32_t InDefault) const {
         auto it = Values.find(InKey);
@@ -31,7 +35,9 @@ namespace Leon {
         return std::get<int32_t>(it->second);
     }
 
-    void UBlackboardComponent::SetValueAsFloat(const std::string& InKey, float InValue) { Values[InKey] = InValue; }
+    void UBlackboardComponent::SetValueAsFloat(const std::string& InKey, float InValue) {
+        Values[InKey] = InValue;
+    }
 
     float UBlackboardComponent::GetValueAsFloat(const std::string& InKey, float InDefault) const {
         auto it = Values.find(InKey);
@@ -51,7 +57,9 @@ namespace Leon {
         return std::get<glm::vec3>(it->second);
     }
 
-    void UBlackboardComponent::SetValueAsObject(const std::string& InKey, void* InObject) { Values[InKey] = InObject; }
+    void UBlackboardComponent::SetValueAsObject(const std::string& InKey, void* InObject) {
+        Values[InKey] = InObject;
+    }
 
     void* UBlackboardComponent::GetValueAsObject(const std::string& InKey) const {
         auto it = Values.find(InKey);
@@ -71,6 +79,8 @@ namespace Leon {
         return std::get<std::string>(it->second);
     }
 
-    bool UBlackboardComponent::HasKey(const std::string& InKey) const { return Values.find(InKey) != Values.end(); }
+    bool UBlackboardComponent::HasKey(const std::string& InKey) const {
+        return Values.find(InKey) != Values.end();
+    }
 
 } // namespace Leon

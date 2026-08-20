@@ -1047,8 +1047,7 @@ namespace Leon {
         TEST_CASE("arena map path resolves to authored TournamentArena") {
             CHECK(std::string(LeonTournamentPlayableMapPath(ELeonTournamentPlayableMap::Arena)) ==
                   "/Game/Maps/TournamentArena");
-            CHECK(std::string(LeonTournamentPlayableMapName(ELeonTournamentPlayableMap::Arena)) ==
-                  "TOURNAMENT ARENA");
+            CHECK(std::string(LeonTournamentPlayableMapName(ELeonTournamentPlayableMap::Arena)) == "TOURNAMENT ARENA");
         }
 
         TEST_CASE("weapon audio presets use dedicated fire paths") {

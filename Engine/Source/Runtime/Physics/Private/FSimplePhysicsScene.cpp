@@ -421,8 +421,9 @@ namespace Leon {
     }
 
     bool FSimplePhysicsScene::SweepCapsuleSingleByChannel(const glm::vec3& InStart, const glm::vec3& InEnd,
-                                                          float InRadius, float InHalfHeight, ECollisionChannel InChannel,
-                                                          AActor* InIgnore, FHitResult& OutHit) const {
+                                                          float InRadius, float InHalfHeight,
+                                                          ECollisionChannel InChannel, AActor* InIgnore,
+                                                          FHitResult& OutHit) const {
         OutHit = {};
         std::vector<FHitResult> hits;
         if (SweepCapsuleMultiByChannel(InStart, InEnd, InRadius, InHalfHeight, InChannel, InIgnore, hits) <= 0)

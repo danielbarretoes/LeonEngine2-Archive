@@ -81,15 +81,14 @@ namespace Leon {
     class FLightBaker {
     public:
         static void Bake(const FLightBakerScene& InScene, const FLightBakerSettings& InSettings,
-                          std::vector<float>& OutRGBA32F);
+                         std::vector<float>& OutRGBA32F);
 
         static float PointAttenuation(float InDistance, float InRadius);
-        static float SpotConeFactor(const glm::vec3& InLightDir, const glm::vec3& InToLight,
-                                     float InCutOffDeg, float InOuterCutOffDeg);
+        static float SpotConeFactor(const glm::vec3& InLightDir, const glm::vec3& InToLight, float InCutOffDeg,
+                                    float InOuterCutOffDeg);
 
-        static bool IntersectScene(const FLightBakerScene& InScene, const glm::vec3& InOrigin,
-                                    const glm::vec3& InDir, float InMaxT, float& OutT, uint32_t& OutTri,
-                                    glm::vec3& OutBary);
+        static bool IntersectScene(const FLightBakerScene& InScene, const glm::vec3& InOrigin, const glm::vec3& InDir,
+                                   float InMaxT, float& OutT, uint32_t& OutTri, glm::vec3& OutBary);
 
         static glm::vec3 CosineSampleHemisphere(const glm::vec3& InNormal, float InU1, float InU2);
     };

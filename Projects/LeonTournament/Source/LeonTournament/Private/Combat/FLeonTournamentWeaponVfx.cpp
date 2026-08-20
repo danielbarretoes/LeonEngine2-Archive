@@ -20,9 +20,9 @@ namespace Leon {
         }
     } // namespace
 
-    int FLeonTournamentWeaponVfx::SpawnFireEffects(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle,
-                         const glm::vec3& InTracerStart, const glm::vec3& InTraceEnd, bool bHitWorld,
-                         bool bHitCharacter) {
+    int FLeonTournamentWeaponVfx::SpawnFireEffects(const FLeonTournamentWeaponVfxContext& Ctx,
+                                                   const glm::vec3& InMuzzle, const glm::vec3& InTracerStart,
+                                                   const glm::vec3& InTraceEnd, bool bHitWorld, bool bHitCharacter) {
         int spawnCount = 0;
         if (!Ctx.World)
             return spawnCount;
@@ -78,7 +78,8 @@ namespace Leon {
         return spawnCount;
     }
 
-    int FLeonTournamentWeaponVfx::SpawnRocketLaunchEffects(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle) {
+    int FLeonTournamentWeaponVfx::SpawnRocketLaunchEffects(const FLeonTournamentWeaponVfxContext& Ctx,
+                                                           const glm::vec3& InMuzzle) {
         int spawnCount = 0;
         if (!Ctx.World)
             return spawnCount;
@@ -114,8 +115,9 @@ namespace Leon {
         return spawnCount;
     }
 
-    int FLeonTournamentWeaponVfx::SpawnLaserEffects(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle,
-                          const glm::vec3& InTraceEnd, bool bHitCharacter) {
+    int FLeonTournamentWeaponVfx::SpawnLaserEffects(const FLeonTournamentWeaponVfxContext& Ctx,
+                                                    const glm::vec3& InMuzzle, const glm::vec3& InTraceEnd,
+                                                    bool bHitCharacter) {
         int spawnCount = 0;
         if (!Ctx.World)
             return spawnCount;
@@ -164,9 +166,9 @@ namespace Leon {
         return spawnCount;
     }
 
-    int FLeonTournamentWeaponVfx::SpawnShotgunBlastEffects(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle,
-                                 const glm::vec3& InAimDir, float InCurrentSpreadDeg,
-                                 const std::function<glm::vec3(const glm::vec3&, float)>& ApplySpread) {
+    int FLeonTournamentWeaponVfx::SpawnShotgunBlastEffects(
+        const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle, const glm::vec3& InAimDir,
+        float InCurrentSpreadDeg, const std::function<glm::vec3(const glm::vec3&, float)>& ApplySpread) {
         int spawnCount = 0;
         if (!Ctx.World || !Ctx.Config)
             return spawnCount;
@@ -219,8 +221,8 @@ namespace Leon {
         return spawnCount;
     }
 
-    int FLeonTournamentWeaponVfx::SpawnFlameEffects(const FLeonTournamentWeaponVfxContext& Ctx, const glm::vec3& InMuzzle,
-                          const glm::vec3& InDir) {
+    int FLeonTournamentWeaponVfx::SpawnFlameEffects(const FLeonTournamentWeaponVfxContext& Ctx,
+                                                    const glm::vec3& InMuzzle, const glm::vec3& InDir) {
         int spawnCount = 0;
         if (!Ctx.World || !Ctx.Config)
             return spawnCount;

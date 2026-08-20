@@ -107,8 +107,7 @@ namespace Leon {
             if (!UEngine::HasInstance())
                 return false;
             const std::string& mapName = UEngine::Get().GetCurrentMapName();
-            return mapName.find("TournamentArena") != std::string::npos &&
-                   mapName.find("Night") == std::string::npos;
+            return mapName.find("TournamentArena") != std::string::npos && mapName.find("Night") == std::string::npos;
         }
 
         bool IsAuthoredPlayableMap() {
@@ -601,8 +600,7 @@ namespace Leon {
             FDirectionalLightComponent sun;
             sun.bEnabled = true;
             sun.Mobility = ELightMobility::Stationary;
-            sun.Light.Direction =
-                glm::normalize(glm::vec3(bNight ? 0.28f : -0.35f, -1.0f, bNight ? -0.32f : -0.45f));
+            sun.Light.Direction = glm::normalize(glm::vec3(bNight ? 0.28f : -0.35f, -1.0f, bNight ? -0.32f : -0.45f));
             sun.Light.Color = bNight ? glm::vec3(0.45f, 0.58f, 0.95f) : glm::vec3(1.0f, 0.97f, 0.90f);
             sun.Light.Intensity = bNight ? 1.6f : 3.0f;
             sunActor->AddComponent<FDirectionalLightComponent>(sun);
@@ -1041,7 +1039,8 @@ namespace Leon {
             return;
         DestroyMenuShowcase();
         if (World)
-            TravelToMapWithTransition(World, "/Game/Maps/AnimLab", "ALeonTournamentAnimLabGameMode", "LOADING ANIM LAB");
+            TravelToMapWithTransition(World, "/Game/Maps/AnimLab", "ALeonTournamentAnimLabGameMode",
+                                      "LOADING ANIM LAB");
     }
 
     void ALeonTournamentGameMode::OpenRenderLab() {
@@ -1065,9 +1064,8 @@ namespace Leon {
     void ALeonTournamentGameMode::OpenPlayableMap(ELeonTournamentPlayableMap InMap) {
         if (!IsNetworkAuthority() || !UEngine::HasInstance())
             return;
-        const bool bAlreadyThere =
-            (InMap == ELeonTournamentPlayableMap::Arena && IsTournamentArenaMap()) ||
-            (InMap == ELeonTournamentPlayableMap::NightArena && IsNightArenaMap());
+        const bool bAlreadyThere = (InMap == ELeonTournamentPlayableMap::Arena && IsTournamentArenaMap()) ||
+                                   (InMap == ELeonTournamentPlayableMap::NightArena && IsNightArenaMap());
         if (bAlreadyThere) {
             StartMatch();
             return;

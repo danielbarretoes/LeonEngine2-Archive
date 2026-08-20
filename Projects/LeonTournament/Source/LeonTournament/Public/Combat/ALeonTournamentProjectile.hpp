@@ -27,7 +27,8 @@ namespace Leon {
 
     private:
         void Explode(const glm::vec3& InLocation, const glm::vec3& InNormal, ALeonTournamentCharacter* InDirectHit);
-        void ImpactPellet(const glm::vec3& InLocation, const glm::vec3& InNormal, ALeonTournamentCharacter* InDirectHit);
+        void ImpactPellet(const glm::vec3& InLocation, const glm::vec3& InNormal,
+                          ALeonTournamentCharacter* InDirectHit);
         void SpawnRicochetFx(const glm::vec3& InLocation, const glm::vec3& InNormal, const glm::vec3& InOutDir);
         void AttachVisual();
         void SpawnTrail();

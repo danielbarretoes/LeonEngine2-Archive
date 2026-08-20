@@ -38,9 +38,7 @@ namespace Leon {
 
         uint32_t GetWidth() const { return Header.Width; }
         uint32_t GetHeight() const { return Header.Height; }
-        ELightmapPixelFormat GetPixelFormat() const {
-            return static_cast<ELightmapPixelFormat>(Header.PixelFormat);
-        }
+        ELightmapPixelFormat GetPixelFormat() const { return static_cast<ELightmapPixelFormat>(Header.PixelFormat); }
         bool IsHDR() const { return Header.bIsHDR != 0; }
         uint64_t GetContentHash() const { return Header.ContentHash; }
         void SetContentHash(uint64_t InHash) { Header.ContentHash = InHash; }

@@ -13,26 +13,26 @@
 #include "miniaudio.h"
 
 namespace Leon {
-namespace {
+    namespace {
 
-    struct FActiveVoice {
-        uint32_t Id = 0;
-        ma_sound Sound{};
-        bool bValid = false;
-    };
+        struct FActiveVoice {
+            uint32_t Id = 0;
+            ma_sound Sound{};
+            bool bValid = false;
+        };
 
-    ma_engine* GEngine = nullptr;
-    std::mutex GVoiceMutex;
-    std::unordered_map<uint32_t, FActiveVoice> GVoices;
+        ma_engine* GEngine = nullptr;
+        std::mutex GVoiceMutex;
+        std::unordered_map<uint32_t, FActiveVoice> GVoices;
 
-    float DistanceAttenuation(float InDistance, float InRadius) {
-        if (InRadius <= 1.0f)
-            return 1.0f;
-        const float t = std::clamp(InDistance / InRadius, 0.0f, 1.0f);
-        return (1.0f - t) * (1.0f - t);
-    }
+        float DistanceAttenuation(float InDistance, float InRadius) {
+            if (InRadius <= 1.0f)
+                return 1.0f;
+            const float t = std::clamp(InDistance / InRadius, 0.0f, 1.0f);
+            return (1.0f - t) * (1.0f - t);
+        }
 
-} // namespace
+    } // namespace
 
     FAudioDevice& FAudioDevice::Get() {
         static FAudioDevice Instance;

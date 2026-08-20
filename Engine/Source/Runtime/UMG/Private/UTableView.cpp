@@ -15,13 +15,21 @@ namespace Leon {
         }
     } // namespace
 
-    UTableView::UTableView(const std::string& InName) : UWidget(InName) { Size = {640.0f, 320.0f}; }
+    UTableView::UTableView(const std::string& InName) : UWidget(InName) {
+        Size = {640.0f, 320.0f};
+    }
 
-    void UTableView::SetColumns(const std::vector<FTableColumn>& InColumns) { Columns = InColumns; }
+    void UTableView::SetColumns(const std::vector<FTableColumn>& InColumns) {
+        Columns = InColumns;
+    }
 
-    void UTableView::SetRows(const std::vector<FTableRow>& InRows) { Rows = InRows; }
+    void UTableView::SetRows(const std::vector<FTableRow>& InRows) {
+        Rows = InRows;
+    }
 
-    void UTableView::ClearRows() { Rows.clear(); }
+    void UTableView::ClearRows() {
+        Rows.clear();
+    }
 
     std::vector<float> UTableView::ComputeColumnWidths(float InContentWidth) const {
         std::vector<float> widths(Columns.size(), 0.0f);
@@ -29,8 +37,9 @@ namespace Leon {
             return widths;
 
         const float totalWeight =
-            std::accumulate(Columns.begin(), Columns.end(), 0.0f,
-                            [](float InSum, const FTableColumn& InColumn) { return InSum + std::max(InColumn.Weight, 0.01f); });
+            std::accumulate(Columns.begin(), Columns.end(), 0.0f, [](float InSum, const FTableColumn& InColumn) {
+                return InSum + std::max(InColumn.Weight, 0.01f);
+            });
         float x = 0.0f;
         for (size_t i = 0; i < Columns.size(); ++i) {
             const float weight = std::max(Columns[i].Weight, 0.01f);
@@ -104,8 +113,7 @@ namespace Leon {
                                                 ? glm::vec4(row.SectionColor.r * 0.18f, row.SectionColor.g * 0.18f,
                                                             row.SectionColor.b * 0.18f, 0.92f)
                                                 : SectionBackgroundColor;
-                const glm::vec4 sectionText =
-                    row.SectionColor.a > 0.0f ? row.SectionColor : SectionTextColor;
+                const glm::vec4 sectionText = row.SectionColor.a > 0.0f ? row.SectionColor : SectionTextColor;
                 const glm::vec2 sectionMin{p0.x + 1.0f, rowY};
                 const glm::vec2 sectionMax{p1.x - 1.0f, rowY + rowH};
                 FUIRenderer::DrawQuad(sectionMin, sectionMax, sectionBg);

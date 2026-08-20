@@ -48,7 +48,8 @@ TEST_SUITE("Physics / Collision") {
         BeginActor(wall);
 
         Leon::FHitResult hit;
-        CHECK(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
+        CHECK(
+            world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
         CHECK(hit.bBlockingHit);
         CHECK(hit.Actor == wall);
         CHECK(hit.Component != nullptr);
@@ -63,7 +64,8 @@ TEST_SUITE("Physics / Collision") {
         BeginActor(sphereActor);
 
         Leon::FHitResult hit;
-        CHECK(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
+        CHECK(
+            world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
         CHECK(hit.Actor == sphereActor);
 
         auto* capActor = world->SpawnActor<Leon::AActor>("Capsule");
@@ -71,7 +73,8 @@ TEST_SUITE("Physics / Collision") {
         auto cap = capActor->AddActorComponent<Leon::UCapsuleComponent>("Cap");
         cap->SetCapsuleSize(0.4f, 0.9f);
         BeginActor(capActor);
-        CHECK(world->LineTraceSingleByChannel({5, 1, 0}, {5, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
+        CHECK(
+            world->LineTraceSingleByChannel({5, 1, 0}, {5, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
         CHECK(hit.Actor == capActor);
     }
 
@@ -84,10 +87,11 @@ TEST_SUITE("Physics / Collision") {
         box->SetCollisionResponseToChannel(Leon::ECollisionChannel::Visibility, Leon::ECollisionResponse::Ignore);
         BeginActor(wall);
         Leon::FHitResult hit;
-        CHECK_FALSE(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr,
-                                                    hit));
+        CHECK_FALSE(
+            world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
         box->SetCollisionResponseToChannel(Leon::ECollisionChannel::Visibility, Leon::ECollisionResponse::Block);
-        CHECK(world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
+        CHECK(
+            world->LineTraceSingleByChannel({0, 1, 0}, {0, 1, 20}, Leon::ECollisionChannel::Visibility, nullptr, hit));
     }
 
     TEST_CASE("SimulatePhysics dynamic body falls") {
@@ -119,7 +123,8 @@ TEST_SUITE("Physics / Collision") {
         box->SetBoxExtent({0.5f, 1.0f, 0.5f});
         BeginActor(wall);
         Leon::FHitResult hit;
-        CHECK(world->SweepSingleByChannel({0, 1, 0}, {0, 1, 8}, 0.2f, Leon::ECollisionChannel::WorldStatic, nullptr, hit));
+        CHECK(world->SweepSingleByChannel({0, 1, 0}, {0, 1, 8}, 0.2f, Leon::ECollisionChannel::WorldStatic, nullptr,
+                                          hit));
         CHECK(world->OverlapAnyTestByChannel({0, 1, 4}, {0.6f, 0.6f, 0.6f}, Leon::ECollisionChannel::WorldStatic,
                                              nullptr));
     }
@@ -292,7 +297,8 @@ TEST_SUITE("AI BehaviorTree / Blackboard") {
         ai->UseBlackboard(data);
 
         int services = 0;
-        auto svc = Leon::MakeRef<Leon::UBTService_Native>("Svc", [&](Leon::UBehaviorTreeComponent&, float) { ++services; });
+        auto svc =
+            Leon::MakeRef<Leon::UBTService_Native>("Svc", [&](Leon::UBehaviorTreeComponent&, float) { ++services; });
         svc->Interval = 0.0f;
 
         auto seq = Leon::MakeRef<Leon::UBTComposite_Sequence>("Seq");

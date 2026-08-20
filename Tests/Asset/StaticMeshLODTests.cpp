@@ -83,7 +83,8 @@ namespace {
             if (sm.MaterialSlotIndex >= InMesh.GetMaterialSlots().size() && !InMesh.GetMaterialSlots().empty())
                 return false;
         }
-        return InMesh.GetSphereRadius() >= 0.0f && glm::all(glm::lessThanEqual(InMesh.GetBoundsMin(), InMesh.GetBoundsMax()));
+        return InMesh.GetSphereRadius() >= 0.0f &&
+               glm::all(glm::lessThanEqual(InMesh.GetBoundsMin(), InMesh.GetBoundsMax()));
     }
 } // namespace
 
@@ -123,8 +124,8 @@ TEST_SUITE("Automatic static mesh LOD") {
         const uint32_t srcTris = mesh->GetSourceTriangleCount();
         REQUIRE(srcTris > 100);
         FStaticMeshLOD lod;
-        REQUIRE(FMeshSimplifier::Simplify(mesh->GetVertices(), mesh->GetIndices(), mesh->GetSubmeshes(), 0.30f, 16,
-                                          lod));
+        REQUIRE(
+            FMeshSimplifier::Simplify(mesh->GetVertices(), mesh->GetIndices(), mesh->GetSubmeshes(), 0.30f, 16, lod));
         CHECK(lod.Indices.size() % 3 == 0);
         CHECK(lod.Indices.size() / 3 < srcTris);
         CHECK(lod.Submeshes.size() == mesh->GetSubmeshes().size());
@@ -155,8 +156,8 @@ TEST_SUITE("Automatic static mesh LOD") {
         CHECK(tri->GetLODCount() == 1);
 
         FStaticMeshLOD lod;
-        CHECK_FALSE(FMeshSimplifier::Simplify(tri->GetVertices(), tri->GetIndices(), tri->GetSubmeshes(), 0.05f, 16,
-                                              lod));
+        CHECK_FALSE(
+            FMeshSimplifier::Simplify(tri->GetVertices(), tri->GetIndices(), tri->GetSubmeshes(), 0.05f, 16, lod));
     }
 
     TEST_CASE("BuildAutomaticLODs produces strictly fewer triangles per level") {

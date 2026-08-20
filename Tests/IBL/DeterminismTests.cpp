@@ -7,7 +7,8 @@ TEST_SUITE("IBL - Algorithm Determinism Tests") {
 
     TEST_CASE("Repeatable 100% Deterministic Execution across Multiple Runs") {
         const int W = 32, H = 16;
-        auto testData = Leon::TestFixtures::CreateHemisphereStepHDR(W, H, glm::vec3(2.0f, 1.0f, 0.5f), glm::vec3(0.1f, 0.2f, 0.3f));
+        auto testData =
+            Leon::TestFixtures::CreateHemisphereStepHDR(W, H, glm::vec3(2.0f, 1.0f, 0.5f), glm::vec3(0.1f, 0.2f, 0.3f));
 
         // 1. MipChain build determinism
         Leon::FHDREquirectangularMipChain chain1;
@@ -19,8 +20,7 @@ TEST_SUITE("IBL - Algorithm Determinism Tests") {
         REQUIRE(chain1.Levels.size() == chain2.Levels.size());
         for (size_t lvl = 0; lvl < chain1.Levels.size(); ++lvl) {
             REQUIRE(chain1.Levels[lvl].Data.size() == chain2.Levels[lvl].Data.size());
-            CHECK(std::memcmp(chain1.Levels[lvl].Data.data(),
-                              chain2.Levels[lvl].Data.data(),
+            CHECK(std::memcmp(chain1.Levels[lvl].Data.data(), chain2.Levels[lvl].Data.data(),
                               chain1.Levels[lvl].Data.size() * sizeof(float)) == 0);
         }
 

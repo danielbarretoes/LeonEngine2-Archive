@@ -44,8 +44,8 @@ namespace Leon {
         std::string lower = InPath;
         std::transform(lower.begin(), lower.end(), lower.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        const char* tags[] = {"_n.",  "_normal", "_norm", "_rough", "_rgh", "_metal", "_met",
-                              "_orm", "_rma",    "_ao.",  "_occ",   "_height", "_disp", "_bump"};
+        const char* tags[] = {"_n.",  "_normal", "_norm", "_rough", "_rgh",    "_metal", "_met",
+                              "_orm", "_rma",    "_ao.",  "_occ",   "_height", "_disp",  "_bump"};
         for (const char* tag : tags) {
             if (lower.find(tag) != std::string::npos)
                 return true;

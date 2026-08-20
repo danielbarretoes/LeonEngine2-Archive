@@ -119,8 +119,8 @@ namespace Leon {
                           "AI  Bots:%d  Active BT:%d  Moving:%d  Searching:%d  Combat:%d  Reloading:%d  Dead:%d", bots,
                           activeBt, moving, searching, combat, reloading, dead);
             put(line);
-            std::snprintf(line, sizeof(line), "Paths valid:%d  failed:%d  [Shift+F5 AI] [, next] [. prev]",
-                          pathsValid, pathsFailed);
+            std::snprintf(line, sizeof(line), "Paths valid:%d  failed:%d  [Shift+F5 AI] [, next] [. prev]", pathsValid,
+                          pathsFailed);
             put(line);
 
             const auto& ais = InWorld->GetAIControllers();

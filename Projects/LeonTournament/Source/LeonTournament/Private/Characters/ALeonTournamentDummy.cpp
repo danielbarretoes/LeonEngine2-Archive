@@ -77,8 +77,8 @@ namespace Leon {
         info.Causer = this;
         info.HitActor = nearest;
         info.HitLocation = nearest->GetActorLocation();
-        info.Impulse = glm::normalize(nearest->GetActorLocation() - GetActorLocation() + glm::vec3(0.0f, 0.2f, 0.0f)) *
-                       2.0f;
+        info.Impulse =
+            glm::normalize(nearest->GetActorLocation() - GetActorLocation() + glm::vec3(0.0f, 0.2f, 0.0f)) * 2.0f;
         if (auto* gm = dynamic_cast<ALeonTournamentGameMode*>(World->GetGameMode()))
             gm->ApplyAuthoritativeDamage(*this, *nearest, info);
         else

@@ -80,11 +80,10 @@ namespace Leon {
                                                   uint32_t InMaxCount, float InMaxDistance) {
         if (InMaxDistance > 0.0f) {
             const float maxSq = InMaxDistance * InMaxDistance;
-            InOutRanks.erase(std::remove_if(InOutRanks.begin(), InOutRanks.end(),
-                                            [maxSq](const FSkinnedShadowCasterRank& InRank) {
-                                                return InRank.DistanceSq > maxSq;
-                                            }),
-                             InOutRanks.end());
+            InOutRanks.erase(
+                std::remove_if(InOutRanks.begin(), InOutRanks.end(),
+                               [maxSq](const FSkinnedShadowCasterRank& InRank) { return InRank.DistanceSq > maxSq; }),
+                InOutRanks.end());
         }
         std::sort(InOutRanks.begin(), InOutRanks.end(),
                   [](const FSkinnedShadowCasterRank& InA, const FSkinnedShadowCasterRank& InB) {

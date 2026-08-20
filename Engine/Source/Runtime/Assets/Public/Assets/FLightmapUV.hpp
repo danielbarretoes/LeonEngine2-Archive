@@ -36,10 +36,10 @@ namespace Leon {
 
         /** Barycentric helpers for texel reconstruction. */
         static bool ComputeBarycentric(const glm::vec2& InP, const glm::vec2& InA, const glm::vec2& InB,
-                                         const glm::vec2& InC, glm::vec3& OutBary);
+                                       const glm::vec2& InC, glm::vec3& OutBary);
 
         static glm::vec3 Interpolate(const glm::vec3& InA, const glm::vec3& InB, const glm::vec3& InC,
-                                      const glm::vec3& InBary);
+                                     const glm::vec3& InBary);
     };
 
 } // namespace Leon

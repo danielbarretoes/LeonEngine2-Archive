@@ -390,8 +390,8 @@ namespace Leon {
         glm::vec3 shadowedPointPos[FShadowSettings::kMaxShadowedPointLights];
         float shadowedPointRadius[FShadowSettings::kMaxShadowedPointLights];
         uint32_t shadowedPointCount = 0;
-        const uint32_t maxPointShadows = std::min(ShadowSettings.MaxShadowedPointLights,
-                                                  FShadowSettings::kMaxShadowedPointLights);
+        const uint32_t maxPointShadows =
+            std::min(ShadowSettings.MaxShadowedPointLights, FShadowSettings::kMaxShadowedPointLights);
         if (ShadowSettings.bEnableShadows) {
             for (size_t i = 0; i < pointLights.size() && shadowedPointCount < maxPointShadows; ++i) {
                 lightingData.PointLights[i].Params.y = static_cast<float>(shadowedPointCount);
@@ -400,9 +400,8 @@ namespace Leon {
                 ++shadowedPointCount;
             }
         }
-        lightingData.LightCounts =
-            glm::ivec4(static_cast<int>(pointLights.size()), static_cast<int>(spotLights.size()),
-                       static_cast<int>(shadowedPointCount), 0);
+        lightingData.LightCounts = glm::ivec4(static_cast<int>(pointLights.size()), static_cast<int>(spotLights.size()),
+                                              static_cast<int>(shadowedPointCount), 0);
         lightingData.EnvSkyColor = glm::vec4(skybox.SkyZenithColor, skybox.EnvironmentIntensity);
         lightingData.EnvHorizonColor = glm::vec4(skybox.HorizonColor, 0.0f);
         lightingData.EnvGroundColor = glm::vec4(skybox.GroundColor, 0.0f);
@@ -423,7 +422,8 @@ namespace Leon {
         // ------------------------------------------------------------------
         const uint32_t drawsBeforeShadow = FRenderer::GetStats().DrawCalls;
         const bool bShadowsOn = ShadowSettings.bEnableShadows;
-        if (bShadowsOn && ((bHasDirLight && ShadowSettings.CascadeCount > 0) || bHasSpotLight || shadowedPointCount > 0)) {
+        if (bShadowsOn &&
+            ((bHasDirLight && ShadowSettings.CascadeCount > 0) || bHasSpotLight || shadowedPointCount > 0)) {
             FGpuCpuScope shadow(&FFrameProfiler::Working().ShadowMs, EGPUTimerSlot::Shadow);
             // Flow: skinned shadow budget
             // 1. Rank visible skinned casters by camera distance

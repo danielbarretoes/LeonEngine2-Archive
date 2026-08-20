@@ -41,8 +41,10 @@ namespace Leon {
         std::vector<FTransparentDraw> GPendingTransparents;
         std::vector<FOpaqueDraw> GPendingOpaques;
 
-        void SubmitOpaqueDraw(FOpaqueDraw InDraw) { GPendingOpaques.push_back(std::move(InDraw)); }
-    }
+        void SubmitOpaqueDraw(FOpaqueDraw InDraw) {
+            GPendingOpaques.push_back(std::move(InDraw));
+        }
+    } // namespace
 
     void FWorldRenderer::BindPlanarReflectionUniforms(FShader& InShader, bool bEnabled) {
         if (bEnabled && PlanarReflectionFramebuffer) {
@@ -198,8 +200,7 @@ namespace Leon {
                 glm::mat4 model = world * submesh.LocalTransform;
 
                 TRef<FTexture2D> lightmapTex;
-                bool bUseLM = World->AreLightmapsTrusted() &&
-                              staticMeshComp.Mobility == EComponentMobility::Static &&
+                bool bUseLM = World->AreLightmapsTrusted() && staticMeshComp.Mobility == EComponentMobility::Static &&
                               staticMeshComp.LightmapIndex >= 0 && !staticMeshComp.LightmapAssetPath.empty();
                 if (bUseLM) {
                     auto lm = UAssetManager::GetLightmap(staticMeshComp.LightmapAssetPath);

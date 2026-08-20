@@ -42,8 +42,8 @@ namespace Leon {
         const glm::vec3 color = TeamColor(Team);
         FLeonTournamentArenaBuilder::SpawnSimpleBox(World, GetName() + "_Pad", GetActorLocation(),
                                                     {CaptureRadius * 2.0f, 0.08f, CaptureRadius * 2.0f}, color * 0.45f);
-        FLeonTournamentArenaBuilder::SpawnSimpleBox(World, GetName() + "_Pillar", GetActorLocation() + glm::vec3(0.0f, 0.65f, 0.0f),
-                                                    {0.7f, 1.3f, 0.7f}, color);
+        FLeonTournamentArenaBuilder::SpawnSimpleBox(
+            World, GetName() + "_Pillar", GetActorLocation() + glm::vec3(0.0f, 0.65f, 0.0f), {0.7f, 1.3f, 0.7f}, color);
     }
 
 } // namespace Leon

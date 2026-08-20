@@ -69,8 +69,8 @@ namespace Leon {
         VertexArray = FVertexArray::Create();
         VertexBuffer = FVertexBuffer::Create(MaxVertices * sizeof(FTextVertex));
         VertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"},
-                                   {EShaderDataType::Float2, "aTexCoord"},
-                                   {EShaderDataType::Float4, "aColor"}});
+                                 {EShaderDataType::Float2, "aTexCoord"},
+                                 {EShaderDataType::Float4, "aColor"}});
         VertexArray->AddVertexBuffer(VertexBuffer);
 
         Vertices.reserve(4096);

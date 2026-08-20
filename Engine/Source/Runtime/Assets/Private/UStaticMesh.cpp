@@ -101,8 +101,8 @@ namespace Leon {
         for (size_t i = 1; i < InSettings.Levels.size() && ReducedLODs.size() + 1 < kMaxStaticMeshLODCount; ++i) {
             const FLODLevel& level = InSettings.Levels[i];
             FStaticMeshLOD lod;
-            if (!FMeshSimplifier::Simplify(Vertices, Indices, Submeshes, level.TriangleRatio, InSettings.MinTriangleCount,
-                                           lod))
+            if (!FMeshSimplifier::Simplify(Vertices, Indices, Submeshes, level.TriangleRatio,
+                                           InSettings.MinTriangleCount, lod))
                 break;
             if (lod.Indices.size() / 3 >= srcTris)
                 break;
@@ -210,14 +210,15 @@ namespace Leon {
             }
             InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].IndexOffset),
                         sizeof(OutLOD.Submeshes[i].IndexOffset));
-            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].IndexCount), sizeof(OutLOD.Submeshes[i].IndexCount));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].IndexCount),
+                        sizeof(OutLOD.Submeshes[i].IndexCount));
             InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].VertexOffset),
                         sizeof(OutLOD.Submeshes[i].VertexOffset));
-            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].VertexCount), sizeof(OutLOD.Submeshes[i].VertexCount));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].VertexCount),
+                        sizeof(OutLOD.Submeshes[i].VertexCount));
             InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].MaterialSlotIndex),
                         sizeof(OutLOD.Submeshes[i].MaterialSlotIndex));
-            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].LocalTransform),
-                        sizeof(glm::mat4));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].LocalTransform), sizeof(glm::mat4));
             InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].BoundsMin), sizeof(glm::vec3));
             InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].BoundsMax), sizeof(glm::vec3));
         }
@@ -370,8 +371,7 @@ namespace Leon {
             file.read(reinterpret_cast<char*>(&Submeshes[i].IndexCount), sizeof(Submeshes[i].IndexCount));
             file.read(reinterpret_cast<char*>(&Submeshes[i].VertexOffset), sizeof(Submeshes[i].VertexOffset));
             file.read(reinterpret_cast<char*>(&Submeshes[i].VertexCount), sizeof(Submeshes[i].VertexCount));
-            file.read(reinterpret_cast<char*>(&Submeshes[i].MaterialSlotIndex),
-                      sizeof(Submeshes[i].MaterialSlotIndex));
+            file.read(reinterpret_cast<char*>(&Submeshes[i].MaterialSlotIndex), sizeof(Submeshes[i].MaterialSlotIndex));
             file.read(reinterpret_cast<char*>(&Submeshes[i].LocalTransform), sizeof(glm::mat4));
             file.read(reinterpret_cast<char*>(&Submeshes[i].BoundsMin), sizeof(glm::vec3));
             file.read(reinterpret_cast<char*>(&Submeshes[i].BoundsMax), sizeof(glm::vec3));

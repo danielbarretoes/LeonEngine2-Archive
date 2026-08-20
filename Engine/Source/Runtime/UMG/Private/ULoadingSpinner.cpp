@@ -10,9 +10,13 @@ namespace Leon {
         constexpr float kTwoPi = 6.28318530718f;
     } // namespace
 
-    ULoadingSpinner::ULoadingSpinner(const std::string& InName) : UWidget(InName) { Size = {64.0f, 64.0f}; }
+    ULoadingSpinner::ULoadingSpinner(const std::string& InName) : UWidget(InName) {
+        Size = {64.0f, 64.0f};
+    }
 
-    void ULoadingSpinner::SetSegmentCount(int InCount) { SegmentCount = std::clamp(InCount, 3, 32); }
+    void ULoadingSpinner::SetSegmentCount(int InCount) {
+        SegmentCount = std::clamp(InCount, 3, 32);
+    }
 
     void ULoadingSpinner::Tick(float InDeltaTime) {
         UWidget::Tick(InDeltaTime);

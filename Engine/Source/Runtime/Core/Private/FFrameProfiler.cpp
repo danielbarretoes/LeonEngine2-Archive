@@ -84,7 +84,7 @@ namespace Leon {
     }
 
     namespace {
-        std::vector<float> CollectField(const std::vector<FFrameTiming>& InSamples, float FFrameTiming::*InField) {
+        std::vector<float> CollectField(const std::vector<FFrameTiming>& InSamples, float FFrameTiming::* InField) {
             std::vector<float> values;
             values.reserve(InSamples.size());
             for (const auto& s : InSamples)
@@ -191,8 +191,8 @@ namespace Leon {
         summary.AvgPathRequests = static_cast<float>(paths / n);
         summary.AvgParticles = static_cast<float>(particles / n);
         summary.SpikeCount = spikes;
-        summary.BoundClass = ClassifyBound(summary.AvgCPUWorkMs, summary.AvgGPUMs, summary.AvgPresentMs,
-                                           summary.Frame.Average);
+        summary.BoundClass =
+            ClassifyBound(summary.AvgCPUWorkMs, summary.AvgGPUMs, summary.AvgPresentMs, summary.Frame.Average);
         return summary;
     }
 

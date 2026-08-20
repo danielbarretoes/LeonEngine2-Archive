@@ -47,6 +47,4 @@ namespace Leon {
         EVENT_CLASS_TYPE(KeyReleased)
     };
 
-
-
 } // namespace Leon

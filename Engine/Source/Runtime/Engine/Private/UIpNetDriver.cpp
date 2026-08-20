@@ -12,7 +12,9 @@ namespace Leon {
 
     UIpNetDriver::FCreateNetTransport UIpNetDriver::TransportFactory;
 
-    void UIpNetDriver::SetTransportFactory(FCreateNetTransport InFactory) { TransportFactory = std::move(InFactory); }
+    void UIpNetDriver::SetTransportFactory(FCreateNetTransport InFactory) {
+        TransportFactory = std::move(InFactory);
+    }
 
     std::unique_ptr<INetTransport> UIpNetDriver::CreateTransport() {
         if (!TransportFactory)
@@ -22,14 +24,18 @@ namespace Leon {
 
     UIpNetDriver::UIpNetDriver() = default;
 
-    UIpNetDriver::~UIpNetDriver() { Close(); }
+    UIpNetDriver::~UIpNetDriver() {
+        Close();
+    }
 
     void UIpNetDriver::SetTransport(std::unique_ptr<INetTransport> InTransport) {
         Close();
         Transport = std::move(InTransport);
     }
 
-    bool UIpNetDriver::IsOpen() const { return Transport && Transport->IsOpen(); }
+    bool UIpNetDriver::IsOpen() const {
+        return Transport && Transport->IsOpen();
+    }
 
     bool UIpNetDriver::Listen(uint16_t InPort) {
         if (!Transport)
@@ -107,8 +113,7 @@ namespace Leon {
 
         auto packets = Transport->TakeIncoming();
         for (auto& packet : packets) {
-            if (!bListening && packet.Bytes.size() >= 12 &&
-                std::memcmp(packet.Bytes.data(), "LEONWELC", 8) == 0) {
+            if (!bListening && packet.Bytes.size() >= 12 && std::memcmp(packet.Bytes.data(), "LEONWELC", 8) == 0) {
                 size_t offset = 8;
                 int32_t id = -1;
                 if (FNetBlob::ReadI32(packet.Bytes, offset, id))

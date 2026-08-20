@@ -161,7 +161,8 @@ namespace Leon {
         PlaceButtonTL(*Root, training, leftX, y);
         y += training->GetSize().y + btnGap;
 
-        auto renderLab = FLeonTournamentUILayout::MakeThemedButton("RenderLab", "RENDER LAB", kFsButton, 300.0f, btnMinH);
+        auto renderLab =
+            FLeonTournamentUILayout::MakeThemedButton("RenderLab", "RENDER LAB", kFsButton, 300.0f, btnMinH);
         renderLab->OnClicked.AddLambda([this]() { OnRenderLab(); });
         PlaceButtonTL(*Root, renderLab, leftX, y);
         y += renderLab->GetSize().y + btnGap;
@@ -221,15 +222,14 @@ namespace Leon {
         PlaceButtonTL(*Root, SettingsLowBtn, leftX, settingsY);
         settingsY += SettingsLowBtn->GetSize().y + btnGap;
 
-        SettingsMediumBtn = FLeonTournamentUILayout::MakeThemedButton("QualityMedium", "MEDIUM", kFsButton, 300.0f, btnMinH);
-        SettingsMediumBtn->OnClicked.AddLambda(
-            [this]() { OnSelectGraphicsQuality(EGraphicsQuality::Medium); });
+        SettingsMediumBtn =
+            FLeonTournamentUILayout::MakeThemedButton("QualityMedium", "MEDIUM", kFsButton, 300.0f, btnMinH);
+        SettingsMediumBtn->OnClicked.AddLambda([this]() { OnSelectGraphicsQuality(EGraphicsQuality::Medium); });
         PlaceButtonTL(*Root, SettingsMediumBtn, leftX, settingsY);
         settingsY += SettingsMediumBtn->GetSize().y + btnGap;
 
         SettingsHighBtn = FLeonTournamentUILayout::MakeThemedButton("QualityHigh", "HIGH", kFsButton, 300.0f, btnMinH);
-        SettingsHighBtn->OnClicked.AddLambda(
-            [this]() { OnSelectGraphicsQuality(EGraphicsQuality::High); });
+        SettingsHighBtn->OnClicked.AddLambda([this]() { OnSelectGraphicsQuality(EGraphicsQuality::High); });
         PlaceButtonTL(*Root, SettingsHighBtn, leftX, settingsY);
         settingsY += SettingsHighBtn->GetSize().y + 16.0f;
 

@@ -7,7 +7,8 @@
 
 namespace Leon {
 
-    ALeonTournamentGameState::ALeonTournamentGameState(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
+    ALeonTournamentGameState::ALeonTournamentGameState(entt::entity InHandle, UWorld* InWorld,
+                                                       const std::string& InName)
         : AGameState(InHandle, InWorld, InName) {
         SetClass("ALeonTournamentGameState");
     }
@@ -75,8 +76,8 @@ namespace Leon {
         uint8_t state = 0, winner = 0;
         if (!FNetBlob::ReadU8(bytes, offset, state) || !FNetBlob::ReadF32(bytes, offset, CountdownRemaining) ||
             !FNetBlob::ReadI32(bytes, offset, Team1Kills) || !FNetBlob::ReadI32(bytes, offset, Team2Kills) ||
-            !FNetBlob::ReadI32(bytes, offset, Team1PlayerCount) || !FNetBlob::ReadI32(bytes, offset, Team2PlayerCount) ||
-            !FNetBlob::ReadU8(bytes, offset, winner))
+            !FNetBlob::ReadI32(bytes, offset, Team1PlayerCount) ||
+            !FNetBlob::ReadI32(bytes, offset, Team2PlayerCount) || !FNetBlob::ReadU8(bytes, offset, winner))
             return;
         MatchState = static_cast<ELeonTournamentMatchState>(state);
         MatchWinner = static_cast<ELeonTournamentMatchWinner>(winner);

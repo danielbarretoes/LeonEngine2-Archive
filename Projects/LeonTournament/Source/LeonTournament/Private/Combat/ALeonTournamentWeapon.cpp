@@ -38,9 +38,9 @@ namespace Leon {
 
         void EnsureWeaponMesh(AActor& InActor, ELeonTournamentWeaponId InWeaponId,
                               const FLeonTournamentWeaponConfig& InConfig, bool bFirstPerson) {
-            const FLeonTournamentWeaponVisual visual =
-                bFirstPerson ? LeonTournamentWeaponFirstPersonVisualPreset(InWeaponId)
-                             : LeonTournamentWeaponVisualPreset(InWeaponId);
+            const FLeonTournamentWeaponVisual visual = bFirstPerson
+                                                           ? LeonTournamentWeaponFirstPersonVisualPreset(InWeaponId)
+                                                           : LeonTournamentWeaponVisualPreset(InWeaponId);
             const std::string meshTag = LeonTournamentWeaponMeshTag(InWeaponId, bFirstPerson);
             if (InActor.HasComponent<FMeshComponent>()) {
                 auto& mesh = InActor.GetComponent<FMeshComponent>();

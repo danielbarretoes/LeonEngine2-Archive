@@ -554,9 +554,8 @@ namespace Leon {
             localTeam != ELeonTournamentTeam::None && myTeam != ELeonTournamentTeam::None && myTeam == localTeam;
         skel.bDrawOutline = true;
         if (bSpawnProtected) {
-            const float alpha = SpawnProtectionRemaining > 0.0f
-                                    ? std::clamp(SpawnProtectionRemaining / 2.5f, 0.25f, 1.0f)
-                                    : 1.0f;
+            const float alpha =
+                SpawnProtectionRemaining > 0.0f ? std::clamp(SpawnProtectionRemaining / 2.5f, 0.25f, 1.0f) : 1.0f;
             skel.OutlineColor = bAlly ? glm::vec3(0.10f * alpha, 0.95f * alpha, 0.28f * alpha)
                                       : glm::vec3(1.0f * alpha, 0.55f * alpha, 0.08f * alpha);
             skel.OutlineWidth = 0.048f;

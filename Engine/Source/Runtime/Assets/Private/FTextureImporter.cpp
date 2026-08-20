@@ -180,8 +180,7 @@ namespace Leon {
 
         // Generate Mipmap Pyramid
         if (InSettings.bGenerateMipmaps) {
-            GenerateMipmaps(uWidth, uHeight, level0, OutData.Mips,
-                            InSettings.ColorSpace == ETextureColorSpace::sRGB);
+            GenerateMipmaps(uWidth, uHeight, level0, OutData.Mips, InSettings.ColorSpace == ETextureColorSpace::sRGB);
         } else {
             OutData.Mips.clear();
             FTextureMipData mip0;

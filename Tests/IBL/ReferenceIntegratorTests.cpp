@@ -4,7 +4,8 @@
 
 namespace {
     // Independent high-precision numerical Riemann hemisphere integrator
-    glm::vec3 IntegrateHemisphereRiemann(const Leon::FHDREquirectangularMipChain& mipChain, glm::vec3 N, int numTheta = 180, int numPhi = 360) {
+    glm::vec3 IntegrateHemisphereRiemann(const Leon::FHDREquirectangularMipChain& mipChain, glm::vec3 N,
+                                         int numTheta = 180, int numPhi = 360) {
         glm::vec3 up = (std::abs(N.z) < 0.999f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
         glm::vec3 T = glm::normalize(glm::cross(up, N));
         glm::vec3 B = glm::normalize(glm::cross(N, T));
@@ -32,28 +33,22 @@ namespace {
         }
         return totalIrradiance;
     }
-}
+} // namespace
 
 TEST_SUITE("IBL - Reference Integrator Comparison") {
 
     TEST_CASE("Engine Cosine-Weighted Hammersley vs High-Resolution Riemann Integrator") {
         const int W = 64, H = 32;
-        auto smoothSkyData = Leon::TestFixtures::CreateSmoothGradientHDR(
-            W, H,
-            glm::vec3(2.5f, 1.2f, 0.8f), // Zenith
-            glm::vec3(1.0f, 0.8f, 0.6f), // Horizon
-            glm::vec3(0.1f, 0.2f, 0.3f)  // Ground
+        auto smoothSkyData = Leon::TestFixtures::CreateSmoothGradientHDR(W, H, glm::vec3(2.5f, 1.2f, 0.8f), // Zenith
+                                                                         glm::vec3(1.0f, 0.8f, 0.6f),       // Horizon
+                                                                         glm::vec3(0.1f, 0.2f, 0.3f)        // Ground
         );
 
         Leon::FHDREquirectangularMipChain mipChain;
         mipChain.Build(smoothSkyData.data(), W, H);
 
-        std::vector<glm::vec3> testNormals = {
-            glm::vec3(0.0f, 1.0f, 0.0f),
-            glm::vec3(0.0f, -1.0f, 0.0f),
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::normalize(glm::vec3(0.5f, 0.8f, 0.3f))
-        };
+        std::vector<glm::vec3> testNormals = {glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f),
+                                              glm::vec3(1.0f, 0.0f, 0.0f), glm::normalize(glm::vec3(0.5f, 0.8f, 0.3f))};
 
         const uint32_t N_samples = 512;
         const float saSample = (2.0f * Leon::PI) / static_cast<float>(N_samples);

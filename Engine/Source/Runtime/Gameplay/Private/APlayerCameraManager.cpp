@@ -95,8 +95,7 @@ namespace Leon {
     }
 
     void APlayerCameraManager::UpdateCamera(float DeltaSeconds) {
-        const FPerspectiveCamera ideal =
-            ResolveIdealCamera(*this, PlayerController, World, ViewTarget, Camera);
+        const FPerspectiveCamera ideal = ResolveIdealCamera(*this, PlayerController, World, ViewTarget, Camera);
 
         if (!bBlending || BlendDuration <= 0.0f) {
             Camera = ideal;

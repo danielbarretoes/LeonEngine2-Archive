@@ -11,8 +11,7 @@ namespace Leon {
     class ANavMeshBoundsVolume : public AActor {
     public:
         ANavMeshBoundsVolume() = default;
-        ANavMeshBoundsVolume(entt::entity InHandle, UWorld* InWorld,
-                             const std::string& InName = "NavMeshBoundsVolume");
+        ANavMeshBoundsVolume(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "NavMeshBoundsVolume");
 
         void GetBounds(glm::vec3& OutMin, glm::vec3& OutMax) const;
     };

@@ -5,9 +5,13 @@
 
 namespace Leon {
 
-    USlider::USlider(const std::string& InName) : UWidget(InName) { Size = {200.0f, 22.0f}; }
+    USlider::USlider(const std::string& InName) : UWidget(InName) {
+        Size = {200.0f, 22.0f};
+    }
 
-    void USlider::SetValue(float InValue) { Value = std::clamp(InValue, 0.0f, 1.0f); }
+    void USlider::SetValue(float InValue) {
+        Value = std::clamp(InValue, 0.0f, 1.0f);
+    }
 
     void USlider::ApplyMouseValue(const glm::vec2& InMousePos) {
         const float width = std::max(CachedGeometry.Size.x, 1.0f);

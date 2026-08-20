@@ -31,11 +31,21 @@
 namespace Leon {
 
     namespace {
-        ULeonTournamentGameInstance* GI() { return FLeonTournamentUILayout::GI(); }
-        bool GamepadEdge(int InButton, bool& InOutWasDown) { return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown); }
-        ALeonTournamentGameMode* GM(APlayerController* InPC) { return FLeonTournamentUILayout::GM(InPC); }
-        ALeonTournamentGameState* GS(APlayerController* InPC) { return FLeonTournamentUILayout::GS(InPC); }
-        bool IsClientWorld(APlayerController* InPC) { return FLeonTournamentUILayout::IsClientWorld(InPC); }
+        ULeonTournamentGameInstance* GI() {
+            return FLeonTournamentUILayout::GI();
+        }
+        bool GamepadEdge(int InButton, bool& InOutWasDown) {
+            return FLeonTournamentUILayout::GamepadEdge(InButton, InOutWasDown);
+        }
+        ALeonTournamentGameMode* GM(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GM(InPC);
+        }
+        ALeonTournamentGameState* GS(APlayerController* InPC) {
+            return FLeonTournamentUILayout::GS(InPC);
+        }
+        bool IsClientWorld(APlayerController* InPC) {
+            return FLeonTournamentUILayout::IsClientWorld(InPC);
+        }
         constexpr float kFsCaption = FLeonTournamentUILayout::kFsCaption;
         constexpr float kFsBody = FLeonTournamentUILayout::kFsBody;
         constexpr float kFsLabel = FLeonTournamentUILayout::kFsLabel;
@@ -48,7 +58,9 @@ namespace Leon {
         constexpr float kFsVital = FLeonTournamentUILayout::kFsVital;
         constexpr float kFsBanner = FLeonTournamentUILayout::kFsBanner;
 
-        FMargin BoxTL(float InX, float InY, float InW, float InH) { return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH); }
+        FMargin BoxTL(float InX, float InY, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxTL(InX, InY, InW, InH);
+        }
         FMargin BoxBL(float InX, float InBottom, float InW, float InH) {
             return FLeonTournamentUILayout::BoxBL(InX, InBottom, InW, InH);
         }
@@ -64,7 +76,9 @@ namespace Leon {
         FMargin BoxTR(float InRight, float InTop, float InW, float InH) {
             return FMargin(-(InRight + InW), InTop, InRight, -(InTop + InH));
         }
-        FMargin BoxC(float InOx, float InOy, float InW, float InH) { return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH); }
+        FMargin BoxC(float InOx, float InOy, float InW, float InH) {
+            return FLeonTournamentUILayout::BoxC(InOx, InOy, InW, InH);
+        }
         glm::vec2 MeasurePadded(const std::string& InText, float InScale, float InPadX = 8.0f, float InPadY = 6.0f) {
             return FLeonTournamentUILayout::MeasurePadded(InText, InScale, InPadX, InPadY);
         }
@@ -169,8 +183,8 @@ namespace Leon {
                 line->SetFontScale(kFsCaption * s);
         }
 
-        const float topBarH =
-            MeasurePadded("00:00", kFsTimer * 1.05f * s).y + MeasurePadded("TEAM DEATHMATCH", kFsCaption * s).y + 14.0f * s;
+        const float topBarH = MeasurePadded("00:00", kFsTimer * 1.05f * s).y +
+                              MeasurePadded("TEAM DEATHMATCH", kFsCaption * s).y + 14.0f * s;
         const float accentH = 3.0f * s;
         const float vitalH = MeasurePadded("999", kFsVital * s).y;
         const float labelH = MeasurePadded("HP", kFsCaption * s).y;
@@ -268,9 +282,9 @@ namespace Leon {
             if (!KillFeedLines[i])
                 continue;
             const glm::vec2 e = MeasurePadded(KillFeedLines[i]->GetText(), KillFeedLines[i]->GetFontScale());
-            place(KillFeedLines[i], FAnchors::TopRight(),
-                  BoxTR(24.0f * s, scoreTop + static_cast<float>(i) * (e.y + 4.0f * s),
-                        std::max(320.0f * s, e.x), e.y));
+            place(
+                KillFeedLines[i], FAnchors::TopRight(),
+                BoxTR(24.0f * s, scoreTop + static_cast<float>(i) * (e.y + 4.0f * s), std::max(320.0f * s, e.x), e.y));
         }
         const float edge = std::min(Root ? Root->GetSize().x : 1280.0f, Root ? Root->GetSize().y : 720.0f) * 0.42f;
         for (size_t i = 0; i < DamageIndicators.size(); ++i) {
@@ -279,8 +293,7 @@ namespace Leon {
             const float ang = static_cast<float>(i) * 0.78539816f;
             const float cx = std::cos(ang) * edge;
             const float cy = std::sin(ang) * edge;
-            place(DamageIndicators[i], FAnchors::Center(),
-                  BoxC(cx, cy, 18.0f * s, 6.0f * s));
+            place(DamageIndicators[i], FAnchors::Center(), BoxC(cx, cy, 18.0f * s, 6.0f * s));
         }
         if (CrosshairDot) {
             const float d = 3.0f * s;
@@ -468,7 +481,8 @@ namespace Leon {
         auto* gm = world ? dynamic_cast<ALeonTournamentGameMode*>(world->GetGameMode()) : nullptr;
         const bool bFFA = gm && gm->GetActiveGameMode() == ELeonTournamentGameModeId::FreeForAll;
         const bool bCTF = gm && gm->GetActiveGameMode() == ELeonTournamentGameModeId::CaptureTheFlag;
-        auto* localPs = dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer ? OwningPlayer->GetPlayerState() : nullptr);
+        auto* localPs =
+            dynamic_cast<ALeonTournamentPlayerState*>(OwningPlayer ? OwningPlayer->GetPlayerState() : nullptr);
 
         if (Team1Text && Team2Text && TimerText) {
             if (bLab) {
@@ -647,8 +661,8 @@ namespace Leon {
                                              gs->GetMatchState() == ELeonTournamentMatchState::Playing);
             if (bShowHints) {
                 HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
-                HintText->SetText(
-                    "V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   Q/E or 1-5 Weapons");
+                HintText->SetText("V Camera   LMB Fire   RMB Scope   R Reload   Alt/C Dodge   Space x2 Double Jump   "
+                                  "Q/E or 1-5 Weapons");
             } else {
                 HintText->SetVisibility(ESlateVisibility::Collapsed);
             }
@@ -747,8 +761,7 @@ namespace Leon {
             CrosshairImage->SetTintColor({0.91f, 0.93f, 0.95f, 0.95f});
             CrosshairImage->SetVisibility(ESlateVisibility::HitTestInvisible);
         }
-        const bool bCircle =
-            weaponCfg && weaponCfg->CrosshairStyle == ELeonTournamentCrosshairStyle::Circle;
+        const bool bCircle = weaponCfg && weaponCfg->CrosshairStyle == ELeonTournamentCrosshairStyle::Circle;
         const bool bUseLegacyBars = !CrosshairImage || !CrosshairImage->HasBrushTexture();
         if (Root && bUseLegacyBars) {
             if (CrosshairBarT)
@@ -777,23 +790,21 @@ namespace Leon {
         }
         const bool bHit = spc && spc->IsHitMarkerActive();
         const bool bHeadshot = spc && spc->IsHeadshotMarkerActive();
-        const glm::vec4 hitColor = bHeadshot ? glm::vec4(1.0f, 0.22f, 0.18f, 1.0f) : glm::vec4(1.0f, 0.85f, 0.15f, 1.0f);
+        const glm::vec4 hitColor =
+            bHeadshot ? glm::vec4(1.0f, 0.22f, 0.18f, 1.0f) : glm::vec4(1.0f, 0.85f, 0.15f, 1.0f);
         const float hitLen = 9.0f * AppliedLayoutScale;
         const float hitThick = 2.5f * AppliedLayoutScale;
         if (Root && HitMarkTL && HitMarkTR && HitMarkBL && HitMarkBR) {
             const float d = gap + 4.0f;
-            Root->SetChildLayout(HitMarkTL, center,
-                                 FMargin(-(d + hitLen), -(d + hitThick), d, d - hitThick));
-            Root->SetChildLayout(HitMarkTR, center,
-                                 FMargin(d, -(d + hitThick), -(d + hitLen), d - hitThick));
-            Root->SetChildLayout(HitMarkBL, center,
-                                 FMargin(-(d + hitLen), d - hitThick, d, -(d + hitThick)));
-            Root->SetChildLayout(HitMarkBR, center,
-                                 FMargin(d, d - hitThick, -(d + hitLen), -(d + hitThick)));
+            Root->SetChildLayout(HitMarkTL, center, FMargin(-(d + hitLen), -(d + hitThick), d, d - hitThick));
+            Root->SetChildLayout(HitMarkTR, center, FMargin(d, -(d + hitThick), -(d + hitLen), d - hitThick));
+            Root->SetChildLayout(HitMarkBL, center, FMargin(-(d + hitLen), d - hitThick, d, -(d + hitThick)));
+            Root->SetChildLayout(HitMarkBR, center, FMargin(d, d - hitThick, -(d + hitLen), -(d + hitThick)));
         }
         const auto barVis =
             (!bCircle && bUseLegacyBars) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
-        const auto ringVis = (bCircle && bUseLegacyBars) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+        const auto ringVis =
+            (bCircle && bUseLegacyBars) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
         const auto hitVis = bHit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
         if (CrosshairBarT)
             CrosshairBarT->SetVisibility(barVis);
@@ -860,6 +871,5 @@ namespace Leon {
             DamageFlash->SetVisibility(spc && spc->IsDamageFlashActive() ? ESlateVisibility::HitTestInvisible
                                                                          : ESlateVisibility::Collapsed);
     }
-
 
 } // namespace Leon

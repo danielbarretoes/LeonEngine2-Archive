@@ -43,7 +43,8 @@ namespace Leon {
 
         /** Estimated GPU working set for the preset at the given viewport (includes a live asset baseline when
          * available). */
-        static size_t EstimateVRAMBytes(EGraphicsQuality InQuality, uint32_t InViewportWidth, uint32_t InViewportHeight);
+        static size_t EstimateVRAMBytes(EGraphicsQuality InQuality, uint32_t InViewportWidth,
+                                        uint32_t InViewportHeight);
         static std::string FormatPresetLabel(EGraphicsQuality InQuality);
         static std::string FormatVRAMLabel(EGraphicsQuality InQuality, uint32_t InViewportWidth,
                                            uint32_t InViewportHeight);

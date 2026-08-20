@@ -25,8 +25,7 @@ namespace Leon {
             location = Owner->GetActorLocation();
 
         if (bSpatialized)
-            ActiveVoiceId =
-                FAudioDevice::Get().PlayWave(Sound, VolumeMultiplier, true, location, AttenuationRadius);
+            ActiveVoiceId = FAudioDevice::Get().PlayWave(Sound, VolumeMultiplier, true, location, AttenuationRadius);
         else
             ActiveVoiceId = FAudioDevice::Get().PlayWave(Sound, VolumeMultiplier, false, location, 0.0f);
     }

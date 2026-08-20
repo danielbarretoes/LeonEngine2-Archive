@@ -9,7 +9,8 @@ namespace Leon {
     class ALeonTournamentPlayerState : public APlayerState {
     public:
         ALeonTournamentPlayerState() = default;
-        ALeonTournamentPlayerState(entt::entity InHandle, UWorld* InWorld, const std::string& InName = "LeonTournamentPlayerState");
+        ALeonTournamentPlayerState(entt::entity InHandle, UWorld* InWorld,
+                                   const std::string& InName = "LeonTournamentPlayerState");
 
         int32_t GetKills() const { return Kills; }
         int32_t GetDeaths() const { return Deaths; }

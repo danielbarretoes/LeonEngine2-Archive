@@ -31,9 +31,13 @@ namespace Leon {
         return IsEnabled() && FApplication::HasInstance() && FApplication::Get().IsDebugNetworkEnabled();
     }
 
-    void FGameplayDebugger::CycleSelectedAI(int32_t InDelta) { GSelectedAIIndex += InDelta; }
+    void FGameplayDebugger::CycleSelectedAI(int32_t InDelta) {
+        GSelectedAIIndex += InDelta;
+    }
 
-    int32_t FGameplayDebugger::GetSelectedAIIndex() { return GSelectedAIIndex; }
+    int32_t FGameplayDebugger::GetSelectedAIIndex() {
+        return GSelectedAIIndex;
+    }
 
     void FGameplayDebugger::TogglePhysics() {
         if (FApplication::HasInstance())

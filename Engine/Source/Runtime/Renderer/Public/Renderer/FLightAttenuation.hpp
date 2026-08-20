@@ -30,8 +30,8 @@ namespace Leon {
      *   factor = t^2 * (3 - 2t)   // Hermite smoothstep
      * Inner/outer are cone half-angles in degrees.
      */
-    inline float SpotConeAttenuation(const glm::vec3& InLightTravelDir, const glm::vec3& InToLight,
-                                     float InInnerDeg, float InOuterDeg) {
+    inline float SpotConeAttenuation(const glm::vec3& InLightTravelDir, const glm::vec3& InToLight, float InInnerDeg,
+                                     float InOuterDeg) {
         glm::vec3 toLight = InToLight;
         float len2 = glm::dot(toLight, toLight);
         if (len2 < 1e-12f)

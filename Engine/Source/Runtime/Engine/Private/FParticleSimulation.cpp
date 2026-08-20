@@ -16,8 +16,9 @@ namespace Leon {
                 InMin.z + (InMax.z - InMin.z) * ParticleRng01(InOutState)};
     }
 
-    int32_t AppendBurstParticles(std::vector<FSimulatedParticle>& InOutParticles, const FParticleEmitterSettings& InSettings,
-                                 const glm::vec3& InOrigin, uint32_t& InOutRngState, int32_t InMaxParticles) {
+    int32_t AppendBurstParticles(std::vector<FSimulatedParticle>& InOutParticles,
+                                 const FParticleEmitterSettings& InSettings, const glm::vec3& InOrigin,
+                                 uint32_t& InOutRngState, int32_t InMaxParticles) {
         const int32_t room = std::max(0, InMaxParticles - static_cast<int32_t>(InOutParticles.size()));
         if (room <= 0)
             return 0;

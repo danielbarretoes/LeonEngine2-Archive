@@ -29,7 +29,8 @@ namespace Leon {
         bool bUseCoarserShadowLOD = true;
         uint32_t MinTriangleCount = 16;
         float Hysteresis = 0.12f;
-        std::vector<FLODLevel> Levels = {{1.00f, 0.50f}, {0.60f, 0.25f}, {0.30f, 0.10f}, {0.15f, 0.04f}, {0.05f, 0.00f}};
+        std::vector<FLODLevel> Levels = {
+            {1.00f, 0.50f}, {0.60f, 0.25f}, {0.30f, 0.10f}, {0.15f, 0.04f}, {0.05f, 0.00f}};
 
         static FLODSettings Default() { return {}; }
 

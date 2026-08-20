@@ -17,9 +17,8 @@ namespace Leon {
     void USpringArmComponent::UpdateDesiredArmLocation(const glm::vec3& InOrigin, const glm::vec3& InForward,
                                                        const glm::vec3& InRight, const glm::vec3& InUp) {
         glm::vec3 origin = InOrigin + TargetOffset;
-        DesiredLocation =
-            origin - InForward * TargetArmLength + InRight * SocketOffset.x + InUp * SocketOffset.y +
-            glm::vec3(0.0f, 0.0f, 1.0f) * SocketOffset.z;
+        DesiredLocation = origin - InForward * TargetArmLength + InRight * SocketOffset.x + InUp * SocketOffset.y +
+                          glm::vec3(0.0f, 0.0f, 1.0f) * SocketOffset.z;
         CurrentArmLength = TargetArmLength;
         bHasHit = false;
 

@@ -20,7 +20,7 @@
 namespace Leon {
 
     TRef<UButton> FLeonTournamentUILayout::MakeThemedButton(const std::string& InName, const std::string& InLabel,
-                                                          float InFont, float InMinW, float InMinH) {
+                                                            float InFont, float InMinW, float InMinH) {
         auto btn = MakeButton(InName, InLabel, InFont, InMinW, InMinH);
         if (btn)
             ApplyThemedButtonColors(*btn, false);
@@ -90,8 +90,8 @@ namespace Leon {
     }
 
     void FLeonTournamentUILayout::ApplyModalLayout(UCanvasPanel& InRoot, const TRef<UImage>& InDim,
-                                                    const TRef<UImage>& InPanel, const TRef<UImage>& InAccent,
-                                                    float InPanelW, float InPanelH) {
+                                                   const TRef<UImage>& InPanel, const TRef<UImage>& InAccent,
+                                                   float InPanelW, float InPanelH) {
         auto place = [&](const TRef<UWidget>& widget, const FAnchors& anchors, const FMargin& offsets) {
             if (!widget)
                 return;

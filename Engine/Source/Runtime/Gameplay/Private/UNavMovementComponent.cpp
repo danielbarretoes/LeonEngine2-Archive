@@ -5,7 +5,9 @@ namespace Leon {
 
     UNavMovementComponent::UNavMovementComponent(const std::string& InName) : UActorComponent(InName) {}
 
-    APawn* UNavMovementComponent::GetPawnOwner() const { return Owner ? dynamic_cast<APawn*>(Owner) : nullptr; }
+    APawn* UNavMovementComponent::GetPawnOwner() const {
+        return Owner ? dynamic_cast<APawn*>(Owner) : nullptr;
+    }
 
     void UNavMovementComponent::RequestDirectMove(const glm::vec3& InMoveVelocity, bool bForceMaxSpeed) {
         (void)bForceMaxSpeed;

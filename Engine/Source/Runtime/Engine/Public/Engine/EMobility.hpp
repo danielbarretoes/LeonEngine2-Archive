@@ -26,11 +26,7 @@ namespace Leon {
     /**
      * @brief Component / geometry mobility for static lighting receivers.
      */
-    enum class EComponentMobility : uint8_t {
-        Static = 0,
-        Stationary = 1,
-        Movable = 2
-    };
+    enum class EComponentMobility : uint8_t { Static = 0, Stationary = 1, Movable = 2 };
 
     inline const char* LightMobilityToString(ELightMobility InValue) {
         switch (InValue) {

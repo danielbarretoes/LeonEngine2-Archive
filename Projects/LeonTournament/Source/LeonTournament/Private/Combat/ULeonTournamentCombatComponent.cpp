@@ -4,7 +4,8 @@
 
 namespace Leon {
 
-    ULeonTournamentCombatComponent::ULeonTournamentCombatComponent(const std::string& InName) : UCombatComponent(InName) {}
+    ULeonTournamentCombatComponent::ULeonTournamentCombatComponent(const std::string& InName)
+        : UCombatComponent(InName) {}
 
     ALeonTournamentCharacter* ULeonTournamentCombatComponent::GetCharacterOwner() const {
         return dynamic_cast<ALeonTournamentCharacter*>(GetOwner());

@@ -294,10 +294,9 @@ namespace Leon {
                     away /= dist;
                 away.y = std::max(away.y, 0.4f);
                 away = glm::normalize(away);
-                const float falloff =
-                    Config.SplashRadius > 0.05f
-                        ? (1.0f - std::clamp(dist / std::max(0.01f, Config.SplashRadius), 0.0f, 1.0f))
-                        : 1.0f;
+                const float falloff = Config.SplashRadius > 0.05f
+                                          ? (1.0f - std::clamp(dist / std::max(0.01f, Config.SplashRadius), 0.0f, 1.0f))
+                                          : 1.0f;
                 const float selfBoost = (target == InstigatorCharacter) ? 1.4f : 1.0f;
                 const float strength = (Config.Knockback + amount * 0.12f) * falloff * selfBoost;
                 const glm::vec3 impulse = away * strength;
@@ -359,9 +358,9 @@ namespace Leon {
                 --RemainingBounces;
                 glm::vec3 outDir = ProjectileMovement->GetVelocity();
                 if (glm::length(InHit.Normal) > 1e-4f)
-                    outDir = glm::reflect(glm::length(outDir) > 1e-4f ? glm::normalize(outDir)
-                                                                     : glm::vec3(0.0f, 0.0f, 1.0f),
-                                          glm::normalize(InHit.Normal));
+                    outDir =
+                        glm::reflect(glm::length(outDir) > 1e-4f ? glm::normalize(outDir) : glm::vec3(0.0f, 0.0f, 1.0f),
+                                     glm::normalize(InHit.Normal));
                 else if (glm::length(outDir) > 1e-4f)
                     outDir = glm::normalize(outDir);
                 else

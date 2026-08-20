@@ -137,9 +137,8 @@ namespace Leon {
                     uploadPixels = bestMip->Pixels.data();
                 } else if (const FTextureMipData* mip0 = FindMipLevel(nativeData.Mips, 0)) {
                     FOpenGLTextureResize::ComputeTargetSize(mip0->Width, mip0->Height, maxDim, uploadW, uploadH);
-                    resizedPixels =
-                        FOpenGLTextureResize::DownscaleU8(mip0->Pixels.data(), mip0->Width, mip0->Height, 4, uploadW,
-                                                        uploadH);
+                    resizedPixels = FOpenGLTextureResize::DownscaleU8(mip0->Pixels.data(), mip0->Width, mip0->Height, 4,
+                                                                      uploadW, uploadH);
                     uploadPixels = resizedPixels.data();
                 }
             }
@@ -219,8 +218,8 @@ namespace Leon {
 
             if (std::max(Width, Height) > maxDim && !hdrData.Pixels.empty()) {
                 FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
-                resizedPixels = FOpenGLTextureResize::DownscaleFloat(hdrData.Pixels.data(), Width, Height, 4, uploadW,
-                                                                    uploadH);
+                resizedPixels =
+                    FOpenGLTextureResize::DownscaleFloat(hdrData.Pixels.data(), Width, Height, 4, uploadW, uploadH);
                 uploadPixels = resizedPixels.data();
                 Width = uploadW;
                 Height = uploadH;
@@ -274,8 +273,7 @@ namespace Leon {
 
             if (std::max(Width, Height) > maxDim) {
                 FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
-                resizedPixels =
-                    FOpenGLTextureResize::DownscaleFloat(data, Width, Height, 4, uploadW, uploadH);
+                resizedPixels = FOpenGLTextureResize::DownscaleFloat(data, Width, Height, 4, uploadW, uploadH);
                 uploadPixels = resizedPixels.data();
                 Width = uploadW;
                 Height = uploadH;
@@ -344,16 +342,13 @@ namespace Leon {
         if (std::max(Width, Height) > maxDim) {
             FOpenGLTextureResize::ComputeTargetSize(Width, Height, maxDim, uploadW, uploadH);
             if (bpp == 4) {
-                resizedPixels =
-                    FOpenGLTextureResize::DownscaleU8(data, Width, Height, 4, uploadW, uploadH);
+                resizedPixels = FOpenGLTextureResize::DownscaleU8(data, Width, Height, 4, uploadW, uploadH);
                 uploadPixels = resizedPixels.data();
             } else if (bpp == 3) {
-                resizedPixels =
-                    FOpenGLTextureResize::DownscaleU8(data, Width, Height, 3, uploadW, uploadH);
+                resizedPixels = FOpenGLTextureResize::DownscaleU8(data, Width, Height, 3, uploadW, uploadH);
                 uploadPixels = resizedPixels.data();
             } else {
-                resizedPixels =
-                    FOpenGLTextureResize::DownscaleU8(data, Width, Height, 1, uploadW, uploadH);
+                resizedPixels = FOpenGLTextureResize::DownscaleU8(data, Width, Height, 1, uploadW, uploadH);
                 uploadPixels = resizedPixels.data();
             }
             Width = uploadW;

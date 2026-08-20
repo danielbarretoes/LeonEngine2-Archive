@@ -547,10 +547,9 @@ TEST_SUITE("Jolt physics scene") {
         sensor->SetGenerateOverlapEvents(true);
         sensorActor->SetRootComponent(sensor.get());
         int begins = 0;
-        sensor->OnComponentBeginOverlap.push_back(
-            [&](Leon::UPrimitiveComponent*, Leon::AActor*, Leon::UPrimitiveComponent*, const Leon::FHitResult&) {
-                ++begins;
-            });
+        sensor->OnComponentBeginOverlap.push_back([&](Leon::UPrimitiveComponent*, Leon::AActor*,
+                                                      Leon::UPrimitiveComponent*,
+                                                      const Leon::FHitResult&) { ++begins; });
 
         auto* mover = world->SpawnActor<Leon::AActor>("Mover");
         mover->SetActorLocation({0.0f, 1.0f, 3.0f});

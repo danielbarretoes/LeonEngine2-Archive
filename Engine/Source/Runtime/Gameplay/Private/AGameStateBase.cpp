@@ -15,8 +15,7 @@ namespace Leon {
     }
 
     void AGameStateBase::AddPlayerState(APlayerState* InPlayerState) {
-        if (InPlayerState &&
-            std::find(PlayerArray.begin(), PlayerArray.end(), InPlayerState) == PlayerArray.end()) {
+        if (InPlayerState && std::find(PlayerArray.begin(), PlayerArray.end(), InPlayerState) == PlayerArray.end()) {
             PlayerArray.push_back(InPlayerState);
         }
     }

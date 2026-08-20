@@ -171,8 +171,7 @@ namespace Leon {
         OutPalette.resize(bones.size(), glm::mat4(1.0f));
         for (size_t i = 0; i < bones.size(); ++i) {
             glm::mat4 component = i < InComponent.size() ? InComponent[i] : glm::mat4(1.0f);
-            const glm::mat4& ibp =
-                (i < InMeshInverseBinds.size()) ? InMeshInverseBinds[i] : bones[i].InverseBindPose;
+            const glm::mat4& ibp = (i < InMeshInverseBinds.size()) ? InMeshInverseBinds[i] : bones[i].InverseBindPose;
             OutPalette[i] = component * ibp;
         }
     }

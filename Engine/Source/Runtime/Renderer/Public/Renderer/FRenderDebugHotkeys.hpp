@@ -60,33 +60,19 @@ namespace Leon {
         };
 
         static constexpr FRenderDebugView IBLMapCycle[] = {
-            {1, "Prefilter mip 0"},
-            {3, "Prefilter mip 1"},
-            {4, "Prefilter mip 2"},
-            {5, "Prefilter mip 3"},
-            {6, "Prefilter mip 4"},
-            {7, "Irradiance map"},
-            {8, "BRDF LUT"},
+            {1, "Prefilter mip 0"}, {3, "Prefilter mip 1"}, {4, "Prefilter mip 2"}, {5, "Prefilter mip 3"},
+            {6, "Prefilter mip 4"}, {7, "Irradiance map"},  {8, "BRDF LUT"},
         };
 
         static constexpr FRenderDebugView ShadowCycle[] = {
-            {24, "Shadow Occlusion Mask"},
-            {25, "CSM False-Color Cascades"},
-            {26, "Spot Shadow Factor"},
-            {40, "Point Shadow Factor"},
-            {27, "Cascade 0 Depth"},
-            {28, "Cascade 1 Depth"},
-            {29, "Cascade 2 Depth"},
-            {30, "Cascade 3 Depth"},
+            {24, "Shadow Occlusion Mask"}, {25, "CSM False-Color Cascades"}, {26, "Spot Shadow Factor"},
+            {40, "Point Shadow Factor"},   {27, "Cascade 0 Depth"},          {28, "Cascade 1 Depth"},
+            {29, "Cascade 2 Depth"},       {30, "Cascade 3 Depth"},
         };
 
         static constexpr const char* PostProcessCycle[] = {
-            "Post: Full Composite",
-            "Post: Raw HDR (linear scene)",
-            "Post: Bloom only",
-            "Post: Bright pass only",
-            "Post: Tone map (no FXAA)",
-            "Post: SSAO only",
+            "Post: Full Composite",   "Post: Raw HDR (linear scene)", "Post: Bloom only",
+            "Post: Bright pass only", "Post: Tone map (no FXAA)",     "Post: SSAO only",
         };
 
         static constexpr int PostProcessCycleCount = 6;

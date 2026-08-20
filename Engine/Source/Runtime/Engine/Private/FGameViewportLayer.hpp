@@ -112,9 +112,8 @@ namespace Leon {
             dispatcher.Dispatch<FMouseButtonReleasedEvent>(
                 [this](FMouseButtonReleasedEvent& e) { return HandleUIMouseButton(e.GetMouseButton(), false); });
 
-            dispatcher.Dispatch<FMouseScrolledEvent>([this](FMouseScrolledEvent& e) {
-                return HandleUIMouseWheel(e.GetYOffset());
-            });
+            dispatcher.Dispatch<FMouseScrolledEvent>(
+                [this](FMouseScrolledEvent& e) { return HandleUIMouseWheel(e.GetYOffset()); });
 
             dispatcher.Dispatch<FKeyPressedEvent>([this](FKeyPressedEvent& e) {
                 if (e.IsRepeat() || !World)
@@ -269,6 +268,5 @@ namespace Leon {
 
         TRef<UWorld> World;
     };
-
 
 } // namespace Leon

@@ -55,8 +55,7 @@ namespace Leon {
         void SetVisibility(ESlateVisibility InVisibility) { Visibility = InVisibility; }
         ESlateVisibility GetVisibility() const { return Visibility; }
         bool IsVisible() const {
-            return Visibility == ESlateVisibility::Visible ||
-                   Visibility == ESlateVisibility::SelfHitTestInvisible ||
+            return Visibility == ESlateVisibility::Visible || Visibility == ESlateVisibility::SelfHitTestInvisible ||
                    Visibility == ESlateVisibility::HitTestInvisible;
         }
         bool IsHitTestable() const { return Visibility == ESlateVisibility::Visible; }

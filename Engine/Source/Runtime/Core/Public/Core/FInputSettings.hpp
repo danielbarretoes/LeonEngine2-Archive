@@ -113,8 +113,7 @@ namespace Leon {
             GamepadId = InConfig.GetInt(kSection, "GamepadId", GamepadId);
             GamepadDeadzone = InConfig.GetFloat(kSection, "GamepadDeadzone", GamepadDeadzone);
             GamepadLookSpeed = InConfig.GetFloat(kSection, "GamepadLookSpeed", GamepadLookSpeed);
-            GamepadTriggerThreshold =
-                InConfig.GetFloat(kSection, "GamepadTriggerThreshold", GamepadTriggerThreshold);
+            GamepadTriggerThreshold = InConfig.GetFloat(kSection, "GamepadTriggerThreshold", GamepadTriggerThreshold);
         }
 
         static FInputSettings& GetMutable() {

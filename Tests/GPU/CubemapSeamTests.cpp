@@ -11,8 +11,8 @@ TEST_SUITE("GPU & Geometry - Cubemap Face Boundary Seams") {
         for (int i = 0; i < numPoints; ++i) {
             float v = -1.0f + 2.0f * (static_cast<float>(i) / static_cast<float>(numPoints - 1));
 
-            glm::vec3 dirPosX = Leon::GetCubeDirection(0, 1.0f, v);  // +X right edge (u=+1)
-            glm::vec3 dirPosZ = Leon::GetCubeDirection(4, 1.0f, v);  // +Z face direction at u=+1
+            glm::vec3 dirPosX = Leon::GetCubeDirection(0, 1.0f, v); // +X right edge (u=+1)
+            glm::vec3 dirPosZ = Leon::GetCubeDirection(4, 1.0f, v); // +Z face direction at u=+1
 
             // In Face 0 (+X): dir = normalize(1, -v, -u) -> at u=1: (1, -v, -1) -> norm(1, -v, -1)
             // In Face 4 (+Z): dir = normalize(u, -v, 1)  -> at u=-1: (-1, -v, 1) ...
@@ -22,11 +22,11 @@ TEST_SUITE("GPU & Geometry - Cubemap Face Boundary Seams") {
         }
 
         // 1. Cardinal Face Center Directions and Signed Axes
-        CHECK(Leon::GetCubeDirection(0, 0.0f, 0.0f).x == doctest::Approx( 1.0f).epsilon(1e-5f)); // +X
+        CHECK(Leon::GetCubeDirection(0, 0.0f, 0.0f).x == doctest::Approx(1.0f).epsilon(1e-5f));  // +X
         CHECK(Leon::GetCubeDirection(1, 0.0f, 0.0f).x == doctest::Approx(-1.0f).epsilon(1e-5f)); // -X
-        CHECK(Leon::GetCubeDirection(2, 0.0f, 0.0f).y == doctest::Approx( 1.0f).epsilon(1e-5f)); // +Y
+        CHECK(Leon::GetCubeDirection(2, 0.0f, 0.0f).y == doctest::Approx(1.0f).epsilon(1e-5f));  // +Y
         CHECK(Leon::GetCubeDirection(3, 0.0f, 0.0f).y == doctest::Approx(-1.0f).epsilon(1e-5f)); // -Y
-        CHECK(Leon::GetCubeDirection(4, 0.0f, 0.0f).z == doctest::Approx( 1.0f).epsilon(1e-5f)); // +Z
+        CHECK(Leon::GetCubeDirection(4, 0.0f, 0.0f).z == doctest::Approx(1.0f).epsilon(1e-5f));  // +Z
         CHECK(Leon::GetCubeDirection(5, 0.0f, 0.0f).z == doctest::Approx(-1.0f).epsilon(1e-5f)); // -Z
 
         // 2. Corner directions for all 6 faces
