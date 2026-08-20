@@ -1,0 +1,17 @@
+{
+    "FileVersion": 1,
+    "Version": "1.0",
+    "VersionName": "1.0.0",
+    "FriendlyName": "ENet Networking",
+    "Description": "High-performance UDP networking transport plugin based on ENet.",
+    "Category": "Networking",
+    "CreatedBy": "LeonEngine",
+    "EnabledByDefault": true,
+    "Modules": [
+        {
+            "Name": "LeonEngine_ENet",
+            "Type": "Runtime",
+            "LoadingPhase": "Default"
+        }
+    ]
+}

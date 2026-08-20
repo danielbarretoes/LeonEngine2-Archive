@@ -1,0 +1,17 @@
+{
+    "FileVersion": 1,
+    "Version": "1.0",
+    "VersionName": "1.0.0",
+    "FriendlyName": "Jolt Physics",
+    "Description": "High-performance rigid body physics simulation plugin based on Jolt Physics.",
+    "Category": "Physics",
+    "CreatedBy": "LeonEngine",
+    "EnabledByDefault": true,
+    "Modules": [
+        {
+            "Name": "LeonEngine_Jolt",
+            "Type": "Runtime",
+            "LoadingPhase": "PreDefault"
+        }
+    ]
+}

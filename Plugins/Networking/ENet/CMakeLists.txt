@@ -18,12 +18,12 @@ if(TARGET enet)
 endif()
 
 add_library(LeonEngine_ENet STATIC
-    src/FENetTransport.cpp
+    Source/FENetTransport.cpp
 )
 add_library(Leon::ENet ALIAS LeonEngine_ENet)
 
 target_include_directories(LeonEngine_ENet PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Include"
 )
 
 target_link_libraries(LeonEngine_ENet PUBLIC

@@ -1,14 +1,14 @@
 add_library(LeonEngine_OpenGL STATIC
-    src/FOpenGLContext.cpp
-    src/FOpenGLRenderAPI.cpp
-    src/FOpenGLBuffer.cpp
-    src/FOpenGLFramebuffer.cpp
-    src/FOpenGLShader.cpp
-    src/FOpenGLTexture2D.cpp
-    src/FOpenGLTextureCube.cpp
-    src/FOpenGLVertexArray.cpp
-    src/FOpenGLRenderDriver.cpp
-    src/FOpenGLUniformBuffer.cpp
+    Source/FOpenGLContext.cpp
+    Source/FOpenGLRenderAPI.cpp
+    Source/FOpenGLBuffer.cpp
+    Source/FOpenGLFramebuffer.cpp
+    Source/FOpenGLShader.cpp
+    Source/FOpenGLTexture2D.cpp
+    Source/FOpenGLTextureCube.cpp
+    Source/FOpenGLVertexArray.cpp
+    Source/FOpenGLRenderDriver.cpp
+    Source/FOpenGLUniformBuffer.cpp
 )
 
 
@@ -19,7 +19,7 @@ if(NOT DEFINED LEON_ENGINE_ROOT)
 endif()
 
 target_include_directories(LeonEngine_OpenGL PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Include"
     "${LEON_ENGINE_ROOT}/ThirdParty/glad/include"
     "${LEON_ENGINE_ROOT}/ThirdParty/stb"
 )

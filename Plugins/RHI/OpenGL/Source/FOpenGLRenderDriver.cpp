@@ -71,8 +71,8 @@ namespace Leon {
         return MakeRef<FOpenGLTexture2D>(InWidth, InHeight, InFormat);
     }
 
-    TRef<FTextureCube> FOpenGLRenderDriver::CreateTextureCube(uint32_t InWidth, uint32_t InHeight, bool InbHDR) {
-        return MakeRef<FOpenGLTextureCube>(InWidth, InHeight, InbHDR);
+    TRef<FTextureCube> FOpenGLRenderDriver::CreateTextureCube(uint32_t InWidth, uint32_t InHeight, bool bInHDR) {
+        return MakeRef<FOpenGLTextureCube>(InWidth, InHeight, bInHDR);
     }
 
     TRef<FTextureCube> FOpenGLRenderDriver::CreateTextureCube(const std::vector<std::string>& InFacePaths) {

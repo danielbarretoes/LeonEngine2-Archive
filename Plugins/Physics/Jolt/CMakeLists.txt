@@ -36,12 +36,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(JoltPhysics)
 
 add_library(LeonEngine_Jolt STATIC
-    src/FJoltPhysicsDriver.cpp
+    Source/FJoltPhysicsDriver.cpp
 )
 add_library(Leon::Jolt ALIAS LeonEngine_Jolt)
 
 target_include_directories(LeonEngine_Jolt PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Include"
 )
 
 target_link_libraries(LeonEngine_Jolt

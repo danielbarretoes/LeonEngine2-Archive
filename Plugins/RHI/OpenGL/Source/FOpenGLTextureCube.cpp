@@ -14,10 +14,10 @@ namespace Leon {
         return static_cast<uint32_t>(std::floor(std::log2(std::max(InWidth, InHeight)))) + 1;
     }
 
-    FOpenGLTextureCube::FOpenGLTextureCube(uint32_t InWidth, uint32_t InHeight, bool InbHDR)
+    FOpenGLTextureCube::FOpenGLTextureCube(uint32_t InWidth, uint32_t InHeight, bool bInHDR)
         : Width(InWidth), Height(InHeight) {
-        GLenum internalFormat = InbHDR ? GL_RGBA16F : GL_RGBA8;
-        size_t bpp = InbHDR ? 8 : 4;
+        GLenum internalFormat = bInHDR ? GL_RGBA16F : GL_RGBA8;
+        size_t bpp = bInHDR ? 8 : 4;
 
         AllocatedBytes = static_cast<size_t>(Width * Height * bpp * 6);
         uint32_t levels = CalculateCubemapMipLevels(Width, Height);
@@ -124,9 +124,9 @@ namespace Leon {
     }
 
     void FOpenGLTextureCube::SetFaceData(uint32_t InFaceIndex, const void* InData, uint32_t InWidth, uint32_t InHeight,
-                                         uint32_t InMipLevel, bool InbHDR) {
+                                         uint32_t InMipLevel, bool bInHDR) {
         GLenum dataFormat = GL_RGBA;
-        GLenum dataType = InbHDR ? GL_FLOAT : GL_UNSIGNED_BYTE;
+        GLenum dataType = bInHDR ? GL_FLOAT : GL_UNSIGNED_BYTE;
 
         glTextureSubImage3D(RendererID, static_cast<GLint>(InMipLevel), 0, 0, static_cast<GLint>(InFaceIndex),
                             static_cast<GLsizei>(InWidth), static_cast<GLsizei>(InHeight), 1, dataFormat, dataType,
