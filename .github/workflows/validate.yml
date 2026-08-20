@@ -21,13 +21,20 @@ jobs:
         run: cmake -S . -B out/Engine -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEON_PRODUCT=Engine
 
       - name: Build tests and tools
-        run: cmake --build out/Engine --config Release --target RendererTests LeonTournamentTests LeonAssetTool
+        run: cmake --build out/Engine --config Release --target RendererTests LeonAssetTool
 
       - name: Run unit tests
         run: python Scripts/run_tests.py
 
-      - name: Validate project
-        run: python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
+      - name: Build and validate Sandbox
+        run: |
+          python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject --config Release
+          python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
+        env:
+          LEON_BUILD_CONFIG: Release
+
+      - name: Build LeonTournament
+        run: python Scripts/build_project.py --project Projects/LeonTournament/LeonTournament.lproject --config Release
         env:
           LEON_BUILD_CONFIG: Release
 

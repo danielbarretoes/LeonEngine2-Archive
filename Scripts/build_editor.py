@@ -34,10 +34,10 @@ def find_editor_executable(build_dir: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build LeonEditor")
+    parser = argparse.ArgumentParser(description="Build LeonEngine2 Editor product")
     parser.add_argument("--clean", action="store_true", help="Remove out/Editor before configure")
     parser.add_argument("--rebuild", action="store_true", help="Clean-first build")
-    parser.add_argument("--run", action="store_true", help="Launch LeonEditor after build")
+    parser.add_argument("--run", action="store_true", help="Launch LeonEditor after successful build")
     parser.add_argument(
         "--config",
         default="Debug",
@@ -60,7 +60,7 @@ def main() -> int:
 
     if args.clean and os.path.exists(build_dir):
         print(f"[INFO] Cleaning {build_dir}...")
-        shutil.rmtree(build_dir)
+        safe_rmtree(build_dir)
 
     cache_file = os.path.join(build_dir, "CMakeCache.txt")
     if not os.path.exists(cache_file):

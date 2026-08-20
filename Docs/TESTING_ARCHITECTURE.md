@@ -2,14 +2,13 @@
 
 ## Binaries
 
-| CMake target | Role | Links LeonTournament? |
-| :--- | :--- | :--- |
-| `RendererTests` | Engine unit/integration/GPU suite (historical name kept for mutation scripts and CI) | No |
-| `LeonTournamentTests` | Product gameplay, combat, AI, UI, match, Mixamo import | Yes |
+| CMake target | Role | Location | Links Projects? |
+| :--- | :--- | :--- | :---: |
+| `RendererTests` | Engine unit/integration/GPU suite | `Tests/` (`out/Engine/`) | No |
+| `LeonTournamentTests` | Product gameplay, combat, AI, UI, match | `Projects/LeonTournament/Tests/` (`out/Projects/LeonTournament/`) | Project only |
 
-`python Scripts/run_tests.py` builds and runs **both**. Working directory is the repository root.
-
-CTest names: `EngineTests` → `RendererTests`, `LeonTournamentTests` → `LeonTournamentTests`.
+`python Scripts/run_tests.py` builds and runs the Engine test suite (`RendererTests`).
+Product gameplay tests are built and executed via project scripts: `python Projects/LeonTournament/Scripts/test.py`.
 
 ## Layout
 
@@ -18,10 +17,13 @@ Tests/
   Main.cpp                 Shared doctest entry
   Math/ IBL/ PBR/ HDR/ Cache/ GPU/ Shader/ Asset/ Lightmass/ Renderer/
   Gameplay/                Engine gameplay framework (not the product)
-  LeonTournament/          Product tests only
+
+Projects/LeonTournament/Tests/
+  Main.cpp                 Project test entry with class and driver bindings
+  *Tests.cpp               Product gameplay, combat, anim, bot, UI tests
 ```
 
-Engine tests must not include `Projects/LeonTournament` headers or compile game `.cpp` files.
+Engine tests must not include project headers (`Projects/...`) or compile game `.cpp` files.
 
 ## Skip policy
 

@@ -13,9 +13,24 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import stat
 import subprocess
 import sys
 from typing import Optional
+
+
+def safe_rmtree(path: str) -> None:
+    """Remove a directory tree safely handling read-only files on Windows."""
+    def _onerror(func, p, _exc_info):
+        try:
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        except OSError:
+            pass
+
+    if os.path.exists(path):
+        shutil.rmtree(path, onerror=_onerror)
 
 
 def engine_root() -> str:

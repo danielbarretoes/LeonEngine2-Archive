@@ -17,7 +17,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _leon_paths import engine_root  # noqa: E402
+from _leon_paths import engine_root, safe_rmtree  # noqa: E402
 
 
 def main() -> int:
@@ -50,7 +50,7 @@ def main() -> int:
 
     if args.clean and os.path.exists(build_dir):
         print(f"[INFO] Cleaning {build_dir}...")
-        shutil.rmtree(build_dir)
+        safe_rmtree(build_dir)
 
     cache_file = os.path.join(build_dir, "CMakeCache.txt")
     if not os.path.exists(cache_file):

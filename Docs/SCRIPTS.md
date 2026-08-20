@@ -37,31 +37,25 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 | `run_shader_mutations.py` | Mutation testing of PBR shaders |
 | `run_mutation_audit.py` | Mutation audit helper |
 
-## Not Engine tooling
+## Project Scripts (Per-Game Shortcuts)
 
-- **No** `*sandbox*` scripts under `Scripts/` — product shortcuts live in the game, e.g. [`Projects/Sandbox/Scripts/run.py`](../Projects/Sandbox/Scripts/run.py) / `package.py`.
-- Content one-shots (e.g. normal map generators) belong under the **project** (`Projects/Sandbox/Tools/`), not Engine Scripts.
+Each project under `Projects/<Name>/Scripts/` provides fast shortcuts in Python and PowerShell:
 
-## Examples
+### Sandbox (`Projects/Sandbox/Scripts/`)
+- `bake_draft.py` / `BakeDraft.ps1`: Bake lightmaps with Draft quality
+- `bake_production.py` / `BakeProduction.ps1`: Bake lightmaps with Production quality
+- `run.py` / `Run.ps1`: Build and run Sandbox
+- `build.py` / `Build.ps1`: Build Sandbox executable
+- `package.py` / `Package.ps1`: Produce Shipping release ZIP
+- `validate.py`: Validate project assets
 
-### Monorepo Sandbox
-
-```bat
-python Scripts/build_engine.py --config Debug
-python Scripts/build_editor.py --config Debug
-python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject
-python Scripts/run_project.py --project Projects/Sandbox/Sandbox.lproject
-python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
-python Scripts/bake_lightmaps.py --project Projects/Sandbox/Sandbox.lproject --force
-```
-
-Or:
-
-```bat
-python Projects/Sandbox/Scripts/run.py
-python Projects/Sandbox/Scripts/validate.py
-python Projects/Sandbox/Scripts/package.py
-```
+### LeonTournament (`Projects/LeonTournament/Scripts/`)
+- `bake_draft.py` / `BakeDraft.ps1`: Bake all arena lightmaps with Draft quality
+- `bake_production.py` / `BakeProduction.ps1`: Bake all arena lightmaps with Production quality
+- `run.py` / `Run.ps1`: Build and run LeonTournament
+- `build.py` / `Build.ps1`: Build LeonTournament executable
+- `test.py` / `Test.ps1`: Compile and run LeonTournament gameplay test suite
+- `package.py` / `Package.ps1`: Produce Shipping release ZIP
 
 ### External game
 

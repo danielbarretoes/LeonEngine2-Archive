@@ -24,6 +24,7 @@ from _leon_paths import (  # noqa: E402
     project_dir,
     project_name,
     require_project,
+    safe_rmtree,
 )
 
 
@@ -77,7 +78,7 @@ def main() -> int:
 
     if args.clean and os.path.exists(build_dir):
         print(f"[INFO] Cleaning build directory ({build_dir})...")
-        shutil.rmtree(build_dir)
+        safe_rmtree(build_dir)
 
     cache_file = os.path.join(build_dir, "CMakeCache.txt")
     need_configure = not os.path.exists(cache_file)

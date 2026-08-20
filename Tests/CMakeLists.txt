@@ -87,58 +87,6 @@ set(LEON_ENGINE_TEST_SOURCES
     Performance/ScalingBenchmarkTests.cpp
 )
 
-set(LEON_TOURNAMENT_TEST_SOURCES
-    Main.cpp
-    LeonTournament/LeonTournamentGameplayTests.cpp
-    LeonTournament/LifecycleIntegrationTests.cpp
-    LeonTournament/PlayabilityIntegrationTests.cpp
-    LeonTournament/BotAIIntegrationTests.cpp
-    LeonTournament/FirstPersonArenaTests.cpp
-    LeonTournament/AnimLabTests.cpp
-    LeonTournament/SkeletalImportTests.cpp
-    LeonTournament/NamingConventionTests.cpp
-    LeonTournament/GraphicsQualityTests.cpp
-    LeonTournament/RenderLabTests.cpp
-)
-
-set(LEON_TOURNAMENT_RUNTIME_SOURCES
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentGameMode.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentArenaBuilder.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentDamageRules.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/FLeonTournamentKillFeed.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentGameState.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentCharacter.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentPlayerController.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentPlayerState.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentBotController.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentWeapon.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/FLeonTournamentWeaponVfx.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentProjectile.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ALeonTournamentPickup.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentFlag.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentFlagBase.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentCaptureTheFlagGameMode.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ALeonTournamentHUD.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ALeonTournamentDummy.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentAnimLabGameMode.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentRenderLabGameMode.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ALeonTournamentTransitionGameMode.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Characters/ULeonTournamentAnimInstance.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Combat/ULeonTournamentCombatComponent.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/Game/ULeonTournamentGameInstance.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentUILayout.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/FLeonTournamentCrosshairTextures.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMainMenuWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLobbyWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentHUDWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentScoreboardWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentPauseWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentMatchEndWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentLoadingOverlayWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ULeonTournamentRenderLabWidget.cpp
-    ${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Private/UI/ALeonTournamentTransitionHUD.cpp
-)
-
 function(leon_configure_test_exe TargetName)
     target_include_directories(${TargetName} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -164,24 +112,10 @@ function(leon_configure_test_exe TargetName)
     )
 endfunction()
 
-# Historical binary name kept for mutation scripts / CI that invoke RendererTests.exe.
-# This target is engine-only and must not link LeonTournament.
+# Pure Engine test suite (unit / GPU / assets / lifecycle / math / PBR / IBL).
 add_executable(RendererTests ${LEON_ENGINE_TEST_SOURCES})
 leon_configure_test_exe(RendererTests)
 
-add_executable(LeonTournamentTests ${LEON_TOURNAMENT_TEST_SOURCES} ${LEON_TOURNAMENT_RUNTIME_SOURCES})
-leon_configure_test_exe(LeonTournamentTests)
-set(LEON_TOURNAMENT_PUBLIC_ROOT "${LEON_ENGINE_ROOT}/Projects/LeonTournament/Source/LeonTournament/Public")
-target_include_directories(LeonTournamentTests PRIVATE
-    "${LEON_TOURNAMENT_PUBLIC_ROOT}"
-    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Types"
-    "${LEON_TOURNAMENT_PUBLIC_ROOT}/UI"
-    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Game"
-    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Characters"
-    "${LEON_TOURNAMENT_PUBLIC_ROOT}/Combat"
-)
-
 enable_testing()
 add_test(NAME EngineTests COMMAND RendererTests WORKING_DIRECTORY ${LEON_ENGINE_ROOT})
-add_test(NAME LeonTournamentTests COMMAND LeonTournamentTests WORKING_DIRECTORY ${LEON_ENGINE_ROOT})
 add_custom_target(EngineTests DEPENDS RendererTests)

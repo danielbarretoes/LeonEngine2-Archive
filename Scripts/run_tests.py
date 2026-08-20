@@ -87,19 +87,18 @@ def main() -> int:
             return 1
 
     t0 = time.perf_counter()
-    build_cmd = ["cmake", "--build", build_dir, "--target", "RendererTests", "LeonTournamentTests"]
+    build_cmd = ["cmake", "--build", build_dir, "--target", "RendererTests"]
     res = subprocess.run(build_cmd, cwd=project_root, capture_output=True, text=True)
     t_build = (time.perf_counter() - t0) * 1000.0
     if res.returncode != 0:
         print("[ERROR] Build failed:")
         print(res.stderr or res.stdout)
         return 1
-    print(f"[SUCCESS] Built test binaries in {t_build:.1f} ms\n")
+    print(f"[SUCCESS] Built Engine test binary in {t_build:.1f} ms\n")
 
     extra_args = sys.argv[1:]
     suites = [
         ("Engine (RendererTests)", find_exe(build_dir, "RendererTests")),
-        ("LeonTournamentTests", find_exe(build_dir, "LeonTournamentTests")),
     ]
 
     grand_passed = grand_failed = grand_skipped = 0
