@@ -56,6 +56,12 @@ namespace leon::editor::lucide_data {
     static constexpr const char* k_circle[] = {
         "M 12 2.0 A 10 10 0 1 1 12 22.0 A 10 10 0 1 1 12 2.0 Z",
     };
+    static constexpr const char* k_chevron_left[] = {
+        "m15 18-6-6 6-6",
+    };
+    static constexpr const char* k_chevron_right[] = {
+        "m9 18 6-6-6-6",
+    };
     static constexpr const char* k_clapperboard[] = {
         "M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z",
         "m6.2 5.3 3.1 3.9",
@@ -92,6 +98,11 @@ namespace leon::editor::lucide_data {
         "M 6 12 L 2 12",
         "M 12 6 L 12 2",
         "M 12 22 L 12 18",
+    };
+    static constexpr const char* k_download[] = {
+        "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
+        "m7 10 5 5 5-5",
+        "M12 15V3",
     };
     static constexpr const char* k_eye_off[] = {
         "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49",
@@ -242,6 +253,24 @@ namespace leon::editor::lucide_data {
         "M5 12h14",
         "M12 5v14",
     };
+    static constexpr const char* k_mouse_pointer_2[] = {
+        "M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 "
+        "1.435l-1.579 6.126a.5.5 0 0 1-.947.063z",
+    };
+    static constexpr const char* k_move[] = {
+        "M12 2v20",
+        "m15 19-3 3-3-3",
+        "m19 9 3 3-3 3",
+        "M2 12h20",
+        "m5 9-3 3 3 3",
+        "m9 5 3-3 3 3",
+    };
+    static constexpr const char* k_scaling[] = {
+        "m21 21-6-6m6 6v-4.8m0 4.8h-4.8",
+        "M3 16.2V21m0 0h4.8M3 21l6-6",
+        "M21 7.8V3m0 0h-4.8M21 3l-6 6",
+        "M3 7.8V3m0 0h4.8M3 3l6 6",
+    };
     static constexpr const char* k_refresh_cw[] = {
         "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8",
         "M21 3v5h-5",
@@ -340,6 +369,12 @@ namespace leon::editor::lucide_data {
         if (std::strcmp(name, "braces") == 0) {
             return {k_braces, static_cast<int>(sizeof(k_braces) / sizeof(k_braces[0]))};
         }
+        if (std::strcmp(name, "chevron-left") == 0) {
+            return {k_chevron_left, static_cast<int>(sizeof(k_chevron_left) / sizeof(k_chevron_left[0]))};
+        }
+        if (std::strcmp(name, "chevron-right") == 0) {
+            return {k_chevron_right, static_cast<int>(sizeof(k_chevron_right) / sizeof(k_chevron_right[0]))};
+        }
         if (std::strcmp(name, "circle") == 0) {
             return {k_circle, static_cast<int>(sizeof(k_circle) / sizeof(k_circle[0]))};
         }
@@ -354,6 +389,9 @@ namespace leon::editor::lucide_data {
         }
         if (std::strcmp(name, "crosshair") == 0) {
             return {k_crosshair, static_cast<int>(sizeof(k_crosshair) / sizeof(k_crosshair[0]))};
+        }
+        if (std::strcmp(name, "download") == 0) {
+            return {k_download, static_cast<int>(sizeof(k_download) / sizeof(k_download[0]))};
         }
         if (std::strcmp(name, "eye-off") == 0) {
             return {k_eye_off, static_cast<int>(sizeof(k_eye_off) / sizeof(k_eye_off[0]))};
@@ -432,6 +470,15 @@ namespace leon::editor::lucide_data {
         }
         if (std::strcmp(name, "plus") == 0) {
             return {k_plus, static_cast<int>(sizeof(k_plus) / sizeof(k_plus[0]))};
+        }
+        if (std::strcmp(name, "mouse-pointer-2") == 0) {
+            return {k_mouse_pointer_2, static_cast<int>(sizeof(k_mouse_pointer_2) / sizeof(k_mouse_pointer_2[0]))};
+        }
+        if (std::strcmp(name, "move") == 0) {
+            return {k_move, static_cast<int>(sizeof(k_move) / sizeof(k_move[0]))};
+        }
+        if (std::strcmp(name, "scaling") == 0) {
+            return {k_scaling, static_cast<int>(sizeof(k_scaling) / sizeof(k_scaling[0]))};
         }
         if (std::strcmp(name, "refresh-cw") == 0) {
             return {k_refresh_cw, static_cast<int>(sizeof(k_refresh_cw) / sizeof(k_refresh_cw[0]))};

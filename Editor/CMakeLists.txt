@@ -48,6 +48,10 @@ add_library(LeonEditorCore STATIC
     Source/Private/Context/FEditorContext.cpp
     Source/Private/Context/FEditorSelection.cpp
     Source/Private/Context/FEditorHistory.cpp
+    Source/Private/Commands/FDeleteActorsCommand.cpp
+    Source/Private/Commands/FTransformActorsCommand.cpp
+    Source/Private/Commands/FSelectActorsCommand.cpp
+    Source/Private/Commands/FDuplicateActorsCommand.cpp
     Source/Private/Panels/FViewportPanel.cpp
     Source/Private/Panels/FProjectHubPanel.cpp
     Source/Private/Panels/FOutlinerPanel.cpp

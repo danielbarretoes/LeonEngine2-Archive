@@ -1,8 +1,16 @@
 #include "Editor/Panels/FPlaceActorsPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/ABlockingVolume.hpp"
+#include "Gameplay/ACameraActor.hpp"
+#include "Gameplay/ACharacter.hpp"
+#include "Gameplay/APawn.hpp"
+#include "Gameplay/APlayerStart.hpp"
+#include "Gameplay/FProceduralPrimitiveSpawner.hpp"
+#include "Gameplay/UClassRegistry.hpp"
 #include <cstring>
 #include <imgui.h>
 
@@ -12,22 +20,37 @@ namespace Leon::Editor {
         try {
             AActor* spawned = nullptr;
 
-            if (InType == "DirectionalLight") {
+            if (InType == "PlayerStart") {
+                spawned = InWorld.SpawnActor<APlayerStart>("PlayerStart");
+            } else if (InType == "Character") {
+                spawned = InWorld.SpawnActor<ACharacter>("Character");
+            } else if (InType == "Pawn") {
+                spawned = InWorld.SpawnActor<APawn>("Pawn");
+            } else if (InType == "Camera") {
+                spawned = InWorld.SpawnActor<ACameraActor>("CameraActor");
+            } else if (InType == "DirectionalLight") {
                 spawned = InWorld.SpawnActor("DirectionalLight");
-                spawned->AddComponent<FDirectionalLightComponent>();
+                if (spawned)
+                    spawned->AddComponent<FDirectionalLightComponent>();
             } else if (InType == "PointLight") {
                 spawned = InWorld.SpawnActor("PointLight");
-                spawned->AddComponent<FPointLightComponent>();
+                if (spawned)
+                    spawned->AddComponent<FPointLightComponent>();
             } else if (InType == "SpotLight") {
                 spawned = InWorld.SpawnActor("SpotLight");
-                spawned->AddComponent<FSpotLightComponent>();
-            } else if (InType == "Camera") {
-                spawned = InWorld.SpawnActor("CameraActor");
-                spawned->AddComponent<FCameraComponent>();
+                if (spawned)
+                    spawned->AddComponent<FSpotLightComponent>();
             } else if (InType == "Cube" || InType == "Sphere" || InType == "Cylinder" || InType == "Plane") {
-                spawned = InWorld.SpawnActor(InType + "Actor");
-                auto& smc = spawned->AddComponent<FStaticMeshComponent>();
-                smc.AssetPath = "Engine/Meshes/" + InType + ".obj";
+                spawned = FProceduralPrimitiveSpawner::SpawnShape(&InWorld, InType, InType + "Actor", InLocation);
+                return spawned;
+            } else if (InType == "BlockingVolume") {
+                spawned = InWorld.SpawnActor<ABlockingVolume>("BlockingVolume");
+            } else if (UClassRegistry::Get().HasClass(InType)) {
+                spawned = UClassRegistry::Get().CreateActorOfClass(InType, &InWorld, InType);
+            } else if (UClassRegistry::Get().HasClass("A" + InType)) {
+                spawned = UClassRegistry::Get().CreateActorOfClass("A" + InType, &InWorld, InType);
+            } else if (InType == "Empty") {
+                spawned = InWorld.SpawnActor("EmptyActor");
             } else {
                 spawned = InWorld.SpawnActor(InType + "Actor");
             }
@@ -44,7 +67,7 @@ namespace Leon::Editor {
     }
 
     void FPlaceActorsPanel::Draw(UWorld* InWorld, bool* bInOutOpen) {
-        ImGui::Begin("Place Actors", bInOutOpen);
+        FEditorWidgets::BeginPanelWindow("  Place Actors", bInOutOpen, ELucideIcon::Boxes);
 
         try {
             if (!InWorld) {
@@ -100,11 +123,10 @@ namespace Leon::Editor {
                 drawPlaceItem("   Spot Light", "SpotLight", ELucideIcon::Crosshair, IM_COL32(255, 130, 60, 255));
                 drawPlaceItem("   Sky Light / Skybox", "Skybox", ELucideIcon::Sun, IM_COL32(100, 220, 255, 255));
             } else if (SelectedCategory == 2) {
-                drawPlaceItem("   Cube (Static Mesh)", "Cube", ELucideIcon::Box, IM_COL32(80, 160, 255, 255));
-                drawPlaceItem("   Sphere (Static Mesh)", "Sphere", ELucideIcon::Circle, IM_COL32(80, 180, 255, 255));
-                drawPlaceItem("   Cylinder (Static Mesh)", "Cylinder", ELucideIcon::Boxes,
-                              IM_COL32(100, 160, 255, 255));
-                drawPlaceItem("   Plane (Static Mesh)", "Plane", ELucideIcon::Square, IM_COL32(120, 160, 255, 255));
+                drawPlaceItem("   Cube", "Cube", ELucideIcon::Box, IM_COL32(80, 160, 255, 255));
+                drawPlaceItem("   Sphere", "Sphere", ELucideIcon::Circle, IM_COL32(80, 180, 255, 255));
+                drawPlaceItem("   Cylinder", "Cylinder", ELucideIcon::Boxes, IM_COL32(100, 160, 255, 255));
+                drawPlaceItem("   Plane", "Plane", ELucideIcon::Square, IM_COL32(120, 160, 255, 255));
             } else if (SelectedCategory == 3) {
                 drawPlaceItem("   Blocking Volume", "BlockingVolume", ELucideIcon::Hexagon,
                               IM_COL32(255, 100, 100, 255));

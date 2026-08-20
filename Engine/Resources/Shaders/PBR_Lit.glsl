@@ -170,6 +170,7 @@ uniform int u_UseRoughnessMap;
 uniform int u_UseEmissiveMap;
 uniform int u_UsePlanarReflection;
 uniform int u_UsePlanarReflection1 = 0;
+uniform int u_DoubleSided = 0;
 uniform int u_UseShadows;
 uniform int u_UseSpotShadows;
 uniform int u_UsePointShadows = 0;
@@ -205,6 +206,9 @@ void main() {
 
     // 3. Tangent Space Gram-Schmidt Orthogonalization & Normal Mapping
     vec3 geoN = SafeNormalize3(v_Normal, vec3(0.0, 1.0, 0.0));
+    // Industry two-sided: only flip when the material opts in (culling is off).
+    if (u_DoubleSided == 1 && !gl_FrontFacing)
+        geoN = -geoN;
     vec3 N = geoN;
     vec3 T = SafeNormalize3(v_TBN[0], vec3(1.0, 0.0, 0.0));
     T = SafeNormalize3(T - N * dot(N, T), vec3(1.0, 0.0, 0.0));

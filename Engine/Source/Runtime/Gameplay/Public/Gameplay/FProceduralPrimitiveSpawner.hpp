@@ -27,6 +27,13 @@ namespace Leon {
                                     const std::string& InMaterialPath = {}, float InMetersPerUv = 1.0f,
                                     bool bUsePlanarReflection = false, bool bVisibleInReflection = true);
 
+        /**
+         * Editor/placeable procedural shape: Cube, Sphere, Cylinder, or Plane.
+         * Uses FMeshComponent + WorldGrid material (no .obj assets required).
+         */
+        static AActor* SpawnShape(UWorld* InWorld, const std::string& InShapeType, const std::string& InName,
+                                  const glm::vec3& InLocation);
+
         static AActor* SpawnPointLight(UWorld* InWorld, const std::string& InName, const glm::vec3& InPos,
                                        const glm::vec3& InColor, float InIntensity, float InRadius,
                                        ELightMobility InMobility = ELightMobility::Stationary);

@@ -91,7 +91,7 @@ namespace Leon {
 
         void AppendTriangulatedFaces(UStaticMesh& InMesh, const ufbx_mesh* InUMesh, const uint32_t* InFaceIndices,
                                      size_t InFaceCount, const glm::mat4& InLocalMat, const glm::mat3& InNormMat,
-                                     bool bFlipUVs, FStaticSubmesh& InOutSubmesh) {
+                                     bool bFlipUVs, bool bFlipWinding, FStaticSubmesh& InOutSubmesh) {
             std::vector<FStaticMeshVertex>& verts = InMesh.GetVertices();
             std::vector<uint32_t>& indices = InMesh.GetIndices();
             const uint32_t vertexStart = static_cast<uint32_t>(verts.size());
@@ -102,7 +102,12 @@ namespace Leon {
                 ufbx_face face = InUMesh->faces.data[faceIndex];
                 const uint32_t numTri = face.num_indices >= 3 ? face.num_indices - 2 : 0;
                 for (uint32_t ti = 0; ti < numTri; ++ti) {
-                    const uint32_t cornerIndices[3] = {0, ti + 1, ti + 2};
+                    uint32_t cornerIndices[3] = {0, ti + 1, ti + 2};
+                    // Mirrored nodes (det < 0) invert winding relative to transformed normals.
+                    if (bFlipWinding) {
+                        cornerIndices[1] = ti + 2;
+                        cornerIndices[2] = ti + 1;
+                    }
                     for (int k = 0; k < 3; ++k) {
                         const uint32_t indexInMesh = face.index_begin + cornerIndices[k];
                         indices.push_back(static_cast<uint32_t>(verts.size()));
@@ -132,6 +137,7 @@ namespace Leon {
                     localMat[c][r] = static_cast<float>(InNode->node_to_world.cols[c].v[r]);
             }
             const glm::mat3 normMat = glm::transpose(glm::inverse(glm::mat3(localMat)));
+            const bool bFlipWinding = glm::determinant(glm::mat3(localMat)) < 0.0f;
 
             bool bAdded = false;
             if (uMesh->material_parts.count > 0) {
@@ -151,7 +157,7 @@ namespace Leon {
                     submesh.MaterialSlotIndex = slotIdx;
                     submesh.LocalTransform = glm::mat4(1.0f);
                     AppendTriangulatedFaces(InMesh, uMesh, part.face_indices.data, part.num_faces, localMat, normMat,
-                                            InSettings.bFlipUVs, submesh);
+                                            InSettings.bFlipUVs, bFlipWinding, submesh);
                     if (submesh.IndexCount > 0) {
                         InMesh.GetSubmeshes().push_back(submesh);
                         bAdded = true;
@@ -163,7 +169,7 @@ namespace Leon {
                 submesh.MaterialSlotIndex = 0;
                 submesh.LocalTransform = glm::mat4(1.0f);
                 AppendTriangulatedFaces(InMesh, uMesh, nullptr, uMesh->num_faces, localMat, normMat,
-                                        InSettings.bFlipUVs, submesh);
+                                        InSettings.bFlipUVs, bFlipWinding, submesh);
                 if (submesh.IndexCount > 0) {
                     InMesh.GetSubmeshes().push_back(submesh);
                     bAdded = true;

@@ -11,16 +11,29 @@ namespace Leon::Editor {
             return;
         }
 
+        // Unreal-like: re-clicking the same sole selection is a no-op (no re-notify / re-scroll).
+        if (!bAddToSelection && SelectedActors.size() == 1 && SelectedActors.front() == InActor) {
+            return;
+        }
+
+        bool bChanged = false;
+
         if (!bAddToSelection) {
-            SelectedActors.clear();
-            SelectedActorsSet.clear();
+            if (!SelectedActors.empty()) {
+                SelectedActors.clear();
+                SelectedActorsSet.clear();
+                bChanged = true;
+            }
         }
 
         if (SelectedActorsSet.insert(InActor).second) {
             SelectedActors.push_back(InActor);
+            bChanged = true;
         }
 
-        NotifyActorSelectionChanged();
+        if (bChanged) {
+            NotifyActorSelectionChanged();
+        }
     }
 
     void FEditorSelection::DeselectActor(AActor* InActor) {

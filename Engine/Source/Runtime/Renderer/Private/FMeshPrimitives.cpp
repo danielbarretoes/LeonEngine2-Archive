@@ -1,4 +1,5 @@
 #include "Renderer/FMeshPrimitives.hpp"
+#include "Renderer/FRenderingMath.hpp"
 #include "Renderer/FVertexLayout.hpp"
 #include "RHI/FBuffer.hpp"
 
@@ -54,6 +55,7 @@ namespace Leon {
 
         void PushQuad(std::vector<float>& Out, const glm::vec3 InP[4], const glm::vec2 InUV[4], const glm::vec3& InN,
                       const glm::vec3& InT, const glm::vec3& InB, int InLightmapFace = -1) {
+            // Authored normal/TBN are authoritative — caller must match CCW winding.
             for (int i = 0; i < 4; ++i) {
                 glm::vec2 lm = InUV[i] * 0.96f + glm::vec2(0.02f);
                 if (InLightmapFace >= 0)
@@ -448,13 +450,24 @@ namespace Leon {
             quad(p, {0, ny, nz}, {1, 0, 0}, {0, by, bz});
         }
 
-        AppendCanonicalVertex(vertices, {-w, -h, -d}, {-1, 0, 0}, {0, 0}, {0, 0, 1}, {0, 1, 0});
-        AppendCanonicalVertex(vertices, {-w, -h, d}, {-1, 0, 0}, {1, 0}, {0, 0, 1}, {0, 1, 0});
-        AppendCanonicalVertex(vertices, {-w, h, -d}, {-1, 0, 0}, {0, 1}, {0, 0, 1}, {0, 1, 0});
-
-        AppendCanonicalVertex(vertices, {w, -h, d}, {1, 0, 0}, {0, 0}, {0, 0, -1}, {0, 1, 0});
-        AppendCanonicalVertex(vertices, {w, -h, -d}, {1, 0, 0}, {1, 0}, {0, 0, -1}, {0, 1, 0});
-        AppendCanonicalVertex(vertices, {w, h, -d}, {1, 0, 0}, {1, 1}, {0, 0, -1}, {0, 1, 0});
+        {
+            glm::vec3 a(-w, -h, -d), b(-w, -h, d), c(-w, h, -d);
+            glm::vec3 n = glm::normalize(glm::cross(b - a, c - a));
+            glm::vec3 t(0, 0, 1);
+            glm::vec3 bit = glm::normalize(glm::cross(n, t));
+            AppendCanonicalVertex(vertices, a, n, {0, 0}, t, bit);
+            AppendCanonicalVertex(vertices, b, n, {1, 0}, t, bit);
+            AppendCanonicalVertex(vertices, c, n, {0, 1}, t, bit);
+        }
+        {
+            glm::vec3 a(w, -h, d), b(w, -h, -d), c(w, h, -d);
+            glm::vec3 n = glm::normalize(glm::cross(b - a, c - a));
+            glm::vec3 t(0, 0, -1);
+            glm::vec3 bit = glm::normalize(glm::cross(n, t));
+            AppendCanonicalVertex(vertices, a, n, {0, 0}, t, bit);
+            AppendCanonicalVertex(vertices, b, n, {1, 0}, t, bit);
+            AppendCanonicalVertex(vertices, c, n, {1, 1}, t, bit);
+        }
 
         std::vector<uint32_t> indices = {0, 1, 2,  2,  3,  0, 4,  5,  6,  6,  7,  4,
                                          8, 9, 10, 10, 11, 8, 12, 13, 14, 15, 16, 17};
@@ -470,18 +483,6 @@ namespace Leon {
         float h = InHeight * 0.5f;
         float d = InDepth * 0.5f;
 
-        float zSlopeLen = std::sqrt(d * d + 4.0f * h * h);
-        float fnY = d / zSlopeLen;
-        float fnZ = (2.0f * h) / zSlopeLen;
-        float fbY = (2.0f * h) / zSlopeLen;
-        float fbZ = -d / zSlopeLen;
-
-        float xSlopeLen = std::sqrt(w * w + 4.0f * h * h);
-        float rnX = (2.0f * h) / xSlopeLen;
-        float rnY = w / xSlopeLen;
-        float rbX = -w / xSlopeLen;
-        float rbY = (2.0f * h) / xSlopeLen;
-
         std::vector<float> vertices;
         {
             glm::vec3 p[4] = {{-w, -h, -d}, {w, -h, -d}, {w, -h, d}, {-w, -h, d}};
@@ -489,17 +490,21 @@ namespace Leon {
             PushQuad(vertices, p, uv, {0, -1, 0}, {1, 0, 0}, {0, 0, 1});
         }
 
-        auto tri = [&](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& n,
-                       const glm::vec3& t, const glm::vec3& bit) {
+        auto tri = [&](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c) {
+            glm::vec3 n = glm::normalize(glm::cross(b - a, c - a));
+            glm::vec3 t = SafeNormalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), n), glm::vec3(1.0f, 0.0f, 0.0f));
+            if (glm::dot(t, t) < 1e-8f)
+                t = SafeNormalize(glm::cross(glm::vec3(1.0f, 0.0f, 0.0f), n), glm::vec3(0.0f, 0.0f, 1.0f));
+            glm::vec3 bit = glm::normalize(glm::cross(n, t));
             AppendCanonicalVertex(vertices, a, n, {0, 0}, t, bit);
             AppendCanonicalVertex(vertices, b, n, {1, 0}, t, bit);
             AppendCanonicalVertex(vertices, c, n, {0.5f, 1}, t, bit);
         };
 
-        tri({-w, -h, d}, {w, -h, d}, {0, h, 0}, {0, fnY, fnZ}, {1, 0, 0}, {0, fbY, fbZ});
-        tri({w, -h, d}, {w, -h, -d}, {0, h, 0}, {rnX, rnY, 0}, {0, 0, -1}, {rbX, rbY, 0});
-        tri({w, -h, -d}, {-w, -h, -d}, {0, h, 0}, {0, fnY, -fnZ}, {-1, 0, 0}, {0, fbY, -fbZ});
-        tri({-w, -h, -d}, {-w, -h, d}, {0, h, 0}, {-rnX, rnY, 0}, {0, 0, 1}, {-rbX, rbY, 0});
+        tri({-w, -h, d}, {w, -h, d}, {0, h, 0});
+        tri({w, -h, d}, {w, -h, -d}, {0, h, 0});
+        tri({w, -h, -d}, {-w, -h, -d}, {0, h, 0});
+        tri({-w, -h, -d}, {-w, -h, d}, {0, h, 0});
 
         std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));

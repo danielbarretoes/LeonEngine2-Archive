@@ -21,6 +21,7 @@
 #include "Gameplay/USkeletalMeshComponent.hpp"
 #include "Physics/IPhysicsScene.hpp"
 #include "AI/UNavigationSystem.hpp"
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -57,6 +58,7 @@ namespace Leon {
         TimerManager.Clear();
         bIsTicking = false;
         bLightmapsTrusted = true;
+        EditorFolders.clear();
         TransientParticleEntity = entt::null;
         TransientParticles.clear();
         TransientParticleRng = 1u;
@@ -70,6 +72,90 @@ namespace Leon {
 
     void UWorld::RebuildNavigation() {
         GetNavigationSystem()->Rebuild(*this);
+    }
+
+    void UWorld::SetEditorFolders(std::vector<std::string> InFolders) {
+        EditorFolders.clear();
+        for (const auto& path : InFolders)
+            RegisterEditorFolder(path);
+    }
+
+    void UWorld::RegisterEditorFolder(const std::string& InPath) {
+        const std::string normalized = AActor::NormalizeFolderPath(InPath);
+        if (normalized.empty())
+            return;
+
+        // Register every parent segment so nested empty folders survive.
+        size_t start = 0;
+        while (start < normalized.size()) {
+            size_t slash = normalized.find('/', start);
+            std::string segment =
+                slash == std::string::npos ? normalized : normalized.substr(0, slash);
+            if (!segment.empty()) {
+                bool bExists = false;
+                for (const auto& existing : EditorFolders) {
+                    if (existing == segment) {
+                        bExists = true;
+                        break;
+                    }
+                }
+                if (!bExists)
+                    EditorFolders.push_back(segment);
+            }
+            if (slash == std::string::npos)
+                break;
+            start = slash + 1;
+        }
+        std::sort(EditorFolders.begin(), EditorFolders.end());
+    }
+
+    void UWorld::UnregisterEditorFolder(const std::string& InPath) {
+        const std::string normalized = AActor::NormalizeFolderPath(InPath);
+        if (normalized.empty())
+            return;
+
+        EditorFolders.erase(std::remove_if(EditorFolders.begin(), EditorFolders.end(),
+                                           [&](const std::string& f) {
+                                               return f == normalized || f.rfind(normalized + "/", 0) == 0;
+                                           }),
+                            EditorFolders.end());
+
+        for (auto& actorRef : Actors) {
+            if (!actorRef)
+                continue;
+            const std::string& fp = actorRef->GetFolderPath();
+            if (fp == normalized || fp.rfind(normalized + "/", 0) == 0)
+                actorRef->SetFolderPath("");
+        }
+    }
+
+    void UWorld::RenameEditorFolder(const std::string& InOldPath, const std::string& InNewPath) {
+        const std::string oldPath = AActor::NormalizeFolderPath(InOldPath);
+        const std::string newPath = AActor::NormalizeFolderPath(InNewPath);
+        if (oldPath.empty() || newPath.empty() || oldPath == newPath)
+            return;
+
+        std::vector<std::string> updated;
+        updated.reserve(EditorFolders.size());
+        for (const auto& f : EditorFolders) {
+            if (f == oldPath)
+                updated.push_back(newPath);
+            else if (f.rfind(oldPath + "/", 0) == 0)
+                updated.push_back(newPath + f.substr(oldPath.size()));
+            else
+                updated.push_back(f);
+        }
+        SetEditorFolders(std::move(updated));
+
+        for (auto& actorRef : Actors) {
+            if (!actorRef)
+                continue;
+            const std::string& fp = actorRef->GetFolderPath();
+            if (fp == oldPath)
+                actorRef->SetFolderPath(newPath);
+            else if (fp.rfind(oldPath + "/", 0) == 0)
+                actorRef->SetFolderPath(newPath + fp.substr(oldPath.size()));
+        }
     }
 
     void UWorld::InitWorld() {

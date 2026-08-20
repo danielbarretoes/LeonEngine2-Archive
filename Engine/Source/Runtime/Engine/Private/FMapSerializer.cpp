@@ -20,6 +20,7 @@
 #include "Engine/Components.hpp"
 #include "RHI/IRenderDriver.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -62,7 +63,37 @@ namespace Leon {
         Indent(ss, 1);
         ss << "Name: \"" << World->GetName() << "\"\n";
         Indent(ss, 1);
-        ss << "Version: \"2.1\"\n\n";
+        ss << "Version: \"2.1\"\n";
+
+        // Collect outliner folders (registered + implied by actors)
+        std::vector<std::string> folders = World->GetEditorFolders();
+        for (const auto& actorRef : World->GetAllActors()) {
+            if (!actorRef)
+                continue;
+            const std::string& fp = actorRef->GetFolderPath();
+            if (fp.empty())
+                continue;
+            bool bExists = false;
+            for (const auto& f : folders) {
+                if (f == fp) {
+                    bExists = true;
+                    break;
+                }
+            }
+            if (!bExists)
+                folders.push_back(fp);
+        }
+        std::sort(folders.begin(), folders.end());
+        folders.erase(std::unique(folders.begin(), folders.end()), folders.end());
+        if (!folders.empty()) {
+            Indent(ss, 1);
+            ss << "OutlinerFolders:\n";
+            for (const auto& folder : folders) {
+                Indent(ss, 2);
+                ss << "- \"" << folder << "\"\n";
+            }
+        }
+        ss << "\n";
 
         // 1. Environment / Global Settings
         ss << "Environment:\n";
@@ -136,6 +167,10 @@ namespace Leon {
             ss << "Class: \"" << entity.GetClass() << "\"\n";
             Indent(ss, 2);
             ss << "GUID: \"" << entity.GetActorGuid().ToString() << "\"\n";
+            if (!entity.GetFolderPath().empty()) {
+                Indent(ss, 2);
+                ss << "FolderPath: \"" << entity.GetFolderPath() << "\"\n";
+            }
             if (const auto* start = dynamic_cast<const APlayerStart*>(&entity)) {
                 if (!start->GetPlayerStartTag().empty()) {
                     Indent(ss, 2);

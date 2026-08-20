@@ -1,5 +1,7 @@
 #include "Editor/Panels/FProjectSettingsPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
+#include "Editor/UI/FLucideIcons.hpp"
 #include <cstring>
 #include <imgui.h>
 
@@ -7,7 +9,7 @@ namespace Leon::Editor {
 
     void FProjectSettingsPanel::Draw(FProjectDescriptor& InOutDescriptor, const std::string& InProjectPath,
                                      bool* bInOutOpen) {
-        ImGui::Begin("Project Settings", bInOutOpen);
+        FEditorWidgets::BeginPanelWindow("  Project Settings", bInOutOpen, ELucideIcon::Settings);
 
         try {
             char nameBuf[128];

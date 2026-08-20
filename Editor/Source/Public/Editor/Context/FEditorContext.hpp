@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace Leon {
     class UWorld;
@@ -44,6 +45,12 @@ namespace Leon::Editor {
 
         [[nodiscard]] FEditorHistory& GetHistory() { return History; }
         [[nodiscard]] const FEditorHistory& GetHistory() const { return History; }
+
+        /**
+         * @brief Apply a selection mutation and record Undo (Unreal-like).
+         * Mutator receives the selection; if the set changes, a FSelectActorsCommand is pushed.
+         */
+        void ModifyActorSelectionWithUndo(const std::function<void(FEditorSelection&)>& InMutator);
 
         // Callbacks & Events
         void RegisterWorldChangedCallback(FWorldChangedCallback InCallback);

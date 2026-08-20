@@ -1,12 +1,16 @@
 #include "Editor/Panels/FDetailsPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/Commands/FTransformActorsCommand.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/EMobility.hpp"
+#include "Gameplay/APlayerStart.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <memory>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -24,20 +28,66 @@ namespace Leon::Editor {
             return textLower.find(InFilter) != std::string::npos;
         }
 
+        bool DrawMobilityCombo(const char* InId, int* InOutMobilityIndex) {
+            const char* mobilityNames[] = {"Static", "Stationary", "Movable"};
+            ImGui::Text("Mobility");
+            ImGui::NextColumn();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            const bool bChanged = ImGui::Combo(InId, InOutMobilityIndex, mobilityNames, 3);
+            ImGui::NextColumn();
+            return bChanged;
+        }
+
     } // namespace
 
+    void FDetailsPanel::BeginTransformUndoCapture(const std::vector<AActor*>& InActors) {
+        if (bTransformUndoPending || !Context)
+            return;
+        TransformUndoBefore.clear();
+        for (AActor* actor : InActors) {
+            if (actor && !actor->IsPendingKill())
+                TransformUndoBefore.push_back(FTransformActorsCommand::Capture(actor));
+        }
+        bTransformUndoPending = !TransformUndoBefore.empty();
+    }
+
+    void FDetailsPanel::CommitTransformUndoIfIdle() {
+        if (!bTransformUndoPending || !Context)
+            return;
+        if (ImGui::IsAnyItemActive())
+            return;
+
+        std::vector<FActorTransformState> after;
+        after.reserve(TransformUndoBefore.size());
+        bool bAnyChange = false;
+        for (const auto& before : TransformUndoBefore) {
+            FActorTransformState state = FTransformActorsCommand::Capture(before.Actor);
+            after.push_back(state);
+            if (FTransformActorsCommand::Differ(before, state))
+                bAnyChange = true;
+        }
+
+        if (bAnyChange) {
+            Context->GetHistory().PushExecutedCommand(std::make_unique<FTransformActorsCommand>(
+                std::move(TransformUndoBefore), std::move(after), "Edit Transform"));
+        }
+
+        TransformUndoBefore.clear();
+        bTransformUndoPending = false;
+    }
+
     void FDetailsPanel::Draw(AActor* InSelectedActor, bool* bInOutOpen) {
-        ImGui::Begin("Details", bInOutOpen);
+        FEditorWidgets::BeginPanelWindow("  Details", bInOutOpen, ELucideIcon::Component);
 
         try {
             // Determine active selection from Context if available
             std::vector<AActor*> selectedActors;
             if (Context && Context->GetSelection().GetSelectedActorCount() > 0) {
                 for (AActor* act : Context->GetSelection().GetSelectedActors()) {
-                    if (act)
+                    if (act && !act->IsPendingKill())
                         selectedActors.push_back(act);
                 }
-            } else if (InSelectedActor) {
+            } else if (InSelectedActor && !InSelectedActor->IsPendingKill()) {
                 selectedActors.push_back(InSelectedActor);
             }
 
@@ -64,6 +114,8 @@ namespace Leon::Editor {
             } else {
                 DrawSingleActorDetails(*selectedActors[0], filterStr);
             }
+
+            CommitTransformUndoIfIdle();
 
         } catch (const std::exception& e) {
             LE_CORE_ERROR("FDetailsPanel: Exception during Draw: {}", e.what());
@@ -107,6 +159,7 @@ namespace Leon::Editor {
 
         // Components & Properties
         DrawTransformComponent(InActor, InFilter);
+        DrawPlayerStartProperties(InActor, InFilter);
         DrawStaticMeshComponent(InActor, InFilter);
         DrawMaterialComponent(InActor, InFilter);
         DrawLightComponents(InActor, InFilter);
@@ -142,6 +195,7 @@ namespace Leon::Editor {
 
                 if (bSameLoc) {
                     if (FEditorWidgets::DrawVec3Control("Location", firstLoc, 0.0f)) {
+                        BeginTransformUndoCapture(InActors);
                         for (AActor* act : InActors)
                             act->SetActorLocation(firstLoc);
                     }
@@ -171,45 +225,100 @@ namespace Leon::Editor {
             if (bLocalTransformMode) {
                 glm::vec3 relLoc = InActor.GetRelativeLocation();
                 if (FEditorWidgets::DrawVec3Control("Relative Location", relLoc, 0.0f)) {
+                    BeginTransformUndoCapture({&InActor});
                     InActor.SetRelativeLocation(relLoc);
                 }
 
                 glm::vec3 relRot = InActor.GetRelativeRotation();
                 if (FEditorWidgets::DrawVec3Control("Relative Rotation", relRot, 0.0f)) {
+                    BeginTransformUndoCapture({&InActor});
                     InActor.SetRelativeRotation(relRot);
                 }
 
                 glm::vec3 relScale = InActor.GetRelativeScale();
                 if (FEditorWidgets::DrawVec3Control("Relative Scale", relScale, 1.0f)) {
+                    BeginTransformUndoCapture({&InActor});
                     InActor.SetRelativeScale(relScale);
                 }
             } else {
                 glm::vec3 location = InActor.GetActorLocation();
                 if (FEditorWidgets::DrawVec3Control("Location", location, 0.0f)) {
+                    BeginTransformUndoCapture({&InActor});
                     InActor.SetActorLocation(location);
                 }
 
                 glm::vec3 rotation = InActor.GetActorRotation();
                 if (FEditorWidgets::DrawVec3Control("Rotation", rotation, 0.0f)) {
+                    BeginTransformUndoCapture({&InActor});
                     InActor.SetActorRotation(rotation);
                 }
 
                 glm::vec3 scale = InActor.GetActorScale();
                 if (FEditorWidgets::DrawVec3Control("Scale", scale, 1.0f)) {
+                    BeginTransformUndoCapture({&InActor});
                     InActor.SetActorScale(scale);
                 }
             }
 
-            // Mobility Enum
-            const char* mobilityNames[] = {"Static", "Stationary", "Movable"};
-            int currentMobility = 2; // Movable by default
-            ImGui::Columns(2);
-            ImGui::SetColumnWidth(0, 100.0f);
-            ImGui::Text("Mobility");
-            ImGui::NextColumn();
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            ImGui::Combo("##MobilityCombo", &currentMobility, mobilityNames, 3);
-            ImGui::Columns(1);
+            // Mobility: lights use ELightMobility; meshes use EComponentMobility.
+            if (InActor.HasComponent<FDirectionalLightComponent>() || InActor.HasComponent<FPointLightComponent>() ||
+                InActor.HasComponent<FSpotLightComponent>()) {
+                ELightMobility* mobility = nullptr;
+                if (InActor.HasComponent<FDirectionalLightComponent>())
+                    mobility = &InActor.GetComponent<FDirectionalLightComponent>().Mobility;
+                else if (InActor.HasComponent<FPointLightComponent>())
+                    mobility = &InActor.GetComponent<FPointLightComponent>().Mobility;
+                else
+                    mobility = &InActor.GetComponent<FSpotLightComponent>().Mobility;
+
+                int currentMobility = static_cast<int>(*mobility);
+                ImGui::Columns(2);
+                ImGui::SetColumnWidth(0, 100.0f);
+                if (DrawMobilityCombo("##TransformLightMobility", &currentMobility))
+                    *mobility = static_cast<ELightMobility>(currentMobility);
+                ImGui::Columns(1);
+            } else if (InActor.HasComponent<FStaticMeshComponent>() || InActor.HasComponent<FMeshComponent>()) {
+                EComponentMobility* mobility = nullptr;
+                if (InActor.HasComponent<FStaticMeshComponent>())
+                    mobility = &InActor.GetComponent<FStaticMeshComponent>().Mobility;
+                else
+                    mobility = &InActor.GetComponent<FMeshComponent>().Mobility;
+
+                int currentMobility = static_cast<int>(*mobility);
+                ImGui::Columns(2);
+                ImGui::SetColumnWidth(0, 100.0f);
+                if (DrawMobilityCombo("##TransformMeshMobility", &currentMobility))
+                    *mobility = static_cast<EComponentMobility>(currentMobility);
+                ImGui::Columns(1);
+            }
+        }
+    }
+
+    void FDetailsPanel::DrawPlayerStartProperties(AActor& InActor, const std::string& InFilter) {
+        auto* start = dynamic_cast<APlayerStart*>(&InActor);
+        if (!start)
+            return;
+        if (!MatchesFilter("PlayerStart Tag Team Spawn", InFilter))
+            return;
+
+        if (ImGui::CollapsingHeader("Player Start", ImGuiTreeNodeFlags_DefaultOpen)) {
+            char tagBuf[128];
+#ifdef _WIN32
+            strncpy_s(tagBuf, sizeof(tagBuf), start->GetPlayerStartTag().c_str(), _TRUNCATE);
+#else
+            std::strncpy(tagBuf, start->GetPlayerStartTag().c_str(), sizeof(tagBuf) - 1);
+            tagBuf[sizeof(tagBuf) - 1] = '\0';
+#endif
+            if (ImGui::InputText("Player Start Tag", tagBuf, sizeof(tagBuf)))
+                start->SetPlayerStartTag(tagBuf);
+
+            int team = start->GetTeamIndex();
+            if (ImGui::DragInt("Team Index", &team, 1, 0, 32))
+                start->SetTeamIndex(team);
+
+            bool bEnabled = start->IsEnabled();
+            if (ImGui::Checkbox("Enabled", &bEnabled))
+                start->SetEnabled(bEnabled);
         }
     }
 
@@ -248,6 +357,11 @@ namespace Leon::Editor {
             ImGui::Text("Cast Shadows");
             ImGui::NextColumn();
             ImGui::Checkbox("##CastShadowsMesh", &meshComp.bCastShadows);
+
+            ImGui::NextColumn();
+            int mobility = static_cast<int>(meshComp.Mobility);
+            if (DrawMobilityCombo("##StaticMeshMobility", &mobility))
+                meshComp.Mobility = static_cast<EComponentMobility>(mobility);
 
             ImGui::Columns(1);
         }
@@ -296,6 +410,16 @@ namespace Leon::Editor {
                     ImGui::Columns(2);
                     ImGui::SetColumnWidth(0, 100.0f);
 
+                    int mobility = static_cast<int>(comp.Mobility);
+                    if (DrawMobilityCombo("##DirMobility", &mobility))
+                        comp.Mobility = static_cast<ELightMobility>(mobility);
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                        ImGui::SetTooltip(
+                            "Static: fully baked (needs valid lightmaps).\n"
+                            "Stationary: baked indirect + dynamic direct (recommended for sun).\n"
+                            "Movable: fully dynamic.");
+                    }
+
                     ImGui::Text("Light Color");
                     ImGui::NextColumn();
                     ImGui::ColorEdit3("##DirColor", glm::value_ptr(comp.Light.Color), ImGuiColorEditFlags_Float);
@@ -322,6 +446,10 @@ namespace Leon::Editor {
                     ImGui::Columns(2);
                     ImGui::SetColumnWidth(0, 100.0f);
 
+                    int mobility = static_cast<int>(comp.Mobility);
+                    if (DrawMobilityCombo("##PointMobility", &mobility))
+                        comp.Mobility = static_cast<ELightMobility>(mobility);
+
                     ImGui::Text("Light Color");
                     ImGui::NextColumn();
                     ImGui::ColorEdit3("##PointColor", glm::value_ptr(comp.Light.Color), ImGuiColorEditFlags_Float);
@@ -336,6 +464,11 @@ namespace Leon::Editor {
                     ImGui::NextColumn();
                     ImGui::DragFloat("##PointRadius", &comp.Light.Radius, 0.5f, 0.1f, 1000.0f, "%.1f");
 
+                    ImGui::NextColumn();
+                    ImGui::Text("Enabled");
+                    ImGui::NextColumn();
+                    ImGui::Checkbox("##PointEnabled", &comp.bEnabled);
+
                     ImGui::Columns(1);
                 }
             }
@@ -347,6 +480,10 @@ namespace Leon::Editor {
                     auto& comp = InActor.GetComponent<FSpotLightComponent>();
                     ImGui::Columns(2);
                     ImGui::SetColumnWidth(0, 100.0f);
+
+                    int mobility = static_cast<int>(comp.Mobility);
+                    if (DrawMobilityCombo("##SpotMobility", &mobility))
+                        comp.Mobility = static_cast<ELightMobility>(mobility);
 
                     ImGui::Text("Light Color");
                     ImGui::NextColumn();
@@ -371,6 +508,11 @@ namespace Leon::Editor {
                     ImGui::Text("Outer Cone Angle");
                     ImGui::NextColumn();
                     ImGui::SliderFloat("##SpotOuter", &comp.Light.OuterCutOff, comp.Light.CutOff, 89.0f, "%.1f deg");
+
+                    ImGui::NextColumn();
+                    ImGui::Text("Enabled");
+                    ImGui::NextColumn();
+                    ImGui::Checkbox("##SpotEnabled", &comp.bEnabled);
 
                     ImGui::Columns(1);
                 }

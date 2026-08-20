@@ -252,20 +252,20 @@ namespace Leon {
     }
 
     void FDebugRenderer::DrawSpotLightGizmo(const FSpotLight& InLight) {
-        float range = 4.5f;
+        const float range = glm::max(InLight.Radius, 0.5f);
+        glm::vec3 dir = InLight.Direction;
+        if (glm::length(dir) < 1e-5f)
+            dir = glm::vec3(0.0f, -1.0f, 0.0f);
+        else
+            dir = glm::normalize(dir);
 
         glm::vec4 innerColor(InLight.Color, 1.0f);
         glm::vec4 outerColor(InLight.Color * 0.6f, 0.5f);
 
-        // Center ray
-        DrawLine(InLight.Position, InLight.Position + glm::normalize(InLight.Direction) * range,
-                 glm::vec4(1.0f, 1.0f, 1.0f, 0.9f));
-
-        // Inner Cone (Solid spotlight beam)
-        DrawWireCone(InLight.Position, InLight.Direction, range, InLight.CutOff, innerColor, 24);
-
-        // Outer Cone (Penumbra region)
-        DrawWireCone(InLight.Position, InLight.Direction, range, InLight.OuterCutOff, outerColor, 24);
+        // Center ray + Unreal-like inner/outer cones using attenuation radius
+        DrawLine(InLight.Position, InLight.Position + dir * range, glm::vec4(1.0f, 1.0f, 1.0f, 0.9f));
+        DrawWireCone(InLight.Position, dir, range, InLight.CutOff, innerColor, 24);
+        DrawWireCone(InLight.Position, dir, range, InLight.OuterCutOff, outerColor, 24);
     }
 
     void FDebugRenderer::DrawDirectionalLightGizmo(const FDirectionalLight& InLight, const glm::vec3& InSceneCenter,

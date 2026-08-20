@@ -1,11 +1,13 @@
 #include "Editor/Panels/FWorldSettingsPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
+#include "Editor/UI/FLucideIcons.hpp"
 #include <imgui.h>
 
 namespace Leon::Editor {
 
     void FWorldSettingsPanel::Draw(UWorld* InWorld, bool* bInOutOpen) {
-        ImGui::Begin("World Settings", bInOutOpen);
+        FEditorWidgets::BeginPanelWindow("  World Settings", bInOutOpen, ELucideIcon::Globe);
 
         try {
             if (!InWorld) {

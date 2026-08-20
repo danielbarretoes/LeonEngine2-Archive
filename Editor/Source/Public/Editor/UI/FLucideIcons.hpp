@@ -28,6 +28,9 @@ namespace Leon::Editor {
         Braces,
         Component,
         Circle,
+        ChevronLeft,
+        ChevronRight,
+        Download,
         Zap,
         Flame,
         Bot,
@@ -57,6 +60,9 @@ namespace Leon::Editor {
         Settings,
         Search,
         Plus,
+        MousePointer,
+        Move,
+        Scaling,
         Count
     };
 

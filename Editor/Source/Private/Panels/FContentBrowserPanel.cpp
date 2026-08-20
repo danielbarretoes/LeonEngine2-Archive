@@ -270,7 +270,7 @@ namespace Leon::Editor {
     }
 
     void FContentBrowserPanel::Draw(bool* bInOutOpen) {
-        ImGui::Begin("Content Browser", bInOutOpen);
+        FEditorWidgets::BeginPanelWindow("  Content Browser", bInOutOpen, ELucideIcon::Folder);
 
         try {
             std::error_code ec;
@@ -286,14 +286,12 @@ namespace Leon::Editor {
 
             DrawTopBar();
 
-            ImGui::Separator();
             ImGui::Spacing();
 
-            // 2 Columns: Folders on Left, Assets on Right
+            // Row 2: Folders + Search / mosaic
             ImGui::Columns(2, "ContentBrowserSplitLayout", true);
             ImGui::SetColumnWidth(0, 210.0f);
 
-            // Left Column: Folders
             ImGui::TextDisabled("Folders");
             ImGui::Separator();
             ImGui::BeginChild("FolderTreeScrollRegion", ImVec2(0, 0), false);
@@ -301,10 +299,7 @@ namespace Leon::Editor {
             ImGui::EndChild();
 
             ImGui::NextColumn();
-
-            // Right Column: Search + Assets
             DrawAssetView();
-
             ImGui::Columns(1);
 
             DrawRenameModal();
@@ -321,56 +316,13 @@ namespace Leon::Editor {
     }
 
     void FContentBrowserPanel::DrawTopBar() {
-        // Navigation Buttons: Back, Forward, Up, Home
-        bool bCanBack = (HistoryIndex > 0);
-        if (!bCanBack)
-            ImGui::BeginDisabled();
-        if (ImGui::Button("<##NavBack", ImVec2(28.0f, 26.0f)) && bCanBack) {
-            NavigateBack();
-        }
-        if (!bCanBack)
-            ImGui::EndDisabled();
+        constexpr float kBtnH = 26.0f;
+        const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
-        ImGui::SameLine();
-
-        bool bCanForward = (HistoryIndex >= 0 && HistoryIndex + 1 < static_cast<int>(History.size()));
-        if (!bCanForward)
-            ImGui::BeginDisabled();
-        if (ImGui::Button(">##NavForward", ImVec2(28.0f, 26.0f)) && bCanForward) {
-            NavigateForward();
-        }
-        if (!bCanForward)
-            ImGui::EndDisabled();
-
-        ImGui::SameLine();
-
-        bool bCanUp = (CurrentDirectory != BaseContentPath);
-        if (!bCanUp)
-            ImGui::BeginDisabled();
-        if (ImGui::Button("^##NavUp", ImVec2(28.0f, 26.0f)) && bCanUp) {
-            NavigateUp();
-        }
-        if (!bCanUp)
-            ImGui::EndDisabled();
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Home##NavHome", ImVec2(50.0f, 26.0f))) {
-            NavigateHome();
-        }
-
-        ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
-
-        // + Add button
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.48f, 0.25f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.60f, 0.32f, 1.0f));
-        if (ImGui::Button("+ Add", ImVec2(68.0f, 26.0f))) {
+        // Row 1: Add | Import | Save All | Back | Forward | [breadcrumb] | Settings
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Plus, "Add", "CB_Add", kBtnH)) {
             ImGui::OpenPopup("AddContentPopup");
         }
-        ImGui::PopStyleColor(2);
-
         if (ImGui::BeginPopup("AddContentPopup")) {
             ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "Create Asset");
             ImGui::Separator();
@@ -390,81 +342,71 @@ namespace Leon::Editor {
             ImGui::EndPopup();
         }
 
-        ImGui::SameLine();
-
-        // Import button
-        if (ImGui::Button("Import", ImVec2(68.0f, 26.0f))) {
+        ImGui::SameLine(0.0f, spacing);
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Download, "Import", "CB_Import", kBtnH)) {
             ImportExternalAsset();
         }
 
-        ImGui::SameLine();
-
-        // Save All button
-        if (ImGui::Button("Save All", ImVec2(75.0f, 26.0f))) {
+        ImGui::SameLine(0.0f, spacing);
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Save, "Save All", "CB_SaveAll", kBtnH)) {
             if (OnSaveAll) {
                 OnSaveAll();
             }
         }
 
-        ImGui::SameLine();
-        ImGui::TextDisabled("|");
-        ImGui::SameLine();
+        ImGui::SameLine(0.0f, spacing * 1.5f);
 
-        // Interactive Breadcrumbs
-        DrawBreadcrumbs();
+        const bool bCanBack = (HistoryIndex > 0);
+        if (FEditorWidgets::DrawToolbarIconButton(ELucideIcon::ChevronLeft, "CB_Back", bCanBack, kBtnH)) {
+            NavigateBack();
+        }
+        ImGui::SameLine(0.0f, 2.0f);
 
-        // Right side: View Mode Toggle & Settings
-        float rightEdge = ImGui::GetWindowWidth() - 150.0f;
-        if (ImGui::GetCursorPosX() < rightEdge) {
-            ImGui::SameLine(rightEdge);
+        const bool bCanForward = (HistoryIndex >= 0 && HistoryIndex + 1 < static_cast<int>(History.size()));
+        if (FEditorWidgets::DrawToolbarIconButton(ELucideIcon::ChevronRight, "CB_Forward", bCanForward, kBtnH)) {
+            NavigateForward();
         }
 
-        // Grid / List View Toggle
-        bool bIsGrid = (ViewMode == EContentBrowserViewMode::Grid);
-        if (bIsGrid)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.45f, 0.8f, 1.0f));
-        if (ImGui::Button("Grid", ImVec2(44.0f, 26.0f))) {
-            ViewMode = EContentBrowserViewMode::Grid;
-        }
-        if (bIsGrid)
-            ImGui::PopStyleColor();
+        ImGui::SameLine(0.0f, spacing);
 
-        ImGui::SameLine();
+        const float settingsW = kBtnH;
+        const float breadcrumbW = std::max(80.0f, ImGui::GetContentRegionAvail().x - settingsW - spacing);
+        DrawBreadcrumbs(breadcrumbW, kBtnH);
 
-        bool bIsList = (ViewMode == EContentBrowserViewMode::List);
-        if (bIsList)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.45f, 0.8f, 1.0f));
-        if (ImGui::Button("List", ImVec2(44.0f, 26.0f))) {
-            ViewMode = EContentBrowserViewMode::List;
-        }
-        if (bIsList)
-            ImGui::PopStyleColor();
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("##ContentSettingsBtn", ImVec2(28.0f, 26.0f))) {
+        ImGui::SameLine(0.0f, spacing);
+        if (FEditorWidgets::DrawToolbarIconButton(ELucideIcon::Settings, "CB_Settings", true, kBtnH)) {
             ImGui::OpenPopup("ContentBrowserSettingsPopup");
         }
-        ImVec2 btnMin = ImGui::GetItemRectMin();
-        ImVec2 btnMax = ImGui::GetItemRectMax();
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        FLucideIcons::DrawIcon(drawList, ImVec2(btnMin.x + 6.0f, btnMin.y + 5.0f),
-                               ImVec2(btnMax.x - 6.0f, btnMax.y - 5.0f), ELucideIcon::Settings,
-                               IM_COL32(200, 200, 210, 255));
-
         if (ImGui::BeginPopup("ContentBrowserSettingsPopup")) {
             ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "View Settings");
             ImGui::Separator();
             ImGui::SliderFloat("Card Size", &CardSize, 60.0f, 160.0f, "%.0f px");
             ImGui::Checkbox("Show Extensions", &bShowExtensions);
+
+            ImGui::Spacing();
+            ImGui::TextDisabled("View Mode");
+            if (ImGui::RadioButton("Grid", ViewMode == EContentBrowserViewMode::Grid)) {
+                ViewMode = EContentBrowserViewMode::Grid;
+            }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("List", ViewMode == EContentBrowserViewMode::List)) {
+                ViewMode = EContentBrowserViewMode::List;
+            }
             ImGui::EndPopup();
         }
     }
 
-    void FContentBrowserPanel::DrawBreadcrumbs() {
+    void FContentBrowserPanel::DrawBreadcrumbs(float InWidth, float InHeight) {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.02f, 0.02f, 0.03f, 1.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 4.0f));
+        ImGui::BeginChild("ContentBreadcrumbBar", ImVec2(InWidth, InHeight), true,
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.25f, 0.30f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.24f, 0.28f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.18f, 0.45f, 0.95f, 1.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 2.0f));
 
         if (ImGui::SmallButton("Content")) {
             NavigateTo(BaseContentPath);
@@ -476,9 +418,15 @@ namespace Leon::Editor {
             fs::path accumulated = BaseContentPath;
             for (const auto& part : rel) {
                 accumulated /= part;
-                ImGui::SameLine();
-                ImGui::TextDisabled(">");
-                ImGui::SameLine();
+                ImGui::SameLine(0.0f, 2.0f);
+
+                ImDrawList* draw = ImGui::GetWindowDrawList();
+                ImVec2 cur = ImGui::GetCursorScreenPos();
+                const float chevronSize = 12.0f;
+                FLucideIcons::DrawIcon(draw, cur, ImVec2(cur.x + chevronSize, cur.y + chevronSize),
+                                       ELucideIcon::ChevronRight, IM_COL32(110, 115, 125, 255));
+                ImGui::Dummy(ImVec2(chevronSize, chevronSize));
+                ImGui::SameLine(0.0f, 2.0f);
 
                 std::string segmentName = part.string();
                 if (ImGui::SmallButton(segmentName.c_str())) {
@@ -487,7 +435,11 @@ namespace Leon::Editor {
             }
         }
 
+        ImGui::PopStyleVar();
         ImGui::PopStyleColor(3);
+        ImGui::EndChild();
+        ImGui::PopStyleVar(2);
+        ImGui::PopStyleColor();
     }
 
     void FContentBrowserPanel::DrawDirectoryTree(const fs::path& InDir) {
@@ -591,26 +543,9 @@ namespace Leon::Editor {
         if (InQuery.empty())
             return true;
 
-        std::string filename = InEntry.path().filename().string();
-        std::string lowerFilename = filename;
+        std::string lowerFilename = InEntry.path().filename().string();
         std::transform(lowerFilename.begin(), lowerFilename.end(), lowerFilename.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-        std::error_code ec;
-        bool bIsDir = InEntry.is_directory(ec);
-        std::string typeStr = GetAssetTypeString(InEntry.path(), bIsDir);
-        std::transform(typeStr.begin(), typeStr.end(), typeStr.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-        if (InQuery.rfind("type:", 0) == 0) {
-            std::string expectedType = InQuery.substr(5);
-            return typeStr.find(expectedType) != std::string::npos;
-        }
-
-        if (InQuery.rfind("folder:", 0) == 0) {
-            std::string expectedFolder = InQuery.substr(7);
-            return lowerFilename.find(expectedFolder) != std::string::npos;
-        }
 
         return lowerFilename.find(InQuery) != std::string::npos;
     }
@@ -620,11 +555,8 @@ namespace Leon::Editor {
         if (!fs::exists(CurrentDirectory, ec) || ec)
             return;
 
-        // Search Bar
-        FEditorWidgets::DrawSearchInput("AssetSearchInput", SearchBuffer, sizeof(SearchBuffer),
-                                        "Search Assets (e.g. character, type:StaticMesh, type:Texture)...");
+        FEditorWidgets::DrawSearchInput("AssetSearchInput", SearchBuffer, sizeof(SearchBuffer), "Search by name...");
 
-        ImGui::Separator();
         ImGui::Spacing();
 
         std::string query = SearchBuffer;
@@ -702,11 +634,14 @@ namespace Leon::Editor {
                                lowerExt == ".bmp" || lowerExt == ".hdr" || lowerExt == ".ltex");
             bool bIsMaterial = (lowerExt == ".lmat");
             bool bIsMesh = (lowerExt == ".obj" || lowerExt == ".gltf" || lowerExt == ".fbx" || lowerExt == ".lmesh");
+            bool bIsMap = (lowerExt == ".lmap");
+            bool bIsScript = (lowerExt == ".lua");
+            bool bIsAudio = (lowerExt == ".wav" || lowerExt == ".ogg" || lowerExt == ".mp3");
 
             ImVec4 labelColor = ImVec4(0.88f, 0.88f, 0.90f, 1.0f);
             if (bIsDir)
                 labelColor = ImVec4(0.95f, 0.80f, 0.35f, 1.0f);
-            else if (lowerExt == ".lmap")
+            else if (bIsMap)
                 labelColor = ImVec4(1.0f, 0.55f, 0.30f, 1.0f);
             else if (bIsMaterial)
                 labelColor = ImVec4(0.40f, 0.90f, 0.50f, 1.0f);
@@ -714,6 +649,10 @@ namespace Leon::Editor {
                 labelColor = ImVec4(0.45f, 0.75f, 1.0f, 1.0f);
             else if (bIsTexture)
                 labelColor = ImVec4(0.90f, 0.50f, 0.90f, 1.0f);
+            else if (bIsScript)
+                labelColor = ImVec4(0.55f, 0.85f, 1.0f, 1.0f);
+            else if (bIsAudio)
+                labelColor = ImVec4(1.0f, 0.70f, 0.35f, 1.0f);
 
             ImGui::PushID(filename.c_str());
             ImGui::BeginGroup();
@@ -747,24 +686,30 @@ namespace Leon::Editor {
             ImVec2 btnMax = ImGui::GetItemRectMax();
             ImDrawList* draw = ImGui::GetWindowDrawList();
 
-            if (bIsTexture) {
-                DrawTextureThumbnail(draw, ImVec2(btnMin.x + 2.0f, btnMin.y + 2.0f),
-                                     ImVec2(btnMax.x - 2.0f, btnMax.y - 2.0f), entry.path());
-            } else if (bIsMaterial) {
+            if (bIsMaterial) {
                 DrawMaterialThumbnail(draw, ImVec2(btnMin.x + 2.0f, btnMin.y + 2.0f),
                                       ImVec2(btnMax.x - 2.0f, btnMax.y - 2.0f), entry.path());
             } else if (bIsMesh) {
                 DrawMeshThumbnail(draw, ImVec2(btnMin.x + 2.0f, btnMin.y + 2.0f),
                                   ImVec2(btnMax.x - 2.0f, btnMax.y - 2.0f), entry.path());
+            } else if (bIsTexture) {
+                DrawTextureThumbnail(draw, ImVec2(btnMin.x + 2.0f, btnMin.y + 2.0f),
+                                     ImVec2(btnMax.x - 2.0f, btnMax.y - 2.0f), entry.path());
             } else {
                 ELucideIcon icon = ELucideIcon::FileText;
                 ImU32 iconColor = IM_COL32(180, 180, 190, 255);
                 if (bIsDir) {
                     icon = ELucideIcon::Folder;
                     iconColor = IM_COL32(245, 195, 65, 255);
-                } else if (lowerExt == ".lmap") {
+                } else if (bIsMap) {
                     icon = ELucideIcon::Map;
                     iconColor = IM_COL32(255, 110, 60, 255);
+                } else if (bIsScript) {
+                    icon = ELucideIcon::FileCode;
+                    iconColor = IM_COL32(100, 200, 255, 255);
+                } else if (bIsAudio) {
+                    icon = ELucideIcon::Activity;
+                    iconColor = IM_COL32(255, 170, 70, 255);
                 }
                 float iconHalf = CardSize * 0.22f;
                 float midX = (btnMin.x + btnMax.x) * 0.5f;

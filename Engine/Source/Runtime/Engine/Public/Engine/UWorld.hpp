@@ -131,6 +131,14 @@ namespace Leon {
         bool AreLightmapsTrusted() const { return bLightmapsTrusted; }
         void SetLightmapsTrusted(bool bTrusted) { bLightmapsTrusted = bTrusted; }
 
+        /** Persistent World Outliner folders (including empty ones). Paths use '/' separators. */
+        const std::vector<std::string>& GetEditorFolders() const { return EditorFolders; }
+        void SetEditorFolders(std::vector<std::string> InFolders);
+        void RegisterEditorFolder(const std::string& InPath);
+        void UnregisterEditorFolder(const std::string& InPath);
+        /** Renames a folder and remaps actor FolderPaths under it. */
+        void RenameEditorFolder(const std::string& InOldPath, const std::string& InNewPath);
+
         /** Project INI renderer defaults applied when the world renderer is first created. */
         void SetProjectRendererDefaults(uint32_t InShadowMapResolution, bool bInEnablePlanarReflection,
                                         uint32_t InCascadeCount = 0, float InShadowDistance = 0.0f,
@@ -222,6 +230,7 @@ namespace Leon {
         bool bDeferSpawnedActorBeginPlay = false;
         bool bIsTicking = false;
         bool bLightmapsTrusted = true;
+        std::vector<std::string> EditorFolders;
 
         bool bHasPendingRendererDefaults = false;
         uint32_t PendingShadowMapResolution = 2048;

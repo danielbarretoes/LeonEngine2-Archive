@@ -12,6 +12,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <vector>
 
 namespace Leon {
 
@@ -28,9 +29,11 @@ namespace Leon {
     std::unordered_map<std::string, TRef<FMaterialInstance>> UAssetManager::MaterialInstanceCache;
     TRef<FMaterial> UAssetManager::DefaultMaterial = nullptr;
     TRef<FMaterialInstance> UAssetManager::DefaultMaterialInstance = nullptr;
+    TRef<FMaterial> UAssetManager::WorldGridMaterial = nullptr;
     TRef<FTexture2D> UAssetManager::DefaultWhiteTexture = nullptr;
     TRef<FTexture2D> UAssetManager::DefaultBlackTexture = nullptr;
     TRef<FTexture2D> UAssetManager::DefaultFlatNormalTexture = nullptr;
+    TRef<FTexture2D> UAssetManager::DefaultCheckerTexture = nullptr;
 
     void UAssetManager::Init() {
         LE_CORE_INFO("Initializing UAssetManager Subsystem...");
@@ -102,6 +105,31 @@ namespace Leon {
             DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
         }
         return DefaultFlatNormalTexture;
+    }
+
+    TRef<FTexture2D> UAssetManager::GetDefaultCheckerTexture() {
+        if (!DefaultCheckerTexture) {
+            constexpr uint32_t kSize = 64;
+            constexpr uint32_t kCells = 8;
+            constexpr uint32_t kCell = kSize / kCells;
+            // Packed little-endian RGBA8 (same convention as other default textures)
+            constexpr uint32_t kLight = 0xFFB0B0B0;
+            constexpr uint32_t kDark = 0xFF585858;
+
+            DefaultCheckerTexture = FTexture2D::Create(kSize, kSize);
+            if (DefaultCheckerTexture) {
+                std::vector<uint32_t> pixels(kSize * kSize);
+                for (uint32_t y = 0; y < kSize; ++y) {
+                    for (uint32_t x = 0; x < kSize; ++x) {
+                        const bool light = ((x / kCell) + (y / kCell)) % 2 == 0;
+                        pixels[y * kSize + x] = light ? kLight : kDark;
+                    }
+                }
+                DefaultCheckerTexture->SetData(pixels.data(),
+                                              static_cast<uint32_t>(pixels.size() * sizeof(uint32_t)));
+            }
+        }
+        return DefaultCheckerTexture;
     }
 
     TRef<FTexture2D> UAssetManager::GetTexture2D(const std::string& InPath) {
@@ -343,6 +371,10 @@ namespace Leon {
         return LightmapCache.find(InPath) != LightmapCache.end();
     }
 
+    void UAssetManager::InvalidateLightmaps() {
+        LightmapCache.clear();
+    }
+
     TRef<FShader> UAssetManager::GetShader(const std::string& InPath) {
         if (InPath.empty())
             return nullptr;
@@ -380,6 +412,12 @@ namespace Leon {
     TRef<FMaterial> UAssetManager::GetMaterial(const std::string& InPath) {
         if (InPath.empty())
             return GetDefaultMaterial();
+
+        // Built-in engine materials (no disk asset required)
+        if (InPath == "Engine/Materials/M_WorldGrid.lmat" || InPath == "/Engine/Materials/M_WorldGrid.lmat" ||
+            InPath == "Engine/Materials/M_WorldGrid" || InPath == "/Engine/Materials/M_WorldGrid") {
+            return GetWorldGridMaterial();
+        }
 
         std::string resolved = ResolveVirtualPath(InPath);
 
@@ -496,6 +534,27 @@ namespace Leon {
         return DefaultMaterialInstance;
     }
 
+    TRef<FMaterial> UAssetManager::GetWorldGridMaterial() {
+        if (!WorldGridMaterial) {
+            WorldGridMaterial = FMaterial::Create("M_WorldGrid");
+            WorldGridMaterial->SetAssetPath("Engine/Materials/M_WorldGrid.lmat");
+            WorldGridMaterial->SetAlbedoColor(glm::vec3(1.0f));
+            WorldGridMaterial->SetMetallic(0.0f);
+            WorldGridMaterial->SetRoughness(0.65f);
+            WorldGridMaterial->SetAO(1.0f);
+            WorldGridMaterial->SetUVTiling({2.0f, 2.0f});
+            if (auto checker = GetDefaultCheckerTexture()) {
+                WorldGridMaterial->SetAlbedoMap(checker);
+            }
+            AddMaterial("Engine/Materials/M_WorldGrid.lmat", WorldGridMaterial);
+        }
+        return WorldGridMaterial;
+    }
+
+    TRef<FMaterialInstance> UAssetManager::GetWorldGridMaterialInstance() {
+        return GetWorldGridMaterial()->CreateInstance("M_WorldGrid_Inst");
+    }
+
     TRef<FMaterialInstance> UAssetManager::CreateMaterialInstance(const std::string& InMaterialPath) {
         TRef<FMaterial> parentMat = GetMaterial(InMaterialPath);
         if (!parentMat)
@@ -522,9 +581,11 @@ namespace Leon {
         MaterialInstanceCache.clear();
         DefaultMaterial = nullptr;
         DefaultMaterialInstance = nullptr;
+        WorldGridMaterial = nullptr;
         DefaultWhiteTexture = nullptr;
         DefaultBlackTexture = nullptr;
         DefaultFlatNormalTexture = nullptr;
+        DefaultCheckerTexture = nullptr;
     }
 
     void UAssetManager::ClearLoadedTextures() {

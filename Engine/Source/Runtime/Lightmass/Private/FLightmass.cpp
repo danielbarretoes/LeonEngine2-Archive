@@ -13,6 +13,7 @@
 #include "Gameplay/AActor.hpp"
 #include "Lightmass/FLightBaker.hpp"
 #include "Lightmass/FLightmapBuilder.hpp"
+#include "Renderer/FVertexLayout.hpp"
 #include "Renderer/FColorSpace.hpp"
 #include "Renderer/FIBLMath.hpp"
 #include "Renderer/FMaterial.hpp"
@@ -182,42 +183,37 @@ namespace Leon {
             return {};
         }
 
-        void AppendBox(FLightBakerScene& Scene, uint32_t ChartIndex, const glm::mat4& M, float Size,
-                       const FBakeMaterialSample& Mat, bool bCastShadow) {
-            float h = Size * 0.5f;
-            struct FLightmassFace {
+        void AppendBox(FLightBakerScene& Scene, uint32_t ChartIndex, const glm::mat4& M, float SizeX, float SizeY,
+                       float SizeZ, const FBakeMaterialSample& Mat, bool bCastShadow) {
+            const float hx = std::max(SizeX, 0.01f) * 0.5f;
+            const float hy = std::max(SizeY, 0.01f) * 0.5f;
+            const float hz = std::max(SizeZ, 0.01f) * 0.5f;
+
+            // Face order + lightmap packing MUST match FMeshPrimitives::CreateBox / CreateCube
+            // (PackLightmapCell with 3x2 atlas cells, face index 0..5).
+            struct FFace {
                 glm::vec3 P[4];
                 glm::vec3 N;
+                int LightmapFace;
             };
-            FLightmassFace faces[6] = {
-                {{glm::vec3(-h, -h, h), glm::vec3(h, -h, h), glm::vec3(h, h, h), glm::vec3(-h, h, h)},
-                 glm::vec3(0, 0, 1)},
-                {{glm::vec3(h, -h, -h), glm::vec3(-h, -h, -h), glm::vec3(-h, h, -h), glm::vec3(h, h, -h)},
-                 glm::vec3(0, 0, -1)},
-                {{glm::vec3(-h, h, h), glm::vec3(h, h, h), glm::vec3(h, h, -h), glm::vec3(-h, h, -h)},
-                 glm::vec3(0, 1, 0)},
-                {{glm::vec3(-h, -h, -h), glm::vec3(h, -h, -h), glm::vec3(h, -h, h), glm::vec3(-h, -h, h)},
-                 glm::vec3(0, -1, 0)},
-                {{glm::vec3(-h, -h, -h), glm::vec3(-h, -h, h), glm::vec3(-h, h, h), glm::vec3(-h, h, -h)},
-                 glm::vec3(-1, 0, 0)},
-                {{glm::vec3(h, -h, h), glm::vec3(h, -h, -h), glm::vec3(h, h, -h), glm::vec3(h, h, h)},
-                 glm::vec3(1, 0, 0)},
+            const FFace faces[6] = {
+                {{{-hx, -hy, hz}, {hx, -hy, hz}, {hx, hy, hz}, {-hx, hy, hz}}, {0, 0, 1}, 0},
+                {{{hx, -hy, -hz}, {-hx, -hy, -hz}, {-hx, hy, -hz}, {hx, hy, -hz}}, {0, 0, -1}, 1},
+                {{{-hx, hy, hz}, {hx, hy, hz}, {hx, hy, -hz}, {-hx, hy, -hz}}, {0, 1, 0}, 2},
+                {{{-hx, -hy, -hz}, {hx, -hy, -hz}, {hx, -hy, hz}, {-hx, -hy, hz}}, {0, -1, 0}, 3},
+                {{{-hx, -hy, -hz}, {-hx, -hy, hz}, {-hx, hy, hz}, {-hx, hy, -hz}}, {-1, 0, 0}, 4},
+                {{{hx, -hy, hz}, {hx, -hy, -hz}, {hx, hy, -hz}, {hx, hy, hz}}, {1, 0, 0}, 5},
             };
+            const glm::vec2 faceUV[4] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
 
             glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(M)));
-            const float cell = 1.0f / 6.0f;
-            for (int f = 0; f < 6; ++f) {
-                float ox = static_cast<float>(f) * cell + 0.02f;
-                float usable = cell - 0.04f;
-                glm::vec2 uvs[4] = {
-                    {ox, 0.02f}, {ox + usable, 0.02f}, {ox + usable, 0.02f + usable}, {ox, 0.02f + usable}};
+            for (const FFace& face : faces) {
                 uint32_t base = static_cast<uint32_t>(Scene.Vertices.size());
                 for (int i = 0; i < 4; ++i) {
                     FBakeVertex v;
-                    glm::vec4 wp = M * glm::vec4(faces[f].P[i], 1.0f);
-                    v.Position = glm::vec3(wp);
-                    v.Normal = glm::normalize(normalMat * faces[f].N);
-                    v.LightmapUV = uvs[i];
+                    v.Position = glm::vec3(M * glm::vec4(face.P[i], 1.0f));
+                    v.Normal = glm::normalize(normalMat * face.N);
+                    v.LightmapUV = PackLightmapCell(faceUV[i], face.LightmapFace % 3, face.LightmapFace / 3, 3, 2);
                     v.Albedo = Mat.Albedo;
                     v.Metallic = Mat.Metallic;
                     v.Roughness = Mat.Roughness;
@@ -425,8 +421,16 @@ namespace Leon {
             } else if (type == "Pyramid") {
                 AppendPyramid(Scene, ChartIndex, M, Mesh.MeshWidth, Mesh.MeshHeight, Mesh.MeshDepth, Mat,
                               Mesh.bCastShadows);
+            } else if (type == "Cube") {
+                const float s = Mesh.MeshSize > 0.0f ? Mesh.MeshSize : 1.0f;
+                AppendBox(Scene, ChartIndex, M, s, s, s, Mat, Mesh.bCastShadows);
             } else {
-                AppendBox(Scene, ChartIndex, M, Mesh.MeshSize > 0 ? Mesh.MeshSize : 1.0f, Mat, Mesh.bCastShadows);
+                // Box (and default): use Width/Height/Depth like FMeshPrimitives::CreateBox.
+                const float sx = Mesh.MeshWidth > 0.0f ? Mesh.MeshWidth : (Mesh.MeshSize > 0.0f ? Mesh.MeshSize : 1.0f);
+                const float sy =
+                    Mesh.MeshHeight > 0.0f ? Mesh.MeshHeight : (Mesh.MeshSize > 0.0f ? Mesh.MeshSize : 1.0f);
+                const float sz = Mesh.MeshDepth > 0.0f ? Mesh.MeshDepth : (Mesh.MeshSize > 0.0f ? Mesh.MeshSize : 1.0f);
+                AppendBox(Scene, ChartIndex, M, sx, sy, sz, Mat, Mesh.bCastShadows);
             }
         }
 

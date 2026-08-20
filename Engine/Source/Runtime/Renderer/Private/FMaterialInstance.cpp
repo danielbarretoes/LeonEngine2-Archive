@@ -157,6 +157,7 @@ namespace Leon {
         InShader->SetFloat("u_AlphaCutoff", alphaCutoff);
         InShader->SetFloat2("u_UVTiling", uvTiling.x, uvTiling.y);
         InShader->SetFloat2("u_UVOffset", uvOffset.x, uvOffset.y);
+        InShader->SetInt("u_DoubleSided", GetDoubleSided() ? 1 : 0);
 
         // 2. Resolve Textures & Bind to Units (0: Albedo, 1: Normal, 2: Metallic, 3: AO, 4: Roughness, 9: Emissive)
         TRef<FTexture2D> albedoMap = GetTexture(0);

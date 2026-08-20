@@ -159,6 +159,11 @@ namespace Leon {
         AActor* GetAttachParentActor() const { return ParentActor; }
         const std::vector<AActor*>& GetAttachedActors() const { return ChildActors; }
 
+        /** World Outliner folder path (Unreal-style), e.g. "Lights/Exterior". Empty = root. */
+        static std::string NormalizeFolderPath(const std::string& InPath);
+        const std::string& GetFolderPath() const { return FolderPath; }
+        void SetFolderPath(const std::string& InPath) { FolderPath = NormalizeFolderPath(InPath); }
+
         glm::vec3 GetRelativeLocation() const;
         void SetRelativeLocation(const glm::vec3& InLocation);
         glm::vec3 GetRelativeRotation() const;
@@ -254,6 +259,7 @@ namespace Leon {
         USceneComponent* RootComponent = nullptr;
         AActor* ParentActor = nullptr;
         std::vector<AActor*> ChildActors;
+        std::string FolderPath;
 
         friend class UWorld;
         friend class FMapSerializer;

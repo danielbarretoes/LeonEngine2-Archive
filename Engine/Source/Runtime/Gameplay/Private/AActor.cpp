@@ -5,7 +5,33 @@
 #include "Physics/IPhysicsScene.hpp"
 #include "Core/FFrameProfiler.hpp"
 
+#include <cctype>
+
 namespace Leon {
+
+    std::string AActor::NormalizeFolderPath(const std::string& InPath) {
+        std::string out;
+        out.reserve(InPath.size());
+        bool bPrevSlash = true; // strip leading separators
+        for (char c : InPath) {
+            if (c == '\\')
+                c = '/';
+            if (c == '/') {
+                if (bPrevSlash)
+                    continue;
+                bPrevSlash = true;
+                out.push_back('/');
+                continue;
+            }
+            if (std::isspace(static_cast<unsigned char>(c)) && (out.empty() || bPrevSlash))
+                continue;
+            bPrevSlash = false;
+            out.push_back(c);
+        }
+        while (!out.empty() && (out.back() == '/' || std::isspace(static_cast<unsigned char>(out.back()))))
+            out.pop_back();
+        return out;
+    }
 
     AActor::AActor(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
         : UObject(InName), EntityHandle(InHandle), World(InWorld) {

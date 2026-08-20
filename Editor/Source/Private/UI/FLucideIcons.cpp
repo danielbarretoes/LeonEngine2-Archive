@@ -57,6 +57,12 @@ namespace Leon::Editor {
                 return "component";
             case ELucideIcon::Circle:
                 return "circle";
+            case ELucideIcon::ChevronLeft:
+                return "chevron-left";
+            case ELucideIcon::ChevronRight:
+                return "chevron-right";
+            case ELucideIcon::Download:
+                return "download";
             case ELucideIcon::Zap:
                 return "zap";
             case ELucideIcon::Flame:
@@ -115,6 +121,12 @@ namespace Leon::Editor {
                 return "search";
             case ELucideIcon::Plus:
                 return "plus";
+            case ELucideIcon::MousePointer:
+                return "mouse-pointer-2";
+            case ELucideIcon::Move:
+                return "move";
+            case ELucideIcon::Scaling:
+                return "scaling";
             case ELucideIcon::Count:
                 break;
             }

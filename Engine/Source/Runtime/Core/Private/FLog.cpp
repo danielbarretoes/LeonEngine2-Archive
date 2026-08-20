@@ -7,6 +7,11 @@
 
 namespace Leon {
 
+    FLog::FSink& FLog::Sink() {
+        static FSink s_Sink;
+        return s_Sink;
+    }
+
     void FLog::Init() {
 #ifdef _WIN32
         // Enable ANSI color escape sequences on Windows terminal
@@ -19,6 +24,14 @@ namespace Leon {
             }
         }
 #endif
+    }
+
+    void FLog::SetSink(FSink InSink) {
+        Sink() = std::move(InSink);
+    }
+
+    void FLog::ClearSink() {
+        Sink() = nullptr;
     }
 
     void FLog::Print(ELogLevel InLevel, std::string_view InTag, std::string_view InMessage) {
@@ -46,6 +59,10 @@ namespace Leon {
         }
 
         std::cout << colorCode << "[" << InTag << "] [" << levelStr << "]: " << InMessage << "\033[0m" << std::endl;
+
+        if (Sink() && InLevel >= ELogLevel::Info) {
+            Sink()(InLevel, InTag, InMessage);
+        }
     }
 
 } // namespace Leon

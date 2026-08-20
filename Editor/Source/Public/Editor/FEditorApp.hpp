@@ -17,7 +17,10 @@
 #include "Editor/Window/FEditorWindow.hpp"
 #include "Engine/UWorld.hpp"
 
+#include <atomic>
+#include <mutex>
 #include <string>
+#include <thread>
 
 namespace Leon::Editor {
 
@@ -48,6 +51,13 @@ namespace Leon::Editor {
         void DrawDockspace();
         void DrawMenuBar();
         void UpdateWindowTitle();
+        /** Clears selection first, cancels gizmo, then destroys via undo history. */
+        void DeleteSelectedActors();
+        /** Duplicate selection with +X offset (Unreal Ctrl+D). */
+        void DuplicateSelectedActors();
+        void PollBakeJob();
+        void DrawToastOverlay();
+        void ShowToast(const std::string& InMessage, bool bInError = false);
 
         TRef<UWorld> EditorWorld;
         AActor* SelectedActor = nullptr;
@@ -78,6 +88,7 @@ namespace Leon::Editor {
         bool bShowProjectHub = false;
         bool bDockspaceInitialized = false;
         bool bNeedResetLayout = false;
+        bool bStartupMaximizeApplied = false;
 
         // Panel visibility toggles
         bool bShowViewport = true;
@@ -88,6 +99,18 @@ namespace Leon::Editor {
         bool bShowOutputLog = true;
         bool bShowWorldSettings = true;
         bool bShowProjectSettings = true;
+
+        // Async lightmap bake status
+        std::atomic<bool> bBakeRunning{false};
+        std::atomic<bool> bBakeFinished{false};
+        std::atomic<int> BakeExitCode{0};
+        std::string BakeModeLabel;
+        std::mutex BakeMutex;
+
+        // Transient toast (bottom-center, Unreal-like notification)
+        std::string ToastMessage;
+        float ToastSecondsRemaining = 0.0f;
+        bool bToastError = false;
     };
 
 } // namespace Leon::Editor

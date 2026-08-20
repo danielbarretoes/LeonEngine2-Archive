@@ -30,6 +30,8 @@ namespace Leon::Editor {
         style.PopupBorderSize = 1.0f;
         style.ChildBorderSize = 1.0f;
 
+        style.WindowMenuButtonPosition = ImGuiDir_None; // hide dock/undock (eject) button on tabs/title bars
+
         style.WindowPadding = ImVec2(8.0f, 8.0f);
         style.FramePadding = ImVec2(6.0f, 4.0f);
         style.ItemSpacing = ImVec2(8.0f, 6.0f);

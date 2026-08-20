@@ -259,17 +259,24 @@ namespace Leon {
         // ------------------------------------------------------------------
         // Gather lights
         // ------------------------------------------------------------------
+        // Static lights are baked into lightmaps. Only omit them from the dynamic UBO
+        // when lightmaps are trusted — otherwise the scene goes black (common after
+        // geometry edits before a successful rebake).
+        const bool bSkipBakedStaticLights = World->AreLightmapsTrusted();
+
         bool bHasDirLight = false;
         FDirectionalLightComponent dirLightComp;
         {
             auto view = reg.view<FDirectionalLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<FDirectionalLightComponent>(entity);
-                if (comp.bEnabled && comp.Mobility != ELightMobility::Static) {
-                    dirLightComp = comp;
-                    bHasDirLight = true;
-                    break;
-                }
+                if (!comp.bEnabled)
+                    continue;
+                if (comp.Mobility == ELightMobility::Static && bSkipBakedStaticLights)
+                    continue;
+                dirLightComp = comp;
+                bHasDirLight = true;
+                break;
             }
         }
 
@@ -279,7 +286,9 @@ namespace Leon {
             auto view = reg.view<FPointLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<FPointLightComponent>(entity);
-                if (!comp.bEnabled || comp.Mobility == ELightMobility::Static)
+                if (!comp.bEnabled)
+                    continue;
+                if (comp.Mobility == ELightMobility::Static && bSkipBakedStaticLights)
                     continue;
                 if (pointLights.size() >= 16) {
                     ++truncatedPointLights;
@@ -302,7 +311,9 @@ namespace Leon {
             auto view = reg.view<FSpotLightComponent>();
             for (auto entity : view) {
                 const auto& comp = view.get<FSpotLightComponent>(entity);
-                if (!comp.bEnabled || comp.Mobility == ELightMobility::Static)
+                if (!comp.bEnabled)
+                    continue;
+                if (comp.Mobility == ELightMobility::Static && bSkipBakedStaticLights)
                     continue;
                 if (spotLights.size() >= 8) {
                     ++truncatedSpotLights;

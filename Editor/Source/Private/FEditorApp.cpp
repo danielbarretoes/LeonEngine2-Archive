@@ -4,10 +4,14 @@
 #include "Core/FLog.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Core/FWindow.hpp"
+#include "Editor/Commands/FDeleteActorsCommand.hpp"
+#include "Editor/Commands/FDuplicateActorsCommand.hpp"
 #include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/FMapSerializer.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Lightmass/FLightmass.hpp"
+#include "Renderer/FPerspectiveCamera.hpp"
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -18,6 +22,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -47,32 +52,9 @@ namespace Leon::Editor {
         IO.IniFilename = ImGuiIniPath.c_str();
 
         WindowConfigIniPath = (fs::path(EditorSavedDir) / "EditorWindow.ini").string();
-        if (fs::exists(WindowConfigIniPath)) {
-            std::ifstream in(WindowConfigIniPath);
-            if (in.is_open()) {
-                std::string line;
-                int w = 1600, h = 900, px = 100, py = 100, maxVal = 0;
-                while (std::getline(in, line)) {
-                    if (line.rfind("Width=", 0) == 0)
-                        w = std::stoi(line.substr(6));
-                    else if (line.rfind("Height=", 0) == 0)
-                        h = std::stoi(line.substr(7));
-                    else if (line.rfind("PosX=", 0) == 0)
-                        px = std::stoi(line.substr(5));
-                    else if (line.rfind("PosY=", 0) == 0)
-                        py = std::stoi(line.substr(5));
-                    else if (line.rfind("Maximized=", 0) == 0)
-                        maxVal = std::stoi(line.substr(10));
-                }
-                if (w > 400 && h > 300) {
-                    glfwSetWindowSize(Native, w, h);
-                    glfwSetWindowPos(Native, px, py);
-                }
-                if (maxVal == 1) {
-                    glfwMaximizeWindow(Native);
-                }
-            }
-        }
+        // Always open maximized with the default dock layout (ignore previous imgui.ini dock state).
+        glfwMaximizeWindow(Native);
+        bNeedResetLayout = true;
 
         // Apply Unreal dark theme and load Inter fonts
         FEditorTheme::ApplyTheme();
@@ -90,39 +72,41 @@ namespace Leon::Editor {
         ProjectHub.SetOnProjectSelected([this](const std::string& path) { OpenProject(path); });
 
         // Setup Context & Panels
-        Context.GetSelection().RegisterActorSelectionCallback(
-            [this](const std::vector<AActor*>&) { SelectedActor = Context.GetSelection().GetPrimarySelectedActor(); });
+        Context.GetSelection().RegisterActorSelectionCallback([this](const std::vector<AActor*>& actors) {
+            SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
+            // Empty selection (e.g. after Delete): drop gizmo hover/drag so viewport pick works again.
+            if (actors.empty()) {
+                Viewport.CancelGizmoInteraction();
+            }
+        });
 
         ContentBrowser.SetEditorContext(&Context);
         Outliner.SetEditorContext(&Context);
         Details.SetEditorContext(&Context);
         Viewport.SetEditorContext(&Context);
 
-        // Setup Outliner callbacks
-        // OnActorSelected: selection was already made by the Outliner internally.
-        // We only sync SelectedActor for the Details panel. Do NOT call SelectActor
-        // here again (would double-fire selection callbacks) and do NOT focus the
-        // camera (outliner click should not move the camera; only double-click should).
+        // Setup Outliner callbacks (Unreal-like):
+        // - Single click: select only (viewport outline follows Context selection).
+        // - Do NOT move the camera. Do NOT force-scroll (item is already under cursor).
+        // - Double-click / Focus menu / F: camera focus via OnActorFocus.
         Outliner.SetOnActorSelected([this](AActor* actor) {
             SelectedActor = actor;
         });
-        // OnActorFocus: fired by double-click in outliner — this is when we focus.
         Outliner.SetOnActorFocus([this](AActor* actor) {
             if (actor) {
                 Viewport.FocusOnActor(actor);
             }
         });
+        Outliner.SetOnDeleteRequested([this]() { DeleteSelectedActors(); });
 
-        // Setup Viewport callback
-        // OnActorSelected: selection was already made by the Viewport internally via
-        // Context->GetSelection().SelectActor(). We only sync SelectedActor, scroll
-        // the Outliner to the picked actor, and focus the camera.
-        // Do NOT call SelectActor again here — it would double-fire callbacks.
+        // Setup Viewport callback (Unreal-like):
+        // - Click pick already wrote Context selection + draws outline in viewport.
+        // - Scroll/reveal the actor in the Outliner (focus the tree row, not the camera).
+        // - Camera framing is F / outliner double-click only — never on pick.
         Viewport.SetOnActorSelected([this](AActor* actor) {
             SelectedActor = actor;
             if (actor) {
                 Outliner.ScrollToActor(actor);
-                Viewport.FocusOnActor(actor);
             }
         });
         Viewport.SetOnActorSpawned([this](AActor* actor) {
@@ -154,6 +138,17 @@ namespace Leon::Editor {
         Toolbar.SetOnBakeProduction([this]() { BakeLightmaps(true); });
         Toolbar.SetOnRunGame([this]() { LaunchGame(); });
         Toolbar.SetOnResetLayout([this]() { bNeedResetLayout = true; });
+
+        // Mirror engine/editor logs into the Output Log panel (console still prints).
+        FLog::SetSink([this](Leon::ELogLevel level, std::string_view tag, std::string_view message) {
+            ELogLevel panelLevel = ELogLevel::Info;
+            if (level == Leon::ELogLevel::Warn) {
+                panelLevel = ELogLevel::Warning;
+            } else if (level == Leon::ELogLevel::Error || level == Leon::ELogLevel::Fatal) {
+                panelLevel = ELogLevel::Error;
+            }
+            OutputLog.AddLog(panelLevel, std::string(tag), std::string(message));
+        });
 
         OutputLog.AddLog(ELogLevel::Info, "Editor", "LeonEditor suite ready (Inter typography active)");
 
@@ -249,10 +244,6 @@ namespace Leon::Editor {
         }
 
         bShowProjectHub = false;
-        if (!fs::exists(ImGuiIniPath)) {
-            bNeedResetLayout = true;
-        }
-
         UpdateWindowTitle();
         LE_CORE_INFO("FEditorApp: Opened project '{}'", ActiveProjectDescriptor.ProjectName);
     }
@@ -282,9 +273,16 @@ namespace Leon::Editor {
                 Outliner.SetSelectedActor(nullptr);
                 Context.SetActiveWorld(EditorWorld.get());
                 Context.SetActiveMapPath(ActiveMapPath);
+                Context.GetHistory().Clear();
                 OutputLog.AddLog(ELogLevel::Info, "Map",
                                  "Loaded map: " + ActiveMapName + " (" +
                                      std::to_string(EditorWorld->GetAllActors().size()) + " actors)");
+                FLightmass::RefreshRuntimeLightmapTrust(*EditorWorld);
+                if (!EditorWorld->AreLightmapsTrusted()) {
+                    OutputLog.AddLog(ELogLevel::Warning, "Lighting",
+                                     "Lightmaps are stale or missing — Static lights fall back to dynamic until you "
+                                     "Bake Lighting. For outdoor sun prefer Mobility: Stationary.");
+                }
                 LE_CORE_INFO("FEditorApp: Successfully loaded map '{}' ({} actors)", ActiveMapName,
                              EditorWorld->GetAllActors().size());
             } else {
@@ -335,24 +333,157 @@ namespace Leon::Editor {
     void FEditorApp::BakeLightmaps(bool bInProduction) {
         if (ActiveProjectPath.empty() || ActiveMapPath.empty()) {
             OutputLog.AddLog(ELogLevel::Warning, "Build", "Cannot bake lightmaps: no map is active.");
+            ShowToast("Cannot bake: no map is active", true);
             return;
         }
 
-        OutputLog.AddLog(ELogLevel::Info, "Build",
-                         bInProduction ? "Starting production bake..." : "Starting draft bake...");
+        if (bBakeRunning.load()) {
+            OutputLog.AddLog(ELogLevel::Warning, "Build", "A lighting build is already running.");
+            ShowToast("Lighting build already in progress", true);
+            return;
+        }
 
-        std::string mode = bInProduction ? "production" : "draft";
-        std::string script = (fs::path("Scripts") / "bake_lightmaps.py").string();
+        // Persist map so the baker sees the latest actors.
+        SaveCurrentMap();
 
-        std::string cmd = "python " + script + " --project \"" + ActiveProjectPath + "\" --quality " + mode;
+        const std::string quality = bInProduction ? "Production" : "Draft";
+        BakeModeLabel = quality;
+        const std::string project = ActiveProjectPath;
+        const std::string mapPath = ActiveMapPath;
+
+        // Editor cwd is usually out/Editor — locate Scripts from the repo root.
+        fs::path scriptPath;
+        std::vector<fs::path> searchRoots = {fs::current_path()};
+        if (!ActiveProjectPath.empty())
+            searchRoots.push_back(fs::path(ActiveProjectPath).parent_path());
+        for (fs::path r : searchRoots) {
+            for (int up = 0; up < 8 && !r.empty(); ++up) {
+                fs::path candidate = r / "Scripts" / "bake_lightmaps.py";
+                if (fs::exists(candidate)) {
+                    scriptPath = fs::absolute(candidate);
+                    break;
+                }
+                if (!r.has_parent_path() || r == r.parent_path())
+                    break;
+                r = r.parent_path();
+            }
+            if (!scriptPath.empty())
+                break;
+        }
+        if (scriptPath.empty()) {
+            OutputLog.AddLog(ELogLevel::Error, "Build",
+                             "Could not find Scripts/bake_lightmaps.py (run the editor from the LeonEngine repo).");
+            ShowToast("Bake failed: bake script not found", true);
+            return;
+        }
+
+        const fs::path repoRoot = scriptPath.parent_path().parent_path();
+        std::ostringstream cmd;
 #if defined(_WIN32)
-        cmd = "start /B " + cmd;
+        cmd << "cmd /C \"cd /d \"" << repoRoot.string() << "\" && python \"" << scriptPath.string()
+            << "\" --project \"" << project << "\" --map \"" << mapPath << "\" --quality " << quality
+            << " --force\"";
 #else
-        cmd = cmd + " &";
+        cmd << "cd \"" << repoRoot.string() << "\" && python \"" << scriptPath.string() << "\" --project \""
+            << project << "\" --map \"" << mapPath << "\" --quality " << quality << " --force";
 #endif
-        int res = std::system(cmd.c_str());
-        (void)res;
-        OutputLog.AddLog(ELogLevel::Info, "Build", "Lightmass baker dispatched asynchronously.");
+
+        OutputLog.AddLog(ELogLevel::Info, "Build",
+                         std::string("Starting ") + quality + " lighting build for " + ActiveMapName + "...");
+        OutputLog.AddLog(ELogLevel::Info, "Build", "Repo: " + repoRoot.string());
+        OutputLog.AddLog(ELogLevel::Info, "Build",
+                         "Invoking: python Scripts/bake_lightmaps.py --quality " + quality +
+                             " --force --map " + mapPath);
+        Context.SetStatusMessage(std::string("Building Lighting (") + quality + ")...");
+        ShowToast(std::string("Building Lighting (") + quality + ")...");
+        bShowOutputLog = true;
+
+        bBakeRunning = true;
+        bBakeFinished = false;
+        BakeExitCode = 0;
+
+        std::thread([this, command = cmd.str()]() {
+            const int res = std::system(command.c_str());
+            BakeExitCode = res;
+            bBakeFinished = true;
+            bBakeRunning = false;
+        }).detach();
+    }
+
+    void FEditorApp::PollBakeJob() {
+        if (!bBakeFinished.exchange(false))
+            return;
+
+        const int code = BakeExitCode.load();
+        if (code == 0) {
+            const std::string msg = BakeModeLabel + " lighting build finished successfully.";
+            OutputLog.AddLog(ELogLevel::Info, "Build", msg);
+
+            // Baker stamped the .lmap and wrote .llightmap on disk — hot-reload so the viewport
+            // shows the new lighting without a manual map reopen.
+            if (!ActiveMapPath.empty()) {
+                FPerspectiveCamera& cam = Viewport.GetCamera();
+                const glm::vec3 camPos = cam.GetPosition();
+                const float camPitch = cam.GetPitch();
+                const float camYaw = cam.GetYaw();
+                const std::string mapPath = ActiveMapPath;
+
+                UAssetManager::InvalidateLightmaps();
+                LoadMap(mapPath);
+                // LoadMap already refreshes lightmap trust.
+                if (EditorWorld && EditorWorld->AreLightmapsTrusted()) {
+                    OutputLog.AddLog(ELogLevel::Info, "Build",
+                                     "Lightmaps trusted and active (Static lights use baked lighting).");
+                } else if (EditorWorld) {
+                    OutputLog.AddLog(ELogLevel::Warning, "Build",
+                                     "Bake finished but lightmaps are not trusted — check Output Log / rebake with "
+                                     "Force if needed.");
+                }
+
+                cam.SetPosition(camPos);
+                cam.SetRotation(camPitch, camYaw);
+            }
+
+            ShowToast(msg, false);
+            Context.SetStatusMessage("Ready");
+        } else {
+            const std::string msg =
+                BakeModeLabel + " lighting build failed (exit " + std::to_string(code) + "). See Output Log.";
+            OutputLog.AddLog(ELogLevel::Error, "Build", msg);
+            ShowToast(msg, true);
+            Context.SetStatusMessage("Lighting build failed");
+        }
+    }
+
+    void FEditorApp::ShowToast(const std::string& InMessage, bool bInError) {
+        ToastMessage = InMessage;
+        ToastSecondsRemaining = 5.0f;
+        bToastError = bInError;
+    }
+
+    void FEditorApp::DrawToastOverlay() {
+        if (ToastMessage.empty() || ToastSecondsRemaining <= 0.0f)
+            return;
+
+        ToastSecondsRemaining -= ImGui::GetIO().DeltaTime;
+        if (ToastSecondsRemaining <= 0.0f) {
+            ToastMessage.clear();
+            return;
+        }
+
+        const ImGuiViewport* vp = ImGui::GetMainViewport();
+        const ImVec2 pivot(0.5f, 1.0f);
+        const ImVec2 pos(vp->WorkPos.x + vp->WorkSize.x * 0.5f, vp->WorkPos.y + vp->WorkSize.y - 24.0f);
+        ImGui::SetNextWindowPos(pos, ImGuiCond_Always, pivot);
+        ImGui::SetNextWindowBgAlpha(0.92f);
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+                                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                                 ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove;
+        if (ImGui::Begin("##EditorToast", nullptr, flags)) {
+            const ImVec4 col = bToastError ? ImVec4(1.0f, 0.4f, 0.35f, 1.0f) : ImVec4(0.95f, 0.85f, 0.35f, 1.0f);
+            ImGui::TextColored(col, "%s", ToastMessage.c_str());
+        }
+        ImGui::End();
     }
 
     void FEditorApp::LaunchGame() {
@@ -389,22 +520,22 @@ namespace Leon::Editor {
         ImGuiID dockRightBottom = dockRight;
 
         // Left: Place Actors
-        ImGui::DockBuilderDockWindow("Place Actors", dockLeft);
+        ImGui::DockBuilderDockWindow("  Place Actors", dockLeft);
 
         // Center: Viewport
-        ImGui::DockBuilderDockWindow("Viewport", dockMain);
+        ImGui::DockBuilderDockWindow("  Viewport", dockMain);
 
         // Right Top: World Outliner, World Settings, Project Settings
-        ImGui::DockBuilderDockWindow("World Outliner", dockRightTop);
-        ImGui::DockBuilderDockWindow("World Settings", dockRightTop);
-        ImGui::DockBuilderDockWindow("Project Settings", dockRightTop);
+        ImGui::DockBuilderDockWindow("  World Outliner", dockRightTop);
+        ImGui::DockBuilderDockWindow("  World Settings", dockRightTop);
+        ImGui::DockBuilderDockWindow("  Project Settings", dockRightTop);
 
         // Right Bottom: Details
-        ImGui::DockBuilderDockWindow("Details", dockRightBottom);
+        ImGui::DockBuilderDockWindow("  Details", dockRightBottom);
 
         // Bottom: Content Browser, Output Log
-        ImGui::DockBuilderDockWindow("Content Browser", dockBottom);
-        ImGui::DockBuilderDockWindow("Output Log", dockBottom);
+        ImGui::DockBuilderDockWindow("  Content Browser", dockBottom);
+        ImGui::DockBuilderDockWindow("  Output Log", dockBottom);
 
         ImGui::DockBuilderFinish(DockspaceId);
     }
@@ -413,6 +544,15 @@ namespace Leon::Editor {
         (void)InTs;
         if (!bImGuiReady) {
             return;
+        }
+
+        // Re-assert maximize after the first frames (display/DPI settle).
+        if (!bStartupMaximizeApplied) {
+            if (GLFWwindow* native = GetWindow().GetNativeWindow()) {
+                if (glfwGetWindowAttrib(native, GLFW_MAXIMIZED) != GLFW_TRUE)
+                    glfwMaximizeWindow(native);
+            }
+            bStartupMaximizeApplied = true;
         }
 
         BeginImGuiFrame();
@@ -436,7 +576,6 @@ namespace Leon::Editor {
         } else {
             // Full Editor Suite with Dockspace and Viewport
             SafeDrawPanel("Dockspace", [&]() { DrawDockspace(); });
-            SafeDrawPanel("Toolbar", [&]() { Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName); });
 
             // Left / Palette
             if (bShowPlaceActors) {
@@ -473,26 +612,52 @@ namespace Leon::Editor {
             if (bShowOutputLog) {
                 SafeDrawPanel("OutputLog", [&]() { OutputLog.Draw(&bShowOutputLog); });
             }
-            // Global Delete shortcut for active world
-            if (EditorWorld && ImGui::IsKeyPressed(ImGuiKey_Delete, false) && !ImGui::GetIO().WantTextInput) {
-                std::vector<AActor*> actorsToDelete = Context.GetSelection().GetSelectedActors();
-                if (actorsToDelete.empty() && SelectedActor) {
-                    actorsToDelete.push_back(SelectedActor);
-                }
-                for (AActor* act : actorsToDelete) {
-                    if (act) {
-                        EditorWorld->DestroyActor(act);
+
+            // Global Edit hotkeys (Unreal-like)
+            ImGuiIO& io = ImGui::GetIO();
+            if (!io.WantTextInput) {
+                if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
+                    if (io.KeyShift) {
+                        if (Context.GetHistory().CanRedo()) {
+                            const std::string desc = Context.GetHistory().GetRedoDescription();
+                            Context.GetHistory().Redo();
+                            SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
+                            OutputLog.AddLog(ELogLevel::Info, "Edit", "Redo: " + desc);
+                            ShowToast("Redo: " + desc);
+                        }
+                    } else if (Context.GetHistory().CanUndo()) {
+                        const std::string desc = Context.GetHistory().GetUndoDescription();
+                        Context.GetHistory().Undo();
+                        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
+                        OutputLog.AddLog(ELogLevel::Info, "Edit", "Undo: " + desc);
+                        ShowToast("Undo: " + desc);
+                    }
+                } else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
+                    if (Context.GetHistory().CanRedo()) {
+                        const std::string desc = Context.GetHistory().GetRedoDescription();
+                        Context.GetHistory().Redo();
+                        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
+                        OutputLog.AddLog(ELogLevel::Info, "Edit", "Redo: " + desc);
+                        ShowToast("Redo: " + desc);
                     }
                 }
-                Context.GetSelection().ClearActorSelection();
-                SelectedActor = nullptr;
+                if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+                    DeleteSelectedActors();
+                } else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false)) {
+                    DuplicateSelectedActors();
+                }
             }
         }
+
+        PollBakeJob();
+        DrawToastOverlay();
 
         EndImGuiFrame();
     }
 
     void FEditorApp::OnShutdown() {
+        FLog::ClearSink();
+
         GLFWwindow* native = GetWindow().GetNativeWindow();
         if (native && !WindowConfigIniPath.empty()) {
             bool bMax = (glfwGetWindowAttrib(native, GLFW_MAXIMIZED) == GLFW_TRUE);
@@ -508,7 +673,7 @@ namespace Leon::Editor {
                 out << "Height=" << h << "\n";
                 out << "PosX=" << px << "\n";
                 out << "PosY=" << py << "\n";
-                out << "Maximized=" << (bMax ? 1 : 0) << "\n";
+                out << "Maximized=1\n";
             }
         }
 
@@ -518,6 +683,49 @@ namespace Leon::Editor {
             ImGui::DestroyContext();
             bImGuiReady = false;
         }
+    }
+
+    void FEditorApp::DeleteSelectedActors() {
+        if (!EditorWorld) {
+            return;
+        }
+
+        std::vector<AActor*> actorsToDelete = Context.GetSelection().GetSelectedActors();
+        if (actorsToDelete.empty() && SelectedActor) {
+            actorsToDelete.push_back(SelectedActor);
+        }
+        if (actorsToDelete.empty()) {
+            return;
+        }
+
+        auto command =
+            std::make_unique<FDeleteActorsCommand>(EditorWorld.get(), &Context.GetSelection(), actorsToDelete);
+        const std::string desc = command->GetDescription();
+        Context.GetHistory().ExecuteCommand(std::move(command));
+        Viewport.CancelGizmoInteraction();
+        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
+        OutputLog.AddLog(ELogLevel::Info, "Edit", desc + "  (Ctrl+Z to undo)");
+        ShowToast(desc);
+    }
+
+    void FEditorApp::DuplicateSelectedActors() {
+        if (!EditorWorld)
+            return;
+
+        std::vector<AActor*> sources = Context.GetSelection().GetSelectedActors();
+        if (sources.empty() && SelectedActor)
+            sources.push_back(SelectedActor);
+        if (sources.empty())
+            return;
+
+        auto command =
+            std::make_unique<FDuplicateActorsCommand>(EditorWorld.get(), &Context.GetSelection(), sources, 1.0f);
+        const std::string desc = command->GetDescription();
+        Context.GetHistory().ExecuteCommand(std::move(command));
+        Viewport.CancelGizmoInteraction();
+        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
+        OutputLog.AddLog(ELogLevel::Info, "Edit", desc + "  (Ctrl+Z to undo)");
+        ShowToast(desc);
     }
 
     void FEditorApp::BeginImGuiFrame() {
@@ -550,12 +758,34 @@ namespace Leon::Editor {
 
         DrawMenuBar();
 
+        // Fixed top toolbar (Save / Bake / Play) — not part of the docked panel grid.
+        {
+            const float toolbarH = 38.0f;
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.14f, 0.14f, 0.16f, 1.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 6.0f));
+            if (ImGui::BeginChild("##EditorToolbarStrip", ImVec2(0.0f, toolbarH), false,
+                                  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+                Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName, Context.GetStatusMessage());
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor();
+        }
+
         const ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
 
-        // Setup initial default layout if requested or on first run
-        if (bNeedResetLayout || (!bDockspaceInitialized && !fs::exists(ImGuiIniPath))) {
+        // Always apply default layout on first dock frame of a session (and when Reset is requested).
+        if (bNeedResetLayout || !bDockspaceInitialized) {
             bDockspaceInitialized = true;
             bNeedResetLayout = false;
+            bShowViewport = true;
+            bShowPlaceActors = true;
+            bShowOutliner = true;
+            bShowDetails = true;
+            bShowContentBrowser = true;
+            bShowOutputLog = true;
+            bShowWorldSettings = true;
+            bShowProjectSettings = true;
             ResetDefaultLayout();
         }
 
@@ -586,6 +816,11 @@ namespace Leon::Editor {
                 }
                 if (ImGui::MenuItem("Redo", "Ctrl+Y", false, Context.GetHistory().CanRedo())) {
                     Context.GetHistory().Redo();
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Duplicate", "Ctrl+D", false,
+                                    Context.GetSelection().GetSelectedActorCount() > 0 || SelectedActor != nullptr)) {
+                    DuplicateSelectedActors();
                 }
                 ImGui::EndMenu();
             }

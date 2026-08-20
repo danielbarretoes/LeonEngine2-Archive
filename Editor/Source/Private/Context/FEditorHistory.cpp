@@ -18,6 +18,17 @@ namespace Leon::Editor {
         }
     }
 
+    void FEditorHistory::PushExecutedCommand(std::unique_ptr<IEditorCommand> InCommand) {
+        if (!InCommand)
+            return;
+
+        RedoStack.clear();
+        UndoStack.push_back(std::move(InCommand));
+        if (UndoStack.size() > MaxUndoSteps) {
+            UndoStack.erase(UndoStack.begin());
+        }
+    }
+
     bool FEditorHistory::Undo() {
         if (!CanUndo())
             return false;

@@ -43,6 +43,8 @@ namespace Leon {
         static TRef<FTexture2D> GetDefaultWhiteTexture();
         static TRef<FTexture2D> GetDefaultBlackTexture();
         static TRef<FTexture2D> GetDefaultFlatNormalTexture();
+        /** Procedural gray checkerboard (Unreal-style WorldGrid albedo). */
+        static TRef<FTexture2D> GetDefaultCheckerTexture();
 
         // Static Meshes (.lmesh)
         static TRef<UStaticMesh> GetStaticMesh(const std::string& InPath);
@@ -69,6 +71,8 @@ namespace Leon {
         static TRef<FLightmapAsset> GetLightmap(const std::string& InPath);
         static void AddLightmap(const std::string& InName, const TRef<FLightmapAsset>& InLightmap);
         static bool HasLightmap(const std::string& InPath);
+        /** Drop cached .llightmap assets so the next GetLightmap reloads from disk. */
+        static void InvalidateLightmaps();
 
         // Shaders
         static TRef<FShader> GetShader(const std::string& InPath);
@@ -87,6 +91,12 @@ namespace Leon {
         static TRef<FMaterial> GetDefaultMaterial();
         /** Shared fallback instance. Do not mutate from the renderer. */
         static TRef<FMaterialInstance> GetDefaultMaterialInstance();
+        /**
+         * Built-in Unreal-like WorldGrid material (gray checker albedo).
+         * Virtual path: Engine/Materials/M_WorldGrid.lmat
+         */
+        static TRef<FMaterial> GetWorldGridMaterial();
+        static TRef<FMaterialInstance> GetWorldGridMaterialInstance();
         static TRef<FMaterialInstance> CreateMaterialInstance(const std::string& InMaterialPath);
         static TRef<FMaterialInstance> CreateMaterialInstance(const TRef<FMaterial>& InParent);
 
@@ -115,9 +125,11 @@ namespace Leon {
         static std::unordered_map<std::string, TRef<FMaterialInstance>> MaterialInstanceCache;
         static TRef<FMaterial> DefaultMaterial;
         static TRef<FMaterialInstance> DefaultMaterialInstance;
+        static TRef<FMaterial> WorldGridMaterial;
         static TRef<FTexture2D> DefaultWhiteTexture;
         static TRef<FTexture2D> DefaultBlackTexture;
         static TRef<FTexture2D> DefaultFlatNormalTexture;
+        static TRef<FTexture2D> DefaultCheckerTexture;
     };
 
     template <> inline TRef<FTexture2D> UAssetManager::Load<FTexture2D>(const std::string& InPath) {

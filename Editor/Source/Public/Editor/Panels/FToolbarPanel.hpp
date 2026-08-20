@@ -22,7 +22,8 @@ namespace Leon::Editor {
         void SetOnRunGame(FActionCallback InCb) { OnRunGame = std::move(InCb); }
         void SetOnResetLayout(FActionCallback InCb) { OnResetLayout = std::move(InCb); }
 
-        void Draw(const std::string& InProjectName, const std::string& InMapName);
+        void Draw(const std::string& InProjectName, const std::string& InMapName,
+                  const std::string& InStatusMessage = "");
 
     private:
         FActionCallback OnSaveMap;

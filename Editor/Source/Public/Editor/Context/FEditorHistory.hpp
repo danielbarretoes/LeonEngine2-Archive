@@ -14,6 +14,8 @@ namespace Leon::Editor {
         ~FEditorHistory() = default;
 
         void ExecuteCommand(std::unique_ptr<IEditorCommand> InCommand);
+        /** Push a command that already mutated state (e.g. gizmo drag finished). */
+        void PushExecutedCommand(std::unique_ptr<IEditorCommand> InCommand);
         bool Undo();
         bool Redo();
 

@@ -53,6 +53,7 @@ namespace Leon {
         std::string Name = "Actor";
         std::string ClassName = "AActor";
         FUUID Guid;
+        std::string FolderPath;
         std::string PlayerStartTag;
         int32_t TeamIndex = 0;
         glm::vec3 Translation{0.0f};
@@ -123,7 +124,7 @@ namespace Leon {
         std::stringstream ss(InYamlString);
         std::string line;
 
-        enum class EParserSection { None, Map, Environment, WorldSettings, Skybox, Actors, InActor };
+        enum class EParserSection { None, Map, OutlinerFolders, Environment, WorldSettings, Skybox, Actors, InActor };
         enum class EActorComponentSection {
             None,
             Transform,
@@ -151,6 +152,7 @@ namespace Leon {
         std::vector<FActorDeserializationData> actors;
         FActorDeserializationData currentActor;
         bool bParsingActor = false;
+        std::vector<std::string> outlinerFolders;
 
         while (std::getline(ss, line)) {
             std::string trimmed = FStringUtils::Trim(line);
@@ -184,13 +186,27 @@ namespace Leon {
             }
 
             // Parse Map Info block
-            if (currentSection == EParserSection::Map) {
+            if (currentSection == EParserSection::Map || currentSection == EParserSection::OutlinerFolders) {
+                if (trimmed == "OutlinerFolders:") {
+                    currentSection = EParserSection::OutlinerFolders;
+                    continue;
+                }
+                if (currentSection == EParserSection::OutlinerFolders) {
+                    if (trimmed.rfind("- ", 0) == 0) {
+                        outlinerFolders.push_back(StripQuotes(FStringUtils::Trim(trimmed.substr(2))));
+                        continue;
+                    }
+                    // Fall through to other Map keys if list ended
+                    currentSection = EParserSection::Map;
+                }
                 size_t colon = trimmed.find(':');
                 if (colon != std::string::npos) {
                     std::string key = FStringUtils::Trim(trimmed.substr(0, colon));
                     std::string val = StripQuotes(trimmed.substr(colon + 1));
                     if (key == "Name") {
                         World->SetName(val);
+                    } else if (key == "OutlinerFolders" && !val.empty()) {
+                        outlinerFolders.push_back(val);
                     }
                 }
                 continue;
@@ -382,6 +398,8 @@ namespace Leon {
                             currentActor.ClassName = val;
                         else if (key == "GUID" || key == "Guid")
                             currentActor.Guid = FUUID::FromString(val);
+                        else if (key == "FolderPath" || key == "Folder")
+                            currentActor.FolderPath = val;
                         else if (key == "PlayerStartTag")
                             currentActor.PlayerStartTag = val;
                         else if (key == "TeamIndex")
@@ -633,6 +651,7 @@ namespace Leon {
 
         // 3. Populate World
         World->Clear();
+        World->SetEditorFolders(outlinerFolders);
 
         // Environment / Skybox / WorldSettings
         if (bLegacyBakeOnSkybox && !bHasWorldSettings)
@@ -663,6 +682,10 @@ namespace Leon {
                 entity->SetActorGuid(actorData.Guid);
             else
                 entity->SetActorGuid(FUUID::FromPath(World->GetName() + "/" + actorData.Name));
+            if (!actorData.FolderPath.empty()) {
+                entity->SetFolderPath(actorData.FolderPath);
+                World->RegisterEditorFolder(actorData.FolderPath);
+            }
 
             if (auto* start = dynamic_cast<APlayerStart*>(entity)) {
                 if (!actorData.PlayerStartTag.empty())

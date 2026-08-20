@@ -2,6 +2,7 @@
 
 #include "Core/Base.hpp"
 #include <format>
+#include <functional>
 #include <string_view>
 #include <utility>
 
@@ -11,7 +12,13 @@ namespace Leon {
 
     class FLog {
     public:
+        using FSink = std::function<void(ELogLevel InLevel, std::string_view InTag, std::string_view InMessage)>;
+
         static void Init();
+
+        /** Optional sink (e.g. Editor Output Log). Console output always continues. */
+        static void SetSink(FSink InSink);
+        static void ClearSink();
 
         static void Print(ELogLevel InLevel, std::string_view InTag, std::string_view InMessage);
 
@@ -42,6 +49,9 @@ namespace Leon {
         template <typename... TArgs> static void Error(std::format_string<TArgs...> InFmt, TArgs&&... InArgs) {
             Print(ELogLevel::Error, "APP", std::format(InFmt, std::forward<TArgs>(InArgs)...));
         }
+
+    private:
+        static FSink& Sink();
     };
 
 } // namespace Leon

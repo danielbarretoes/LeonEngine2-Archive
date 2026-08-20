@@ -17,9 +17,8 @@ namespace Leon::Editor {
     enum class EContentBrowserViewMode { Grid, List };
 
     /**
-     * @brief Professional Unreal Engine–inspired Content Browser panel with advanced search filters,
-     * Grid and List view modes, dynamic Add/Create menus, asset import pipeline, interactive breadcrumbs,
-     * and integration with FEditorContext.
+     * @brief Content Browser panel with name search, Grid/List views, Add/Create menus,
+     * asset import, interactive breadcrumbs, and FEditorContext integration.
      */
     class FContentBrowserPanel {
     public:
@@ -38,7 +37,7 @@ namespace Leon::Editor {
 
     private:
         void DrawTopBar();
-        void DrawBreadcrumbs();
+        void DrawBreadcrumbs(float InWidth, float InHeight);
         void DrawDirectoryTree(const std::filesystem::path& InDir);
         void DrawAssetView();
         void DrawAssetGrid(const std::vector<std::filesystem::directory_entry>& InEntries);

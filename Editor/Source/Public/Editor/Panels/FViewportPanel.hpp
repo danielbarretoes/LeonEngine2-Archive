@@ -38,6 +38,7 @@ namespace Leon::Editor {
 
         void Draw(UWorld* InWorld, const std::string& InMapName, AActor* InSelectedActor, bool* bInOutOpen = nullptr);
         void FocusOnActor(AActor* InActor);
+        void CancelGizmoInteraction() { Gizmo.CancelInteraction(); }
 
         FPerspectiveCamera& GetCamera() { return EditorCamera; }
         const FPerspectiveCamera& GetCamera() const { return EditorCamera; }
@@ -52,6 +53,16 @@ namespace Leon::Editor {
         AActor* PickActorAtScreenPos(UWorld& InWorld, const glm::vec2& InScreenPos, const ImVec2& InViewportMin,
                                      const ImVec2& InViewportSize);
         void ProcessMarqueeSelection(UWorld& InWorld, const ImVec2& InViewportMin, const ImVec2& InViewportSize);
+
+        /** Local-space AABB used for editor pick + selection outline (matches rendered mesh). */
+        static bool GetActorEditorLocalBounds(AActor& InActor, glm::vec3& OutMin, glm::vec3& OutMax);
+
+        /** Unreal Show Flags → Gizmos: light volumes into the scene FBO. */
+        void DrawEditorWorldGizmos(UWorld& InWorld);
+        /** Screen-space billboard icons for lights / PlayerStart. */
+        void DrawEditorGizmoIcons(UWorld& InWorld, const ImVec2& InViewportMin, const ImVec2& InViewportSize);
+        /** Unreal-style RGB axis tripod in the viewport corner. */
+        void DrawViewportAxisIndicator(const ImVec2& InViewportMin, const ImVec2& InViewportSize);
 
         void DrawSelectionOutline(AActor* InSelectedActor, const ImVec2& InViewportMin, const ImVec2& InViewportSize);
         void DrawPlacementGhost(const glm::vec3& InWorldPos, const ImVec2& InViewportMin, const ImVec2& InViewportSize,
@@ -74,6 +85,8 @@ namespace Leon::Editor {
         float CameraSpeed = 8.0f;
         bool bCameraInitialized = false;
         bool bShowStatistics = true;
+        /** Unreal Show Flags → Gizmos (lights, PlayerStart sprites). */
+        bool bShowEditorGizmos = true;
 
         // Marquee Selection Box State
         bool bMarqueeSelecting = false;
