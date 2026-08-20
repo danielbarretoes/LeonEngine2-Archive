@@ -17,7 +17,45 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import Optional
+def ensure_build_tools_in_path() -> None:
+    """Ensure cmake and ninja are present in PATH on Windows environments."""
+    if sys.platform != "win32":
+        return
+
+    path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+    has_cmake = shutil.which("cmake") is not None
+    has_ninja = shutil.which("ninja") is not None
+    if has_cmake and has_ninja:
+        return
+
+    candidates = [
+        r"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
+        r"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja",
+        r"C:\Program Files\Microsoft Visual Studio\18\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
+        r"C:\Program Files\Microsoft Visual Studio\18\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja",
+        r"C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
+        r"C:\Program Files\Microsoft Visual Studio\18\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja",
+        r"C:\Program Files\CMake\bin",
+        r"C:\ProgramData\chocolatey\bin",
+    ]
+
+    new_entries: list[str] = []
+    for c in candidates:
+        if os.path.isdir(c) and c not in path_dirs and c not in new_entries:
+            new_entries.append(c)
+
+    if new_entries:
+        os.environ["PATH"] = os.pathsep.join(new_entries) + os.pathsep + os.environ.get("PATH", "")
+
+
+# Run automatically upon importing _leon_paths
+ensure_build_tools_in_path()
 
 
 def safe_rmtree(path: str) -> None:

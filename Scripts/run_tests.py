@@ -13,6 +13,9 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _leon_paths import engine_root  # noqa: E402, F401
+
 SUMMARY_RE = re.compile(
     r"test cases:\s+(\d+)\s+\|\s+(\d+) passed\s+\|\s+(\d+) failed(?:\s+\|\s+(\d+) skipped)?"
 )
