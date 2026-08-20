@@ -99,12 +99,14 @@ namespace Leon::Editor {
         Viewport.SetEditorContext(&Context);
 
         // Setup Outliner callbacks
+        // OnActorSelected: selection was already made by the Outliner internally.
+        // We only sync SelectedActor for the Details panel. Do NOT call SelectActor
+        // here again (would double-fire selection callbacks) and do NOT focus the
+        // camera (outliner click should not move the camera; only double-click should).
         Outliner.SetOnActorSelected([this](AActor* actor) {
-            Context.GetSelection().SelectActor(actor, false);
-            if (actor) {
-                Viewport.FocusOnActor(actor);
-            }
+            SelectedActor = actor;
         });
+        // OnActorFocus: fired by double-click in outliner — this is when we focus.
         Outliner.SetOnActorFocus([this](AActor* actor) {
             if (actor) {
                 Viewport.FocusOnActor(actor);
@@ -112,10 +114,15 @@ namespace Leon::Editor {
         });
 
         // Setup Viewport callback
+        // OnActorSelected: selection was already made by the Viewport internally via
+        // Context->GetSelection().SelectActor(). We only sync SelectedActor, scroll
+        // the Outliner to the picked actor, and focus the camera.
+        // Do NOT call SelectActor again here — it would double-fire callbacks.
         Viewport.SetOnActorSelected([this](AActor* actor) {
-            Context.GetSelection().SelectActor(actor, false);
+            SelectedActor = actor;
             if (actor) {
                 Outliner.ScrollToActor(actor);
+                Viewport.FocusOnActor(actor);
             }
         });
         Viewport.SetOnActorSpawned([this](AActor* actor) {

@@ -299,15 +299,19 @@ namespace Leon::Editor {
                 DrawSelectionOutline(activeActor, vpMin, vpSize);
             }
 
-            // Marquee Selection Box
-            if (InWorld) {
-                ProcessMarqueeSelection(*InWorld, vpMin, vpSize);
-            }
-
             // Actor Selection and Raycast Picking
-            if (InWorld && ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !Gizmo.IsDragging() && !Gizmo.IsHovered()) {
+            // NOTE: ImGuiHoveredFlags_AllowWhenBlockedByActiveItem is required because
+            // ImGui::Image() captures hover by default, which would prevent picking.
+            const bool bWindowHoveredForPick = ImGui::IsWindowHovered(
+                ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
+                ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+
+            bool bPickHandled = false;
+            if (InWorld && ImGui::IsMouseClicked(0) && bWindowHoveredForPick &&
+                !Gizmo.IsDragging() && !Gizmo.IsHovered()) {
                 ImVec2 mousePos = ImGui::GetMousePos();
-                if (mousePos.y > vpMin.y + 36.0f) { // Below toolbar
+                // Only pick below the toolbar region
+                if (mousePos.y > vpMin.y + 50.0f) {
                     glm::vec2 clickPos(mousePos.x, mousePos.y);
                     AActor* hitActor = PickActorAtScreenPos(*InWorld, clickPos, vpMin, vpSize);
 
@@ -328,10 +332,20 @@ namespace Leon::Editor {
                         }
                     }
 
+                    // Fire callback AFTER selection is updated in Context.
+                    // The callback should only scroll the Outliner and focus the camera;
+                    // it must NOT call SelectActor again to avoid double-notification.
                     if (OnActorSelected) {
                         OnActorSelected(hitActor);
                     }
+
+                    bPickHandled = true;
                 }
+            }
+
+            // Marquee Selection Box (only when picking did not consume the click)
+            if (InWorld && !bPickHandled) {
+                ProcessMarqueeSelection(*InWorld, vpMin, vpSize);
             }
 
             // Drag and Drop Targets from Place Actors & Content Browser
@@ -399,7 +413,10 @@ namespace Leon::Editor {
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && !Gizmo.IsDragging()) {
+        const bool bHoveredForMarquee = ImGui::IsWindowHovered(
+            ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
+            ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+        if (ImGui::IsMouseClicked(0) && bHoveredForMarquee && !Gizmo.IsDragging()) {
             if (io.KeyShift || io.KeyCtrl) {
                 bMarqueeSelecting = true;
                 MarqueeStart = io.MousePos;

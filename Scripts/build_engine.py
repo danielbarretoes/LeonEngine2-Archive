@@ -53,6 +53,16 @@ def main() -> int:
         safe_rmtree(build_dir)
 
     cache_file = os.path.join(build_dir, "CMakeCache.txt")
+
+    # Detect stale cache missing the MSVC CRT setting and auto-clean.
+    if os.path.exists(cache_file):
+        with open(cache_file, encoding="utf-8", errors="replace") as f:
+            cache_text = f.read()
+        if sys.platform == "win32" and "CMAKE_MSVC_RUNTIME_LIBRARY" not in cache_text:
+            print("[INFO] CMakeCache.txt is missing CMAKE_MSVC_RUNTIME_LIBRARY — deleting stale cache.")
+            safe_rmtree(build_dir)
+
+    cache_file = os.path.join(build_dir, "CMakeCache.txt")
     if not os.path.exists(cache_file):
         print(f"[INFO] Configuring CMake ({args.config})...")
         config_cmd = [
@@ -67,18 +77,22 @@ def main() -> int:
             "-DLEON_PRODUCT=Engine",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
         ]
+        if sys.platform == "win32":
+            config_cmd.append("-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
         result = subprocess.run(config_cmd)
         if result.returncode != 0:
             print("[ERROR] CMake configuration failed!")
             return result.returncode
 
-    build_cmd = ["cmake", "--build", build_dir, "--config", args.config]
+    import multiprocessing
+    jobs = max(1, multiprocessing.cpu_count())
+    build_cmd = ["cmake", "--build", build_dir, "--config", args.config, "--", f"-j{jobs}"]
     if args.target:
-        build_cmd.extend(["--target", args.target])
+        build_cmd[3:3] = ["--target", args.target]  # insert before --
     if args.rebuild and not args.clean:
-        build_cmd.append("--clean-first")
+        build_cmd.insert(build_cmd.index("--"), "--clean-first")
 
-    print("[INFO] Building Engine...")
+    print(f"[INFO] Building Engine (--jobs {jobs})...")
     start_time = time.time()
     build_result = subprocess.run(build_cmd)
     elapsed_ms = (time.time() - start_time) * 1000

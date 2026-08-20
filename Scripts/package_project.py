@@ -57,6 +57,12 @@ _SYSTEM_DLLS = {
     "iphlpapi.dll",
     "kernel32.dll",
     "msvcrt.dll",
+    "msvcrtd.dll",
+    "msvcp140.dll",
+    "msvcp140d.dll",
+    "vcruntime140.dll",
+    "vcruntime140d.dll",
+    "vcruntime140_1.dll",
     "ntdll.dll",
     "ole32.dll",
     "oleaut32.dll",
@@ -278,7 +284,7 @@ def main() -> int:
 
     content_src = os.path.join(abs_project_dir, "Content")
     config_src = os.path.join(abs_project_dir, "Config")
-    engine_assets_src = os.path.join(root, "Engine", "Assets")
+    engine_assets_src = os.path.join(root, "Engine", "Resources")
     if not os.path.isdir(content_src):
         print(f"[ERROR] Missing Content/: {content_src}")
         return 1
@@ -309,7 +315,7 @@ def main() -> int:
     print("[INFO] Staging Config/")
     _copytree(config_src, os.path.join(stage_dir, "Config"))
     print("[INFO] Staging Engine/Resources/")
-    _copytree(engine_assets_src, os.path.join(stage_dir, "Engine", "Assets"))
+    _copytree(engine_assets_src, os.path.join(stage_dir, "Engine", "Resources"))
 
     lproject_dst = os.path.join(stage_dir, os.path.basename(project))
     shutil.copy2(project, lproject_dst)

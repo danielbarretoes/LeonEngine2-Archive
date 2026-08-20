@@ -63,6 +63,17 @@ def main() -> int:
         safe_rmtree(build_dir)
 
     cache_file = os.path.join(build_dir, "CMakeCache.txt")
+
+    # Detect stale cache: if CMAKE_MSVC_RUNTIME_LIBRARY is missing from an
+    # existing cache, delete and reconfigure so CRT linkage is consistent.
+    if os.path.exists(cache_file):
+        with open(cache_file, encoding="utf-8", errors="replace") as f:
+            cache_text = f.read()
+        if sys.platform == "win32" and "CMAKE_MSVC_RUNTIME_LIBRARY" not in cache_text:
+            print("[INFO] CMakeCache.txt is missing CMAKE_MSVC_RUNTIME_LIBRARY — deleting stale cache.")
+            safe_rmtree(build_dir)
+
+    cache_file = os.path.join(build_dir, "CMakeCache.txt")
     if not os.path.exists(cache_file):
         print(f"[INFO] Configuring CMake ({args.config})...")
         config_cmd = [
@@ -76,16 +87,27 @@ def main() -> int:
             f"-DCMAKE_BUILD_TYPE={args.config}",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
         ]
+        # Ensure MSVC DLL CRT linkage on Windows so all libs share the same
+        # operator delete / _Lockit / memcpy symbols (avoids LNK2001).
+        if sys.platform == "win32":
+            config_cmd.append("-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
         result = subprocess.run(config_cmd)
         if result.returncode != 0:
             print("[ERROR] CMake configuration failed!")
             return result.returncode
 
-    build_cmd = ["cmake", "--build", build_dir, "--config", args.config, "--target", "LeonEditor"]
+    import multiprocessing
+    jobs = max(1, multiprocessing.cpu_count())
+    build_cmd = [
+        "cmake", "--build", build_dir,
+        "--config", args.config,
+        "--target", "LeonEditor",
+        "--", f"-j{jobs}",
+    ]
     if args.rebuild and not args.clean:
         build_cmd.append("--clean-first")
 
-    print("[INFO] Building LeonEditor...")
+    print(f"[INFO] Building LeonEditor (--jobs {jobs})...")
     start_time = time.time()
     build_result = subprocess.run(build_cmd)
     elapsed_ms = (time.time() - start_time) * 1000

@@ -82,18 +82,26 @@ def main() -> int:
 
     cache_file = os.path.join(build_dir, "CMakeCache.txt")
     need_configure = not os.path.exists(cache_file)
+
+    # Detect stale cache: missing CRT setting or wrong project dir → reconfigure.
     if not need_configure and os.path.isfile(cache_file):
-        cached_dir = ""
-        with open(cache_file, encoding="utf-8", errors="ignore") as f:
-            for line in f:
+        with open(cache_file, encoding="utf-8", errors="replace") as f:
+            cache_text = f.read()
+        if sys.platform == "win32" and "CMAKE_MSVC_RUNTIME_LIBRARY" not in cache_text:
+            print("[INFO] CMakeCache.txt is missing CMAKE_MSVC_RUNTIME_LIBRARY — deleting stale cache.")
+            safe_rmtree(build_dir)
+            need_configure = True
+        else:
+            cached_dir = ""
+            for line in cache_text.splitlines():
                 if line.startswith("LEON_PROJECT_DIR:"):
                     cached_dir = line.split("=", 1)[-1].strip().replace("\\", "/")
                     break
-        want = cmake_project_dir.rstrip("/")
-        have = cached_dir.rstrip("/")
-        if have and os.path.normcase(os.path.abspath(have)) != os.path.normcase(os.path.abspath(want)):
-            print(f"[INFO] LEON_PROJECT_DIR changed ({have} -> {want}); reconfiguring...")
-            need_configure = True
+            want = cmake_project_dir.rstrip("/")
+            have = cached_dir.rstrip("/")
+            if have and os.path.normcase(os.path.abspath(have)) != os.path.normcase(os.path.abspath(want)):
+                print(f"[INFO] LEON_PROJECT_DIR changed ({have} -> {want}); reconfiguring...")
+                need_configure = True
 
     if need_configure:
         print(f"[INFO] Configuring CMake ({args.config})...")
@@ -110,15 +118,24 @@ def main() -> int:
             f"-DLEON_PROJECT_DIR={cmake_project_dir}",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
         ]
+        if sys.platform == "win32":
+            config_cmd.append("-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
         result = subprocess.run(config_cmd)
         if result.returncode != 0:
             print("[ERROR] CMake configuration failed!")
             return result.returncode
 
-    print(f"[INFO] Building target '{target}'...")
-    build_cmd = ["cmake", "--build", build_dir, "--config", args.config, "--target", target]
+    import multiprocessing
+    jobs = max(1, multiprocessing.cpu_count())
+    print(f"[INFO] Building target '{target}' (--jobs {jobs})...")
+    build_cmd = [
+        "cmake", "--build", build_dir,
+        "--config", args.config,
+        "--target", target,
+    ]
     if args.rebuild and not args.clean:
         build_cmd.append("--clean-first")
+    build_cmd += ["--", f"-j{jobs}"]
 
     start_time = time.time()
     build_result = subprocess.run(build_cmd)

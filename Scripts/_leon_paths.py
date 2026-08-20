@@ -17,6 +17,9 @@ import shutil
 import stat
 import subprocess
 import sys
+from typing import Optional
+
+
 def ensure_build_tools_in_path() -> None:
     """Ensure cmake and ninja are present in PATH on Windows environments."""
     if sys.platform != "win32":

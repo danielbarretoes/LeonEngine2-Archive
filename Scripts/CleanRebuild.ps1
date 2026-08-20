@@ -16,9 +16,9 @@ param(
 
 $ScriptDir = $PSScriptRoot
 $Py = Join-Path $ScriptDir "clean_rebuild.py"
-$Args = @()
-if ($Project) { $Args += @("--project", $Project) }
-if ($Run) { $Args += "--run" }
-$Args += @("--config", $Config)
-& python $Py @Args
+$PyArgs = @()
+if ($Project) { $PyArgs += @("--project", $Project) }
+if ($Run) { $PyArgs += "--run" }
+$PyArgs += @("--config", $Config)
+& python $Py @PyArgs
 exit $LASTEXITCODE

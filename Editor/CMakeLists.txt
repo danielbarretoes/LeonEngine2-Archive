@@ -10,6 +10,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# ── MSVC CRT linkage ─────────────────────────────────────────────────────────
+# Must be set BEFORE any include() or add_subdirectory() so that ALL targets
+# (Engine, ThirdParty, ImGui, Jolt, GLFW …) share the same CRT.
+# /MDd = MultiThreadedDebugDLL (Debug)  → links msvcrtd.lib
+# /MD  = MultiThreadedDLL      (Release) → links msvcrt.lib
+# Without this, Ninja+MSVC leaves the CRT undefined → LNK2001 on operator delete.
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+        "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        CACHE STRING "MSVC CRT: DLL runtime (/MDd or /MD)" FORCE
+    )
+endif()
+# ─────────────────────────────────────────────────────────────────────────────
+
 if(CMAKE_CONFIGURATION_TYPES)
     foreach(_cfg IN LISTS CMAKE_CONFIGURATION_TYPES)
         string(TOUPPER "${_cfg}" _cfg_up)
