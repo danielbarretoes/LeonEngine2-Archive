@@ -10,7 +10,7 @@ namespace Leon {
      */
     struct FEngineBuiltins {
         static constexpr const char* kWorldGridMaterial = "Engine/Materials/M_WorldGrid.lmat";
-        static constexpr const char* kWorldGridTexture = "Engine/Textures/T_WorldGrid.tga";
+        static constexpr const char* kWorldGridTexture = "Engine/Textures/T_WorldGrid";
         static constexpr const char* kMeshCube = "Engine/Meshes/Cube.lmesh";
         static constexpr const char* kMeshSphere = "Engine/Meshes/Sphere.lmesh";
         static constexpr const char* kMeshCylinder = "Engine/Meshes/Cylinder.lmesh";

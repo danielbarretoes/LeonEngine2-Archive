@@ -9,11 +9,11 @@
 #include "RHI/FTexture.hpp"
 #include "RHI/IRenderDriver.hpp"
 
-#include <array>
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 #include <vector>
+
+#include <glm/glm.hpp>
 
 namespace fs = std::filesystem;
 
@@ -51,6 +51,22 @@ namespace Leon {
             Out.push_back(Base + 2);
             Out.push_back(Base + 3);
             Out.push_back(Base + 0);
+        }
+
+        TRef<UStaticMesh> FinalizePrimitiveMesh(const std::string& InName, std::vector<FCanonicalMeshVertex>&& InVerts,
+                                                std::vector<uint32_t>&& InIndices) {
+            auto mesh = UStaticMesh::Create(InName);
+            mesh->GetVertices() = std::move(InVerts);
+            mesh->GetIndices() = std::move(InIndices);
+            FStaticSubmesh sub;
+            sub.Name = InName;
+            sub.IndexCount = static_cast<uint32_t>(mesh->GetIndices().size());
+            sub.VertexCount = static_cast<uint32_t>(mesh->GetVertices().size());
+            sub.MaterialSlotIndex = 0;
+            mesh->GetSubmeshes().push_back(sub);
+            mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
+            mesh->CalculateBounds();
+            return mesh;
         }
 
         TRef<UStaticMesh> BuildBoxMesh(const std::string& InName, float InSize) {
@@ -92,18 +108,7 @@ namespace Leon {
                 face(p, {1, 0, 0}, {0, 0, -1}, {0, 1, 0}, 5);
             }
 
-            auto mesh = UStaticMesh::Create(InName);
-            mesh->GetVertices() = std::move(verts);
-            mesh->GetIndices() = std::move(indices);
-            FStaticSubmesh sub;
-            sub.Name = InName;
-            sub.IndexCount = static_cast<uint32_t>(mesh->GetIndices().size());
-            sub.VertexCount = static_cast<uint32_t>(mesh->GetVertices().size());
-            sub.MaterialSlotIndex = 0;
-            mesh->GetSubmeshes().push_back(sub);
-            mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
-            mesh->CalculateBounds();
-            return mesh;
+            return FinalizePrimitiveMesh(InName, std::move(verts), std::move(indices));
         }
 
         TRef<UStaticMesh> BuildSphereMesh(const std::string& InName, float InRadius, unsigned InSegments,
@@ -144,17 +149,7 @@ namespace Leon {
                     indices.push_back(i2);
                 }
             }
-            auto mesh = UStaticMesh::Create(InName);
-            mesh->GetVertices() = std::move(verts);
-            mesh->GetIndices() = std::move(indices);
-            FStaticSubmesh sub;
-            sub.Name = InName;
-            sub.IndexCount = static_cast<uint32_t>(mesh->GetIndices().size());
-            sub.VertexCount = static_cast<uint32_t>(mesh->GetVertices().size());
-            mesh->GetSubmeshes().push_back(sub);
-            mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
-            mesh->CalculateBounds();
-            return mesh;
+            return FinalizePrimitiveMesh(InName, std::move(verts), std::move(indices));
         }
 
         TRef<UStaticMesh> BuildCylinderMesh(const std::string& InName, float InRadius, float InHeight,
@@ -195,8 +190,8 @@ namespace Leon {
                     float u = static_cast<float>(x) / static_cast<float>(InSegments);
                     float theta = u * (PI * 2.0f);
                     float c = std::cos(theta), s = std::sin(theta);
-                    PushVert(verts, {InRadius * c, y, InRadius * s}, n, {0.5f + 0.5f * c, 0.5f + (bTop ? 0.5f : -0.5f) * s},
-                             t, b);
+                    PushVert(verts, {InRadius * c, y, InRadius * s}, n,
+                             {0.5f + 0.5f * c, 0.5f + (bTop ? 0.5f : -0.5f) * s}, t, b);
                 }
                 for (unsigned x = 0; x < InSegments; ++x) {
                     if (bTop) {
@@ -213,17 +208,7 @@ namespace Leon {
             addCap(h, {0, 1, 0}, true);
             addCap(-h, {0, -1, 0}, false);
 
-            auto mesh = UStaticMesh::Create(InName);
-            mesh->GetVertices() = std::move(verts);
-            mesh->GetIndices() = std::move(indices);
-            FStaticSubmesh sub;
-            sub.Name = InName;
-            sub.IndexCount = static_cast<uint32_t>(mesh->GetIndices().size());
-            sub.VertexCount = static_cast<uint32_t>(mesh->GetVertices().size());
-            mesh->GetSubmeshes().push_back(sub);
-            mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
-            mesh->CalculateBounds();
-            return mesh;
+            return FinalizePrimitiveMesh(InName, std::move(verts), std::move(indices));
         }
 
         TRef<UStaticMesh> BuildPlaneMesh(const std::string& InName, float InWidth, float InDepth) {
@@ -231,67 +216,12 @@ namespace Leon {
             std::vector<FCanonicalMeshVertex> verts;
             std::vector<uint32_t> indices;
             glm::vec3 n(0, 1, 0), t(1, 0, 0), b(0, 0, -1);
-            // CCW from +Y: (-hx,-hz) -> (-hx,+hz) -> (+hx,+hz) -> (+hx,-hz) with +Z forward in grid
             PushVert(verts, {-hx, 0, -hz}, n, {0, InDepth / 4}, t, b, {0.02f, 0.02f});
             PushVert(verts, {-hx, 0, hz}, n, {0, 0}, t, b, {0.02f, 0.98f});
             PushVert(verts, {hx, 0, hz}, n, {InWidth / 4, 0}, t, b, {0.98f, 0.98f});
             PushVert(verts, {hx, 0, -hz}, n, {InWidth / 4, InDepth / 4}, t, b, {0.98f, 0.02f});
-            // Match FMeshPrimitives::CreatePlane winding: i0,i1,i2 / i0,i2,i3 with i1 at +Z
             indices = {0, 1, 2, 0, 2, 3};
-
-            auto mesh = UStaticMesh::Create(InName);
-            mesh->GetVertices() = std::move(verts);
-            mesh->GetIndices() = std::move(indices);
-            FStaticSubmesh sub;
-            sub.Name = InName;
-            sub.IndexCount = 6;
-            sub.VertexCount = 4;
-            mesh->GetSubmeshes().push_back(sub);
-            mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
-            mesh->CalculateBounds();
-            return mesh;
-        }
-
-        bool WriteUncompressedTGA(const fs::path& InPath, uint32_t InW, uint32_t InH, const std::vector<uint8_t>& InRGBA) {
-            fs::create_directories(InPath.parent_path());
-            std::ofstream out(InPath, std::ios::binary);
-            if (!out)
-                return false;
-            uint8_t hdr[18] = {};
-            hdr[2] = 2; // uncompressed true-color
-            hdr[12] = static_cast<uint8_t>(InW & 0xFF);
-            hdr[13] = static_cast<uint8_t>((InW >> 8) & 0xFF);
-            hdr[14] = static_cast<uint8_t>(InH & 0xFF);
-            hdr[15] = static_cast<uint8_t>((InH >> 8) & 0xFF);
-            hdr[16] = 32;
-            hdr[17] = 0x20; // top-left origin
-            out.write(reinterpret_cast<const char*>(hdr), 18);
-            for (uint32_t i = 0; i < InW * InH; ++i) {
-                const uint8_t* p = &InRGBA[i * 4];
-                uint8_t bgr[4] = {p[2], p[1], p[0], p[3]};
-                out.write(reinterpret_cast<const char*>(bgr), 4);
-            }
-            return out.good();
-        }
-
-        void EnsureWorldGridTextureFile(const fs::path& InPath) {
-            if (fs::exists(InPath))
-                return;
-            constexpr uint32_t kSize = 64, kCells = 8, kCell = kSize / kCells;
-            std::vector<uint8_t> rgba(kSize * kSize * 4);
-            for (uint32_t y = 0; y < kSize; ++y) {
-                for (uint32_t x = 0; x < kSize; ++x) {
-                    const bool light = ((x / kCell) + (y / kCell)) % 2 == 0;
-                    const uint8_t c = light ? 176 : 88;
-                    const size_t i = (y * kSize + x) * 4;
-                    rgba[i] = c;
-                    rgba[i + 1] = c;
-                    rgba[i + 2] = c;
-                    rgba[i + 3] = 255;
-                }
-            }
-            if (WriteUncompressedTGA(InPath, kSize, kSize, rgba))
-                LE_CORE_INFO("FEngineBuiltins: Wrote {}", InPath.string());
+            return FinalizePrimitiveMesh(InName, std::move(verts), std::move(indices));
         }
 
         void EnsureWorldGridMaterialFile(const fs::path& InPath) {
@@ -335,28 +265,37 @@ namespace Leon {
                 UAssetManager::AddStaticMesh(resolved, InMesh);
         }
 
+        void RegisterWorldGrid(const fs::path& InEngineRes) {
+            auto checker = UAssetManager::GetDefaultCheckerTexture();
+            if (checker) {
+                UAssetManager::AddTexture2D(FEngineBuiltins::kWorldGridTexture, checker);
+                UAssetManager::AddTexture2D("/" + std::string(FEngineBuiltins::kWorldGridTexture), checker);
+            }
+
+            EnsureWorldGridMaterialFile(InEngineRes / "Materials" / "M_WorldGrid.lmat");
+
+            auto mat = FMaterial::Create("M_WorldGrid");
+            mat->SetAssetPath(FEngineBuiltins::kWorldGridMaterial);
+            mat->SetAlbedoColor(glm::vec3(1.0f));
+            mat->SetMetallic(0.0f);
+            mat->SetRoughness(0.65f);
+            mat->SetAO(1.0f);
+            mat->SetUVTiling({2.0f, 2.0f});
+            mat->SetTexturePath(0, FEngineBuiltins::kWorldGridTexture);
+            mat->SetUseAlbedoMap(true);
+            if (checker)
+                mat->SetAlbedoMap(checker);
+
+            UAssetManager::AddMaterial(FEngineBuiltins::kWorldGridMaterial, mat);
+            UAssetManager::AddMaterial("/" + std::string(FEngineBuiltins::kWorldGridMaterial), mat);
+            UAssetManager::AddMaterial("Engine/Materials/M_WorldGrid", mat);
+        }
+
     } // namespace
 
     void FEngineBuiltins::EnsureAndRegister() {
         const fs::path engineRes = fs::path(FProjectPaths::EngineContentDir());
-        EnsureWorldGridTextureFile(engineRes / "Textures" / "T_WorldGrid.tga");
-        EnsureWorldGridMaterialFile(engineRes / "Materials" / "M_WorldGrid.lmat");
-
-        // Register texture (load from disk when possible so Path is set).
-        if (auto tex = UAssetManager::GetTexture2D(kWorldGridTexture)) {
-            UAssetManager::AddTexture2D(kWorldGridTexture, tex);
-        } else if (auto procedural = UAssetManager::GetDefaultCheckerTexture()) {
-            UAssetManager::AddTexture2D(kWorldGridTexture, procedural);
-        }
-
-        // Material: prefer disk, keep cache keyed by virtual path.
-        if (auto mat = UAssetManager::GetMaterial(kWorldGridMaterial)) {
-            if (auto tex = UAssetManager::GetTexture2D(kWorldGridTexture)) {
-                mat->SetAlbedoMap(tex);
-                mat->SetTexturePath(0, kWorldGridTexture);
-            }
-            UAssetManager::AddMaterial(kWorldGridMaterial, mat);
-        }
+        RegisterWorldGrid(engineRes);
 
         auto cube = BuildBoxMesh("Cube", 1.0f);
         auto sphere = BuildSphereMesh("Sphere", 0.5f, 32, 16);
@@ -372,6 +311,8 @@ namespace Leon {
         RegisterMesh(kMeshSphere, sphere);
         RegisterMesh(kMeshCylinder, cylinder);
         RegisterMesh(kMeshPlane, plane);
+
+        LE_CORE_INFO("FEngineBuiltins: Registered Engine primitive meshes and M_WorldGrid");
     }
 
 } // namespace Leon

@@ -18,7 +18,7 @@ Environment:
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-    LightmapBakeHash: "74d20b6590e5a2ff"
+    LightmapBakeHash: "4d5e704d9a334cb4"
   Skybox:
     Enabled: true
     Exposure: 0.95
@@ -421,5 +421,23 @@ Actors:
       LightmapScale: [0.25, 0.25]
       LightmapBias: [0.265625, 0.265625]
       LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "CubeActor"
+    Class: "AActor"
+    GUID: "a9be9c6895e0796a2b1ce7c9c99f574a"
+    Transform:
+      Translation: [12.0573, 2.23007, 9.14346]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    Material:
+      Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "CubeActor"
+    Class: "AActor"
+    GUID: "654bf73531bfd7a86ee0cf631906460e"
+    Transform:
+      Translation: [15.7253, 3.1767, 7.74123]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
     Material:
       Asset: "Engine/Materials/M_WorldGrid.lmat"

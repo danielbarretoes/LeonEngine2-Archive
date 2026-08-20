@@ -1,5 +1,6 @@
 #include "Assets/UAssetManager.hpp"
 #include "Assets/FAssetPath.hpp"
+#include "Assets/FEngineBuiltins.hpp"
 #include "Assets/UBlendSpace.hpp"
 #include "Core/FLog.hpp"
 #include "Engine/FMaterialSerializer.hpp"
@@ -57,6 +58,9 @@ namespace Leon {
             uint32_t flatNormalPixel = 0xFFFF8080; // RGBA: (128, 128, 255, 255) in memory
             DefaultFlatNormalTexture->SetData(&flatNormalPixel, sizeof(uint32_t));
         }
+
+        // Engine built-ins (WorldGrid + primitive .lmesh) — virtual Engine/* paths.
+        FEngineBuiltins::EnsureAndRegister();
     }
 
     void UAssetManager::Shutdown() {
@@ -136,6 +140,9 @@ namespace Leon {
         if (InPath.empty())
             return nullptr;
 
+        if (auto it = TextureCache.find(InPath); it != TextureCache.end() && it->second)
+            return it->second;
+
         std::string resolved = ResolveVirtualPath(InPath);
 
         auto it = TextureCache.find(resolved);
@@ -193,6 +200,9 @@ namespace Leon {
     TRef<UStaticMesh> UAssetManager::GetStaticMesh(const std::string& InPath) {
         if (InPath.empty())
             return nullptr;
+
+        if (auto it = StaticMeshCache.find(InPath); it != StaticMeshCache.end() && it->second)
+            return it->second;
 
         std::string resolved = ResolveVirtualPath(InPath);
 
@@ -413,7 +423,10 @@ namespace Leon {
         if (InPath.empty())
             return GetDefaultMaterial();
 
-        // Built-in engine materials (no disk asset required)
+        if (auto it = MaterialCache.find(InPath); it != MaterialCache.end() && it->second)
+            return it->second;
+
+        // Built-in engine materials (registered by FEngineBuiltins; procedural fallback)
         if (InPath == "Engine/Materials/M_WorldGrid.lmat" || InPath == "/Engine/Materials/M_WorldGrid.lmat" ||
             InPath == "Engine/Materials/M_WorldGrid" || InPath == "/Engine/Materials/M_WorldGrid") {
             return GetWorldGridMaterial();
@@ -430,6 +443,8 @@ namespace Leon {
         material->SetAssetPath(resolved);
         if (FMaterialSerializer::Deserialize(resolved, *material)) {
             MaterialCache[resolved] = material;
+            if (resolved != InPath)
+                MaterialCache[InPath] = material;
             return material;
         }
 
@@ -535,18 +550,25 @@ namespace Leon {
     }
 
     TRef<FMaterial> UAssetManager::GetWorldGridMaterial() {
+        if (auto it = MaterialCache.find(FEngineBuiltins::kWorldGridMaterial); it != MaterialCache.end() && it->second) {
+            WorldGridMaterial = it->second;
+            return WorldGridMaterial;
+        }
         if (!WorldGridMaterial) {
             WorldGridMaterial = FMaterial::Create("M_WorldGrid");
-            WorldGridMaterial->SetAssetPath("Engine/Materials/M_WorldGrid.lmat");
+            WorldGridMaterial->SetAssetPath(FEngineBuiltins::kWorldGridMaterial);
             WorldGridMaterial->SetAlbedoColor(glm::vec3(1.0f));
             WorldGridMaterial->SetMetallic(0.0f);
             WorldGridMaterial->SetRoughness(0.65f);
             WorldGridMaterial->SetAO(1.0f);
             WorldGridMaterial->SetUVTiling({2.0f, 2.0f});
+            WorldGridMaterial->SetTexturePath(0, FEngineBuiltins::kWorldGridTexture);
+            WorldGridMaterial->SetUseAlbedoMap(true);
             if (auto checker = GetDefaultCheckerTexture()) {
                 WorldGridMaterial->SetAlbedoMap(checker);
+                AddTexture2D(FEngineBuiltins::kWorldGridTexture, checker);
             }
-            AddMaterial("Engine/Materials/M_WorldGrid.lmat", WorldGridMaterial);
+            AddMaterial(FEngineBuiltins::kWorldGridMaterial, WorldGridMaterial);
         }
         return WorldGridMaterial;
     }

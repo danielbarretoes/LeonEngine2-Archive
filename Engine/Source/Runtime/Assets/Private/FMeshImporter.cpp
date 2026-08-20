@@ -372,6 +372,7 @@ namespace Leon {
 
         const bool bSplit = InSettings.bSplitStaticMeshes && meshNodes.size() > 1;
         auto finishMesh = [&](UStaticMesh& mesh) {
+            // Lengyel from UV0 when requested — FBX tangent quality varies; authored normals stay intact.
             if (InSettings.bGenerateTangents)
                 GenerateLengyelTangents(mesh.GetVertices(), mesh.GetIndices());
             mesh.CalculateBounds();

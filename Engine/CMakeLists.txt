@@ -44,6 +44,7 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/Assets/Private/FAnimRuntime.cpp
     Source/Runtime/Assets/Private/FAssetManifest.cpp
     Source/Runtime/Assets/Private/FAssetPath.cpp
+    Source/Runtime/Assets/Private/FEngineBuiltins.cpp
     # Native .lhdr / .ltex loaders are runtime (OpenGL + IBL). Source import stays callable from Core
     # because stb_image is already a Core dependency; Pipeline keeps FBX (ufbx) + Lightmass.
     Source/Runtime/Assets/Private/FHDRImporter.cpp

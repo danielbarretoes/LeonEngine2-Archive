@@ -1,6 +1,8 @@
 #include "Gameplay/FProceduralPrimitiveSpawner.hpp"
+#include "Assets/FEngineBuiltins.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Core/FApplication.hpp"
+#include "Core/FLog.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
@@ -90,54 +92,33 @@ namespace Leon {
         actor->SetActorLocation(InLocation);
         actor->SetActorScale({1.0f, 1.0f, 1.0f});
 
-        TRef<FVertexArray> va = nullptr;
-        std::string meshType = InShapeType;
-        float meshSize = 1.0f;
-        float meshWidth = 1.0f;
-        float meshHeight = 1.0f;
-        float meshDepth = 1.0f;
-        float meshRadius = 0.5f;
-        float meshMetersPerUv = 1.0f;
-        unsigned int subdivX = 32;
-        unsigned int subdivZ = 16;
-
+        const char* meshPath = nullptr;
         if (InShapeType == "Cube" || InShapeType == "Box") {
-            meshType = "Box";
-            meshWidth = meshHeight = meshDepth = 1.0f;
-            va = FMeshPrimitives::CreateBox(meshWidth, meshHeight, meshDepth, meshMetersPerUv);
+            meshPath = FEngineBuiltins::kMeshCube;
             if (auto box = actor->AddActorComponent<UBoxComponent>("Box")) {
                 box->SetBoxExtent(glm::vec3(0.5f));
                 box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
                 box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
             }
         } else if (InShapeType == "Sphere") {
-            meshType = "Sphere";
-            meshRadius = 0.5f;
-            va = FMeshPrimitives::CreateSphere(meshRadius, subdivX, subdivZ);
+            meshPath = FEngineBuiltins::kMeshSphere;
             if (auto sphere = actor->AddActorComponent<USphereComponent>("Sphere")) {
-                sphere->SetSphereRadius(meshRadius);
+                sphere->SetSphereRadius(0.5f);
                 sphere->SetCollisionObjectType(ECollisionChannel::WorldStatic);
                 sphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
             }
         } else if (InShapeType == "Cylinder") {
-            meshType = "Cylinder";
-            meshRadius = 0.5f;
-            meshHeight = 1.0f;
-            va = FMeshPrimitives::CreateCylinder(meshRadius, meshRadius, meshHeight, subdivX, true);
-            if (auto box = actor->AddActorComponent<UBoxComponent>("Box")) {
-                box->SetBoxExtent(glm::vec3(meshRadius, meshHeight * 0.5f, meshRadius));
-                box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
-                box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            meshPath = FEngineBuiltins::kMeshCylinder;
+            // Capsule approximates a standing cylinder (r=0.5, height=1 → half-height=1).
+            if (auto capsule = actor->AddActorComponent<UCapsuleComponent>("Capsule")) {
+                capsule->SetCapsuleSize(0.5f, 1.0f);
+                capsule->SetCollisionObjectType(ECollisionChannel::WorldStatic);
+                capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
             }
         } else if (InShapeType == "Plane") {
-            meshType = "Plane";
-            meshWidth = 2.0f;
-            meshDepth = 2.0f;
-            subdivX = 1;
-            subdivZ = 1;
-            va = FMeshPrimitives::CreatePlane(meshWidth, meshDepth, subdivX, subdivZ);
+            meshPath = FEngineBuiltins::kMeshPlane;
             if (auto box = actor->AddActorComponent<UBoxComponent>("Box")) {
-                box->SetBoxExtent(glm::vec3(meshWidth * 0.5f, 0.05f, meshDepth * 0.5f));
+                box->SetBoxExtent(glm::vec3(1.0f, 0.05f, 1.0f));
                 box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
                 box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
             }
@@ -145,31 +126,27 @@ namespace Leon {
             return actor;
         }
 
-        if (!FApplication::HasInstance() || !va)
+        if (!FApplication::HasInstance() || !meshPath)
             return actor;
 
-        auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
-        if (!shader)
+        auto staticMesh = UAssetManager::GetStaticMesh(meshPath);
+        if (!staticMesh) {
+            LE_CORE_ERROR("FProceduralPrimitiveSpawner: Missing built-in mesh \"{}\"", meshPath);
             return actor;
+        }
 
-        auto& mesh = actor->AddComponent<FMeshComponent>(va, shader);
-        mesh.MeshType = meshType;
-        mesh.MeshSize = meshSize;
-        mesh.MeshWidth = meshWidth;
-        mesh.MeshHeight = meshHeight;
-        mesh.MeshDepth = meshDepth;
-        mesh.MeshRadius = meshRadius;
-        mesh.MeshMetersPerUv = meshMetersPerUv;
-        mesh.MeshSubdivX = subdivX;
-        mesh.MeshSubdivZ = subdivZ;
-        mesh.Mobility = EComponentMobility::Static;
-        mesh.LightmapResolution = 64;
-        mesh.bCastShadows = true;
-        mesh.bReceiveShadows = true;
+        auto& smc = actor->AddComponent<FStaticMeshComponent>(staticMesh, meshPath);
+        smc.Mobility = EComponentMobility::Static;
+        smc.LightmapResolution = 64;
+        smc.bCastShadows = true;
+        smc.bReceiveShadows = true;
+        smc.Shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
 
-        auto matInst = UAssetManager::GetWorldGridMaterialInstance();
-        if (matInst) {
-            actor->AddComponent<FMaterialComponent>(matInst, "Engine/Materials/M_WorldGrid.lmat");
+        // Slot default is M_WorldGrid; keep an explicit material component for Details/serialization.
+        if (auto matInst = UAssetManager::GetWorldGridMaterialInstance()) {
+            actor->AddComponent<FMaterialComponent>(matInst, FEngineBuiltins::kWorldGridMaterial);
+            smc.MaterialOverrides = {matInst};
+            smc.MaterialOverridePaths = {FEngineBuiltins::kWorldGridMaterial};
         }
 
         return actor;
