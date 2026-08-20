@@ -24,12 +24,13 @@ namespace Leon::Editor {
 
         FOutlinerPanel() = default;
 
-        void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
+        void SetEditorContext(FEditorContext* InContext);
         void SetOnActorSelected(FOnActorSelected InCallback) { OnActorSelected = std::move(InCallback); }
         void SetOnActorFocus(FOnActorFocus InCallback) { OnActorFocus = std::move(InCallback); }
 
         void SetSelectedActor(AActor* InActor);
         AActor* GetSelectedActor() const;
+        void ScrollToActor(AActor* InActor);
 
         bool IsActorHiddenInEditor(AActor* InActor) const { return HiddenActors.find(InActor) != HiddenActors.end(); }
         bool IsActorLocked(AActor* InActor) const { return LockedActors.find(InActor) != LockedActors.end(); }
@@ -49,6 +50,10 @@ namespace Leon::Editor {
         AActor* FallbackSelectedActor = nullptr;
         char FilterBuffer[128] = "";
         EOutlinerFilterCategory ActiveCategory = EOutlinerFilterCategory::All;
+
+        // Auto-Scroll to Selection
+        bool bRequestScroll = false;
+        AActor* ActorToScrollTo = nullptr;
 
         // Visibility & Lock States
         std::unordered_set<AActor*> HiddenActors;

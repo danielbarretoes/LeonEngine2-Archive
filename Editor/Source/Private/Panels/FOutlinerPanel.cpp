@@ -11,6 +11,17 @@
 
 namespace Leon::Editor {
 
+    void FOutlinerPanel::SetEditorContext(FEditorContext* InContext) {
+        Context = InContext;
+        if (Context) {
+            Context->GetSelection().RegisterActorSelectionCallback([this](const std::vector<AActor*>& InActors) {
+                if (!InActors.empty() && InActors.front() != nullptr) {
+                    ScrollToActor(InActors.front());
+                }
+            });
+        }
+    }
+
     void FOutlinerPanel::SetSelectedActor(AActor* InActor) {
         if (Context) {
             Context->GetSelection().SelectActor(InActor, false);
@@ -24,6 +35,11 @@ namespace Leon::Editor {
             return Context->GetSelection().GetPrimarySelectedActor();
         }
         return FallbackSelectedActor;
+    }
+
+    void FOutlinerPanel::ScrollToActor(AActor* InActor) {
+        ActorToScrollTo = InActor;
+        bRequestScroll = true;
     }
 
     bool FOutlinerPanel::PassesCategoryFilter(AActor* InActor) const {
@@ -287,6 +303,12 @@ namespace Leon::Editor {
             if (ImGui::GetCursorPosX() < rightEdge) {
                 ImGui::SameLine(rightEdge);
                 ImGui::TextDisabled("%s", typeBadge.c_str());
+            }
+
+            if (bRequestScroll && (InActor == ActorToScrollTo || (ActorToScrollTo == nullptr && bIsSelected))) {
+                ImGui::SetScrollHereY(0.5f);
+                bRequestScroll = false;
+                ActorToScrollTo = nullptr;
             }
         }
 

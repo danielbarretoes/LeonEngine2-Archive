@@ -99,10 +99,25 @@ namespace Leon::Editor {
         Viewport.SetEditorContext(&Context);
 
         // Setup Outliner callbacks
-        Outliner.SetOnActorFocus([this](AActor* actor) { Viewport.FocusOnActor(actor); });
+        Outliner.SetOnActorSelected([this](AActor* actor) {
+            Context.GetSelection().SelectActor(actor, false);
+            if (actor) {
+                Viewport.FocusOnActor(actor);
+            }
+        });
+        Outliner.SetOnActorFocus([this](AActor* actor) {
+            if (actor) {
+                Viewport.FocusOnActor(actor);
+            }
+        });
 
         // Setup Viewport callback
-        Viewport.SetOnActorSelected([this](AActor* actor) { Context.GetSelection().SelectActor(actor, false); });
+        Viewport.SetOnActorSelected([this](AActor* actor) {
+            Context.GetSelection().SelectActor(actor, false);
+            if (actor) {
+                Outliner.ScrollToActor(actor);
+            }
+        });
         Viewport.SetOnActorSpawned([this](AActor* actor) {
             Context.GetSelection().SelectActor(actor, false);
             OutputLog.AddLog(ELogLevel::Info, "World",
