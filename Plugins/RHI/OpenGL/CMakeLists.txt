@@ -14,10 +14,14 @@ add_library(LeonEngine_OpenGL STATIC
 
 add_library(Leon::OpenGL ALIAS LeonEngine_OpenGL)
 
+if(NOT DEFINED LEON_ENGINE_ROOT)
+    get_filename_component(LEON_ENGINE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
+endif()
+
 target_include_directories(LeonEngine_OpenGL PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "${CMAKE_SOURCE_DIR}/ThirdParty/glad/include"
-    "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
+    "${LEON_ENGINE_ROOT}/ThirdParty/glad/include"
+    "${LEON_ENGINE_ROOT}/ThirdParty/stb"
 )
 
 target_link_libraries(LeonEngine_OpenGL PUBLIC

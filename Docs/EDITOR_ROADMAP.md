@@ -1,33 +1,40 @@
-# LeonEngine2 — Editor Roadmap (Future)
+# LeonEngine2 — Editor Roadmap
 
-Contract only. **No `LeonEditor` executable in this milestone.**
+## Phase 0 (current) — Build split + ImGui skeleton
+
+- Product lives under [`Editor/`](../Editor/) with its own CMake entry: `cmake -S Editor -B out/Editor`.
+- NAMING-compliant host: `Leon::Editor::FEditorApp`, `FViewportPanel` under `Editor/Source/Public/Editor/`.
+- Reuses `FApplication` / `FWindow`, `UWorld`, and `FWorldRenderer` (empty world viewport).
+- Legacy pre-NAMING sources (`leon::editor`, `<leon/...>`) are parked in [`Editor/Legacy/`](../Editor/Legacy/) and are **not** linked until ported.
+
+Build:
+
+```bat
+python Scripts/build_editor.py --config Debug
+python Scripts/build_editor.py --run
+```
 
 ## Goals
 
-Provide a solo-dev editor later that reuses Runtime systems (same Unreal-like naming and flows) without inventing a parallel engine.
+Solo-dev editor that reuses Runtime systems (Unreal-like naming and flows) without inventing a parallel engine.
 
 ## Constraints
 
 | Do | Do not |
 | :--- | :--- |
-| Out-of-process `Tools/LeonEditor` (or `Programs/`) exe | Embed editor UI inside `LeonEngineCore` game loop by default |
+| Out-of-process `Editor/` exe (`LeonEditor`) | Embed editor UI inside `LeonEngineCore` game loop by default |
 | Reuse `FWorldRenderer`, `UWorld`, `.lmap` serializers | Fork a second renderer |
 | Edit data that already has disk formats (`.lmap`, `.lmat`, `.lmi`) | Require Blueprints / UHT / UBT |
-| Ship after naming + physics + net RPC paths are stable | Block gameplay on editor existence |
+| Follow [NAMING.md](NAMING.md) for all new editor code | Mass-rename `Editor/Legacy/` without a port pass |
 
-## Suggested phases (after P0 systems)
+## Suggested phases (after skeleton)
 
 1. **Map viewport** — load/save `.lmap`, select actors, move transforms, place `APlayerStart` / lights / static meshes.
 2. **Material instance tweak** — edit scalars/textures on `.lmi` / `.lmat` with live preview.
-3. **BT / Blackboard viewer** — read-only first (trees are still code-built); write `.lbt` only after executor + asset format exist.
-4. **UMG layout** — Canvas/Button/Text placement for menus; optional.
-
-## Dependencies before starting
-
-- Naming contract stable ([NAMING.md](NAMING.md) Unreal prefix rules).
-- Virtual paths `/Game` `/Engine` stable.
-- Physics not dual-ticking (Jolt dynamics authority).
-- Net ServerRPC framing stable for multiplayer PIE-like later.
+3. **Content browser / details / outliner** — port from `Editor/Legacy/` panel by panel.
+4. **PIE** — play-in-editor against project `.lproject` (out-of-process first if needed).
+5. **BT / Blackboard viewer** — read-only first; write `.lbt` after executor + asset format exist.
+6. **UMG layout** — Canvas/Button/Text placement for menus; optional.
 
 ## Non-goals (v1 editor)
 

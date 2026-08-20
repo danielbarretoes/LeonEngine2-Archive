@@ -46,8 +46,8 @@ target_include_directories(LeonTournament PRIVATE
     "${LEON_TOURNAMENT_PUBLIC_ROOT}/Game"
     "${LEON_TOURNAMENT_PUBLIC_ROOT}/Characters"
     "${LEON_TOURNAMENT_PUBLIC_ROOT}/Combat"
-    "${CMAKE_SOURCE_DIR}/Plugins/Physics/Jolt/include"
-    "${CMAKE_SOURCE_DIR}/Plugins/Networking/ENet/include"
+    "${LEON_ENGINE_ROOT}/Plugins/Physics/Jolt/include"
+    "${LEON_ENGINE_ROOT}/Plugins/Networking/ENet/include"
 )
 
 target_link_libraries(LeonTournament PRIVATE

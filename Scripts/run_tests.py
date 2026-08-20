@@ -19,9 +19,11 @@ SUMMARY_RE = re.compile(
 
 
 def find_exe(build_dir: str, name: str) -> str:
+    exe = f"{name}.exe" if sys.platform == "win32" else name
     candidates = [
-        os.path.join(build_dir, "Tests", f"{name}.exe"),
-        os.path.join(build_dir, "Tests", name),
+        os.path.join(build_dir, "Tests", exe),
+        os.path.join(build_dir, "_leon_tests", exe),
+        os.path.join(build_dir, exe),
     ]
     for path in candidates:
         if os.path.exists(path):
@@ -57,16 +59,36 @@ def run_suite(name: str, exe_path: str, extra_args: list[str], cwd: str) -> tupl
 def main() -> int:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
-    build_dir = os.path.join(project_root, "build")
+    build_dir = os.path.join(project_root, "out", "Engine")
 
     print("=" * 80)
     print("   LeonEngine2 - Engine and LeonTournament Test Suites")
     print("=" * 80)
     print("[BUILD] Compiling RendererTests and LeonTournamentTests...")
 
+    cache = os.path.join(build_dir, "CMakeCache.txt")
+    if not os.path.isfile(cache):
+        cfg = os.environ.get("LEON_BUILD_CONFIG", "Release")
+        config_cmd = [
+            "cmake",
+            "-S",
+            ".",
+            "-B",
+            build_dir,
+            "-G",
+            "Ninja",
+            f"-DCMAKE_BUILD_TYPE={cfg}",
+            "-DLEON_PRODUCT=Engine",
+        ]
+        conf = subprocess.run(config_cmd, cwd=project_root, capture_output=True, text=True)
+        if conf.returncode != 0:
+            print("[ERROR] Configure failed:")
+            print(conf.stderr or conf.stdout)
+            return 1
+
     t0 = time.perf_counter()
-    build_cmd = ["ninja", "-C", build_dir, "RendererTests", "LeonTournamentTests"]
-    res = subprocess.run(build_cmd, capture_output=True, text=True)
+    build_cmd = ["cmake", "--build", build_dir, "--target", "RendererTests", "LeonTournamentTests"]
+    res = subprocess.run(build_cmd, cwd=project_root, capture_output=True, text=True)
     t_build = (time.perf_counter() - t0) * 1000.0
     if res.returncode != 0:
         print("[ERROR] Build failed:")

@@ -15,16 +15,18 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 
 | Script | Purpose |
 | :--- | :--- |
-| `build_project.py` | Configure/build game target (`--project`, `--config`, `--run`, `--clean`, `--rebuild`) |
+| `build_engine.py` | Configure/build Engine product → `out/Engine` (`LEON_PRODUCT=Engine`) |
+| `build_editor.py` | Configure/build LeonEditor → `out/Editor` |
+| `build_project.py` | Configure/build one game → `out/Projects/<Name>` (`--project`, `--config`, `--run`, `--clean`, `--rebuild`) |
 | `run_project.py` | `build_project.py --run` |
 | `validate_project.py` | LeonAssetTool `validate_project` |
 | `bake_lightmaps.py` | LeonAssetTool bake/validate lightmaps (`--map` or DefaultMap) |
 | `import_assets.py` | Import Raw → Content for `--project` |
 | `validate_assets.py` | Validate Content for `--project` |
 | `create_project.py` | Scaffold a blank game (`--name`, `--output`) |
-| `clean_rebuild.py` | Wipe `build/` + rebuild (`--project` required) |
-| `run_tests.py` | Engine `RendererTests` suite (not project-specific) |
-| `verify_ue_naming.py` | Naming / Engine isolation CI guard |
+| `clean_rebuild.py` | Wipe project out dir + rebuild (`--project` required) |
+| `run_tests.py` | Engine `RendererTests` / `LeonTournamentTests` under `out/Engine` |
+| `verify_ue_naming.py` | Naming / Engine isolation CI guard (scans `Editor/Source`, skips `Legacy`) |
 | `format_code.py` | clang-format Engine (+ optional `--project` tree) |
 | `build_incremental.py` | Thin alias of `build_project.py` |
 
@@ -45,6 +47,8 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 ### Monorepo Sandbox
 
 ```bat
+python Scripts/build_engine.py --config Debug
+python Scripts/build_editor.py --config Debug
 python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject
 python Scripts/run_project.py --project Projects/Sandbox/Sandbox.lproject
 python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
@@ -70,7 +74,7 @@ python %LEON_ENGINE_ROOT%\Scripts\build_project.py --project %LEON_PROJECT%
 python %LEON_ENGINE_ROOT%\Scripts\run_project.py --project %LEON_PROJECT%
 ```
 
-CMake receives an **absolute** `LEON_PROJECT_DIR` so the game target can sit outside the Engine tree. Out-of-tree projects compile into `build/Projects/<FolderName>/`.
+CMake receives an **absolute** `LEON_PROJECT_DIR` so the game target can sit outside the Engine tree. Out-of-tree projects compile into `out/Projects/<FolderName>/`.
 
 ## PowerShell
 

@@ -36,6 +36,8 @@ LeonEngine2 follows a strict, unidirectional dependency hierarchy adhering to **
 Like Unreal, **build/run tools live with the Engine** and are invoked *against* a `.lproject`:
 
 ```text
+python Scripts/build_engine.py
+python Scripts/build_editor.py
 python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject
 python Scripts/run_project.py    --project Projects/Sandbox/Sandbox.lproject
 python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
@@ -48,10 +50,12 @@ Environment: `LEON_ENGINE_ROOT` (optional), `LEON_PROJECT` (or `--project`). Ful
 | Owner | Responsibility |
 | :--- | :--- |
 | Engine (`Engine/`, `Plugins/`, `Scripts/`, `Tools/`) | Runtime, RHI plugins, asset tool, build/verify scripts |
+| Editor (`Editor/`) | Out-of-process ImGui host (`LeonEditor`); separate `out/Editor` build |
 | Project (`Projects/<Name>/` or any external path) | `Main`, gameplay classes, Content, Config, `.lproject`, thin CMake target |
 
 - `UEngine::Run` requires a `.lproject` (argv `--project=`, explicit path, or discovery) — **no Sandbox default inside Engine**.
-- Root CMake selects the game via `LEON_PROJECT_DIR` (absolute path supported for external games; monorepo cache default may still be `Projects/Sandbox`).
+- Root CMake `LEON_PRODUCT=Engine|Project`; Editor uses `cmake -S Editor`. Artifacts: `out/Engine`, `out/Editor`, `out/Projects/<Name>`. See [BUILD.md](BUILD.md).
+- One Project configure builds **one** game (`LEON_PROJECT_DIR`).
 - There is no UBT / `.Build.cs` yet; CMake + these Python scripts are the lite equivalent.
 - Product shortcuts (e.g. Sandbox) live under `Projects/<Name>/Scripts/`, never as Engine defaults.
 
@@ -65,6 +69,7 @@ Environment: `LEON_ENGINE_ROOT` (optional), `LEON_PROJECT` (or `--project`). Ful
 LeonEngine2/
 ├── Docs/                                  # Technical specifications (NAMING, ARCHITECTURE, …)
 ├── Scripts/                               # Engine tooling — see Docs/SCRIPTS.md
+├── CMake/                                 # Shared CMake helpers (stack, ImGui, sync)
 ├── Engine/
 │   ├── Assets/                            # Engine shaders, fonts, BRDF LUT
 │   ├── CMakeLists.txt                     # LeonEngineCore (single link unit today)
@@ -80,6 +85,12 @@ LeonEngine2/
 │       ├── Audio/Public/Audio/           # FAudioDevice, USoundWave
 │       ├── Physics/Public/Physics/       # IPhysicsScene, traces
 │       └── Lightmass/Public/Lightmass/   # FLightmass, FLightBaker (offline bake)
+├── Editor/
+│   ├── CMakeLists.txt                     # Separate product entry (out/Editor)
+│   ├── Source/Public/Editor/              # FEditorApp, FViewportPanel (NAMING)
+│   ├── Source/Private/
+│   ├── Resources/
+│   └── Legacy/                            # Pre-NAMING ImGui editor (not built)
 ├── Plugins/RHI/OpenGL/                    # FOpenGL* backend
 ├── Plugins/Physics/Jolt/                  # FJoltPhysicsDriver
 ├── Plugins/Networking/ENet/               # FENetTransport

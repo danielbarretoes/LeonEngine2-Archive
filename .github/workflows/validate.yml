@@ -17,11 +17,11 @@ jobs:
       - name: Verify Unreal naming
         run: python Scripts/verify_ue_naming.py
 
-      - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Configure Engine
+        run: cmake -S . -B out/Engine -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEON_PRODUCT=Engine
 
       - name: Build tests and tools
-        run: cmake --build build --config Release --target RendererTests LeonTournamentTests LeonAssetTool
+        run: cmake --build out/Engine --config Release --target RendererTests LeonTournamentTests LeonAssetTool
 
       - name: Run unit tests
         run: python Scripts/run_tests.py
@@ -30,3 +30,17 @@ jobs:
         run: python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
         env:
           LEON_BUILD_CONFIG: Release
+
+  build-editor:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Configure Editor
+        run: cmake -S Editor -B out/Editor -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build LeonEditor
+        run: cmake --build out/Editor --config Release --target LeonEditor

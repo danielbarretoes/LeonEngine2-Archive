@@ -8,7 +8,7 @@ add_executable(Sandbox
 
 target_include_directories(Sandbox PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Source/Sandbox/Public"
-    "${CMAKE_SOURCE_DIR}/Plugins/Physics/Jolt/include"
+    "${LEON_ENGINE_ROOT}/Plugins/Physics/Jolt/include"
 )
 
 target_link_libraries(Sandbox PRIVATE

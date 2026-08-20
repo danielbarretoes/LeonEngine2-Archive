@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(LeonEngine2 
-    VERSION 0.6.0 
+project(LeonEngine2
+    VERSION 0.6.0
     LANGUAGES C CXX
 )
 
@@ -10,74 +10,40 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Include FetchContent module
-include(FetchContent)
+# Repo root for Engine/Plugins/ThirdParty paths (also when nested from Editor).
+set(LEON_ENGINE_ROOT "${CMAKE_SOURCE_DIR}" CACHE PATH "LeonEngine2 repository root")
 
-# GLFW Configuration and Download
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+# Product split: Engine-only libraries/tools, or one Project game executable.
+# Editor is a separate CMake entry point (cmake -S Editor -B out/Editor).
+set(LEON_PRODUCT "Project" CACHE STRING "Build product: Engine | Project")
+set_property(CACHE LEON_PRODUCT PROPERTY STRINGS Engine Project)
 
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG 3.4
-)
-FetchContent_MakeAvailable(glfw)
-
-# GLM (OpenGL Mathematics) Configuration and Download
-FetchContent_Declare(
-    glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG 1.0.1
-)
-FetchContent_MakeAvailable(glm)
-
-# EnTT (Entity Component System) Configuration and Download
-FetchContent_Declare(
-    entt
-    GIT_REPOSITORY https://github.com/skypjack/entt.git
-    GIT_TAG v3.14.0
-)
-FetchContent_MakeAvailable(entt)
-
-
-# Subdirectories (Strict Dependency Order: ThirdParty -> Engine -> Plugins -> Tools -> Project -> Tests)
-add_subdirectory(ThirdParty/glad)
-add_subdirectory(ThirdParty/stb)
-add_subdirectory(ThirdParty/ufbx)
-add_subdirectory(ThirdParty/doctest)
-add_subdirectory(ThirdParty/miniaudio)
-add_subdirectory(Engine)
-add_subdirectory(Plugins/RHI/OpenGL)
-add_subdirectory(Plugins/Physics/Jolt)
-add_subdirectory(Plugins/Networking/ENet)
-add_subdirectory(Tools/LeonAssetTool)
-
-# Game project (monorepo default). Override: -DLEON_PROJECT_DIR=Projects/MyGame
-# Absolute paths outside the Engine tree are supported (Unreal-like external .uproject).
-# Engine CMake never names a product; only this root entry point selects the client.
-set(LEON_PROJECT_DIR "Projects/Sandbox" CACHE PATH "Relative or absolute path to the game project directory")
-if(EXISTS "${CMAKE_SOURCE_DIR}/${LEON_PROJECT_DIR}/CMakeLists.txt")
-    add_subdirectory("${LEON_PROJECT_DIR}")
-elseif(EXISTS "${LEON_PROJECT_DIR}/CMakeLists.txt")
-    get_filename_component(_LEON_PROJECT_FOLDER_NAME "${LEON_PROJECT_DIR}" NAME)
-    add_subdirectory("${LEON_PROJECT_DIR}" "${CMAKE_BINARY_DIR}/Projects/${_LEON_PROJECT_FOLDER_NAME}")
-else()
-    message(WARNING "LEON_PROJECT_DIR='${LEON_PROJECT_DIR}' not found — skipping game target")
+if(NOT LEON_PRODUCT STREQUAL "Engine" AND NOT LEON_PRODUCT STREQUAL "Project")
+    message(FATAL_ERROR "LEON_PRODUCT must be Engine or Project (got '${LEON_PRODUCT}'). Use cmake -S Editor for the editor.")
 endif()
 
-# Extra monorepo games (engine does not depend on them). Skip the already-selected product.
-file(GLOB _LEON_MONOREPO_PROJECT_CMAKES "${CMAKE_SOURCE_DIR}/Projects/*/CMakeLists.txt")
-get_filename_component(_LEON_SELECTED_PROJECT "${LEON_PROJECT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
-foreach(_leon_proj_cmake ${_LEON_MONOREPO_PROJECT_CMAKES})
-    get_filename_component(_leon_proj_dir "${_leon_proj_cmake}" DIRECTORY)
-    get_filename_component(_leon_proj_abs "${_leon_proj_dir}" ABSOLUTE)
-    if(NOT _LEON_SELECTED_PROJECT STREQUAL _leon_proj_abs)
-        get_filename_component(_leon_proj_folder "${_leon_proj_dir}" NAME)
-        add_subdirectory("${_leon_proj_dir}" "${CMAKE_BINARY_DIR}/Projects/${_leon_proj_folder}")
-    endif()
-endforeach()
+# Engine product ships tools + tests. Project product is one game (+ asset tool for packaging).
+if(LEON_PRODUCT STREQUAL "Engine")
+    set(LEON_STACK_WITH_ENET ON)
+    set(LEON_STACK_WITH_TOOLS ON)
+    set(LEON_STACK_WITH_TESTS ON)
+else()
+    set(LEON_STACK_WITH_ENET ON)
+    set(LEON_STACK_WITH_TOOLS ON)
+    set(LEON_STACK_WITH_TESTS OFF)
+endif()
 
-add_subdirectory(Tests)
+include("${LEON_ENGINE_ROOT}/CMake/LeonEngineStack.cmake")
+
+if(LEON_PRODUCT STREQUAL "Project")
+    # One game per configure. Absolute paths supported (external .lproject trees).
+    # Scripts use -B out/Projects/<Name>; game objects go under _project/ (not nested Projects/).
+    set(LEON_PROJECT_DIR "Projects/Sandbox" CACHE PATH "Relative or absolute path to the game project directory")
+    if(EXISTS "${LEON_ENGINE_ROOT}/${LEON_PROJECT_DIR}/CMakeLists.txt")
+        add_subdirectory("${LEON_ENGINE_ROOT}/${LEON_PROJECT_DIR}" "${CMAKE_BINARY_DIR}/_project")
+    elseif(EXISTS "${LEON_PROJECT_DIR}/CMakeLists.txt")
+        add_subdirectory("${LEON_PROJECT_DIR}" "${CMAKE_BINARY_DIR}/_project")
+    else()
+        message(WARNING "LEON_PROJECT_DIR='${LEON_PROJECT_DIR}' not found — skipping game target")
+    endif()
+endif()

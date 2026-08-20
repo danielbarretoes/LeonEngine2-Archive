@@ -1,7 +1,7 @@
 # Naming Conventions — LeonEngine2 (Unreal Engine Standard)
 
 Official naming, directory layout, and coding standards for **LeonEngine2**, aligned with the
-**Unreal Engine C++ Coding Standard**. Architecture details: [ARCHITECTURE.md](ARCHITECTURE.md).
+**Unreal Engine C++ Coding Standard**. Architecture details: [ARCHITECTURE.md](ARCHITECTURE.md). Product build trees: [BUILD.md](BUILD.md).
 
 ---
 
@@ -98,6 +98,20 @@ Includes:
 
 ECS POD components (EnTT): `F*Component` / `FTag`.
 `U*Component` only when the type inherits `UActorComponent` / `UObject`.
+
+### Editor product layout
+
+```text
+Editor/
+├── Source/Public/Editor/     # FEditorApp.hpp, FViewportPanel.hpp, …
+├── Source/Private/           # matching .cpp + main.cpp
+├── Resources/                # icons, brand
+└── Legacy/                   # pre-NAMING ImGui editor — not built; excluded from verify_ue_naming
+```
+
+- Same prefixes and `Leon::` / `Leon::Editor` as Runtime.
+- Includes: `#include "Editor/FEditorApp.hpp"` (via `Editor/Source/Public`).
+- Do not introduce new `<leon/...>` or `leon::` symbols in `Editor/Source/`.
 
 ---
 

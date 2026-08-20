@@ -2,6 +2,12 @@
 # Single link unit for now: cross-module includes (Core↔RHI) match the previous monolith.
 # Folder modules (Core, RHI, Assets, …) remain the include/organization contract.
 
+# When Engine is add_subdirectory'd from Editor, CMAKE_SOURCE_DIR is Editor/.
+# Prefer LEON_ENGINE_ROOT (repo root) for ThirdParty and shared paths.
+if(NOT DEFINED LEON_ENGINE_ROOT)
+    get_filename_component(LEON_ENGINE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+endif()
+
 set(LEON_RUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/Source/Runtime")
 
 set(LEON_ENGINE_SOURCES
@@ -179,7 +185,7 @@ target_include_directories(LeonEngineCore
         "${LEON_RUNTIME_ROOT}/Physics/Public"
         "${LEON_RUNTIME_ROOT}/AI/Public"
         "${LEON_RUNTIME_ROOT}/Audio/Public"
-        "${CMAKE_SOURCE_DIR}/ThirdParty/stb"
+        "${LEON_ENGINE_ROOT}/ThirdParty/stb"
     PRIVATE
         "${LEON_RUNTIME_ROOT}/Lightmass/Public"
 )
@@ -216,7 +222,7 @@ target_include_directories(LeonEnginePipeline
     PUBLIC
         "${LEON_RUNTIME_ROOT}/Lightmass/Public"
         "${LEON_RUNTIME_ROOT}/Assets/Public"
-        "${CMAKE_SOURCE_DIR}/ThirdParty/ufbx"
+        "${LEON_ENGINE_ROOT}/ThirdParty/ufbx"
 )
 
 target_compile_features(LeonEnginePipeline PUBLIC cxx_std_20)

@@ -5,40 +5,45 @@ Unreal Engine–inspired C++20 game engine for solo / small-team development. Fo
 ## Quick start
 
 ```bash
-# Configure + build a project (Engine script + --project)
+# Engine libraries / tools / tests → out/Engine
+python Scripts/build_engine.py --config Debug
+
+# Editor skeleton (ImGui) → out/Editor
+python Scripts/build_editor.py --config Debug
+
+# One game project → out/Projects/<Name>
 python Scripts/build_project.py --project Projects/Sandbox/Sandbox.lproject --config Debug
 
 # Build and run
 python Scripts/run_project.py --project Projects/Sandbox/Sandbox.lproject
 
-# Unit / GPU tests (Engine)
+# Unit / GPU tests (Engine product)
 python Scripts/run_tests.py
 
 # Validate project assets
 python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
 ```
 
-Compatibility wrappers `run_sandbox.py` / `validate_sandbox.py` forward to the `--project` scripts.
-
 ## Layout
 
 | Path | Role |
 |------|------|
-| `Scripts/` | Engine tooling (`build_project`, `run_project`, `verify_ue_naming`, …) |
+| `Scripts/` | Engine tooling (`build_engine`, `build_editor`, `build_project`, …) |
+| `CMake/` | Shared CMake (stack, ImGui deps, sync) |
 | `Engine/` | Product-agnostic runtime (`LeonEngineCore`) |
+| `Editor/` | Out-of-process editor (`LeonEditor`); `Legacy/` not built |
 | `Plugins/RHI/OpenGL/` | OpenGL 4.5 RHI plugin |
 | `Projects/Sandbox/` | Reference game (`.lproject`, Content, Main, GameMode/HUD) |
 | `Tools/LeonAssetTool/` | Import / validate CLI |
 | `Docs/` | Architecture, renderer, assets |
 | `Tests/` | Engine suite (`RendererTests`) and `LeonTournamentTests` |
-
-## Sandbox
-
-Reference game. Default boot is `/Game/Maps/ShowcaseLevel` (procedural PBR primitives, `DaySky1k`). IBL/HDR engine tests use `DaySky1k.lhdr`.
+| `out/` | Build artifacts (`Engine`, `Editor`, `Projects/<Name>`) |
 
 ## Docs
 
 - [Architecture](Docs/ARCHITECTURE.md)
+- [Product builds](Docs/BUILD.md)
+- [Editor roadmap](Docs/EDITOR_ROADMAP.md)
 - [Engine architecture](Docs/ENGINE_ARCHITECTURE.md)
 - [Gameplay framework](Docs/GAMEPLAY_FRAMEWORK.md)
 - [Engine / game boundary](Docs/ENGINE_GAME_BOUNDARY.md)

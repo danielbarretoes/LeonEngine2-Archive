@@ -20,8 +20,19 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCAN_ROOTS = ("Engine", "Plugins", "Projects", "Tests", "Tools")
-SKIP_DIR_NAMES = {".git", "build", "ThirdParty", "Content", "Intermediate", "Cache"}
+SCAN_ROOTS = ("Engine", "Plugins", "Projects", "Tests", "Tools", "Editor")
+SKIP_DIR_NAMES = {
+    ".git",
+    "build",
+    "out",
+    "ThirdParty",
+    "Content",
+    "Intermediate",
+    "Cache",
+    "Legacy",
+    "Saved",
+    "Resources",
+}
 
 # Legacy unprefixed aliases that must not remain after the UE naming sweep
 RE_USING_ALIAS = re.compile(

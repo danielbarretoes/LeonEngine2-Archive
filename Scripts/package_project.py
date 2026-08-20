@@ -270,7 +270,7 @@ def main() -> int:
             print("[ERROR] Shipping build failed")
             return build_result.returncode
 
-    build_dir = os.path.join(root, "build")
+    build_dir = os.path.join(root, "out", "Projects", os.path.basename(abs_project_dir))
     exe_src = find_project_executable(build_dir, name, os.path.basename(abs_project_dir))
     if not os.path.isfile(exe_src):
         print(f"[ERROR] Executable not found: {exe_src}")

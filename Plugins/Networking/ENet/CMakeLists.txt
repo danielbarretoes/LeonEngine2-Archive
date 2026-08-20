@@ -1,7 +1,11 @@
 # ENet transport plugin. Gameplay never includes <enet/enet.h>.
 # Vendored: ThirdParty/enet (lsalzman/enet v1.3.18).
 
-set(ENET_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/enet")
+if(NOT DEFINED LEON_ENGINE_ROOT)
+    get_filename_component(LEON_ENGINE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
+endif()
+
+set(ENET_ROOT "${LEON_ENGINE_ROOT}/ThirdParty/enet")
 if(NOT EXISTS "${ENET_ROOT}/include/enet/enet.h")
     message(FATAL_ERROR "Missing vendored enet at ${ENET_ROOT}. Expected include/enet/enet.h")
 endif()
