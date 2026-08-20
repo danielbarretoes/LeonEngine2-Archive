@@ -46,13 +46,22 @@ namespace Leon::Editor {
             }
         }
 
-        // Hotkey 'Delete' to delete selected actor
+        // Hotkey 'Delete' to delete selected actor(s)
         if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && !io.WantTextInput && Context) {
-            AActor* primaryActor = Context->GetSelection().GetPrimarySelectedActor();
-            if (primaryActor && Context->GetActiveWorld()) {
-                Context->GetActiveWorld()->DestroyActor(primaryActor);
-                Context->GetSelection().ClearActorSelection();
+            std::vector<AActor*> actorsToDelete = Context->GetSelection().GetSelectedActors();
+            if (actorsToDelete.empty()) {
+                AActor* primary = Context->GetSelection().GetPrimarySelectedActor();
+                if (primary) actorsToDelete.push_back(primary);
             }
+            UWorld* targetWorld = Context->GetActiveWorld();
+            if (targetWorld) {
+                for (AActor* act : actorsToDelete) {
+                    if (act) {
+                        targetWorld->DestroyActor(act);
+                    }
+                }
+            }
+            Context->GetSelection().ClearActorSelection();
         }
 
         // Camera Speed adjustment via mouse wheel

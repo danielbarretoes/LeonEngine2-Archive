@@ -466,6 +466,20 @@ namespace Leon::Editor {
             if (bShowOutputLog) {
                 SafeDrawPanel("OutputLog", [&]() { OutputLog.Draw(&bShowOutputLog); });
             }
+            // Global Delete shortcut for active world
+            if (EditorWorld && ImGui::IsKeyPressed(ImGuiKey_Delete, false) && !ImGui::GetIO().WantTextInput) {
+                std::vector<AActor*> actorsToDelete = Context.GetSelection().GetSelectedActors();
+                if (actorsToDelete.empty() && SelectedActor) {
+                    actorsToDelete.push_back(SelectedActor);
+                }
+                for (AActor* act : actorsToDelete) {
+                    if (act) {
+                        EditorWorld->DestroyActor(act);
+                    }
+                }
+                Context.GetSelection().ClearActorSelection();
+                SelectedActor = nullptr;
+            }
         }
 
         EndImGuiFrame();

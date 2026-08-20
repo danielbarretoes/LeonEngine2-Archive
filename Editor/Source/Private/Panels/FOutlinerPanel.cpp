@@ -171,6 +171,28 @@ namespace Leon::Editor {
                 ImGui::EndPopup();
             }
 
+            // Delete key shortcut for selected actor(s)
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+                ImGui::IsKeyPressed(ImGuiKey_Delete, false) && !ImGui::GetIO().WantTextInput) {
+                std::vector<AActor*> actorsToDelete;
+                if (Context && Context->GetSelection().GetSelectedActorCount() > 0) {
+                    actorsToDelete = Context->GetSelection().GetSelectedActors();
+                } else if (FallbackSelectedActor) {
+                    actorsToDelete.push_back(FallbackSelectedActor);
+                }
+
+                for (AActor* act : actorsToDelete) {
+                    if (act) {
+                        InWorld->DestroyActor(act);
+                    }
+                }
+
+                if (Context) {
+                    Context->GetSelection().ClearActorSelection();
+                }
+                FallbackSelectedActor = nullptr;
+            }
+
             ImGui::EndChild();
 
             // Footer info
