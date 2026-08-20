@@ -2,6 +2,7 @@
 
 #include "Core/Base.hpp"
 #include "Assets/FAssetTypes.hpp"
+#include "Assets/FLODSettings.hpp"
 #include "RHI/FBuffer.hpp"
 #include "Renderer/FMaterial.hpp"
 #include "Renderer/FMaterialInstance.hpp"
@@ -9,6 +10,7 @@
 #include "RHI/FVertexArray.hpp"
 
 #include <glm/glm.hpp>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -38,10 +40,11 @@ namespace Leon {
     };
 
     constexpr uint32_t LMESH_MAGIC = 0x48534D4C; // 'LMESH' in little-endian
-    constexpr uint32_t LMESH_VERSION = 4;
+    constexpr uint32_t LMESH_VERSION = 5;
     constexpr uint32_t LMESH_VERSION_V1 = 1;
     constexpr uint32_t LMESH_VERSION_V2 = 2;
     constexpr uint32_t LMESH_VERSION_V3 = 3;
+    constexpr uint32_t LMESH_VERSION_V4 = 4;
 
     struct FStaticSubmesh {
         std::string Name;
@@ -59,6 +62,15 @@ namespace Leon {
         std::string SlotName;
         std::string DefaultMaterialPath; // Virtual path to .lmat or .lmi
         TRef<FMaterialInstance> MaterialInstance = nullptr;
+    };
+
+    /** Reduced static-mesh LOD (LOD1+). LOD0 is Vertices/Indices/Submeshes on UStaticMesh. */
+    struct FStaticMeshLOD {
+        std::vector<FStaticMeshVertex> Vertices;
+        std::vector<uint32_t> Indices;
+        std::vector<FStaticSubmesh> Submeshes;
+        TRef<FVertexArray> VertexArray;
+        float TriangleRatio = 1.0f;
     };
 
     class UStaticMesh : public std::enable_shared_from_this<UStaticMesh> {
@@ -109,6 +121,17 @@ namespace Leon {
 
         TRef<FVertexArray> GetVertexArray() const { return VertexArray; }
 
+        uint32_t GetLODCount() const { return 1u + static_cast<uint32_t>(ReducedLODs.size()); }
+        uint32_t GetLODSettingsHash() const { return LODSettingsHash; }
+        TRef<FVertexArray> GetLODVertexArray(uint32_t InLOD) const;
+        const std::vector<FStaticSubmesh>& GetLODSubmeshes(uint32_t InLOD) const;
+        uint32_t GetLODIndexCount(uint32_t InLOD) const;
+        uint32_t GetSourceTriangleCount() const { return static_cast<uint32_t>(Indices.size() / 3); }
+        uint32_t GetLODTriangleCount(uint32_t InLOD) const { return GetLODIndexCount(InLOD) / 3; }
+
+        /** Build reduced LODs from current source geometry. Safe on tiny/degenerate meshes. */
+        void BuildAutomaticLODs(const FLODSettings& InSettings = FLODSettings::Default());
+
         /** Allocate GPU VertexArray, FVertexBuffer, FIndexBuffer and upload geometry */
         void CreateGPUResources();
 
@@ -136,6 +159,13 @@ namespace Leon {
 
         TRef<FVertexArray> VertexArray;
         bool bHasUniqueLightmapUV = false;
+        std::vector<FStaticMeshLOD> ReducedLODs;
+        uint32_t LODSettingsHash = 0;
+
+        TRef<FVertexArray> UploadGeometry(const std::vector<FStaticMeshVertex>& InVertices,
+                                          const std::vector<uint32_t>& InIndices) const;
+        bool WriteLODBlob(std::ostream& InFile, const FStaticMeshLOD& InLOD) const;
+        bool ReadLODBlob(std::istream& InFile, FStaticMeshLOD& OutLOD);
     };
 
     /**

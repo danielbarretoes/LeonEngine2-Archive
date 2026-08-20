@@ -238,6 +238,8 @@ namespace Leon {
                 Indent(ss, 3);
                 ss << "Radius: " << mc.MeshRadius << "\n";
                 Indent(ss, 3);
+                ss << "MetersPerUv: " << mc.MeshMetersPerUv << "\n";
+                Indent(ss, 3);
                 ss << "SubdivisionsX: " << mc.MeshSubdivX << "\n";
                 Indent(ss, 3);
                 ss << "SubdivisionsZ: " << mc.MeshSubdivZ << "\n";

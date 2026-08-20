@@ -51,6 +51,7 @@ set(LEON_ENGINE_TEST_SOURCES
     Asset/TextureImportTests.cpp
     Asset/HDRAssetTests.cpp
     Asset/MeshImportTests.cpp
+    Asset/StaticMeshLODTests.cpp
     Asset/AssetCacheUnloadTests.cpp
     Physics/TriangleMeshCollisionTests.cpp
     Physics/JoltPhysicsSceneTests.cpp

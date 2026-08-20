@@ -3,6 +3,8 @@
 #include "RHI/FBuffer.hpp"
 
 #include <cmath>
+#include <cstdio>
+#include <array>
 #include <string>
 #include <unordered_map>
 #include <glm/glm.hpp>
@@ -110,6 +112,72 @@ namespace Leon {
         std::vector<uint32_t> indices = {0,  1,  2,  2,  3,  0,  4,  5,  6,  6,  7,  4,  8,  9,  10, 10, 11, 8,
                                          12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20};
         return CachePrimitive(key, BuildCanonicalMesh(vertices, indices));
+    }
+
+    TRef<FVertexArray> FMeshPrimitives::CreateBox(float InSizeX, float InSizeY, float InSizeZ, float InMetersPerUv) {
+        const float mpu = std::max(InMetersPerUv, 0.05f);
+        const float sx = std::max(InSizeX, 0.01f);
+        const float sy = std::max(InSizeY, 0.01f);
+        const float sz = std::max(InSizeZ, 0.01f);
+        char keyBuf[128];
+        std::snprintf(keyBuf, sizeof(keyBuf), "box:%.4f:%.4f:%.4f:%.4f", sx, sy, sz, mpu);
+        if (auto cached = FindCachedPrimitive(keyBuf))
+            return cached;
+
+        const float hx = sx * 0.5f;
+        const float hy = sy * 0.5f;
+        const float hz = sz * 0.5f;
+        const float ux = sx / mpu;
+        const float uy = sy / mpu;
+        const float uz = sz / mpu;
+
+        std::vector<float> vertices;
+        vertices.reserve(24 * kCanonicalVertexFloats);
+
+        auto faceUV = [](float InU, float InV) {
+            return std::array<glm::vec2, 4>{{{0.0f, 0.0f}, {InU, 0.0f}, {InU, InV}, {0.0f, InV}}};
+        };
+
+        // Front (+Z)
+        {
+            glm::vec3 p[4] = {{-hx, -hy, hz}, {hx, -hy, hz}, {hx, hy, hz}, {-hx, hy, hz}};
+            auto uv = faceUV(ux, uy);
+            PushQuad(vertices, p, uv.data(), {0, 0, 1}, {1, 0, 0}, {0, 1, 0}, 0);
+        }
+        // Back (-Z)
+        {
+            glm::vec3 p[4] = {{hx, -hy, -hz}, {-hx, -hy, -hz}, {-hx, hy, -hz}, {hx, hy, -hz}};
+            auto uv = faceUV(ux, uy);
+            PushQuad(vertices, p, uv.data(), {0, 0, -1}, {-1, 0, 0}, {0, 1, 0}, 1);
+        }
+        // Top (+Y)
+        {
+            glm::vec3 p[4] = {{-hx, hy, hz}, {hx, hy, hz}, {hx, hy, -hz}, {-hx, hy, -hz}};
+            auto uv = faceUV(ux, uz);
+            PushQuad(vertices, p, uv.data(), {0, 1, 0}, {1, 0, 0}, {0, 0, -1}, 2);
+        }
+        // Bottom (-Y)
+        {
+            glm::vec3 p[4] = {{-hx, -hy, -hz}, {hx, -hy, -hz}, {hx, -hy, hz}, {-hx, -hy, hz}};
+            auto uv = faceUV(ux, uz);
+            PushQuad(vertices, p, uv.data(), {0, -1, 0}, {1, 0, 0}, {0, 0, 1}, 3);
+        }
+        // Left (-X)
+        {
+            glm::vec3 p[4] = {{-hx, -hy, -hz}, {-hx, -hy, hz}, {-hx, hy, hz}, {-hx, hy, -hz}};
+            auto uv = faceUV(uz, uy);
+            PushQuad(vertices, p, uv.data(), {-1, 0, 0}, {0, 0, 1}, {0, 1, 0}, 4);
+        }
+        // Right (+X)
+        {
+            glm::vec3 p[4] = {{hx, -hy, hz}, {hx, -hy, -hz}, {hx, hy, -hz}, {hx, hy, hz}};
+            auto uv = faceUV(uz, uy);
+            PushQuad(vertices, p, uv.data(), {1, 0, 0}, {0, 0, -1}, {0, 1, 0}, 5);
+        }
+
+        std::vector<uint32_t> indices = {0,  1,  2,  2,  3,  0,  4,  5,  6,  6,  7,  4,  8,  9,  10, 10, 11, 8,
+                                         12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20};
+        return CachePrimitive(keyBuf, BuildCanonicalMesh(vertices, indices));
     }
 
     TRef<FVertexArray> FMeshPrimitives::CreateQuad(float InWidth, float InHeight) {

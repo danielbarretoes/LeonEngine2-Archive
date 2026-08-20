@@ -417,4 +417,23 @@ TEST_SUITE("Renderer contract - transforms, TBN, PBR, color, shadows") {
         CHECK(fromOrigin == doctest::Approx(0.0f));
         CHECK(fromCenter == doctest::Approx(100.0f));
     }
+
+    TEST_CASE("SelectClosestSkinnedShadowCasters keeps nearest ids inside budget") {
+        std::vector<Leon::FSkinnedShadowCasterRank> ranks = {
+            {100.0f, 3},
+            {4.0f, 1},
+            {25.0f, 2},
+            {81.0f, 4},
+        };
+        Leon::SelectClosestSkinnedShadowCasters(ranks, 2, 6.0f);
+        REQUIRE(ranks.size() == 2);
+        CHECK(ranks[0].Id == 1);
+        CHECK(ranks[1].Id == 2);
+
+        std::vector<Leon::FSkinnedShadowCasterRank> unlimited = {{9.0f, 8}, {1.0f, 7}};
+        Leon::SelectClosestSkinnedShadowCasters(unlimited, 0, 0.0f);
+        REQUIRE(unlimited.size() == 2);
+        CHECK(unlimited[0].Id == 7);
+        CHECK(unlimited[1].Id == 8);
+    }
 }

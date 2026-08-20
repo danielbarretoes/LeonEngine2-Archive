@@ -16,6 +16,7 @@ namespace Leon {
             return nullptr;
         AActor* actor = InWorld->SpawnActor<AActor>(InName);
         actor->SetActorLocation(InLocation);
+        // Collision uses unit box * scale; visual Box meshes bake size into the VA (actor scale = 1).
         actor->SetActorScale(InScale);
         auto box = actor->AddActorComponent<UBoxComponent>("Box");
         box->SetBoxExtent(glm::vec3(0.5f));
@@ -27,7 +28,7 @@ namespace Leon {
     AActor* FProceduralPrimitiveSpawner::SpawnMeshBox(UWorld* InWorld, const std::string& InName,
                                                       const glm::vec3& InLocation, const glm::vec3& InScale,
                                                       const glm::vec3& InColor, const std::string& InMaterialPath,
-                                                      float InUvTile, bool bUsePlanarReflection,
+                                                      float InMetersPerUv, bool bUsePlanarReflection,
                                                       bool bVisibleInReflection) {
         AActor* actor = SpawnStaticBox(InWorld, InName, InLocation, InScale);
         if (!actor)
@@ -35,14 +36,24 @@ namespace Leon {
         if (!FApplication::HasInstance())
             return actor;
 
-        auto va = FMeshPrimitives::CreateCube(1.0f);
+        const float mpu = InMetersPerUv > 0.0f ? InMetersPerUv : 1.0f;
+        auto va = FMeshPrimitives::CreateBox(InScale.x, InScale.y, InScale.z, mpu);
         auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
         if (!va || !shader)
             return actor;
 
+        // Size is in the mesh; keep collision via previous scale, then clear visual scale.
+        actor->SetActorScale({1.0f, 1.0f, 1.0f});
+        if (auto box = actor->FindActorComponent<UBoxComponent>())
+            box->SetBoxExtent(InScale * 0.5f);
+
         auto& mesh = actor->AddComponent<FMeshComponent>(va, shader);
-        mesh.MeshType = "Cube";
+        mesh.MeshType = "Box";
         mesh.MeshSize = 1.0f;
+        mesh.MeshWidth = InScale.x;
+        mesh.MeshHeight = InScale.y;
+        mesh.MeshDepth = InScale.z;
+        mesh.MeshMetersPerUv = mpu;
         mesh.Mobility = EComponentMobility::Static;
         mesh.LightmapResolution = 64;
         mesh.bCastShadows = true;
@@ -52,10 +63,10 @@ namespace Leon {
         if (!InMaterialPath.empty()) {
             if (auto mat = UAssetManager::GetMaterialInstance(InMaterialPath)) {
                 mat->SetAlbedoColor(InColor);
-                if (InUvTile > 0.0f)
-                    mat->SetUVTiling({InUvTile, InUvTile});
+                // UVs already encode meters / InMetersPerUv — keep material tiling at 1.
+                mat->SetUVTiling({1.0f, 1.0f});
                 mat->SetUsePlanarReflection(bUsePlanarReflection);
-                actor->AddComponent<FMaterialComponent>(mat);
+                actor->AddComponent<FMaterialComponent>(mat, InMaterialPath);
                 return actor;
             }
         }

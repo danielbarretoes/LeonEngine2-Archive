@@ -246,6 +246,7 @@ namespace Leon {
 
         FRenderer::ResetStats();
         FFrameProfiler::Working().ShadowDrawCalls = 0;
+        FrameViewCamera = &InCamera;
 
         auto& reg = World->GetRegistry();
 
@@ -315,10 +316,18 @@ namespace Leon {
                 bHasSpotLight = true;
             }
         }
-        if (truncatedPointLights > 0)
-            LE_CORE_WARN("FWorldRenderer: truncated {0} point lights (UBO limit 16)", truncatedPointLights);
-        if (truncatedSpotLights > 0)
-            LE_CORE_WARN("FWorldRenderer: truncated {0} spot lights (UBO limit 8)", truncatedSpotLights);
+        if (truncatedPointLights > 0 && truncatedPointLights != LastTruncatedPointLights) {
+            LE_CORE_WARN("FWorldRenderer: truncated {0} point lights (UBO limit 16) — mark excess as Static "
+                         "when lightmaps cover them",
+                         truncatedPointLights);
+            LastTruncatedPointLights = truncatedPointLights;
+        }
+        if (truncatedSpotLights > 0 && truncatedSpotLights != LastTruncatedSpotLights) {
+            LE_CORE_WARN("FWorldRenderer: truncated {0} spot lights (UBO limit 8) — mark excess as Static "
+                         "when lightmaps cover them",
+                         truncatedSpotLights);
+            LastTruncatedSpotLights = truncatedSpotLights;
+        }
         int shadowedSpotIndex = 0;
         if (bHasSpotLight) {
             shadowedSpotIndex =
@@ -416,6 +425,11 @@ namespace Leon {
         const bool bShadowsOn = ShadowSettings.bEnableShadows;
         if (bShadowsOn && ((bHasDirLight && ShadowSettings.CascadeCount > 0) || bHasSpotLight || shadowedPointCount > 0)) {
             FGpuCpuScope shadow(&FFrameProfiler::Working().ShadowMs, EGPUTimerSlot::Shadow);
+            // Flow: skinned shadow budget
+            // 1. Rank visible skinned casters by camera distance
+            // 2. Keep the closest N inside SkinnedShadowMaxDistance
+            // 3. Draw that set only on the nearest CSM slices (plus spot/point)
+            RefreshSkinnedShadowCasterSelection(InCamera.GetPosition());
             if (bHasDirLight && ShadowSettings.CascadeCount > 0)
                 RenderCascadedShadowPass(InCamera, &dirLightComp, mainCamData);
             if (bHasSpotLight)

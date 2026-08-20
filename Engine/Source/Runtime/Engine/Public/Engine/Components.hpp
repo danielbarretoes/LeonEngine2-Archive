@@ -12,6 +12,7 @@
 #include "Renderer/FPerspectiveCamera.hpp"
 #include "RHI/FShader.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/FLODSettings.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Engine/EMobility.hpp"
 #include "Engine/ECollisionChannel.hpp"
@@ -113,6 +114,8 @@ namespace Leon {
         float MeshHeight = 1.0f;
         float MeshDepth = 1.0f;
         float MeshRadius = 0.5f;
+        /** World meters per UV tile for Box primitives (CreateBox). */
+        float MeshMetersPerUv = 1.0f;
         unsigned int MeshSubdivX = 24;
         unsigned int MeshSubdivZ = 24;
         std::string ShaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
@@ -143,6 +146,9 @@ namespace Leon {
         glm::vec2 LightmapScale{1.0f, 1.0f};
         glm::vec2 LightmapBias{0.0f, 0.0f};
         std::string LightmapAssetPath; ///< Virtual path to .llightmap (atlas for this world/instance)
+        uint32_t CurrentLOD = 0;
+        uint32_t ForcedLOD = kForcedLODAuto;
+        bool bUseCoarserShadowLOD = true;
 
         FStaticMeshComponent() = default;
         FStaticMeshComponent(const FStaticMeshComponent&) = default;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Assets/FAnimTypes.hpp"
+#include "Assets/FLODSettings.hpp"
 #include "Engine/Components.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
@@ -27,6 +28,47 @@
 namespace Leon {
 
     constexpr uint32_t kMaxOpaqueInstances = 64;
+
+    inline float MaxAffineScale(const glm::mat4& InMatrix) {
+        return std::max({glm::length(glm::vec3(InMatrix[0])), glm::length(glm::vec3(InMatrix[1])),
+                         glm::length(glm::vec3(InMatrix[2])), 1.0e-4f});
+    }
+
+    inline uint32_t UpdateStaticMeshLOD(FStaticMeshComponent& InComp, const glm::mat4& InWorld,
+                                        const FPerspectiveCamera* InCamera) {
+        if (!InComp.StaticMesh)
+            return 0;
+        const uint32_t count = std::max(1u, InComp.StaticMesh->GetLODCount());
+        if (InComp.ForcedLOD != kForcedLODAuto) {
+            InComp.CurrentLOD = std::min(InComp.ForcedLOD, count - 1);
+            return InComp.CurrentLOD;
+        }
+        if (!InCamera) {
+            InComp.CurrentLOD = std::min(InComp.CurrentLOD, count - 1);
+            return InComp.CurrentLOD;
+        }
+        const glm::vec3 center = glm::vec3(InWorld * glm::vec4(InComp.StaticMesh->GetSphereCenter(), 1.0f));
+        const float radius = InComp.StaticMesh->GetSphereRadius() * MaxAffineScale(InWorld);
+        const float screen =
+            ComputeProjectedScreenHeight(center, radius, InCamera->GetPosition(), InCamera->GetFOV());
+        InComp.CurrentLOD = SelectStaticMeshLOD(screen, InComp.CurrentLOD, count);
+        return InComp.CurrentLOD;
+    }
+
+    inline uint32_t ShadowLODIndex(const FStaticMeshComponent& InComp, uint32_t InSelected) {
+        const uint32_t count = InComp.StaticMesh ? std::max(1u, InComp.StaticMesh->GetLODCount()) : 1u;
+        if (!InComp.bUseCoarserShadowLOD)
+            return std::min(InSelected, count - 1);
+        return std::min(InSelected + 1u, count - 1);
+    }
+
+    inline void RecordStaticMeshLODStats(uint32_t InLOD, uint32_t InSourceTris, uint32_t InSubmittedTris) {
+        auto& stats = FRenderer::GetStatsMutable();
+        if (InLOD < kRenderStatLODSlots)
+            stats.StaticMeshLODCounts[InLOD]++;
+        stats.StaticMeshSourceTriangles += InSourceTris;
+        stats.StaticMeshSubmittedTriangles += InSubmittedTris;
+    }
 
     struct FGpuCpuScope {
         FFrameProfiler::FScope Cpu;

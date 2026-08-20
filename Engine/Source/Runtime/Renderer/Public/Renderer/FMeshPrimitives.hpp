@@ -17,6 +17,12 @@ namespace Leon {
         static TRef<FVertexArray> CreateCube(float InSize = 1.0f);
 
         /**
+         * @brief Non-uniform box with UV0 in world meters / InMetersPerUv (correct wall/floor tiling under scale).
+         * Mesh is centered at origin with full extents InSizeX/Y/Z (actor scale should stay 1).
+         */
+        static TRef<FVertexArray> CreateBox(float InSizeX, float InSizeY, float InSizeZ, float InMetersPerUv = 1.0f);
+
+        /**
          * @brief Creates an indexed 2D quad / rectangle on the XY plane (4 vertices, 6 indices).
          * @param InWidth Width along the X axis.
          * @param InHeight Height along the Y axis.

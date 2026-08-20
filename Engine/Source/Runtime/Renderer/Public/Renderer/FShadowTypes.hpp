@@ -1,9 +1,11 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace Leon {
 
@@ -56,7 +58,43 @@ namespace Leon {
         static constexpr uint32_t kMaxShadowedPointLights = 4;
         /// Bind-pose AABB is inflated so animation that leaves rest bounds still casts.
         static constexpr float kSkinnedShadowBoundsPadding = 1.35f;
+
+        /// Closest N skinned meshes may cast shadows. 0 = no count cap.
+        uint32_t MaxSkinnedShadowCasters = 4;
+        /// Skip skinned casters beyond this camera distance (meters). 0 = no distance cap.
+        float SkinnedShadowMaxDistance = 28.0f;
+        /// Only the first N CSM slices draw skinned casters. Far cascades stay world-only.
+        uint32_t MaxSkinnedShadowCascades = 1;
     };
+
+    struct FSkinnedShadowCasterRank {
+        float DistanceSq = 0.0f;
+        uint32_t Id = 0;
+    };
+
+    /**
+     * Keep the closest casters inside the distance budget. InMaxCount 0 disables the count cap;
+     * InMaxDistance <= 0 disables the distance cap.
+     */
+    inline void SelectClosestSkinnedShadowCasters(std::vector<FSkinnedShadowCasterRank>& InOutRanks,
+                                                  uint32_t InMaxCount, float InMaxDistance) {
+        if (InMaxDistance > 0.0f) {
+            const float maxSq = InMaxDistance * InMaxDistance;
+            InOutRanks.erase(std::remove_if(InOutRanks.begin(), InOutRanks.end(),
+                                            [maxSq](const FSkinnedShadowCasterRank& InRank) {
+                                                return InRank.DistanceSq > maxSq;
+                                            }),
+                             InOutRanks.end());
+        }
+        std::sort(InOutRanks.begin(), InOutRanks.end(),
+                  [](const FSkinnedShadowCasterRank& InA, const FSkinnedShadowCasterRank& InB) {
+                      if (InA.DistanceSq != InB.DistanceSq)
+                          return InA.DistanceSq < InB.DistanceSq;
+                      return InA.Id < InB.Id;
+                  });
+        if (InMaxCount > 0 && InOutRanks.size() > InMaxCount)
+            InOutRanks.resize(InMaxCount);
+    }
 
     /** INI / console tokens: Hard, PCF3x3, PCF5x5, Poisson. Default PCF3x3. */
     inline EShadowFilterMode ParseShadowFilterMode(const std::string& InValue) {

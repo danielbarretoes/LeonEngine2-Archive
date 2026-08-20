@@ -135,39 +135,6 @@ namespace Leon {
         const char* ArenaMapFileName() {
             return IsNightArenaMap() ? "TournamentArenaNight.lmap" : "TournamentArena.lmap";
         }
-
-        void SpawnNightArenaLights(UWorld* InWorld) {
-            if (!InWorld)
-                return;
-            const glm::vec3 warm{1.0f, 0.72f, 0.38f};
-            const glm::vec3 cool{0.45f, 0.68f, 1.0f};
-            const glm::vec3 sodium{1.0f, 0.62f, 0.22f};
-            // Stationary: runtime direct in the UBO + Lightmass bounce. Static would be bake-only
-            // and the night scene went black if the atlas was dim.
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_N", {0.0f, 7.5f, -22.0f}, warm, 12.0f,
-                                                         18.0f, ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_S", {0.0f, 7.5f, 22.0f}, warm, 12.0f, 18.0f,
-                                                         ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_W", {-22.0f, 7.5f, 0.0f}, sodium, 11.0f,
-                                                         17.0f, ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_E", {22.0f, 7.5f, 0.0f}, sodium, 11.0f,
-                                                         17.0f, ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_NW", {-18.0f, 6.5f, -18.0f}, warm, 10.0f,
-                                                         16.0f, ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_SE", {18.0f, 6.5f, 18.0f}, warm, 10.0f,
-                                                         16.0f, ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnPointLight(InWorld, "Night_PL_Mid", {0.0f, 8.0f, 0.0f}, cool, 9.0f, 20.0f,
-                                                         ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnSpotLight(InWorld, "Night_Spot_Mid", {0.0f, 12.0f, 0.0f},
-                                                        {0.0f, -1.0f, 0.0f}, cool, 22.0f, 28.0f, 16.0f, 28.0f,
-                                                        ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnSpotLight(InWorld, "Night_Spot_T1", {-20.0f, 11.0f, -20.0f},
-                                                        {0.25f, -1.0f, 0.25f}, warm, 18.0f, 22.0f, 14.0f, 26.0f,
-                                                        ELightMobility::Stationary);
-            FLeonTournamentArenaBuilder::SpawnSpotLight(InWorld, "Night_Spot_T2", {20.0f, 11.0f, 20.0f},
-                                                        {-0.25f, -1.0f, -0.25f}, warm, 18.0f, 22.0f, 14.0f, 26.0f,
-                                                        ELightMobility::Stationary);
-        }
     } // namespace
 
     ALeonTournamentGameMode::ALeonTournamentGameMode(entt::entity InHandle, UWorld* InWorld, const std::string& InName)
@@ -437,96 +404,32 @@ namespace Leon {
             return;
         bArenaBuilt = true;
 
-        constexpr float kHalf = 36.0f;
-        constexpr float kWallH = 14.0f;
         const bool bHasGeometry = World->FindActorByName("Floor") != nullptr;
 
         if (!bHasGeometry) {
-            FLeonTournamentArenaBuilder::SpawnBox(World, "Floor", {0.0f, -0.25f, 0.0f},
-                                                  {kHalf * 2.0f, 0.5f, kHalf * 2.0f},
-                                                  ELeonTournamentArenaSurface::Floor, {1.0f, 1.0f, 1.0f}, 8.0f);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "WallN", {0.0f, kWallH * 0.5f, -kHalf},
-                                                  {kHalf * 2.0f, kWallH, 0.8f}, ELeonTournamentArenaSurface::Wall,
-                                                  {1.0f, 1.0f, 1.0f}, 3.0f);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "WallS", {0.0f, kWallH * 0.5f, kHalf},
-                                                  {kHalf * 2.0f, kWallH, 0.8f}, ELeonTournamentArenaSurface::Wall,
-                                                  {1.0f, 1.0f, 1.0f}, 3.0f);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "WallW", {-kHalf, kWallH * 0.5f, 0.0f},
-                                                  {0.8f, kWallH, kHalf * 2.0f}, ELeonTournamentArenaSurface::Wall,
-                                                  {1.0f, 1.0f, 1.0f}, 3.0f);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "WallE", {kHalf, kWallH * 0.5f, 0.0f},
-                                                  {0.8f, kWallH, kHalf * 2.0f}, ELeonTournamentArenaSurface::Wall,
-                                                  {1.0f, 1.0f, 1.0f}, 3.0f);
-        }
-
-        if (FApplication::HasInstance()) {
+            FLeonTournamentArenaBuilder::PopulateArena(World, IsNightArenaMap());
+        } else if (FApplication::HasInstance()) {
             if (auto* renderer = World->GetWorldRenderer()) {
                 renderer->ClearPlanarReflectionPlanes();
                 renderer->AddPlanarReflectionPlane({0.0f, 1.0f, 0.0f}, 0.0f);
             }
         }
 
-        if (!bHasGeometry) {
-            auto maze = [&](const char* n, const glm::vec3& loc, const glm::vec3& sc) {
-                FLeonTournamentArenaBuilder::SpawnBox(World, n, loc, sc, ELeonTournamentArenaSurface::Wall,
-                                                      {0.92f, 0.92f, 0.95f}, 2.0f);
-            };
-            maze("MazeW_A", {-12.0f, 2.2f, -28.0f}, {0.8f, 4.4f, 8.0f});
-            maze("MazeW_B", {-12.0f, 2.2f, -10.0f}, {0.8f, 4.4f, 12.0f});
-            maze("MazeW_C", {-12.0f, 2.2f, 10.0f}, {0.8f, 4.4f, 12.0f});
-            maze("MazeW_D", {-12.0f, 2.2f, 28.0f}, {0.8f, 4.4f, 8.0f});
-            maze("MazeE_A", {12.0f, 2.2f, -28.0f}, {0.8f, 4.4f, 8.0f});
-            maze("MazeE_B", {12.0f, 2.2f, -10.0f}, {0.8f, 4.4f, 12.0f});
-            maze("MazeE_C", {12.0f, 2.2f, 10.0f}, {0.8f, 4.4f, 12.0f});
-            maze("MazeE_D", {12.0f, 2.2f, 28.0f}, {0.8f, 4.4f, 8.0f});
-            maze("MazeN_A", {-28.0f, 2.2f, -12.0f}, {8.0f, 4.4f, 0.8f});
-            maze("MazeN_B", {-8.0f, 2.2f, -12.0f}, {14.0f, 4.4f, 0.8f});
-            maze("MazeN_C", {8.0f, 2.2f, -12.0f}, {14.0f, 4.4f, 0.8f});
-            maze("MazeN_D", {28.0f, 2.2f, -12.0f}, {8.0f, 4.4f, 0.8f});
-            maze("MazeS_A", {-28.0f, 2.2f, 12.0f}, {8.0f, 4.4f, 0.8f});
-            maze("MazeS_B", {-8.0f, 2.2f, 12.0f}, {14.0f, 4.4f, 0.8f});
-            maze("MazeS_C", {8.0f, 2.2f, 12.0f}, {14.0f, 4.4f, 0.8f});
-            maze("MazeS_D", {28.0f, 2.2f, 12.0f}, {8.0f, 4.4f, 0.8f});
+        constexpr float kHalf = FLeonTournamentArenaBuilder::kHalfExtent;
 
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverA", {-22.0f, 1.15f, -22.0f}, {3.6f, 2.3f, 1.4f},
-                                                  ELeonTournamentArenaSurface::Prop);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverB", {22.0f, 1.15f, 22.0f}, {3.6f, 2.3f, 1.4f},
-                                                  ELeonTournamentArenaSurface::Metal, {0.7f, 0.75f, 0.85f});
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverC", {-22.0f, 1.15f, 22.0f}, {1.6f, 2.3f, 3.6f},
-                                                  ELeonTournamentArenaSurface::Accent);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverD", {22.0f, 1.15f, -22.0f}, {1.6f, 2.3f, 3.6f},
-                                                  ELeonTournamentArenaSurface::Accent);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverMidW", {-4.0f, 1.15f, 0.0f}, {2.8f, 2.3f, 1.2f},
-                                                  ELeonTournamentArenaSurface::Metal);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverMidE", {4.0f, 1.15f, 0.0f}, {2.8f, 2.3f, 1.2f},
-                                                  ELeonTournamentArenaSurface::Metal);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverN", {0.0f, 1.15f, -20.0f}, {4.0f, 2.3f, 1.3f},
-                                                  ELeonTournamentArenaSurface::Prop);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "CoverS", {0.0f, 1.15f, 20.0f}, {4.0f, 2.3f, 1.3f},
-                                                  ELeonTournamentArenaSurface::Prop);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "PillarNW", {-18.0f, 2.5f, -18.0f}, {1.2f, 5.0f, 1.2f},
-                                                  ELeonTournamentArenaSurface::Metal);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "PillarNE", {18.0f, 2.5f, -18.0f}, {1.2f, 5.0f, 1.2f},
-                                                  ELeonTournamentArenaSurface::Metal);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "PillarSW", {-18.0f, 2.5f, 18.0f}, {1.2f, 5.0f, 1.2f},
-                                                  ELeonTournamentArenaSurface::Metal);
-            FLeonTournamentArenaBuilder::SpawnBox(World, "PillarSE", {18.0f, 2.5f, 18.0f}, {1.2f, 5.0f, 1.2f},
-                                                  ELeonTournamentArenaSurface::Metal);
-        }
-
-        Team1Spawns = {{-28.0f, 2.0f, -24.0f}, {-28.0f, 2.0f, -8.0f}, {-28.0f, 2.0f, 8.0f}, {-28.0f, 2.0f, 24.0f},
-                       {-24.0f, 2.0f, -24.0f}, {-24.0f, 2.0f, 24.0f}, {-30.0f, 2.0f, 0.0f}, {-20.0f, 2.0f, 0.0f},
-                       {-26.0f, 2.0f, -14.0f}, {-26.0f, 2.0f, 14.0f}};
-        Team2Spawns = {{28.0f, 2.0f, 24.0f}, {28.0f, 2.0f, 8.0f},   {28.0f, 2.0f, -8.0f}, {28.0f, 2.0f, -24.0f},
-                       {24.0f, 2.0f, 24.0f}, {24.0f, 2.0f, -24.0f}, {30.0f, 2.0f, 0.0f},  {20.0f, 2.0f, 0.0f},
-                       {26.0f, 2.0f, 14.0f}, {26.0f, 2.0f, -14.0f}};
-        Waypoints = {{-24.0f, 2.0f, -24.0f}, {-24.0f, 2.0f, 0.0f},  {-24.0f, 2.0f, 24.0f}, {0.0f, 2.0f, -24.0f},
-                     {0.0f, 2.0f, 0.0f},     {0.0f, 2.0f, 24.0f},   {24.0f, 2.0f, -24.0f}, {24.0f, 2.0f, 0.0f},
-                     {24.0f, 2.0f, 24.0f},   {-12.0f, 2.0f, 0.0f},  {12.0f, 2.0f, 0.0f},   {0.0f, 2.0f, -12.0f},
-                     {0.0f, 2.0f, 12.0f},    {-20.0f, 2.0f, -8.0f}, {20.0f, 2.0f, 8.0f},   {-8.0f, 2.0f, 20.0f},
-                     {8.0f, 2.0f, -20.0f}};
-        CoverPoints = {{-24.0f, 2.0f, -20.0f}, {-20.0f, 2.0f, -24.0f}, {24.0f, 2.0f, 20.0f},  {20.0f, 2.0f, 24.0f},
-                       {-24.0f, 2.0f, 20.0f},  {-20.0f, 2.0f, 24.0f},  {24.0f, 2.0f, -20.0f}, {20.0f, 2.0f, -24.0f},
+        Team1Spawns = {{-26.0f, 2.0f, -22.0f}, {-26.0f, 2.0f, -8.0f}, {-26.0f, 2.0f, 8.0f}, {-26.0f, 2.0f, 22.0f},
+                       {-22.0f, 2.0f, -22.0f}, {-22.0f, 2.0f, 22.0f}, {-28.0f, 2.0f, 0.0f}, {-18.0f, 2.0f, 0.0f},
+                       {-24.0f, 2.0f, -12.0f}, {-24.0f, 2.0f, 12.0f}};
+        Team2Spawns = {{26.0f, 2.0f, 22.0f}, {26.0f, 2.0f, 8.0f},   {26.0f, 2.0f, -8.0f}, {26.0f, 2.0f, -22.0f},
+                       {22.0f, 2.0f, 22.0f}, {22.0f, 2.0f, -22.0f}, {28.0f, 2.0f, 0.0f},  {18.0f, 2.0f, 0.0f},
+                       {24.0f, 2.0f, 12.0f}, {24.0f, 2.0f, -12.0f}};
+        Waypoints = {{-22.0f, 2.0f, -22.0f}, {-22.0f, 2.0f, 0.0f},  {-22.0f, 2.0f, 22.0f}, {0.0f, 2.0f, -22.0f},
+                     {0.0f, 2.0f, 0.0f},     {0.0f, 2.0f, 22.0f},   {22.0f, 2.0f, -22.0f}, {22.0f, 2.0f, 0.0f},
+                     {22.0f, 2.0f, 22.0f},   {-12.0f, 2.0f, 0.0f},  {12.0f, 2.0f, 0.0f},   {0.0f, 2.0f, -12.0f},
+                     {0.0f, 2.0f, 12.0f},    {-18.0f, 2.0f, -8.0f}, {18.0f, 2.0f, 8.0f},   {-8.0f, 2.0f, 18.0f},
+                     {8.0f, 2.0f, -18.0f}};
+        CoverPoints = {{-22.0f, 2.0f, -18.0f}, {-18.0f, 2.0f, -22.0f}, {22.0f, 2.0f, 18.0f},  {18.0f, 2.0f, 22.0f},
+                       {-22.0f, 2.0f, 18.0f},  {-18.0f, 2.0f, 22.0f},  {22.0f, 2.0f, -18.0f}, {18.0f, 2.0f, -22.0f},
                        {-6.0f, 2.0f, 0.0f},    {6.0f, 2.0f, 0.0f},     {0.0f, 2.0f, -14.0f},  {0.0f, 2.0f, 14.0f},
                        {-8.0f, 2.0f, -8.0f},   {8.0f, 2.0f, 8.0f}};
 
@@ -616,42 +519,41 @@ namespace Leon {
         if (!World)
             return;
 
-        // Day: directional + HDR only. Night (`TournamentArenaNight`): moonlight plus a
-        // small Static point set (Lightmass) and a few Stationary spots. Always strip
-        // leftover local lights / Ceiling first so StartMatch cannot stack a second grid.
+        // Strip local lights only (keep geometry). Rebuild Static bake set via arena builder.
         std::vector<AActor*> doomed;
         for (const auto& actor : World->GetAllActors()) {
             if (!actor)
                 continue;
-            const bool bLocalLight =
-                actor->HasComponent<FPointLightComponent>() || actor->HasComponent<FSpotLightComponent>();
-            if (bLocalLight || actor->GetName() == "Ceiling")
+            if (actor->HasComponent<FPointLightComponent>() || actor->HasComponent<FSpotLightComponent>())
                 doomed.push_back(actor.get());
         }
         for (AActor* actor : doomed)
             World->DestroyActor(actor);
 
         const bool bNight = IsNightArenaMap();
+        FLeonTournamentArenaBuilder::BuildLighting(World, bNight);
 
-        AActor* env = World->FindActorByName("Environment Skybox");
+        AActor* env = World->FindActorByName("Environment");
         if (!env)
-            env = World->SpawnActor<AActor>("Environment Skybox");
+            env = World->FindActorByName("Environment Skybox");
+        if (!env)
+            env = World->SpawnActor<AActor>("Environment");
         FSkyboxComponent sky;
         sky.bEnabled = true;
         sky.bUseHDREnvironmentMap = true;
         if (bNight) {
-            sky.Exposure = 0.88f;
-            sky.SunIntensity = 0.35f;
-            sky.EnvironmentIntensity = 0.95f;
+            sky.Exposure = 1.05f;
+            sky.SunIntensity = 1.4f;
+            sky.EnvironmentIntensity = 0.85f;
             sky.HDREnvironmentMapPath = "/Game/HDR/NightSky1k.lhdr";
             sky.SkyZenithColor = {0.02f, 0.04f, 0.10f};
             sky.HorizonColor = {0.08f, 0.10f, 0.18f};
-            sky.GroundColor = {0.03f, 0.03f, 0.04f};
-            sky.SunColor = {0.55f, 0.65f, 0.95f};
+            sky.GroundColor = {0.04f, 0.04f, 0.05f};
+            sky.SunColor = {0.45f, 0.58f, 0.95f};
         } else {
             sky.Exposure = 0.95f;
-            sky.SunIntensity = 2.2f;
-            sky.EnvironmentIntensity = 1.55f;
+            sky.SunIntensity = 2.4f;
+            sky.EnvironmentIntensity = 1.35f;
             sky.HDREnvironmentMapPath = "/Game/HDR/DaySky1k.lhdr";
             sky.SkyZenithColor = {0.12f, 0.28f, 0.55f};
             sky.HorizonColor = {0.55f, 0.62f, 0.75f};
@@ -667,11 +569,11 @@ namespace Leon {
 
         FWorldSettingsComponent ws;
         ws.bStaticLighting = true;
-        ws.LightingBuildQuality = ELightingBuildQuality::Preview;
-        ws.LightmapResolution = 48;
-        ws.NumIndirectBounces = 1;
-        ws.SamplesPerTexel = 4;
-        ws.IndirectIntensity = 1.1f;
+        ws.LightingBuildQuality = ELightingBuildQuality::Draft;
+        ws.LightmapResolution = 64;
+        ws.NumIndirectBounces = 2;
+        ws.SamplesPerTexel = 8;
+        ws.IndirectIntensity = bNight ? 1.15f : 1.1f;
         ws.bAmbientOcclusion = true;
         ws.LightmapAssetPath = ArenaLightmapPath();
         if (env->HasComponent<FWorldSettingsComponent>())
@@ -686,9 +588,9 @@ namespace Leon {
                 sun.bEnabled = true;
                 sun.Mobility = ELightMobility::Stationary;
                 sun.Light.Direction =
-                    glm::normalize(glm::vec3(bNight ? 0.28f : -0.25f, -1.0f, bNight ? -0.32f : -0.35f));
+                    glm::normalize(glm::vec3(bNight ? 0.28f : -0.35f, -1.0f, bNight ? -0.32f : -0.45f));
                 sun.Light.Color = bNight ? glm::vec3(0.45f, 0.58f, 0.95f) : glm::vec3(1.0f, 0.97f, 0.90f);
-                sun.Light.Intensity = bNight ? 1.6f : 3.2f;
+                sun.Light.Intensity = bNight ? 1.6f : 3.0f;
                 bHasSun = true;
                 break;
             }
@@ -699,14 +601,12 @@ namespace Leon {
             FDirectionalLightComponent sun;
             sun.bEnabled = true;
             sun.Mobility = ELightMobility::Stationary;
-            sun.Light.Direction = glm::normalize(glm::vec3(bNight ? 0.28f : -0.25f, -1.0f, bNight ? -0.32f : -0.35f));
+            sun.Light.Direction =
+                glm::normalize(glm::vec3(bNight ? 0.28f : -0.35f, -1.0f, bNight ? -0.32f : -0.45f));
             sun.Light.Color = bNight ? glm::vec3(0.45f, 0.58f, 0.95f) : glm::vec3(1.0f, 0.97f, 0.90f);
-            sun.Light.Intensity = bNight ? 1.6f : 3.2f;
+            sun.Light.Intensity = bNight ? 1.6f : 3.0f;
             sunActor->AddComponent<FDirectionalLightComponent>(sun);
         }
-
-        if (bNight)
-            SpawnNightArenaLights(World);
     }
 
     void ALeonTournamentGameMode::TryApplyCachedArenaLightmaps() {

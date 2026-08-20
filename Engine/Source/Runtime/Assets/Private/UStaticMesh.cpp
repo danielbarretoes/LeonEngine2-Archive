@@ -1,4 +1,5 @@
 #include "Assets/UStaticMesh.hpp"
+#include "Assets/FMeshSimplifier.hpp"
 #include "Core/FLog.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "RHI/IRenderDriver.hpp"
@@ -36,6 +37,24 @@ namespace Leon {
         return UAssetManager::GetDefaultMaterial()->CreateInstance();
     }
 
+    TRef<FVertexArray> UStaticMesh::UploadGeometry(const std::vector<FStaticMeshVertex>& InVertices,
+                                                   const std::vector<uint32_t>& InIndices) const {
+        if (InVertices.empty() || InIndices.empty() || !FRenderDriverRegistry::GetActiveDriver())
+            return nullptr;
+        auto va = FVertexArray::Create();
+        if (!va)
+            return nullptr;
+        TRef<FVertexBuffer> vertexBuffer =
+            FVertexBuffer::Create(reinterpret_cast<const float*>(InVertices.data()),
+                                  static_cast<uint32_t>(InVertices.size() * sizeof(FStaticMeshVertex)));
+        vertexBuffer->SetLayout(MakeCanonicalMeshLayout());
+        va->AddVertexBuffer(vertexBuffer);
+        TRef<FIndexBuffer> indexBuffer =
+            FIndexBuffer::Create(InIndices.data(), static_cast<uint32_t>(InIndices.size()));
+        va->SetIndexBuffer(indexBuffer);
+        return va;
+    }
+
     void UStaticMesh::CreateGPUResources() {
         if (Vertices.empty() || Indices.empty()) {
             LE_CORE_WARN("UStaticMesh: Cannot create GPU resources for empty mesh \"{0}\"", Name);
@@ -46,20 +65,51 @@ namespace Leon {
             return;
         }
 
-        VertexArray = FVertexArray::Create();
-        if (!VertexArray)
+        VertexArray = UploadGeometry(Vertices, Indices);
+        for (auto& lod : ReducedLODs)
+            lod.VertexArray = UploadGeometry(lod.Vertices, lod.Indices);
+    }
+
+    TRef<FVertexArray> UStaticMesh::GetLODVertexArray(uint32_t InLOD) const {
+        if (InLOD == 0)
+            return VertexArray;
+        const uint32_t reduced = InLOD - 1;
+        if (reduced >= ReducedLODs.size())
+            return VertexArray;
+        return ReducedLODs[reduced].VertexArray ? ReducedLODs[reduced].VertexArray : VertexArray;
+    }
+
+    const std::vector<FStaticSubmesh>& UStaticMesh::GetLODSubmeshes(uint32_t InLOD) const {
+        if (InLOD == 0 || InLOD - 1 >= ReducedLODs.size())
+            return Submeshes;
+        return ReducedLODs[InLOD - 1].Submeshes;
+    }
+
+    uint32_t UStaticMesh::GetLODIndexCount(uint32_t InLOD) const {
+        if (InLOD == 0 || InLOD - 1 >= ReducedLODs.size())
+            return static_cast<uint32_t>(Indices.size());
+        return static_cast<uint32_t>(ReducedLODs[InLOD - 1].Indices.size());
+    }
+
+    void UStaticMesh::BuildAutomaticLODs(const FLODSettings& InSettings) {
+        ReducedLODs.clear();
+        LODSettingsHash = InSettings.Hash();
+        if (!InSettings.bGenerateLODs || Vertices.empty() || Indices.size() < 3)
             return;
 
-        TRef<FVertexBuffer> vertexBuffer =
-            FVertexBuffer::Create(reinterpret_cast<const float*>(Vertices.data()),
-                                  static_cast<uint32_t>(Vertices.size() * sizeof(FStaticMeshVertex)));
-
-        vertexBuffer->SetLayout(MakeCanonicalMeshLayout());
-        VertexArray->AddVertexBuffer(vertexBuffer);
-
-        TRef<FIndexBuffer> indexBuffer =
-            FIndexBuffer::Create(Indices.data(), static_cast<uint32_t>(Indices.size()));
-        VertexArray->SetIndexBuffer(indexBuffer);
+        const uint32_t srcTris = static_cast<uint32_t>(Indices.size() / 3);
+        for (size_t i = 1; i < InSettings.Levels.size() && ReducedLODs.size() + 1 < kMaxStaticMeshLODCount; ++i) {
+            const FLODLevel& level = InSettings.Levels[i];
+            FStaticMeshLOD lod;
+            if (!FMeshSimplifier::Simplify(Vertices, Indices, Submeshes, level.TriangleRatio, InSettings.MinTriangleCount,
+                                           lod))
+                break;
+            if (lod.Indices.size() / 3 >= srcTris)
+                break;
+            if (!ReducedLODs.empty() && lod.Indices.size() >= ReducedLODs.back().Indices.size())
+                break;
+            ReducedLODs.push_back(std::move(lod));
+        }
     }
 
     void UStaticMesh::CalculateBounds() {
@@ -106,6 +156,82 @@ namespace Leon {
             submesh.BoundsMin = sMin;
             submesh.BoundsMax = sMax;
         }
+    }
+
+    bool UStaticMesh::WriteLODBlob(std::ostream& InFile, const FStaticMeshLOD& InLOD) const {
+        InFile.write(reinterpret_cast<const char*>(&InLOD.TriangleRatio), sizeof(InLOD.TriangleRatio));
+        const uint32_t vertexCount = static_cast<uint32_t>(InLOD.Vertices.size());
+        const uint32_t indexCount = static_cast<uint32_t>(InLOD.Indices.size());
+        const uint32_t submeshCount = static_cast<uint32_t>(InLOD.Submeshes.size());
+        InFile.write(reinterpret_cast<const char*>(&vertexCount), sizeof(vertexCount));
+        InFile.write(reinterpret_cast<const char*>(&indexCount), sizeof(indexCount));
+        InFile.write(reinterpret_cast<const char*>(&submeshCount), sizeof(submeshCount));
+        for (const auto& sm : InLOD.Submeshes) {
+            const uint32_t nameLen = static_cast<uint32_t>(sm.Name.length());
+            InFile.write(reinterpret_cast<const char*>(&nameLen), sizeof(nameLen));
+            if (nameLen > 0)
+                InFile.write(sm.Name.data(), nameLen);
+            InFile.write(reinterpret_cast<const char*>(&sm.IndexOffset), sizeof(sm.IndexOffset));
+            InFile.write(reinterpret_cast<const char*>(&sm.IndexCount), sizeof(sm.IndexCount));
+            InFile.write(reinterpret_cast<const char*>(&sm.VertexOffset), sizeof(sm.VertexOffset));
+            InFile.write(reinterpret_cast<const char*>(&sm.VertexCount), sizeof(sm.VertexCount));
+            InFile.write(reinterpret_cast<const char*>(&sm.MaterialSlotIndex), sizeof(sm.MaterialSlotIndex));
+            InFile.write(reinterpret_cast<const char*>(&sm.LocalTransform), sizeof(glm::mat4));
+            InFile.write(reinterpret_cast<const char*>(&sm.BoundsMin), sizeof(glm::vec3));
+            InFile.write(reinterpret_cast<const char*>(&sm.BoundsMax), sizeof(glm::vec3));
+        }
+        if (!InLOD.Vertices.empty()) {
+            InFile.write(reinterpret_cast<const char*>(InLOD.Vertices.data()),
+                         static_cast<std::streamsize>(InLOD.Vertices.size() * sizeof(FStaticMeshVertex)));
+        }
+        if (!InLOD.Indices.empty()) {
+            InFile.write(reinterpret_cast<const char*>(InLOD.Indices.data()),
+                         static_cast<std::streamsize>(InLOD.Indices.size() * sizeof(uint32_t)));
+        }
+        return InFile.good();
+    }
+
+    bool UStaticMesh::ReadLODBlob(std::istream& InFile, FStaticMeshLOD& OutLOD) {
+        OutLOD = {};
+        InFile.read(reinterpret_cast<char*>(&OutLOD.TriangleRatio), sizeof(OutLOD.TriangleRatio));
+        uint32_t vertexCount = 0, indexCount = 0, submeshCount = 0;
+        InFile.read(reinterpret_cast<char*>(&vertexCount), sizeof(vertexCount));
+        InFile.read(reinterpret_cast<char*>(&indexCount), sizeof(indexCount));
+        InFile.read(reinterpret_cast<char*>(&submeshCount), sizeof(submeshCount));
+        if (!InFile.good())
+            return false;
+        OutLOD.Submeshes.resize(submeshCount);
+        for (uint32_t i = 0; i < submeshCount; ++i) {
+            uint32_t nameLen = 0;
+            InFile.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
+            if (nameLen > 0) {
+                OutLOD.Submeshes[i].Name.resize(nameLen);
+                InFile.read(&OutLOD.Submeshes[i].Name[0], nameLen);
+            }
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].IndexOffset),
+                        sizeof(OutLOD.Submeshes[i].IndexOffset));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].IndexCount), sizeof(OutLOD.Submeshes[i].IndexCount));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].VertexOffset),
+                        sizeof(OutLOD.Submeshes[i].VertexOffset));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].VertexCount), sizeof(OutLOD.Submeshes[i].VertexCount));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].MaterialSlotIndex),
+                        sizeof(OutLOD.Submeshes[i].MaterialSlotIndex));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].LocalTransform),
+                        sizeof(glm::mat4));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].BoundsMin), sizeof(glm::vec3));
+            InFile.read(reinterpret_cast<char*>(&OutLOD.Submeshes[i].BoundsMax), sizeof(glm::vec3));
+        }
+        OutLOD.Vertices.resize(vertexCount);
+        if (vertexCount > 0) {
+            InFile.read(reinterpret_cast<char*>(OutLOD.Vertices.data()),
+                        static_cast<std::streamsize>(vertexCount * sizeof(FStaticMeshVertex)));
+        }
+        OutLOD.Indices.resize(indexCount);
+        if (indexCount > 0) {
+            InFile.read(reinterpret_cast<char*>(OutLOD.Indices.data()),
+                        static_cast<std::streamsize>(indexCount * sizeof(uint32_t)));
+        }
+        return InFile.good();
     }
 
     bool UStaticMesh::SaveToFile(const std::string& InFilePath) const {
@@ -182,6 +308,15 @@ namespace Leon {
 
         uint8_t uniqueUV = bHasUniqueLightmapUV ? 1 : 0;
         file.write(reinterpret_cast<const char*>(&uniqueUV), sizeof(uniqueUV));
+
+        const uint32_t lodHash = LODSettingsHash != 0 ? LODSettingsHash : FLODSettings::Default().Hash();
+        const uint32_t reducedCount = static_cast<uint32_t>(ReducedLODs.size());
+        file.write(reinterpret_cast<const char*>(&lodHash), sizeof(lodHash));
+        file.write(reinterpret_cast<const char*>(&reducedCount), sizeof(reducedCount));
+        for (const auto& lod : ReducedLODs) {
+            if (!WriteLODBlob(file, lod))
+                return false;
+        }
 
         return file.good();
     }
@@ -302,11 +437,31 @@ namespace Leon {
         }
 
         bHasUniqueLightmapUV = false;
-        if (version >= 4) {
+        if (version >= LMESH_VERSION_V4) {
             uint8_t uniqueUV = 0;
             file.read(reinterpret_cast<char*>(&uniqueUV), sizeof(uniqueUV));
             bHasUniqueLightmapUV = uniqueUV != 0;
         }
+
+        ReducedLODs.clear();
+        LODSettingsHash = 0;
+        if (version >= 5) {
+            uint32_t lodHash = 0;
+            uint32_t reducedCount = 0;
+            file.read(reinterpret_cast<char*>(&lodHash), sizeof(lodHash));
+            file.read(reinterpret_cast<char*>(&reducedCount), sizeof(reducedCount));
+            LODSettingsHash = lodHash;
+            reducedCount = std::min(reducedCount, kMaxStaticMeshLODCount);
+            ReducedLODs.resize(reducedCount);
+            for (uint32_t i = 0; i < reducedCount; ++i) {
+                if (!ReadLODBlob(file, ReducedLODs[i])) {
+                    ReducedLODs.clear();
+                    break;
+                }
+            }
+        }
+        if (ReducedLODs.empty() || LODSettingsHash != FLODSettings::Default().Hash())
+            BuildAutomaticLODs();
 
         AssetPath = InFilePath;
         return file.good();

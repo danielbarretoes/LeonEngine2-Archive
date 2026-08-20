@@ -174,13 +174,20 @@ namespace Leon {
             if (IsStaticMeshCulled(world, staticMeshComp, camFrustum))
                 continue;
 
+            const uint32_t lod = UpdateStaticMeshLOD(staticMeshComp, world, &InCamera);
+            auto lodVA = staticMeshComp.StaticMesh->GetLODVertexArray(lod);
+            if (!lodVA)
+                continue;
+            const auto& submeshes = staticMeshComp.StaticMesh->GetLODSubmeshes(lod);
+            RecordStaticMeshLODStats(lod, staticMeshComp.StaticMesh->GetSourceTriangleCount(),
+                                     staticMeshComp.StaticMesh->GetLODTriangleCount(lod));
+
             TRef<FShader> activeShader = staticMeshComp.Shader
                                              ? staticMeshComp.Shader
                                              : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
             if (!activeShader)
                 continue;
 
-            const auto& submeshes = staticMeshComp.StaticMesh->GetSubmeshes();
             for (const auto& submesh : submeshes) {
                 if (submesh.IndexCount == 0)
                     continue;
@@ -203,7 +210,7 @@ namespace Leon {
                 if (matInst->GetAlphaMode() == EAlphaMode::Blend) {
                     FTransparentDraw draw;
                     draw.Shader = activeShader;
-                    draw.VA = staticMeshComp.StaticMesh->GetVertexArray();
+                    draw.VA = lodVA;
                     draw.Mat = matInst;
                     draw.Model = model;
                     draw.DistanceSq = TransparentSortDistanceSq(model, staticMeshComp.StaticMesh->GetBoundsMin(),
@@ -222,7 +229,7 @@ namespace Leon {
 
                 FOpaqueDraw draw;
                 draw.Shader = activeShader;
-                draw.VA = staticMeshComp.StaticMesh->GetVertexArray();
+                draw.VA = lodVA;
                 draw.Mat = matInst;
                 draw.Model = model;
                 draw.IndexCount = submesh.IndexCount;

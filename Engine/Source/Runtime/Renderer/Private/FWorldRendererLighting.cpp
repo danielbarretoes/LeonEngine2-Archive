@@ -42,7 +42,7 @@ namespace Leon {
     // PASS 1: Cascaded Shadow Pass (OpenGL 4.5 Texture2DArray)
     // =========================================================================
     void FWorldRenderer::DrawShadowCasters(const glm::mat4& InLightSpace, bool bInCullFront, float InPointShadowFarPlane,
-                                           const glm::vec3& InPointLightPos) {
+                                           const glm::vec3& InPointLightPos, bool bInDrawSkinnedCasters) {
         if (!ShadowDepthShader || !World)
             return;
         const FFrustumPlanes lightFrustum = ExtractFrustumPlanes(InLightSpace);
@@ -82,8 +82,13 @@ namespace Leon {
             glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
             if (IsStaticMeshOutsideLightFrustum(world, staticMeshComp, lightFrustum))
                 continue;
-            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
-            for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
+            const uint32_t selected = UpdateStaticMeshLOD(staticMeshComp, world, FrameViewCamera);
+            const uint32_t lod = ShadowLODIndex(staticMeshComp, selected);
+            auto lodVA = staticMeshComp.StaticMesh->GetLODVertexArray(lod);
+            if (!lodVA)
+                continue;
+            lodVA->Bind();
+            for (const auto& submesh : staticMeshComp.StaticMesh->GetLODSubmeshes(lod)) {
                 if (submesh.IndexCount == 0)
                     continue;
                 glm::mat4 model = world * submesh.LocalTransform;
@@ -92,17 +97,18 @@ namespace Leon {
                 ApplyShadowCasterRasterState(matInst.get(), bInCullFront);
                 ShadowDepthShader->SetMat4("u_Model", glm::value_ptr(model));
                 BindShadowCasterAlpha(*ShadowDepthShader, matInst.get());
-                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
-                                                  submesh.IndexOffset);
+                FRenderCommand::DrawIndexedOffset(lodVA, submesh.IndexCount, submesh.IndexOffset);
             }
         }
 
-        if (ShadowDepthSkinnedShader) {
+        if (bInDrawSkinnedCasters && ShadowDepthSkinnedShader) {
             bindDepthUniforms(*ShadowDepthSkinnedShader);
             auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
             for (auto entity : skelView) {
                 auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
                 if (!skel.SkeletalMesh || !skel.SkeletalMesh->GetVertexArray() || !skel.bCastShadows || !skel.bVisible)
+                    continue;
+                if (!IsSkinnedShadowCasterSelected(static_cast<uint32_t>(entity)))
                     continue;
                 glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
                 if (IsSkeletalMeshOutsideLightFrustum(world, skel, lightFrustum))
@@ -123,6 +129,38 @@ namespace Leon {
                 }
             }
         }
+    }
+
+    void FWorldRenderer::RefreshSkinnedShadowCasterSelection(const glm::vec3& InCameraPos) {
+        SelectedSkinnedShadowCasters.clear();
+        const bool bCapCount = ShadowSettings.MaxSkinnedShadowCasters > 0;
+        const bool bCapDistance = ShadowSettings.SkinnedShadowMaxDistance > 0.0f;
+        bSkinnedShadowSelectionUnlimited = !bCapCount && !bCapDistance;
+        if (bSkinnedShadowSelectionUnlimited || !World)
+            return;
+
+        std::vector<FSkinnedShadowCasterRank> ranks;
+        auto skelView = World->GetRegistry().view<FTransformComponent, FSkinnedMeshRenderState>();
+        for (auto entity : skelView) {
+            auto [transform, skel] = skelView.get<FTransformComponent, FSkinnedMeshRenderState>(entity);
+            if (!skel.SkeletalMesh || !skel.bCastShadows || !skel.bVisible)
+                continue;
+            const glm::mat4 world = ResolveActorWorldMatrix(World, entity, transform);
+            const glm::vec3 pos = glm::vec3(world[3]);
+            const glm::vec3 delta = pos - InCameraPos;
+            ranks.push_back({glm::dot(delta, delta), static_cast<uint32_t>(entity)});
+        }
+        SelectClosestSkinnedShadowCasters(ranks, ShadowSettings.MaxSkinnedShadowCasters,
+                                          ShadowSettings.SkinnedShadowMaxDistance);
+        SelectedSkinnedShadowCasters.reserve(ranks.size());
+        for (const auto& rank : ranks)
+            SelectedSkinnedShadowCasters.insert(rank.Id);
+    }
+
+    bool FWorldRenderer::IsSkinnedShadowCasterSelected(uint32_t InEntityId) const {
+        if (bSkinnedShadowSelectionUnlimited)
+            return true;
+        return SelectedSkinnedShadowCasters.find(InEntityId) != SelectedSkinnedShadowCasters.end();
     }
 
     void FWorldRenderer::RenderCascadedShadowPass(const FPerspectiveCamera& InCamera,
@@ -181,7 +219,8 @@ namespace Leon {
                 corners, InDirLightComp->Light.Direction, ShadowSettings.CascadeResolution,
                 ShadowSettings.bStabilizeCascades, worldUnitsPerTexel);
             OutCamData.LightSpaceMatrices[cascade] = cascadeMatrix;
-            DrawShadowCasters(cascadeMatrix, true, 0.0f, glm::vec3(0.0f));
+            const bool bDrawSkinned = cascade < ShadowSettings.MaxSkinnedShadowCascades;
+            DrawShadowCasters(cascadeMatrix, true, 0.0f, glm::vec3(0.0f), bDrawSkinned);
             written = cascade + 1;
         }
         if (written > 0) {
@@ -217,7 +256,7 @@ namespace Leon {
         FRenderCommand::Clear();
         ResetDefaultMeshRasterState();
         FRenderCommand::SetPolygonOffset(true, 2.0f, 4.0f);
-        DrawShadowCasters(spotLightSpace, false, 0.0f, glm::vec3(0.0f));
+        DrawShadowCasters(spotLightSpace, false, 0.0f, glm::vec3(0.0f), true);
         FRenderCommand::SetPolygonOffset(false);
         ResetDefaultMeshRasterState();
         SpotShadowFramebuffer->Unbind();
@@ -237,7 +276,7 @@ namespace Leon {
                 PointShadowFramebuffer->AttachDepthTextureLayer(i * 6 + face);
                 FRenderCommand::Clear();
                 glm::mat4 view = ShadowMath::PointCubeFaceView(InPositions[i], face);
-                DrawShadowCasters(faceProj * view, false, farPlane, InPositions[i]);
+                DrawShadowCasters(faceProj * view, false, farPlane, InPositions[i], true);
             }
         }
         ResetDefaultMeshRasterState();
@@ -526,6 +565,11 @@ namespace Leon {
             if (IsStaticMeshCulled(world, staticMeshComp, reflectionFrustum))
                 continue;
 
+            const uint32_t lod = UpdateStaticMeshLOD(staticMeshComp, world, FrameViewCamera);
+            auto lodVA = staticMeshComp.StaticMesh->GetLODVertexArray(lod);
+            if (!lodVA)
+                continue;
+
             TRef<FShader> shader = staticMeshComp.Shader
                                        ? staticMeshComp.Shader
                                        : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
@@ -544,8 +588,8 @@ namespace Leon {
             shader->SetInt("u_EnableClipPlane", 1);
             shader->SetFloat4("u_ClipPlane", InPlane.Normal.x, InPlane.Normal.y, InPlane.Normal.z, InPlane.Distance);
 
-            staticMeshComp.StaticMesh->GetVertexArray()->Bind();
-            for (const auto& submesh : staticMeshComp.StaticMesh->GetSubmeshes()) {
+            lodVA->Bind();
+            for (const auto& submesh : staticMeshComp.StaticMesh->GetLODSubmeshes(lod)) {
                 if (submesh.IndexCount == 0)
                     continue;
 
@@ -572,8 +616,7 @@ namespace Leon {
                 shader->SetMat4("u_Model", glm::value_ptr(model));
                 glm::mat3 normalMatrix = NormalMatrixForReflection(model);
                 shader->SetMat3("u_NormalMatrix", glm::value_ptr(normalMatrix));
-                FRenderCommand::DrawIndexedOffset(staticMeshComp.StaticMesh->GetVertexArray(), submesh.IndexCount,
-                                                  submesh.IndexOffset);
+                FRenderCommand::DrawIndexedOffset(lodVA, submesh.IndexCount, submesh.IndexOffset);
             }
         }
 

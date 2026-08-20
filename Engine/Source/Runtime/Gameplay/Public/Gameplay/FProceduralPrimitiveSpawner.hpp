@@ -19,12 +19,12 @@ namespace Leon {
                                       const glm::vec3& InScale);
 
         /**
-         * Collision box + PBR cube. When InMaterialPath is non-empty, loads that material instance and applies
-         * InColor / InUvTile / planar reflection. Otherwise uses the default material with InColor as albedo.
+         * Collision box + PBR box mesh with world-meter UVs.
+         * InScale is full world size (meters). InUvTile is meters-per-UV-repeat (texture density); 0 keeps 1 m/tile.
          */
         static AActor* SpawnMeshBox(UWorld* InWorld, const std::string& InName, const glm::vec3& InLocation,
                                     const glm::vec3& InScale, const glm::vec3& InColor = glm::vec3(1.0f),
-                                    const std::string& InMaterialPath = {}, float InUvTile = 1.0f,
+                                    const std::string& InMaterialPath = {}, float InMetersPerUv = 1.0f,
                                     bool bUsePlanarReflection = false, bool bVisibleInReflection = true);
 
         static AActor* SpawnPointLight(UWorld* InWorld, const std::string& InName, const glm::vec3& InPos,

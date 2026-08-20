@@ -14,6 +14,7 @@
 
 #include <glm/glm.hpp>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace Leon {
@@ -156,8 +157,11 @@ namespace Leon {
 
         void RenderPointShadowPass(const glm::vec3* InPositions, const float* InRadii, uint32_t InCount);
 
+        void RefreshSkinnedShadowCasterSelection(const glm::vec3& InCameraPos);
+        bool IsSkinnedShadowCasterSelected(uint32_t InEntityId) const;
+
         void DrawShadowCasters(const glm::mat4& InLightSpace, bool bInCullFront, float InPointShadowFarPlane,
-                               const glm::vec3& InPointLightPos);
+                               const glm::vec3& InPointLightPos, bool bInDrawSkinnedCasters);
 
         void RenderPlanarReflectionPass(const FPerspectiveCamera& InCamera, const FSkyboxComponent* InSkybox,
                                         bool bHasDirLight, const FDirectionalLight& InDirLight);
@@ -243,6 +247,8 @@ namespace Leon {
         bool bUseIBL = true;
         bool bEnvironmentGenerated = false;
         std::string LoadedHDRPath;
+        int LastTruncatedPointLights = -1;
+        int LastTruncatedSpotLights = -1;
 
         // Post-Processing Pipeline
         FPostProcessPipeline PostProcessPipeline;
@@ -251,6 +257,9 @@ namespace Leon {
         // Shadow Settings and Cascade state
         FShadowSettings ShadowSettings;
         std::vector<FShadowCascade> ShadowCascades;
+        std::unordered_set<uint32_t> SelectedSkinnedShadowCasters;
+        bool bSkinnedShadowSelectionUnlimited = true;
+        const FPerspectiveCamera* FrameViewCamera = nullptr;
     };
 
 } // namespace Leon

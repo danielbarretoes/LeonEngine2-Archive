@@ -369,6 +369,7 @@ namespace Leon {
             if (InSettings.bGenerateTangents)
                 GenerateLengyelTangents(mesh.GetVertices(), mesh.GetIndices());
             mesh.CalculateBounds();
+            mesh.BuildAutomaticLODs();
         };
 
         if (bSplit) {

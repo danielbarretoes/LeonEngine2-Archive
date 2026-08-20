@@ -169,10 +169,15 @@ namespace Leon {
                         topY = floorHit.Actor->GetActorLocation().y + sm.GetBoundsMax().y * s.y;
                     } else if (floorHit.Actor->HasComponent<FMeshComponent>()) {
                         const auto& mesh = floorHit.Actor->GetComponent<FMeshComponent>();
-                        float top = mesh.MeshSize * 0.5f * floorHit.Actor->GetActorScale().y;
+                        // Box/Ramp/etc. bake size into MeshWidth/Height/Depth (actor scale usually 1).
+                        // Legacy Cube used MeshSize * actor scale.
+                        float localTop = mesh.MeshSize * 0.5f;
                         if (mesh.MeshType == "Plane")
-                            top = 0.05f;
-                        topY = floorHit.Actor->GetActorLocation().y + top;
+                            localTop = 0.05f;
+                        else if (mesh.MeshType == "Box" || mesh.MeshType == "Ramp" || mesh.MeshType == "Pyramid" ||
+                                 mesh.MeshType == "Cylinder" || mesh.MeshType == "Cone")
+                            localTop = mesh.MeshHeight * 0.5f;
+                        topY = floorHit.Actor->GetActorLocation().y + localTop * floorHit.Actor->GetActorScale().y;
                     } else {
                         continue;
                     }

@@ -1,15 +1,15 @@
 # LeonEngine2 Material Asset File (.lmat)
 Material:
   Type: "PBR_Lit"
-  AlbedoColor: [1.0, 1.0, 1.0]
-  Metallic: 0.22
-  Roughness: 0.07
+  AlbedoColor: [0.92, 0.93, 0.95]
+  Metallic: 0.08
+  Roughness: 0.42
   AO: 1.0
   AlbedoMap: "/Game/Textures/T_StudioFloor_Color.ltex"
   NormalMap: "/Game/Textures/T_StudioFloor_Normal.ltex"
   RoughnessMap: "/Game/Textures/T_StudioFloor_Roughness.ltex"
-  NormalScale: 1.35
+  NormalScale: 1.15
   OcclusionStrength: 1.0
-  UVTiling: [8.0, 5.5]
+  UVTiling: [1.0, 1.0]
   UVOffset: [0.0, 0.0]
   UsePlanarReflection: true

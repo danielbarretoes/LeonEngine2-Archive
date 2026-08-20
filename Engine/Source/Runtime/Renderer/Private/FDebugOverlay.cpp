@@ -314,6 +314,15 @@ namespace Leon {
                                InRenderStats.MeshesCulled + InRenderStats.MeshesDrawn),
                    glm::vec4(1.0f, 0.85f, 0.3f, 1.0f));
         textY += lineHeight;
+        if (InRenderStats.StaticMeshSourceTriangles > 0 || InRenderStats.StaticMeshSubmittedTriangles > 0) {
+            DrawString(textX, textY,
+                       std::format("LOD {}/{}/{}/{}/{}  src {}  lod {}", InRenderStats.StaticMeshLODCounts[0],
+                                   InRenderStats.StaticMeshLODCounts[1], InRenderStats.StaticMeshLODCounts[2],
+                                   InRenderStats.StaticMeshLODCounts[3], InRenderStats.StaticMeshLODCounts[4],
+                                   InRenderStats.StaticMeshSourceTriangles, InRenderStats.StaticMeshSubmittedTriangles),
+                       glm::vec4(0.85f, 0.78f, 0.45f, 1.0f));
+            textY += lineHeight;
+        }
 
         const auto& timing = FFrameProfiler::Last();
         DrawString(textX, textY,

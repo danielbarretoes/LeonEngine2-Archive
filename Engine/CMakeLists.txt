@@ -29,8 +29,9 @@ set(LEON_ENGINE_SOURCES
     Source/Runtime/RHI/Private/FRenderer.cpp
     # Assets
     Source/Runtime/Assets/Private/UAssetManager.cpp
-    Source/Runtime/Assets/Private/UStaticMesh.cpp
-    Source/Runtime/Assets/Private/USkeleton.cpp
+        Source/Runtime/Assets/Private/UStaticMesh.cpp
+        Source/Runtime/Assets/Private/FMeshSimplifier.cpp
+        Source/Runtime/Assets/Private/USkeleton.cpp
     Source/Runtime/Assets/Private/USkeletalMesh.cpp
     Source/Runtime/Assets/Private/UAnimSequence.cpp
     Source/Runtime/Assets/Private/UBlendSpace.cpp

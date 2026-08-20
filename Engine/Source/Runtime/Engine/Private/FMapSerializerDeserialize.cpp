@@ -18,6 +18,8 @@
 #include "Assets/UAssetManager.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "Engine/Components.hpp"
+#include <cmath>
+#include <algorithm>
 #include "RHI/IRenderDriver.hpp"
 
 #include <cstdlib>
@@ -75,6 +77,7 @@ namespace Leon {
         float MeshHeight = 1.0f;
         float MeshDepth = 1.0f;
         float MeshRadius = 0.5f;
+        float MeshMetersPerUv = 1.0f;
         unsigned int MeshSubdivX = 24;
         unsigned int MeshSubdivZ = 24;
         std::string ShaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
@@ -434,6 +437,9 @@ namespace Leon {
                         } else if (key == "Radius") {
                             currentActor.bHasMesh = true;
                             currentActor.MeshRadius = std::stof(val);
+                        } else if (key == "MetersPerUv") {
+                            currentActor.bHasMesh = true;
+                            currentActor.MeshMetersPerUv = std::stof(val);
                         } else if (key == "SubdivisionsX" || key == "SubdivX") {
                             currentActor.bHasMesh = true;
                             currentActor.MeshSubdivX = std::stoul(val);
@@ -490,6 +496,8 @@ namespace Leon {
                             currentActor.MeshDepth = std::stof(val);
                         else if (key == "Radius")
                             currentActor.MeshRadius = std::stof(val);
+                        else if (key == "MetersPerUv")
+                            currentActor.MeshMetersPerUv = std::stof(val);
                         else if (key == "SubdivisionsX" || key == "SubdivX")
                             currentActor.MeshSubdivX = std::stoul(val);
                         else if (key == "SubdivisionsZ" || key == "SubdivZ")
@@ -726,29 +734,50 @@ namespace Leon {
             // Mesh Component (Procedural)
             else if (actorData.bHasMesh) {
                 TRef<FVertexArray> va = nullptr;
+                std::string meshType = actorData.MeshType;
+                float meshWidth = actorData.MeshWidth;
+                float meshHeight = actorData.MeshHeight;
+                float meshDepth = actorData.MeshDepth;
+                float meshMetersPerUv = actorData.MeshMetersPerUv;
                 if (FRenderDriverRegistry::GetActiveDriver()) {
-                    if (actorData.MeshType == "Cube") {
-                        va = FMeshPrimitives::CreateCube(actorData.MeshSize);
-                    } else if (actorData.MeshType == "Plane") {
-                        va = FMeshPrimitives::CreatePlane(actorData.MeshWidth, actorData.MeshDepth,
-                                                          actorData.MeshSubdivX, actorData.MeshSubdivZ);
-                    } else if (actorData.MeshType == "Sphere") {
+                    if (meshType == "Box") {
+                        va = FMeshPrimitives::CreateBox(meshWidth, meshHeight, meshDepth, meshMetersPerUv);
+                    } else if (meshType == "Cube") {
+                        // Legacy: unit cube * actor scale. Rebuild as Box with world-meter UVs and clear scale.
+                        const float sx = actorData.Scale.x * actorData.MeshSize;
+                        const float sy = actorData.Scale.y * actorData.MeshSize;
+                        const float sz = actorData.Scale.z * actorData.MeshSize;
+                        if (std::abs(sx - actorData.MeshSize) > 0.01f || std::abs(sy - actorData.MeshSize) > 0.01f ||
+                            std::abs(sz - actorData.MeshSize) > 0.01f) {
+                            const float mpu = meshMetersPerUv > 0.05f ? meshMetersPerUv : 1.0f;
+                            va = FMeshPrimitives::CreateBox(sx, sy, sz, mpu);
+                            meshType = "Box";
+                            meshWidth = sx;
+                            meshHeight = sy;
+                            meshDepth = sz;
+                            meshMetersPerUv = mpu;
+                            transform.Scale = {1.0f, 1.0f, 1.0f};
+                        } else {
+                            va = FMeshPrimitives::CreateCube(actorData.MeshSize);
+                        }
+                    } else if (meshType == "Plane") {
+                        va = FMeshPrimitives::CreatePlane(meshWidth, meshDepth, actorData.MeshSubdivX,
+                                                          actorData.MeshSubdivZ);
+                    } else if (meshType == "Sphere") {
                         va = FMeshPrimitives::CreateSphere(actorData.MeshRadius, actorData.MeshSubdivX,
                                                            actorData.MeshSubdivZ);
-                    } else if (actorData.MeshType == "Cylinder") {
-                        va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, actorData.MeshRadius,
-                                                             actorData.MeshHeight, actorData.MeshSubdivX, true);
-                    } else if (actorData.MeshType == "Cone") {
-                        va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, 0.0f, actorData.MeshHeight,
+                    } else if (meshType == "Cylinder") {
+                        va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, actorData.MeshRadius, meshHeight,
                                                              actorData.MeshSubdivX, true);
-                    } else if (actorData.MeshType == "Ramp") {
-                        va =
-                            FMeshPrimitives::CreateRamp(actorData.MeshWidth, actorData.MeshHeight, actorData.MeshDepth);
-                    } else if (actorData.MeshType == "Pyramid") {
-                        va = FMeshPrimitives::CreatePyramid(actorData.MeshWidth, actorData.MeshHeight,
-                                                            actorData.MeshDepth);
-                    } else if (actorData.MeshType == "Quad") {
-                        va = FMeshPrimitives::CreateQuad(actorData.MeshWidth, actorData.MeshHeight);
+                    } else if (meshType == "Cone") {
+                        va = FMeshPrimitives::CreateCylinder(actorData.MeshRadius, 0.0f, meshHeight,
+                                                             actorData.MeshSubdivX, true);
+                    } else if (meshType == "Ramp") {
+                        va = FMeshPrimitives::CreateRamp(meshWidth, meshHeight, meshDepth);
+                    } else if (meshType == "Pyramid") {
+                        va = FMeshPrimitives::CreatePyramid(meshWidth, meshHeight, meshDepth);
+                    } else if (meshType == "Quad") {
+                        va = FMeshPrimitives::CreateQuad(meshWidth, meshHeight);
                     }
                 }
 
@@ -761,12 +790,13 @@ namespace Leon {
                 }
 
                 auto& comp = entity->AddComponent<FMeshComponent>(va, shader);
-                comp.MeshType = actorData.MeshType;
+                comp.MeshType = meshType;
                 comp.MeshSize = actorData.MeshSize;
-                comp.MeshWidth = actorData.MeshWidth;
-                comp.MeshHeight = actorData.MeshHeight;
-                comp.MeshDepth = actorData.MeshDepth;
+                comp.MeshWidth = meshWidth;
+                comp.MeshHeight = meshHeight;
+                comp.MeshDepth = meshDepth;
                 comp.MeshRadius = actorData.MeshRadius;
+                comp.MeshMetersPerUv = meshMetersPerUv;
                 comp.MeshSubdivX = actorData.MeshSubdivX;
                 comp.MeshSubdivZ = actorData.MeshSubdivZ;
                 comp.ShaderPath = actorData.ShaderPath;

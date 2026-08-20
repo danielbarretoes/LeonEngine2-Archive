@@ -2,10 +2,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 
 namespace Leon {
+
+    constexpr uint32_t kRenderStatLODSlots = 8;
 
     enum class EGPUMemoryCategory : uint8_t {
         Texture2D = 0,
@@ -37,6 +40,9 @@ namespace Leon {
         unsigned int TextureBinds = 0;
         unsigned int VAOBinds = 0;
         unsigned int FBOSwitches = 0;
+        unsigned int StaticMeshLODCounts[kRenderStatLODSlots]{};
+        unsigned int StaticMeshSourceTriangles = 0;
+        unsigned int StaticMeshSubmittedTriangles = 0;
 
         // Persistent across Reset() — GPU resources live longer than a frame.
         size_t AllocatedGPUMemoryBytes = 0;
@@ -54,6 +60,9 @@ namespace Leon {
             TextureBinds = 0;
             VAOBinds = 0;
             FBOSwitches = 0;
+            StaticMeshSourceTriangles = 0;
+            StaticMeshSubmittedTriangles = 0;
+            std::memset(StaticMeshLODCounts, 0, sizeof(StaticMeshLODCounts));
         }
     };
 

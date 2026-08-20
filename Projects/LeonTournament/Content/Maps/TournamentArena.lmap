@@ -1,7 +1,7 @@
 # LeonEngine2 Map Asset File (.lmap)
 # Human-Readable & Deterministic Serialization
 Map:
-  Name: "MainMenu"
+  Name: "TournamentArena"
   Version: "2.1"
 
 Environment:
@@ -18,11 +18,11 @@ Environment:
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-    LightmapBakeHash: "33f869067517bcdc"
+    LightmapBakeHash: "fb2329b628f953c"
   Skybox:
     Enabled: true
     Exposure: 0.95
-    SunIntensity: 2.2
+    SunIntensity: 2.4
     EnvironmentIntensity: 1.35
     UseHDREnvironmentMap: true
     HDREnvironmentMap: "/Game/HDR/DaySky1k.lhdr"
@@ -32,6 +32,19 @@ Environment:
     SunColor: [1, 0.96, 0.88]
 
 Actors:
+  - Name: "Directional Sunlight"
+    Class: "AActor"
+    GUID: "980fe08463bb02cc684f0c761f2670e7"
+    Transform:
+      Translation: [0, 14, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    DirectionalLight:
+      Enabled: true
+      Direction: [-0.35, -1, -0.45]
+      Color: [1, 0.97, 0.9]
+      Intensity: 3
+      Mobility: Stationary
   - Name: "PlayerStart"
     Class: "APlayerStart"
     GUID: "4c454f4e00000000c0ffee0000000101"
@@ -39,19 +52,6 @@ Actors:
       Translation: [0, 3.5, 10.5]
       Rotation: [0, -90, 0]
       Scale: [1, 1, 1]
-  - Name: "Directional Sunlight"
-    Class: "AActor"
-    GUID: "4c454f4e00000000c0ffee0000000102"
-    Transform:
-      Translation: [0, 8, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    DirectionalLight:
-      Enabled: true
-      Direction: [-0.229658, -0.91863, -0.321521]
-      Color: [1, 0.97, 0.9]
-      Intensity: 2.4
-      Mobility: Stationary
   - Name: "Bot_T1_4PC"
     Class: "ALeonTournamentBotController"
     GUID: "b3f6bd46d295a13f12b22bf436d15964"
@@ -80,1254 +80,6 @@ Actors:
       Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
-  - Name: "Floor"
-    Class: "AActor"
-    GUID: "5d775af92f421ff56192303a769b0ba3"
-    Transform:
-      Translation: [0, -0.25, 0]
-      Rotation: [0, 0, 0]
-      Scale: [72, 0.5, 72]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: false
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 0
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.162109, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "Ceiling"
-    Class: "AActor"
-    GUID: "9fe7aac7caa6f19fd6c67c5d39db9b7b"
-    Transform:
-      Translation: [0, 10.75, 0]
-      Rotation: [0, 0, 0]
-      Scale: [72, 0.5, 72]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 1
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.806641, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "WallN"
-    Class: "AActor"
-    GUID: "1305db6604f454efa9dd3e473d4fac96"
-    Transform:
-      Translation: [0, 5.75, -36]
-      Rotation: [0, 0, 0]
-      Scale: [72, 11.5, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 2
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.838867, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "WallS"
-    Class: "AActor"
-    GUID: "231f3eb27d6dcdda08fd1cd525592ccd"
-    Transform:
-      Translation: [0, 5.75, 36]
-      Rotation: [0, 0, 0]
-      Scale: [72, 11.5, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 3
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.871094, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "WallW"
-    Class: "AActor"
-    GUID: "753be171fd02c67232ce29c66287edcd"
-    Transform:
-      Translation: [-36, 5.75, 0]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 11.5, 72]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 4
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.90332, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "WallE"
-    Class: "AActor"
-    GUID: "9b41572844326596a05970ac7f3410ea"
-    Transform:
-      Translation: [36, 5.75, 0]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 11.5, 72]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 5
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.935547, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeW_A"
-    Class: "AActor"
-    GUID: "05ada8f4edc126ae522d827aaf4fbde8"
-    Transform:
-      Translation: [-12, 2.2, -28]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 6
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.967773, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeW_B"
-    Class: "AActor"
-    GUID: "1511b69f833491ca38a55114ed178f22"
-    Transform:
-      Translation: [-12, 2.2, -10]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 12]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 7
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.000976562, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeW_C"
-    Class: "AActor"
-    GUID: "e894e46023336a09651119e6fd9abc3b"
-    Transform:
-      Translation: [-12, 2.2, 10]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 12]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 8
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.0332031, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeW_D"
-    Class: "AActor"
-    GUID: "354b31e742fb1c9350a481edcdec1c25"
-    Transform:
-      Translation: [-12, 2.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 9
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.0654297, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeE_A"
-    Class: "AActor"
-    GUID: "8c320fbeb2097bb18173fed96543a4c1"
-    Transform:
-      Translation: [12, 2.2, -28]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 10
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.0976562, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeE_B"
-    Class: "AActor"
-    GUID: "4986cb9c0689ce1aeffce4cf09326979"
-    Transform:
-      Translation: [12, 2.2, -10]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 12]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 11
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.129883, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeE_C"
-    Class: "AActor"
-    GUID: "9bac946a33601300faf2212cd54fcc26"
-    Transform:
-      Translation: [12, 2.2, 10]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 12]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 12
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.774414, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeE_D"
-    Class: "AActor"
-    GUID: "a81745d5e9d45d03d3fa8175f2b21898"
-    Transform:
-      Translation: [12, 2.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [0.8, 4.4, 8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 13
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.194336, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeN_A"
-    Class: "AActor"
-    GUID: "9e183a34e77f3fd356cd258a8c750f27"
-    Transform:
-      Translation: [-28, 2.2, -12]
-      Rotation: [0, 0, 0]
-      Scale: [8, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 14
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.226562, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeN_B"
-    Class: "AActor"
-    GUID: "3c31adab684961a6f82df9c71eb84145"
-    Transform:
-      Translation: [-8, 2.2, -12]
-      Rotation: [0, 0, 0]
-      Scale: [14, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 15
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.258789, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeN_C"
-    Class: "AActor"
-    GUID: "a8e6dffede2c73f4d7fa76b201ef2f8d"
-    Transform:
-      Translation: [8, 2.2, -12]
-      Rotation: [0, 0, 0]
-      Scale: [14, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 16
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.291016, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeN_D"
-    Class: "AActor"
-    GUID: "d7587a315641262e8f342def70e3c173"
-    Transform:
-      Translation: [28, 2.2, -12]
-      Rotation: [0, 0, 0]
-      Scale: [8, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 17
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.323242, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeS_A"
-    Class: "AActor"
-    GUID: "84714b2e8f82d564dee3e8b30962dfea"
-    Transform:
-      Translation: [-28, 2.2, 12]
-      Rotation: [0, 0, 0]
-      Scale: [8, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 18
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.355469, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeS_B"
-    Class: "AActor"
-    GUID: "bfd8546812d354a0f964ce31d13ec356"
-    Transform:
-      Translation: [-8, 2.2, 12]
-      Rotation: [0, 0, 0]
-      Scale: [14, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 19
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.387695, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeS_C"
-    Class: "AActor"
-    GUID: "ba785e1d06e24e06f679af52ba0988b0"
-    Transform:
-      Translation: [8, 2.2, 12]
-      Rotation: [0, 0, 0]
-      Scale: [14, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 20
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.419922, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "MazeS_D"
-    Class: "AActor"
-    GUID: "0d541d1becb834c9ae85de811dda0d0f"
-    Transform:
-      Translation: [28, 2.2, 12]
-      Rotation: [0, 0, 0]
-      Scale: [8, 4.4, 0.8]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 21
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.452148, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "CoverA"
-    Class: "AActor"
-    GUID: "884d561b1e15c7eb2c74e48b083313ce"
-    Transform:
-      Translation: [-22, 1.15, -22]
-      Rotation: [0, 0, 0]
-      Scale: [3.6, 2.3, 1.4]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 22
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.484375, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "CoverB"
-    Class: "AActor"
-    GUID: "386536c36551b6d676562e64ddccd634"
-    Transform:
-      Translation: [22, 1.15, 22]
-      Rotation: [0, 0, 0]
-      Scale: [3.6, 2.3, 1.4]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 23
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.516602, 0.265625]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "CoverC"
-    Class: "AActor"
-    GUID: "92f950fcdcd1ebf554dca5ab8afc7aa6"
-    Transform:
-      Translation: [-22, 1.15, 22]
-      Rotation: [0, 0, 0]
-      Scale: [1.6, 2.3, 3.6]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 24
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.387695, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "CoverD"
-    Class: "AActor"
-    GUID: "a807cf0bb70d7e19186ab28051f82b6c"
-    Transform:
-      Translation: [22, 1.15, -22]
-      Rotation: [0, 0, 0]
-      Scale: [1.6, 2.3, 3.6]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 25
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.0332031, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "CoverMidW"
-    Class: "AActor"
-    GUID: "02d1197f18a08c176896748beedf8c5f"
-    Transform:
-      Translation: [-4, 1.15, 0]
-      Rotation: [0, 0, 0]
-      Scale: [2.8, 2.3, 1.2]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 26
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.0654297, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "CoverMidE"
-    Class: "AActor"
-    GUID: "882acadb0762980908f1b04efdc5a2ac"
-    Transform:
-      Translation: [4, 1.15, 0]
-      Rotation: [0, 0, 0]
-      Scale: [2.8, 2.3, 1.2]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 27
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.0976562, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "PillarNW"
-    Class: "AActor"
-    GUID: "d7b09ca9938bebc9c43dd32a7ad99a01"
-    Transform:
-      Translation: [-18, 2.5, -18]
-      Rotation: [0, 0, 0]
-      Scale: [1.2, 5, 1.2]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 28
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.129883, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "PillarNE"
-    Class: "AActor"
-    GUID: "36913e6ece09b1c80d29d7ccfd032cf3"
-    Transform:
-      Translation: [18, 2.5, -18]
-      Rotation: [0, 0, 0]
-      Scale: [1.2, 5, 1.2]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 29
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.162109, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "PillarSW"
-    Class: "AActor"
-    GUID: "a26f528b37711071023192539a1618eb"
-    Transform:
-      Translation: [-18, 2.5, 18]
-      Rotation: [0, 0, 0]
-      Scale: [1.2, 5, 1.2]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 30
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.194336, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "PillarSE"
-    Class: "AActor"
-    GUID: "5857341c2a4ebf22f07af45733f36917"
-    Transform:
-      Translation: [18, 2.5, 18]
-      Rotation: [0, 0, 0]
-      Scale: [1.2, 5, 1.2]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 31
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.226562, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "Floor2_N"
-    Class: "AActor"
-    GUID: "eb34193b00dbb741439f79a95048349b"
-    Transform:
-      Translation: [0, 5.5, -24]
-      Rotation: [0, 0, 0]
-      Scale: [72, 0.45, 20]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 32
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.258789, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "Floor2_S"
-    Class: "AActor"
-    GUID: "96e26874655c409085765d8193fcc12c"
-    Transform:
-      Translation: [0, 5.5, 24]
-      Rotation: [0, 0, 0]
-      Scale: [72, 0.45, 20]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 33
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.291016, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "Floor2_W"
-    Class: "AActor"
-    GUID: "adb28699ac70f3f17079266d3d3bb5f0"
-    Transform:
-      Translation: [-24, 5.5, 0]
-      Rotation: [0, 0, 0]
-      Scale: [20, 0.45, 28]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 34
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.323242, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "Floor2_E"
-    Class: "AActor"
-    GUID: "11f9f8fb1380a6d758087e514571e107"
-    Transform:
-      Translation: [24, 5.5, 0]
-      Rotation: [0, 0, 0]
-      Scale: [20, 0.45, 28]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 35
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.355469, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "RailN"
-    Class: "AActor"
-    GUID: "addd440bf74957dfd3872eaa05642289"
-    Transform:
-      Translation: [0, 6.2, -14]
-      Rotation: [0, 0, 0]
-      Scale: [48, 1, 0.35]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 36
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.000976562, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "RailS"
-    Class: "AActor"
-    GUID: "4c82184aeb2a894ea86a54876771ed49"
-    Transform:
-      Translation: [0, 6.2, 14]
-      Rotation: [0, 0, 0]
-      Scale: [48, 1, 0.35]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 37
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.419922, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "RailW"
-    Class: "AActor"
-    GUID: "87ac3402b4228318e3a01a3d4db3fe8c"
-    Transform:
-      Translation: [-14, 6.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [0.35, 1, 28]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 38
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.452148, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "RailE"
-    Class: "AActor"
-    GUID: "2f4c288f2c4b38208f45a59f407672dc"
-    Transform:
-      Translation: [14, 6.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [0.35, 1, 28]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 39
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.484375, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "StairsW1"
-    Class: "AActor"
-    GUID: "22ffe9d8a41e59cef8aa0b442f60e093"
-    Transform:
-      Translation: [-28, 1, 0]
-      Rotation: [0, 0, 0]
-      Scale: [4, 2, 5]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 40
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.516602, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "StairsW2"
-    Class: "AActor"
-    GUID: "fddba5ac52702dc9b8c3235db534ea7c"
-    Transform:
-      Translation: [-26, 2.5, 0]
-      Rotation: [0, 0, 0]
-      Scale: [4, 2, 5]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 41
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.548828, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "StairsW3"
-    Class: "AActor"
-    GUID: "dd6fd7a4c23b38bcf4c85b4a3cfa0cd1"
-    Transform:
-      Translation: [-24, 4, 0]
-      Rotation: [0, 0, 0]
-      Scale: [4, 2, 5]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 42
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.581055, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "StairsE1"
-    Class: "AActor"
-    GUID: "b05bccb99b9f21b13438b72c07f400b8"
-    Transform:
-      Translation: [28, 1, 0]
-      Rotation: [0, 0, 0]
-      Scale: [4, 2, 5]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 43
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.613281, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "StairsE2"
-    Class: "AActor"
-    GUID: "8296dbdba784d01818156b8ca416962b"
-    Transform:
-      Translation: [26, 2.5, 0]
-      Rotation: [0, 0, 0]
-      Scale: [4, 2, 5]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 44
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.645508, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "StairsE3"
-    Class: "AActor"
-    GUID: "45e17d1c0153caeb091b4c5b4070196f"
-    Transform:
-      Translation: [24, 4, 0]
-      Rotation: [0, 0, 0]
-      Scale: [4, 2, 5]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 45
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.677734, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "UpperCoverA"
-    Class: "AActor"
-    GUID: "736a48bf4fe36f5080a9c03ef9fc9ae1"
-    Transform:
-      Translation: [-26, 6.7, -26]
-      Rotation: [0, 0, 0]
-      Scale: [3, 2.2, 1.4]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 46
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.709961, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-  - Name: "UpperCoverB"
-    Class: "AActor"
-    GUID: "22c6b070dfd4ea22b4bc7c64a8b7ce00"
-    Transform:
-      Translation: [26, 6.7, 26]
-      Rotation: [0, 0, 0]
-      Scale: [3, 2.2, 1.4]
-    StaticMesh:
-      Type: "Cube"
-      Size: 1
-      Width: 1
-      Height: 1
-      Depth: 1
-      Radius: 0.5
-      SubdivisionsX: 24
-      SubdivisionsZ: 24
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
-      CastShadows: true
-      ReceiveShadows: true
-      VisibleInReflection: true
-      Mobility: Static
-      LightmapResolution: 64
-      LightmapIndex: 47
-      LightmapScale: [0.03125, 0.25]
-      LightmapBias: [0.742188, 0.0078125]
-      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
   - Name: "Team1Start_0"
     Class: "APlayerStart"
     GUID: "cd11dfff12bc3f2143cade6afc7a7c16"
@@ -1533,659 +285,1501 @@ Actors:
       Translation: [0, 1, 0]
       Rotation: [0, 0, 0]
       Scale: [70, 2.5, 70]
-  - Name: "PL_0"
+  - Name: "Floor"
     Class: "AActor"
-    GUID: "0623ad8acb675ab5a30bf575842a3cf8"
+    GUID: "ac0d2ac8270833bf2f78b42d135e2974"
     Transform:
-      Translation: [-28, 4.2, -28]
+      Translation: [0, -0.25, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 64
+      Height: 0.5
+      Depth: 64
+      Radius: 0.5
+      MetersPerUv: 2
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: false
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 0
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.935547, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabFloor.lmat"
+  - Name: "Ceiling"
+    Class: "AActor"
+    GUID: "7fdca6b22498b85dbf0f10e3efbfceb5"
+    Transform:
+      Translation: [0, 10.25, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 64
+      Height: 0.5
+      Depth: 64
+      Radius: 0.5
+      MetersPerUv: 3
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 1
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.645508, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabCeiling.lmat"
+  - Name: "WallN"
+    Class: "AActor"
+    GUID: "b0db430398bb5c2efce0ea2c26e8f934"
+    Transform:
+      Translation: [0, 5, -32]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 64
+      Height: 10
+      Depth: 0.9
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 2
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.677734, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "WallS"
+    Class: "AActor"
+    GUID: "ef36607dce43622c941b8e23421ae557"
+    Transform:
+      Translation: [0, 5, 32]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 64
+      Height: 10
+      Depth: 0.9
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 3
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.709961, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "WallW"
+    Class: "AActor"
+    GUID: "3e2d2f5d3e2483be7e7b35d6f97c6f0a"
+    Transform:
+      Translation: [-32, 5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 0.9
+      Height: 10
+      Depth: 64
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 4
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.742188, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "WallE"
+    Class: "AActor"
+    GUID: "a612544cee679c25592f7b32b6408324"
+    Transform:
+      Translation: [32, 5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 0.9
+      Height: 10
+      Depth: 64
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 5
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.774414, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneW_N"
+    Class: "AActor"
+    GUID: "9c5e185a3559f13d5bfac16a52b04c6c"
+    Transform:
+      Translation: [-14, 2.4, -20]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 0.7
+      Height: 4.8
+      Depth: 14
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 6
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.806641, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneW_S"
+    Class: "AActor"
+    GUID: "2edb055480a6c80ca49dadea5d807ef8"
+    Transform:
+      Translation: [-14, 2.4, 20]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 0.7
+      Height: 4.8
+      Depth: 14
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 7
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.838867, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneE_N"
+    Class: "AActor"
+    GUID: "2875375e38ca384dc5e7a9fd9eecdbc2"
+    Transform:
+      Translation: [14, 2.4, -20]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 0.7
+      Height: 4.8
+      Depth: 14
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 8
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.871094, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneE_S"
+    Class: "AActor"
+    GUID: "7cf7ee0c2f1aa50cbc2f6d8a027e061a"
+    Transform:
+      Translation: [14, 2.4, 20]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 0.7
+      Height: 4.8
+      Depth: 14
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 9
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.90332, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneN_W"
+    Class: "AActor"
+    GUID: "3f7360c2493c384964a92213c3752c1c"
+    Transform:
+      Translation: [-20, 2.4, -14]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 14
+      Height: 4.8
+      Depth: 0.7
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 10
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.613281, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneN_E"
+    Class: "AActor"
+    GUID: "72c1854674539b4863fd7e254a0ff091"
+    Transform:
+      Translation: [20, 2.4, -14]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 14
+      Height: 4.8
+      Depth: 0.7
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 11
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.967773, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneS_W"
+    Class: "AActor"
+    GUID: "fedff15c7f0aa2e979ab98c8265dfbb5"
+    Transform:
+      Translation: [-20, 2.4, 14]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 14
+      Height: 4.8
+      Depth: 0.7
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 12
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.000976562, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "LaneS_E"
+    Class: "AActor"
+    GUID: "8e15b43bc7efd58fe4175317351dd1e4"
+    Transform:
+      Translation: [20, 2.4, 14]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 14
+      Height: 4.8
+      Depth: 0.7
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 13
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.0332031, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
+  - Name: "CoverA"
+    Class: "AActor"
+    GUID: "5df984e741066c23360339569559eb3e"
+    Transform:
+      Translation: [-22, 1.15, -22]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 3.8
+      Height: 2.3
+      Depth: 1.5
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 14
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.0654297, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "CoverB"
+    Class: "AActor"
+    GUID: "ed310590ea9a45b2e55cd955dcf519f0"
+    Transform:
+      Translation: [22, 1.15, 22]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 3.8
+      Height: 2.3
+      Depth: 1.5
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 15
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.0976562, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "CoverC"
+    Class: "AActor"
+    GUID: "120374df3640500094b3d4e032884b42"
+    Transform:
+      Translation: [-22, 1.15, 22]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 1.6
+      Height: 2.3
+      Depth: 3.8
+      Radius: 0.5
+      MetersPerUv: 1
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 16
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.129883, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaAccent.lmat"
+  - Name: "CoverD"
+    Class: "AActor"
+    GUID: "b12d41bc7102ac48dafe903b9670a13e"
+    Transform:
+      Translation: [22, 1.15, -22]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 1.6
+      Height: 2.3
+      Depth: 3.8
+      Radius: 0.5
+      MetersPerUv: 1
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 17
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.162109, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaAccent.lmat"
+  - Name: "CoverMidW"
+    Class: "AActor"
+    GUID: "3a9c2e1f50e55930e4edf4ba5deb2c40"
+    Transform:
+      Translation: [-5, 1.1, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 2.6
+      Height: 2.2
+      Depth: 1.2
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 18
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.194336, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "CoverMidE"
+    Class: "AActor"
+    GUID: "0ccfc59a0e740b36e97f9f433f3b226f"
+    Transform:
+      Translation: [5, 1.1, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 2.6
+      Height: 2.2
+      Depth: 1.2
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 19
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.323242, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "CoverN"
+    Class: "AActor"
+    GUID: "54ecb4989bbf0366641f99f74c4f6b52"
+    Transform:
+      Translation: [0, 1.1, -18]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4.2
+      Height: 2.2
+      Depth: 1.3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 20
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.0332031, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "CoverS"
+    Class: "AActor"
+    GUID: "02d72b652b1486859dfdd01699272394"
+    Transform:
+      Translation: [0, 1.1, 18]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4.2
+      Height: 2.2
+      Depth: 1.3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 21
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.0654297, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "PillarNW"
+    Class: "AActor"
+    GUID: "99f66c6a282271c7956af31f230152e4"
+    Transform:
+      Translation: [-18, 3, -18]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 1.3
+      Height: 6
+      Depth: 1.3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 22
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.0976562, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "PillarNE"
+    Class: "AActor"
+    GUID: "1fdc4d0349bc5f26e0d85a4cfb416586"
+    Transform:
+      Translation: [18, 3, -18]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 1.3
+      Height: 6
+      Depth: 1.3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 23
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.129883, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "PillarSW"
+    Class: "AActor"
+    GUID: "6943509fda47418d77a27935517ccba9"
+    Transform:
+      Translation: [-18, 3, 18]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 1.3
+      Height: 6
+      Depth: 1.3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 24
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.162109, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "PillarSE"
+    Class: "AActor"
+    GUID: "ef55d20021c5c21ea3952bbfee34c36d"
+    Transform:
+      Translation: [18, 3, 18]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 1.3
+      Height: 6
+      Depth: 1.3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 25
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.194336, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "Floor2_N"
+    Class: "AActor"
+    GUID: "773b9ff1fcf46d8a4835e3c6098a2882"
+    Transform:
+      Translation: [0, 4.6, -22]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 60
+      Height: 0.4
+      Depth: 16
+      Radius: 0.5
+      MetersPerUv: 2
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: false
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 26
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.226562, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabFloor.lmat"
+  - Name: "Floor2_S"
+    Class: "AActor"
+    GUID: "eaa1dec8476d9f4c0f6ce506f17174c5"
+    Transform:
+      Translation: [0, 4.6, 22]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 60
+      Height: 0.4
+      Depth: 16
+      Radius: 0.5
+      MetersPerUv: 2
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: false
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 27
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.258789, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabFloor.lmat"
+  - Name: "RailN"
+    Class: "AActor"
+    GUID: "376ca71907e12c6787eb1b59b6526140"
+    Transform:
+      Translation: [0, 5.4, -14.2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 56
+      Height: 1
+      Depth: 0.35
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 28
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.291016, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "RailS"
+    Class: "AActor"
+    GUID: "9b5ddedc668aeaceddca63312e94d372"
+    Transform:
+      Translation: [0, 5.4, 14.2]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 56
+      Height: 1
+      Depth: 0.35
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 29
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.000976562, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaMetal.lmat"
+  - Name: "StairsW1"
+    Class: "AActor"
+    GUID: "4df6c526e9d64705a0ef345989099b26"
+    Transform:
+      Translation: [-26, 1, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4
+      Height: 2
+      Depth: 5
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 30
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.355469, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "StairsW2"
+    Class: "AActor"
+    GUID: "7efdce0cfa66b998f0694adb3d5e38ed"
+    Transform:
+      Translation: [-26, 2.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4
+      Height: 1.5
+      Depth: 4
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 31
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.387695, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "StairsW3"
+    Class: "AActor"
+    GUID: "7f7ddba4f592b15bb89c3f09a6d3401e"
+    Transform:
+      Translation: [-26, 3.8, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4
+      Height: 1.2
+      Depth: 3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 32
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.419922, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "StairsE1"
+    Class: "AActor"
+    GUID: "dc3de18fbaa88495691c7bb8709bb1d1"
+    Transform:
+      Translation: [26, 1, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4
+      Height: 2
+      Depth: 5
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 33
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.452148, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "StairsE2"
+    Class: "AActor"
+    GUID: "b9a7f92cad67da0254d69e47f885abef"
+    Transform:
+      Translation: [26, 2.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4
+      Height: 1.5
+      Depth: 4
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 34
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.484375, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "StairsE3"
+    Class: "AActor"
+    GUID: "433664a3275292b13cb7b135c433901d"
+    Transform:
+      Translation: [26, 3.8, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 4
+      Height: 1.2
+      Depth: 3
+      Radius: 0.5
+      MetersPerUv: 1.5
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 35
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.516602, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabProp.lmat"
+  - Name: "UpperCoverA"
+    Class: "AActor"
+    GUID: "691c68036de259a0afa592158bed80fc"
+    Transform:
+      Translation: [-24, 5.7, -24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 3
+      Height: 2
+      Depth: 1.4
+      Radius: 0.5
+      MetersPerUv: 1
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 36
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.548828, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaAccent.lmat"
+  - Name: "UpperCoverB"
+    Class: "AActor"
+    GUID: "3ceb53a908ffc4ca891383c23f00e390"
+    Transform:
+      Translation: [24, 5.7, 24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 3
+      Height: 2
+      Depth: 1.4
+      Radius: 0.5
+      MetersPerUv: 1
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 37
+      LightmapScale: [0.03125, 0.25]
+      LightmapBias: [0.581055, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_ArenaAccent.lmat"
+  - Name: "PL_Ceil_00"
+    Class: "AActor"
+    GUID: "82f7b4b3ce89d0e474d78501c34fc45b"
+    Transform:
+      Translation: [-24, 9, -24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_01"
+    Class: "AActor"
+    GUID: "78c86f6e794fc53e52036b2a00a30979"
+    Transform:
+      Translation: [-12, 9, -24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_02"
+    Class: "AActor"
+    GUID: "245ffd83b8e15f80a895b1a7f554b65c"
+    Transform:
+      Translation: [0, 9, -24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_03"
+    Class: "AActor"
+    GUID: "2eeccecc193c86ed98f2c43add215c69"
+    Transform:
+      Translation: [12, 9, -24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_04"
+    Class: "AActor"
+    GUID: "45be2353f8afc1c199664a752b3a7f02"
+    Transform:
+      Translation: [24, 9, -24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_05"
+    Class: "AActor"
+    GUID: "b220e8e2c352bf54d21de6303b531dd5"
+    Transform:
+      Translation: [-24, 9, -12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_06"
+    Class: "AActor"
+    GUID: "dd5d33f65f555627c1dbce0e278109d7"
+    Transform:
+      Translation: [-12, 9, -12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_07"
+    Class: "AActor"
+    GUID: "e7b9f1c13699dceed5cd34df3fbba28d"
+    Transform:
+      Translation: [0, 9, -12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_08"
+    Class: "AActor"
+    GUID: "0d5468aac9173678d7f4bd0ec7d35822"
+    Transform:
+      Translation: [12, 9, -12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_09"
+    Class: "AActor"
+    GUID: "f2ff6dd0e73a7c8ecc1c41f1e0bf5c65"
+    Transform:
+      Translation: [24, 9, -12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_10"
+    Class: "AActor"
+    GUID: "dfbcb433ceae89aadacf039629f7f2c5"
+    Transform:
+      Translation: [-24, 9, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_11"
+    Class: "AActor"
+    GUID: "dfd5799b0257590c45dbe5465ae696ed"
+    Transform:
+      Translation: [-12, 9, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_12"
+    Class: "AActor"
+    GUID: "042da34cf86e5c19c578f27fffae6d1a"
+    Transform:
+      Translation: [0, 9, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_13"
+    Class: "AActor"
+    GUID: "878e084c53ba6c02e8b671e472653f05"
+    Transform:
+      Translation: [12, 9, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_14"
+    Class: "AActor"
+    GUID: "eff7b96806c6e241ee3437717678df53"
+    Transform:
+      Translation: [24, 9, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_15"
+    Class: "AActor"
+    GUID: "3d81b48386cc3ad0eb6afce85b4ea8c1"
+    Transform:
+      Translation: [-24, 9, 12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_16"
+    Class: "AActor"
+    GUID: "4431cb566fd1c65e4444d61eb7675bcc"
+    Transform:
+      Translation: [-12, 9, 12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_17"
+    Class: "AActor"
+    GUID: "0013242de19c0ca29de12250d3852a81"
+    Transform:
+      Translation: [0, 9, 12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_18"
+    Class: "AActor"
+    GUID: "d7fb7190f3c006bcff181234dff0de83"
+    Transform:
+      Translation: [12, 9, 12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_19"
+    Class: "AActor"
+    GUID: "5d720dff3638a6c4c2183290dee09ce1"
+    Transform:
+      Translation: [24, 9, 12]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_20"
+    Class: "AActor"
+    GUID: "f9ec036eaba7b2a1568fe99d928fd52d"
+    Transform:
+      Translation: [-24, 9, 24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_21"
+    Class: "AActor"
+    GUID: "4bc3f20d1024585ba25e9b03ca8e2104"
+    Transform:
+      Translation: [-12, 9, 24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_22"
+    Class: "AActor"
+    GUID: "2f8d56c68d9657893b42bc2f62adae39"
+    Transform:
+      Translation: [0, 9, 24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_23"
+    Class: "AActor"
+    GUID: "3ed7986f1591e279791556d74dab3060"
+    Transform:
+      Translation: [12, 9, 24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_Ceil_24"
+    Class: "AActor"
+    GUID: "3dec20a559715613aed8bc637a073d0d"
+    Transform:
+      Translation: [24, 9, 24]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.96, 0.9]
+      Intensity: 11
+      Radius: 16
+      Mobility: Static
+  - Name: "PL_NW"
+    Class: "AActor"
+    GUID: "7f4bfb33ca0054f6fb7afc8d19e55a5f"
+    Transform:
+      Translation: [-22, 5.5, -22]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
       Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_1"
+      Intensity: 12
+      Radius: 14
+      Mobility: Static
+  - Name: "PL_NE"
     Class: "AActor"
-    GUID: "6b022b7591e1418ba49c0ed66df613f3"
+    GUID: "b9d1a7a7bc3c8078ad8b4d1ee589dd77"
     Transform:
-      Translation: [-28, 8.6, -28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_2"
-    Class: "AActor"
-    GUID: "fb91c5ad32b6256ea62eb0740677d24d"
-    Transform:
-      Translation: [-14, 4.2, -28]
+      Translation: [22, 5.5, -22]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
       Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_3"
+      Intensity: 12
+      Radius: 14
+      Mobility: Static
+  - Name: "PL_SW"
     Class: "AActor"
-    GUID: "6c49fce1b6a46ac5c91e52a3ad38af92"
+    GUID: "14df1465d0105b4e0ba8a0d02de379d9"
     Transform:
-      Translation: [-14, 8.6, -28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_4"
-    Class: "AActor"
-    GUID: "f20af1d8ca10fbe08f698ac02deb6da2"
-    Transform:
-      Translation: [0, 4.2, -28]
+      Translation: [-22, 5.5, 22]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
       Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_5"
+      Intensity: 12
+      Radius: 14
+      Mobility: Static
+  - Name: "PL_SE"
     Class: "AActor"
-    GUID: "5605439d9e37411ca03c0201a24d42ef"
+    GUID: "f8981e30f4ba14e323baf986f8d9d5f5"
     Transform:
-      Translation: [0, 8.6, -28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_6"
-    Class: "AActor"
-    GUID: "6797d8822bed41a0894026d19aecc271"
-    Transform:
-      Translation: [14, 4.2, -28]
+      Translation: [22, 5.5, 22]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
       Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_7"
+      Intensity: 12
+      Radius: 14
+      Mobility: Static
+  - Name: "PL_Atrium"
     Class: "AActor"
-    GUID: "eb643a3a101e5a3c506e5281ae74bf97"
+    GUID: "1344fe22c3e742b3634d0aa67c7eec6a"
     Transform:
-      Translation: [14, 8.6, -28]
+      Translation: [0, 7.5, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
-      Color: [0.45, 0.72, 1]
+      Color: [1, 0.96, 0.9]
       Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_8"
-    Class: "AActor"
-    GUID: "7b179595d589643b74905ee8b63ed148"
-    Transform:
-      Translation: [28, 4.2, -28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
       Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_9"
-    Class: "AActor"
-    GUID: "668b0cd2e2c61b8cb222285e3a151e99"
-    Transform:
-      Translation: [28, 8.6, -28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_10"
-    Class: "AActor"
-    GUID: "d99b595408310528ac9ebfd74ab34f52"
-    Transform:
-      Translation: [-28, 4.2, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_11"
-    Class: "AActor"
-    GUID: "b0c34ee52218b7ce74fdc757cf81a54d"
-    Transform:
-      Translation: [-28, 8.6, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_12"
-    Class: "AActor"
-    GUID: "1263a65f3531c7975758d03e55f61c96"
-    Transform:
-      Translation: [-14, 4.2, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_13"
-    Class: "AActor"
-    GUID: "c18e4bb7004a5377c884e8446b9db8b6"
-    Transform:
-      Translation: [-14, 8.6, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_14"
-    Class: "AActor"
-    GUID: "d303e5f775c455e23e23be19d7b86736"
-    Transform:
-      Translation: [0, 4.2, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_15"
-    Class: "AActor"
-    GUID: "c8467661c4f1ca83e58688b89fd975ae"
-    Transform:
-      Translation: [0, 8.6, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_16"
-    Class: "AActor"
-    GUID: "f7eee739e1698338d364db4d93a5df14"
-    Transform:
-      Translation: [14, 4.2, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_17"
-    Class: "AActor"
-    GUID: "7ea9d5b475134e31f80332c0dc64b421"
-    Transform:
-      Translation: [14, 8.6, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_18"
-    Class: "AActor"
-    GUID: "9c489387f5b123d23a32c156e2405645"
-    Transform:
-      Translation: [28, 4.2, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_19"
-    Class: "AActor"
-    GUID: "9da7e7a428edbe169649f5f8edd20671"
-    Transform:
-      Translation: [28, 8.6, -14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_20"
-    Class: "AActor"
-    GUID: "4a04d8ab8b42df33f26bd1daea45daf3"
-    Transform:
-      Translation: [-28, 4.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_21"
-    Class: "AActor"
-    GUID: "8cc5b3dba45254abfada1e40fd0058e6"
-    Transform:
-      Translation: [-28, 8.6, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_22"
-    Class: "AActor"
-    GUID: "c96666968048b0b86aafb80eb0d96a68"
-    Transform:
-      Translation: [-14, 4.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_23"
-    Class: "AActor"
-    GUID: "2199608ee8c225a6dc9f9e0bf45e9764"
-    Transform:
-      Translation: [-14, 8.6, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_24"
-    Class: "AActor"
-    GUID: "18c2d4f3efc16f63c5705180083dcf86"
-    Transform:
-      Translation: [0, 4.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_25"
-    Class: "AActor"
-    GUID: "0df8617fffd479c49343b942156b0250"
-    Transform:
-      Translation: [0, 8.6, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_26"
-    Class: "AActor"
-    GUID: "3dde6306bc48163771f33fd73678ab75"
-    Transform:
-      Translation: [14, 4.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_27"
-    Class: "AActor"
-    GUID: "95288292f59d264755c3ac6599f52ab2"
-    Transform:
-      Translation: [14, 8.6, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_28"
-    Class: "AActor"
-    GUID: "c2148bbacca0bfa10f2c317b6c7eb695"
-    Transform:
-      Translation: [28, 4.2, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_29"
-    Class: "AActor"
-    GUID: "c282b728a432f8671542ac1ea9868e4c"
-    Transform:
-      Translation: [28, 8.6, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_30"
-    Class: "AActor"
-    GUID: "4b2926cc908fb0109d70fa210231bd48"
-    Transform:
-      Translation: [-28, 4.2, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_31"
-    Class: "AActor"
-    GUID: "ffe0419f04d0a9c23896ee9c1e9934ee"
-    Transform:
-      Translation: [-28, 8.6, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_32"
-    Class: "AActor"
-    GUID: "2fe1e984ad0e47dfead9740b16d6617d"
-    Transform:
-      Translation: [-14, 4.2, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_33"
-    Class: "AActor"
-    GUID: "75e524326a209d37db707ebe7fadb9b3"
-    Transform:
-      Translation: [-14, 8.6, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_34"
-    Class: "AActor"
-    GUID: "fc68f83954c3b9849910287f1efee90f"
-    Transform:
-      Translation: [0, 4.2, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_35"
-    Class: "AActor"
-    GUID: "a62d5d2d94b645988c38644a34f3d538"
-    Transform:
-      Translation: [0, 8.6, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_36"
-    Class: "AActor"
-    GUID: "f5c8007664c9cb68d32026c658ddde62"
-    Transform:
-      Translation: [14, 4.2, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_37"
-    Class: "AActor"
-    GUID: "89613ea973f9b31c2e0a19cc970e5223"
-    Transform:
-      Translation: [14, 8.6, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_38"
-    Class: "AActor"
-    GUID: "0a8fdc9d3177219699411c68a54be008"
-    Transform:
-      Translation: [28, 4.2, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_39"
-    Class: "AActor"
-    GUID: "f3c4bad71993274d3029757d7e808e36"
-    Transform:
-      Translation: [28, 8.6, 14]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_40"
-    Class: "AActor"
-    GUID: "4851cf74e887984247a341f62b8ee42b"
-    Transform:
-      Translation: [-28, 4.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_41"
-    Class: "AActor"
-    GUID: "cd81ef9b37619b0052e7a61a2d42adfe"
-    Transform:
-      Translation: [-28, 8.6, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_42"
-    Class: "AActor"
-    GUID: "787d18725799a3e31fe15d64062574dd"
-    Transform:
-      Translation: [-14, 4.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_43"
-    Class: "AActor"
-    GUID: "5410bd47832d44f308fc6ddf03ec563f"
-    Transform:
-      Translation: [-14, 8.6, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_44"
-    Class: "AActor"
-    GUID: "e9cd65f562b852ab146548fdc0f71680"
-    Transform:
-      Translation: [0, 4.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_45"
-    Class: "AActor"
-    GUID: "aa1849efbb8bdaf86e59fc839eca8e9e"
-    Transform:
-      Translation: [0, 8.6, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_46"
-    Class: "AActor"
-    GUID: "cae13d90be53645aa07e87b46197cdc0"
-    Transform:
-      Translation: [14, 4.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_47"
-    Class: "AActor"
-    GUID: "475c776e3bb60ed97a7ba8a5732dae45"
-    Transform:
-      Translation: [14, 8.6, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
-  - Name: "PL_48"
-    Class: "AActor"
-    GUID: "0e6f7bcc2913bd0ec78cf0f1e0c53452"
-    Transform:
-      Translation: [28, 4.2, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.82, 0.55]
-      Intensity: 14
-      Radius: 18
-      Mobility: Stationary
-  - Name: "PL2_49"
-    Class: "AActor"
-    GUID: "86d6e733d342602513910d2b6675a0f7"
-    Transform:
-      Translation: [28, 8.6, 28]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 10
-      Radius: 16
-      Mobility: Stationary
+      Mobility: Static
   - Name: "Spot_Mid"
     Class: "AActor"
-    GUID: "32570a0705a8f40a39b6f33bd60c7bcf"
+    GUID: "3552085b98db21925decb81e624fb2e9"
     Transform:
       Translation: [0, 9.5, 0]
       Rotation: [0, 0, 0]
@@ -2193,144 +1787,99 @@ Actors:
     SpotLight:
       Enabled: true
       Direction: [0, -1, 0]
-      Color: [0.45, 0.72, 1]
+      Color: [1, 0.96, 0.9]
       Intensity: 22
-      Radius: 28
+      Radius: 26
       CutOff: 18
       OuterCutOff: 32
-      Mobility: Stationary
-  - Name: "Spot_NW"
+      Mobility: Static
+  - Name: "Spot_T1"
     Class: "AActor"
-    GUID: "9250d8f7372cf68ab751237127b2c8f0"
+    GUID: "3456f810ca65a6b1e2d807f5b9d4a847"
     Transform:
-      Translation: [-20, 9.2, -20]
+      Translation: [-20, 9, -20]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     SpotLight:
       Enabled: true
-      Direction: [0.19245, -0.96225, 0.19245]
+      Direction: [0.35, -1, 0.35]
       Color: [1, 0.82, 0.55]
-      Intensity: 16
-      Radius: 22
-      CutOff: 15
-      OuterCutOff: 28
-      Mobility: Stationary
-  - Name: "Spot_NE"
-    Class: "AActor"
-    GUID: "18e852052da9ba916e1e1b6656586ddf"
-    Transform:
-      Translation: [20, 9.2, -20]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpotLight:
-      Enabled: true
-      Direction: [-0.19245, -0.96225, 0.19245]
-      Color: [1, 0.82, 0.55]
-      Intensity: 16
-      Radius: 22
-      CutOff: 15
-      OuterCutOff: 28
-      Mobility: Stationary
-  - Name: "Spot_SW"
-    Class: "AActor"
-    GUID: "7bd8c341083cc53eb73532d3e03a1bdc"
-    Transform:
-      Translation: [-20, 9.2, 20]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpotLight:
-      Enabled: true
-      Direction: [0.19245, -0.96225, -0.19245]
-      Color: [0.3, 1, 0.55]
-      Intensity: 14
-      Radius: 20
-      CutOff: 14
-      OuterCutOff: 26
-      Mobility: Stationary
-  - Name: "Spot_SE"
-    Class: "AActor"
-    GUID: "b5b4a3af2903c1ed9769f3a93b21241c"
-    Transform:
-      Translation: [20, 9.2, 20]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpotLight:
-      Enabled: true
-      Direction: [-0.19245, -0.96225, -0.19245]
-      Color: [0.3, 1, 0.55]
-      Intensity: 14
-      Radius: 20
-      CutOff: 14
-      OuterCutOff: 26
-      Mobility: Stationary
-  - Name: "Spot_StairsW"
-    Class: "AActor"
-    GUID: "c8a14f1c75f0deab655e4e19eae2aa4e"
-    Transform:
-      Translation: [-26, 8, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpotLight:
-      Enabled: true
-      Direction: [0.371391, -0.928477, 0]
-      Color: [1, 0.82, 0.55]
-      Intensity: 12
-      Radius: 16
-      CutOff: 20
-      OuterCutOff: 34
-      Mobility: Stationary
-  - Name: "Spot_StairsE"
-    Class: "AActor"
-    GUID: "c499d3054e1c8a93500dc740adf1b730"
-    Transform:
-      Translation: [26, 8, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpotLight:
-      Enabled: true
-      Direction: [-0.371391, -0.928477, 0]
-      Color: [1, 0.82, 0.55]
-      Intensity: 12
-      Radius: 16
-      CutOff: 20
-      OuterCutOff: 34
-      Mobility: Stationary
-  - Name: "PL_Atrium"
-    Class: "AActor"
-    GUID: "4ba930f90a87896604683601b220a3ef"
-    Transform:
-      Translation: [0, 7, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    PointLight:
-      Enabled: true
-      Color: [1, 0.95, 0.85]
       Intensity: 18
-      Radius: 24
+      Radius: 20
+      CutOff: 14
+      OuterCutOff: 28
+      Mobility: Static
+  - Name: "Spot_T2"
+    Class: "AActor"
+    GUID: "dbb9b9dda657a447f942abef1a56aa7e"
+    Transform:
+      Translation: [20, 9, 20]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [-0.35, -1, -0.35]
+      Color: [1, 0.82, 0.55]
+      Intensity: 18
+      Radius: 20
+      CutOff: 14
+      OuterCutOff: 28
       Mobility: Static
   - Name: "PL_UpperN"
     Class: "AActor"
-    GUID: "39e2c82c2b1cee3a3a58299da80afc3f"
+    GUID: "16b3a061a98907218a2a204d70faa599"
     Transform:
-      Translation: [0, 8.8, -26]
+      Translation: [0, 7.5, -22]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 12
-      Radius: 18
+      Color: [1, 0.82, 0.55]
+      Intensity: 9
+      Radius: 14
       Mobility: Static
   - Name: "PL_UpperS"
     Class: "AActor"
-    GUID: "2fe410d7b444940b2904fe5a1705b152"
+    GUID: "7ec57c351cb0701573037a6a90e87f36"
     Transform:
-      Translation: [0, 8.8, 26]
+      Translation: [0, 7.5, 22]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     PointLight:
       Enabled: true
-      Color: [0.45, 0.72, 1]
-      Intensity: 12
+      Color: [1, 0.82, 0.55]
+      Intensity: 9
+      Radius: 14
+      Mobility: Static
+  - Name: "Spot_StairsW"
+    Class: "AActor"
+    GUID: "b2d255a15dca7b192cb80a9e5c98ffd8"
+    Transform:
+      Translation: [-26, 8.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [0.2, -1, 0]
+      Color: [1, 0.96, 0.9]
+      Intensity: 16
       Radius: 18
+      CutOff: 12
+      OuterCutOff: 24
+      Mobility: Static
+  - Name: "Spot_StairsE"
+    Class: "AActor"
+    GUID: "bcb4ea3d850162750b3207e9b3a6dd6f"
+    Transform:
+      Translation: [26, 8.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [-0.2, -1, 0]
+      Color: [1, 0.96, 0.9]
+      Intensity: 16
+      Radius: 18
+      CutOff: 12
+      OuterCutOff: 24
       Mobility: Static
