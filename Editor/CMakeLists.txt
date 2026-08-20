@@ -35,6 +35,11 @@ include("${LEON_ENGINE_ROOT}/CMake/LeonCompileOptions.cmake")
 add_library(LeonEditorCore STATIC
     Source/Private/FEditorApp.cpp
     Source/Private/FViewportPanel.cpp
+    Source/Private/Panels/FProjectHubPanel.cpp
+    Source/Private/Panels/FOutlinerPanel.cpp
+    Source/Private/Panels/FDetailsPanel.cpp
+    Source/Private/Panels/FContentBrowserPanel.cpp
+    Source/Private/Panels/FToolbarPanel.cpp
 )
 add_library(Leon::Editor ALIAS LeonEditorCore)
 
@@ -43,8 +48,8 @@ target_include_directories(LeonEditorCore
         "${CMAKE_CURRENT_SOURCE_DIR}/Source/Public"
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/Source/Private"
-        "${LEON_ENGINE_ROOT}/Plugins/RHI/OpenGL/include"
-        "${LEON_ENGINE_ROOT}/Plugins/Physics/Jolt/include"
+        "${LEON_ENGINE_ROOT}/Plugins/RHI/OpenGL/Include"
+        "${LEON_ENGINE_ROOT}/Plugins/Physics/Jolt/Include"
 )
 
 target_link_libraries(LeonEditorCore PUBLIC
