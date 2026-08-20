@@ -140,8 +140,8 @@ def resolve_default_map_path(lproject: str, map_arg: Optional[str] = None) -> st
     return resolve_default_map_path(lproject, default_map)
 
 
-def find_tool(tool_name: str = "LeonAssetTool") -> str:
-    """Locate a built tool under out/Engine (preferred) or legacy build/."""
+def find_tool(tool_name: str = "AssetTool") -> str:
+    """Locate a built tool under out/Engine or out/Projects."""
     root = engine_root()
     exe = f"{tool_name}.exe" if sys.platform == "win32" else tool_name
     search_roots = [
@@ -149,22 +149,16 @@ def find_tool(tool_name: str = "LeonAssetTool") -> str:
         os.path.join(root, "out", "Projects"),
         os.path.join(root, "build"),
     ]
-    candidates: list[str] = []
-    for build in search_roots:
-        candidates.extend(
-            [
-                os.path.join(build, "Tools", tool_name, exe),
-                os.path.join(build, "_leon_asset_tool", exe),
-                os.path.join(build, exe),
-            ]
-        )
-    for c in candidates:
-        if os.path.isfile(c):
-            return c
-    return candidates[0]
+    for sroot in search_roots:
+        if not os.path.exists(sroot):
+            continue
+        for dp, _, files in os.walk(sroot):
+            if exe in files:
+                return os.path.join(dp, exe)
+    return os.path.join(search_roots[0], exe)
 
 
-def ensure_tool_built(tool_name: str = "LeonAssetTool", config: Optional[str] = None) -> str:
+def ensure_tool_built(tool_name: str = "AssetTool", config: Optional[str] = None) -> str:
     path = find_tool(tool_name)
     if os.path.isfile(path):
         return path

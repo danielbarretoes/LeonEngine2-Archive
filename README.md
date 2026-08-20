@@ -34,9 +34,9 @@ python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
 | `Editor/` | Out-of-process editor (`LeonEditor`); `Legacy/` not built |
 | `Plugins/RHI/OpenGL/` | OpenGL 4.5 RHI plugin |
 | `Projects/Sandbox/` | Reference game (`.lproject`, Content, Main, GameMode/HUD) |
-| `Tools/LeonAssetTool/` | Import / validate CLI |
-| `Docs/` | Architecture, renderer, assets |
-| `Tests/` | Engine suite (`RendererTests`) and `LeonTournamentTests` |
+| `Tools/` | Specialized engine tools (`AssetTool`, `Lightmass`, `ProjectTool`) |
+| `Docs/` | Architecture, renderer, assets, decisions |
+| `Tests/` | Engine test suite (`RendererTests`) |
 | `out/` | Build artifacts (`Engine`, `Editor`, `Projects/<Name>`) |
 
 ## Docs

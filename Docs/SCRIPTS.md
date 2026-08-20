@@ -19,10 +19,10 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 | `build_editor.py` | Configure/build LeonEditor → `out/Editor` |
 | `build_project.py` | Configure/build one game → `out/Projects/<Name>` (`--project`, `--config`, `--run`, `--clean`, `--rebuild`) |
 | `run_project.py` | `build_project.py --run` |
-| `validate_project.py` | LeonAssetTool `validate_project` |
-| `bake_lightmaps.py` | LeonAssetTool bake/validate lightmaps (`--map` or DefaultMap) |
-| `import_assets.py` | Import Raw → Content for `--project` |
-| `validate_assets.py` | Validate Content for `--project` |
+| `validate_project.py` | ProjectTool `validate_project` (descriptor, config INIs, map integrity) |
+| `bake_lightmaps.py` | LightmassTool bake/validate lightmaps (`--map` or DefaultMap) |
+| `import_assets.py` | Import Raw → Content for `--project` via AssetTool |
+| `validate_assets.py` | Validate Content for `--project` via AssetTool |
 | `create_project.py` | Scaffold a blank game (`--name`, `--output`) |
 | `clean_rebuild.py` | Wipe project out dir + rebuild (`--project` required) |
 | `run_tests.py` | Engine `RendererTests` / `LeonTournamentTests` under `out/Engine` |

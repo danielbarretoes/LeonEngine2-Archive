@@ -21,7 +21,7 @@ jobs:
         run: cmake -S . -B out/Engine -G Ninja -DCMAKE_BUILD_TYPE=Release -DLEON_PRODUCT=Engine
 
       - name: Build tests and tools
-        run: cmake --build out/Engine --config Release --target RendererTests LeonAssetTool
+        run: cmake --build out/Engine --config Release --target RendererTests AssetTool LightmassTool ProjectTool
 
       - name: Run unit tests
         run: python Scripts/run_tests.py

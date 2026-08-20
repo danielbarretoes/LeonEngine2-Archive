@@ -45,16 +45,16 @@ def main() -> int:
     try:
         project = require_project(args.project)
         map_path = resolve_default_map_path(project, args.map or None)
-        tool = ensure_tool_built("LeonAssetTool")
+        tool = ensure_tool_built("LightmassTool")
     except SystemExit as e:
         print(e)
         return 1
 
     root = engine_root()
     if args.validate_only:
-        cmd = [tool, "validate_lightmaps", "--map", map_path]
+        cmd = [tool, "validate", "--map", map_path]
     else:
-        cmd = [tool, "bake_lightmaps", "--map", map_path, f"--quality={args.quality}"]
+        cmd = [tool, "bake", "--map", map_path, f"--quality={args.quality}"]
         if args.force:
             cmd.append("--force")
 

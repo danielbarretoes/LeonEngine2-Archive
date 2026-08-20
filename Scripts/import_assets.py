@@ -40,7 +40,7 @@ def main() -> int:
     root = engine_root()
 
     try:
-        tool = ensure_tool_built("LeonAssetTool")
+        tool = ensure_tool_built("AssetTool")
     except SystemExit as e:
         print(e)
         return 1
