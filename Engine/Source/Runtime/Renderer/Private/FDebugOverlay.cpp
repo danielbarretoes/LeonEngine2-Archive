@@ -49,13 +49,13 @@ namespace Leon {
     void FDebugOverlay::Init() {
         LE_CORE_INFO("Initializing DebugOverlay HUD Subsystem...");
 
-        Shader = FShader::Create("Engine/Assets/Shaders/DebugFont.glsl");
+        Shader = FShader::Create("Engine/Resources/Shaders/DebugFont.glsl");
 
         constexpr int AtlasDim = 512;
         std::vector<unsigned char> tempBitmap(AtlasDim * AtlasDim, 0);
 
-        // Load Inter TrueType Font from Engine Assets
-        std::ifstream file("Engine/Assets/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
+        // Load Inter TrueType Font from Engine Resources
+        std::ifstream file("Engine/Resources/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
         if (file.is_open()) {
             std::streamsize size = file.tellg();
             file.seekg(0, std::ios::beg);
@@ -65,7 +65,7 @@ namespace Leon {
                                                96, BakedChars);
                 if (res > 0) {
                     bInterFontLoaded = true;
-                    LE_CORE_INFO("Loaded Inter Font from Engine/Assets/Fonts/Inter-Regular.ttf");
+                    LE_CORE_INFO("Loaded Inter Font from Engine/Resources/Fonts/Inter-Regular.ttf");
                 }
             }
         }

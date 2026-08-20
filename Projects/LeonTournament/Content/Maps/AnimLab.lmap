@@ -79,7 +79,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 32
       SubdivisionsZ: 32
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: false
       ReceiveShadows: true
       VisibleInReflection: false
@@ -107,7 +107,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
@@ -135,7 +135,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
@@ -163,7 +163,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
@@ -191,7 +191,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
@@ -219,7 +219,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
@@ -247,7 +247,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true
@@ -275,7 +275,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 1
       SubdivisionsZ: 1
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: true
       ReceiveShadows: true
       VisibleInReflection: true

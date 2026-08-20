@@ -35,14 +35,14 @@ namespace Leon {
             return;
 
         LE_CORE_INFO("Initializing UI Renderer Subsystem...");
-        Shader = FShader::Create("Engine/Assets/Shaders/DebugFont.glsl");
+        Shader = FShader::Create("Engine/Resources/Shaders/DebugFont.glsl");
 
         std::vector<unsigned char> tempBitmap(static_cast<size_t>(kUIAtlasDim) * kUIAtlasDim, 0);
 
         // Prefer Inter Bold for crisp HUD digits; fall back to Regular.
         const char* fontCandidates[] = {
-            "Engine/Assets/Fonts/Inter-Bold.ttf",
-            "Engine/Assets/Fonts/Inter-Regular.ttf",
+            "Engine/Resources/Fonts/Inter-Bold.ttf",
+            "Engine/Resources/Fonts/Inter-Regular.ttf",
         };
         for (const char* fontPath : fontCandidates) {
             std::ifstream file(fontPath, std::ios::binary | std::ios::ate);

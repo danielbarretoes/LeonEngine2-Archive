@@ -1,17 +1,21 @@
 #pragma once
 
 #include "Core/Base.hpp"
+#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
 
 #include <functional>
 #include <string>
+#include <unordered_set>
 
 namespace Leon::Editor {
 
+    enum class EOutlinerFilterCategory { All, StaticMeshes, Lights, Cameras, Characters, Audio, Volumes };
+
     /**
-     * @brief World Outliner panel showing all scene actors, hierarchical parenting,
-     * type badges with Lucide icons, visibility, selection, and context menus.
+     * @brief Live World Outliner panel: displays actor hierarchy, component subtrees,
+     * type icons, visibility toggles, lock controls, drag-and-drop re-parenting, and selection synchronization.
      */
     class FOutlinerPanel {
     public:
@@ -20,24 +24,40 @@ namespace Leon::Editor {
 
         FOutlinerPanel() = default;
 
+        void SetSelectionSubsystem(FEditorSelectionSubsystem* InSubsystem) { SelectionSubsystem = InSubsystem; }
         void SetOnActorSelected(FOnActorSelected InCallback) { OnActorSelected = std::move(InCallback); }
         void SetOnActorFocus(FOnActorFocus InCallback) { OnActorFocus = std::move(InCallback); }
 
-        void SetSelectedActor(AActor* InActor) { SelectedActor = InActor; }
-        AActor* GetSelectedActor() const { return SelectedActor; }
+        void SetSelectedActor(AActor* InActor);
+        AActor* GetSelectedActor() const;
 
-        void Draw(UWorld* InWorld);
+        bool IsActorHiddenInEditor(AActor* InActor) const { return HiddenActors.find(InActor) != HiddenActors.end(); }
+        bool IsActorLocked(AActor* InActor) const { return LockedActors.find(InActor) != LockedActors.end(); }
+
+        void Draw(UWorld* InWorld, bool* bInOutOpen = nullptr);
 
     private:
         void DrawActorNode(UWorld& InWorld, AActor* InActor, const std::string& InFilter);
         void DrawContextMenu(UWorld& InWorld, AActor* InActor);
         void SpawnNewActor(UWorld& InWorld, const std::string& InType);
+        bool PassesCategoryFilter(AActor* InActor) const;
 
+        FEditorSelectionSubsystem* SelectionSubsystem = nullptr;
         FOnActorSelected OnActorSelected;
         FOnActorFocus OnActorFocus;
 
-        AActor* SelectedActor = nullptr;
+        AActor* FallbackSelectedActor = nullptr;
         char FilterBuffer[128] = "";
+        EOutlinerFilterCategory ActiveCategory = EOutlinerFilterCategory::All;
+
+        // Visibility & Lock States
+        std::unordered_set<AActor*> HiddenActors;
+        std::unordered_set<AActor*> LockedActors;
+
+        // Renaming
+        bool bRenamingActor = false;
+        AActor* RenameTargetActor = nullptr;
+        char RenameBuffer[128] = "";
     };
 
 } // namespace Leon::Editor

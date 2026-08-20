@@ -27,7 +27,7 @@ Shared helpers: [`Scripts/_leon_paths.py`](../Scripts/_leon_paths.py) (not a CLI
 | `create_project.py` | Scaffold a blank game (`--name`, `--output`) |
 | `clean_rebuild.py` | Wipe project out dir + rebuild (`--project` required) |
 | `run_tests.py` | Engine `RendererTests` / `LeonTournamentTests` under `out/Engine` |
-| `verify_ue_naming.py` | Naming / Engine isolation CI guard (scans `Editor/Source`, skips `Legacy`) |
+| `verify_ue_naming.py` | Naming / Engine isolation CI guard (scans `Editor/Source`) |
 | `format_code.py` | clang-format Engine (+ optional `--project` tree) |
 | `build_incremental.py` | Thin alias of `build_project.py` |
 

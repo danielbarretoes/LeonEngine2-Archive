@@ -47,7 +47,7 @@ TEST_SUITE("PBR - BRDF LUT Invariants") {
     }
 
     TEST_CASE("Pre-baked BRDF_LUT.bin File Verification") {
-        const std::string binPath = "Engine/Assets/Textures/BRDF_LUT.bin";
+        const std::string binPath = "Engine/Resources/Textures/BRDF_LUT.bin";
         REQUIRE(std::filesystem::exists(binPath));
 
         std::ifstream file(binPath, std::ios::binary);

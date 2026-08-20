@@ -10,7 +10,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/ToneMapping.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 
@@ -78,7 +78,7 @@ TEST_SUITE("Shader GPU - Post-Processing Tone Mapping & ACES Pipeline") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/ToneMapping.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 

@@ -54,7 +54,7 @@ namespace Leon {
     }
 
     std::string FProjectPaths::EngineContentDir() {
-        return "Engine/Assets";
+        return "Engine/Resources";
     }
 
     std::string FProjectPaths::EngineConfigDir() {
@@ -193,8 +193,8 @@ namespace Leon {
         if (ec || exeDir.empty())
             return false;
 
-        const fs::path packagedAssets = exeDir / "Engine" / "Assets";
-        if (!fs::is_directory(packagedAssets, ec))
+        const fs::path packagedResources = exeDir / "Engine" / "Resources";
+        if (!fs::is_directory(packagedResources, ec))
             return false;
 
         fs::current_path(exeDir, ec);

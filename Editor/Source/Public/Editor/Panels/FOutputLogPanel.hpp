@@ -25,7 +25,7 @@ namespace Leon::Editor {
         void AddLog(ELogLevel InLevel, const std::string& InCategory, const std::string& InMessage);
         void Clear();
 
-        void Draw();
+        void Draw(bool* bInOutOpen = nullptr);
 
     private:
         std::vector<FLogEntry> Entries;

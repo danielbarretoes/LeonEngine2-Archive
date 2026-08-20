@@ -69,7 +69,7 @@ namespace Leon {
                 va = FMeshPrimitives::CreateCylinder(visual.Radius, visual.TopRadius, visual.Length, 12, true);
                 break;
             }
-            auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+            auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
             if (!va || !shader)
                 return;
 

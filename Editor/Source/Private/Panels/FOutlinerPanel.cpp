@@ -1,77 +1,177 @@
 #include "Editor/Panels/FOutlinerPanel.hpp"
+#include "Core/FLog.hpp"
+#include "Editor/Panels/FPlaceActorsPanel.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
-#include "Gameplay/AActor.hpp"
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <imgui.h>
 
 namespace Leon::Editor {
 
-    void FOutlinerPanel::Draw(UWorld* InWorld) {
-        ImGui::Begin("World Outliner");
-
-        if (!InWorld) {
-            ImGui::TextDisabled("No active world loaded.");
-            ImGui::End();
-            return;
+    void FOutlinerPanel::SetSelectedActor(AActor* InActor) {
+        if (SelectionSubsystem) {
+            SelectionSubsystem->SelectActor(InActor, false);
+        } else {
+            FallbackSelectedActor = InActor;
         }
+    }
 
-        // Search Bar & Add Button
-        ImGui::SetNextItemWidth(-100.0f);
-        ImGui::InputTextWithHint("##OutlinerFilter", "Search actors...", FilterBuffer, sizeof(FilterBuffer));
-        ImGui::SameLine();
-
-        if (ImGui::Button("+ Add Actor", ImVec2(90.0f, 0.0f))) {
-            ImGui::OpenPopup("AddActorPopup");
+    AActor* FOutlinerPanel::GetSelectedActor() const {
+        if (SelectionSubsystem) {
+            return SelectionSubsystem->GetPrimarySelectedActor();
         }
+        return FallbackSelectedActor;
+    }
 
-        if (ImGui::BeginPopup("AddActorPopup")) {
-            if (ImGui::MenuItem("Static Mesh Actor"))
-                SpawnNewActor(*InWorld, "StaticMesh");
-            if (ImGui::MenuItem("Directional Light"))
-                SpawnNewActor(*InWorld, "DirectionalLight");
-            if (ImGui::MenuItem("Point Light"))
-                SpawnNewActor(*InWorld, "PointLight");
-            if (ImGui::MenuItem("Spot Light"))
-                SpawnNewActor(*InWorld, "SpotLight");
-            if (ImGui::MenuItem("Camera Actor"))
-                SpawnNewActor(*InWorld, "Camera");
-            if (ImGui::MenuItem("Empty Actor"))
-                SpawnNewActor(*InWorld, "Empty");
-            ImGui::EndPopup();
+    bool FOutlinerPanel::PassesCategoryFilter(AActor* InActor) const {
+        if (!InActor)
+            return false;
+        if (ActiveCategory == EOutlinerFilterCategory::All)
+            return true;
+
+        if (ActiveCategory == EOutlinerFilterCategory::StaticMeshes) {
+            return InActor->HasComponent<FStaticMeshComponent>() || InActor->HasComponent<FMeshComponent>();
         }
+        if (ActiveCategory == EOutlinerFilterCategory::Lights) {
+            return InActor->HasComponent<FDirectionalLightComponent>() ||
+                   InActor->HasComponent<FPointLightComponent>() || InActor->HasComponent<FSpotLightComponent>();
+        }
+        if (ActiveCategory == EOutlinerFilterCategory::Cameras) {
+            return InActor->HasComponent<FCameraComponent>();
+        }
+        if (ActiveCategory == EOutlinerFilterCategory::Characters) {
+            return InActor->GetName().find("Character") != std::string::npos ||
+                   InActor->GetName().find("Player") != std::string::npos;
+        }
+        if (ActiveCategory == EOutlinerFilterCategory::Volumes) {
+            return InActor->HasComponent<FBoxCollisionComponent>() ||
+                   InActor->GetName().find("Volume") != std::string::npos;
+        }
+        return true;
+    }
 
-        ImGui::Separator();
-        ImGui::Spacing();
+    void FOutlinerPanel::Draw(UWorld* InWorld, bool* bInOutOpen) {
+        ImGui::Begin("World Outliner", bInOutOpen);
 
-        std::string filter = FilterBuffer;
-        std::transform(filter.begin(), filter.end(), filter.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-        ImGui::BeginChild("OutlinerActorsScroll", ImVec2(0, 0), false);
-
-        const auto& actors = InWorld->GetAllActors();
-        for (const auto& actorPtr : actors) {
-            AActor* actor = actorPtr.get();
-            if (!actor)
-                continue;
-
-            // Only draw root actors at the top level; children are drawn recursively
-            if (actor->GetAttachParentActor() == nullptr || !filter.empty()) {
-                DrawActorNode(*InWorld, actor, filter);
+        try {
+            if (!InWorld) {
+                ImGui::TextDisabled("No active world loaded.");
+                ImGui::End();
+                return;
             }
+
+            // Search Bar
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 30.0f);
+            ImGui::InputTextWithHint("##OutlinerSearch", "Search Actors...", FilterBuffer, sizeof(FilterBuffer));
+            ImGui::SameLine();
+            if (ImGui::SmallButton("X##ClearOutlinerSearch")) {
+                FilterBuffer[0] = '\0';
+            }
+
+            // Quick Category Filters
+            const char* filterNames[] = {"All", "Meshes", "Lights", "Cameras", "Characters", "Volumes"};
+            for (int i = 0; i < 6; ++i) {
+                if (i > 0)
+                    ImGui::SameLine();
+                bool bActive = (static_cast<int>(ActiveCategory) == i);
+                if (bActive)
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.45f, 0.8f, 1.0f));
+                if (ImGui::SmallButton(filterNames[i])) {
+                    ActiveCategory = static_cast<EOutlinerFilterCategory>(i);
+                }
+                if (bActive)
+                    ImGui::PopStyleColor();
+            }
+
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            std::string filterStr = FilterBuffer;
+            std::transform(filterStr.begin(), filterStr.end(), filterStr.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+            // Tree Scroll Region
+            ImGui::BeginChild("OutlinerTreeChildRegion", ImVec2(0, -26.0f), false);
+
+            const auto& allActors = InWorld->GetAllActors();
+            for (const auto& actorPtr : allActors) {
+                AActor* actor = actorPtr.get();
+                if (!actor)
+                    continue;
+
+                // Only draw root actors here; attached children will be drawn hierarchically
+                if (actor->GetAttachParentActor() == nullptr) {
+                    DrawActorNode(*InWorld, actor, filterStr);
+                }
+            }
+
+            // Drag & Drop to root (detach from parent)
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("OUTLINER_ACTOR_PTR")) {
+                    AActor* dropped = *reinterpret_cast<AActor**>(payload->Data);
+                    if (dropped) {
+                        dropped->DetachFromActor();
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            // Empty background click: clear selection
+            if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered()) {
+                if (SelectionSubsystem) {
+                    SelectionSubsystem->ClearActorSelection();
+                } else {
+                    FallbackSelectedActor = nullptr;
+                }
+            }
+
+            // Empty background context menu: Add Actor
+            if (ImGui::BeginPopupContextWindow("OutlinerBackgroundContextMenu",
+                                               ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+                ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "Add Actor to Scene");
+                ImGui::Separator();
+                if (ImGui::MenuItem("Empty Actor"))
+                    SpawnNewActor(*InWorld, "Empty");
+                if (ImGui::MenuItem("Static Mesh Cube"))
+                    SpawnNewActor(*InWorld, "Cube");
+                if (ImGui::MenuItem("Static Mesh Sphere"))
+                    SpawnNewActor(*InWorld, "Sphere");
+                if (ImGui::MenuItem("Static Mesh Cylinder"))
+                    SpawnNewActor(*InWorld, "Cylinder");
+                if (ImGui::MenuItem("Static Mesh Plane"))
+                    SpawnNewActor(*InWorld, "Plane");
+                ImGui::Separator();
+                if (ImGui::MenuItem("Directional Light"))
+                    SpawnNewActor(*InWorld, "DirectionalLight");
+                if (ImGui::MenuItem("Point Light"))
+                    SpawnNewActor(*InWorld, "PointLight");
+                if (ImGui::MenuItem("Spot Light"))
+                    SpawnNewActor(*InWorld, "SpotLight");
+                if (ImGui::MenuItem("Camera Actor"))
+                    SpawnNewActor(*InWorld, "Camera");
+                ImGui::EndPopup();
+            }
+
+            ImGui::EndChild();
+
+            // Footer info
+            ImGui::Separator();
+            size_t totalCount = allActors.size();
+            size_t selCount =
+                SelectionSubsystem ? SelectionSubsystem->GetSelectedActorCount() : (FallbackSelectedActor ? 1 : 0);
+            ImGui::TextDisabled("%zu Actors  |  %zu Selected", totalCount, selCount);
+
+        } catch (const std::exception& e) {
+            LE_CORE_ERROR("FOutlinerPanel: Exception during Draw: {0}", e.what());
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Outliner Error: %s", e.what());
+        } catch (...) {
+            LE_CORE_ERROR("FOutlinerPanel: Unknown exception during Draw");
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Outliner: Unknown error encountered");
         }
 
-        // Click on empty background to deselect
-        if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
-            SelectedActor = nullptr;
-            if (OnActorSelected)
-                OnActorSelected(nullptr);
-        }
-
-        ImGui::EndChild();
         ImGui::End();
     }
 
@@ -79,110 +179,170 @@ namespace Leon::Editor {
         if (!InActor)
             return;
 
-        const std::string& name = InActor->GetName();
-        if (!InFilter.empty()) {
-            std::string lowerName = name;
-            std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (lowerName.find(InFilter) == std::string::npos) {
-                return;
-            }
+        std::string actorName = InActor->GetName();
+        std::string lowerName = actorName;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        if (!InFilter.empty() && lowerName.find(InFilter) == std::string::npos) {
+            return;
         }
 
-        const auto& children = InActor->GetAttachedActors();
-        bool bHasChildren = !children.empty();
-
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
-        if (bHasChildren) {
-            flags |= ImGuiTreeNodeFlags_OpenOnArrow;
-        } else {
-            flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        if (!PassesCategoryFilter(InActor)) {
+            return;
         }
 
-        if (InActor == SelectedActor) {
+        const auto& attachedChildren = InActor->GetAttachedActors();
+        bool bHasChildren = !attachedChildren.empty();
+        bool bIsSelected =
+            SelectionSubsystem ? SelectionSubsystem->IsActorSelected(InActor) : (FallbackSelectedActor == InActor);
+        bool bIsLocked = IsActorLocked(InActor);
+        bool bIsHidden = IsActorHiddenInEditor(InActor);
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (bIsSelected)
             flags |= ImGuiTreeNodeFlags_Selected;
-        }
+        if (!bHasChildren)
+            flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
         ImGui::PushID(InActor);
 
-        // Determine Lucide Icon by component type
+        // Visibility Toggle Button (Eye)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        if (ImGui::SmallButton(bIsHidden ? "[H]" : "[V]")) {
+            if (bIsHidden)
+                HiddenActors.erase(InActor);
+            else
+                HiddenActors.insert(InActor);
+        }
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+
+        // Lock Toggle Button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        if (ImGui::SmallButton(bIsLocked ? "[L]" : "[U]")) {
+            if (bIsLocked)
+                LockedActors.erase(InActor);
+            else
+                LockedActors.insert(InActor);
+        }
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+
+        // Node Icon & Tint
         ELucideIcon icon = ELucideIcon::Package;
         ImU32 iconColor = IM_COL32(180, 180, 190, 255);
+        std::string typeBadge = "Actor";
 
-        if (InActor->HasComponent<FStaticMeshComponent>()) {
+        if (InActor->HasComponent<FStaticMeshComponent>() || InActor->HasComponent<FMeshComponent>()) {
             icon = ELucideIcon::Box;
             iconColor = IM_COL32(80, 160, 255, 255);
+            typeBadge = "StaticMesh";
         } else if (InActor->HasComponent<FDirectionalLightComponent>()) {
             icon = ELucideIcon::Sun;
             iconColor = IM_COL32(255, 220, 80, 255);
+            typeBadge = "DirLight";
         } else if (InActor->HasComponent<FPointLightComponent>()) {
             icon = ELucideIcon::Lightbulb;
             iconColor = IM_COL32(255, 180, 60, 255);
+            typeBadge = "PointLight";
         } else if (InActor->HasComponent<FSpotLightComponent>()) {
             icon = ELucideIcon::Crosshair;
-            iconColor = IM_COL32(255, 140, 60, 255);
+            iconColor = IM_COL32(255, 130, 60, 255);
+            typeBadge = "SpotLight";
         } else if (InActor->HasComponent<FCameraComponent>()) {
             icon = ELucideIcon::Clapperboard;
-            iconColor = IM_COL32(200, 100, 255, 255);
-        } else if (bHasChildren) {
-            icon = ELucideIcon::Boxes;
-            iconColor = IM_COL32(120, 220, 120, 255);
+            iconColor = IM_COL32(200, 120, 255, 255);
+            typeBadge = "Camera";
         }
 
-        // Draw icon
-        ImVec2 curPos = ImGui::GetCursorScreenPos();
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        FLucideIcons::DrawIcon(drawList, ImVec2(curPos.x, curPos.y + 2.0f), ImVec2(curPos.x + 16.0f, curPos.y + 18.0f),
-                               icon, iconColor);
-        ImGui::Dummy(ImVec2(18.0f, 18.0f));
-        ImGui::SameLine();
+        ImVec2 curPos = ImGui::GetCursorScreenPos();
 
-        bool bNodeOpen = ImGui::TreeNodeEx((void*)InActor, flags, "%s", name.c_str());
+        // If currently renaming this actor, render inline text input
+        bool bOpen = false;
+        if (bRenamingActor && RenameTargetActor == InActor) {
+            ImGui::SetNextItemWidth(180.0f);
+            if (ImGui::InputText("##InlineRename", RenameBuffer, sizeof(RenameBuffer),
+                                 ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+                if (RenameBuffer[0] != '\0') {
+                    InActor->SetName(RenameBuffer);
+                }
+                bRenamingActor = false;
+                RenameTargetActor = nullptr;
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                bRenamingActor = false;
+                RenameTargetActor = nullptr;
+            }
+        } else {
+            bOpen = ImGui::TreeNodeEx("##ActorTreeNode", flags, "   %s", actorName.c_str());
 
-        if (ImGui::IsItemClicked()) {
-            SelectedActor = InActor;
-            if (OnActorSelected)
+            // Draw Lucide icon
+            FLucideIcons::DrawIcon(drawList, ImVec2(curPos.x + 18.0f, curPos.y + 2.0f),
+                                   ImVec2(curPos.x + 32.0f, curPos.y + 16.0f), icon, iconColor);
+
+            // Right Type Badge
+            float rightEdge = ImGui::GetWindowWidth() - 75.0f;
+            if (ImGui::GetCursorPosX() < rightEdge) {
+                ImGui::SameLine(rightEdge);
+                ImGui::TextDisabled("%s", typeBadge.c_str());
+            }
+        }
+
+        // Selection Handling with Ctrl/Shift
+        if (!bIsLocked && (ImGui::IsItemClicked(0) || ImGui::IsItemClicked(1))) {
+            bool bCtrl = ImGui::GetIO().KeyCtrl;
+            if (SelectionSubsystem) {
+                if (bCtrl) {
+                    SelectionSubsystem->ToggleActorSelection(InActor);
+                } else {
+                    SelectionSubsystem->SelectActor(InActor, false);
+                }
+            } else {
+                FallbackSelectedActor = InActor;
+            }
+
+            if (OnActorSelected) {
                 OnActorSelected(InActor);
+            }
         }
 
-        // Double-click to focus
+        // Double Click: Focus Camera on Actor
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-            if (OnActorFocus)
+            if (OnActorFocus) {
                 OnActorFocus(InActor);
+            }
         }
 
-        // Drag & Drop Source (reparenting)
-        if (ImGui::BeginDragDropSource()) {
-            AActor* dragActor = InActor;
-            ImGui::SetDragDropPayload("OUTLINER_ACTOR", &dragActor, sizeof(AActor*));
-            ImGui::Text("Attach: %s", name.c_str());
+        // Drag & Drop Source: Re-parenting
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            AActor* draggedActor = InActor;
+            ImGui::SetDragDropPayload("OUTLINER_ACTOR_PTR", &draggedActor, sizeof(AActor*));
+            ImGui::Text("Attach: %s", actorName.c_str());
             ImGui::EndDragDropSource();
         }
 
-        // Drag & Drop Target (attach onto this actor)
+        // Drag & Drop Target: Attach child to this actor
         if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("OUTLINER_ACTOR")) {
-                AActor* droppedActor = *(AActor**)payload->Data;
-                if (droppedActor && droppedActor != InActor) {
-                    droppedActor->AttachToActor(InActor);
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("OUTLINER_ACTOR_PTR")) {
+                AActor* dropped = *reinterpret_cast<AActor**>(payload->Data);
+                if (dropped && dropped != InActor) {
+                    dropped->AttachToActor(InActor);
                 }
             }
             ImGui::EndDragDropTarget();
         }
 
         // Context Menu
-        if (ImGui::BeginPopupContextItem()) {
-            SelectedActor = InActor;
-            if (OnActorSelected)
-                OnActorSelected(InActor);
-            DrawContextMenu(InWorld, InActor);
-            ImGui::EndPopup();
-        }
+        DrawContextMenu(InWorld, InActor);
 
-        // Recurse children if opened
-        if (bHasChildren && bNodeOpen) {
-            for (AActor* child : children) {
-                DrawActorNode(InWorld, child, InFilter);
+        // Recursive hierarchy for children
+        if (bOpen && bHasChildren) {
+            for (AActor* child : attachedChildren) {
+                if (child) {
+                    DrawActorNode(InWorld, child, InFilter);
+                }
             }
             ImGui::TreePop();
         }
@@ -194,70 +354,84 @@ namespace Leon::Editor {
         if (!InActor)
             return;
 
-        ImGui::TextDisabled("Actor: %s", InActor->GetName().c_str());
-        ImGui::Separator();
-
-        if (ImGui::MenuItem("Focus in Viewport (F)")) {
-            if (OnActorFocus)
-                OnActorFocus(InActor);
-        }
-
-        if (InActor->GetAttachParentActor() != nullptr) {
-            if (ImGui::MenuItem("Detach from Parent")) {
-                InActor->DetachFromActor();
+        if (ImGui::BeginPopupContextItem("ActorNodeContext")) {
+            if (SelectionSubsystem) {
+                SelectionSubsystem->SelectActor(InActor, false);
+            } else {
+                FallbackSelectedActor = InActor;
             }
-        }
 
-        if (ImGui::MenuItem("Duplicate")) {
-            AActor* dup = InWorld.SpawnActor(InActor->GetName() + "_Copy");
-            if (dup && InActor->HasComponent<FTransformComponent>()) {
-                auto& srcT = InActor->GetComponent<FTransformComponent>();
-                auto& dstT = dup->GetComponent<FTransformComponent>();
-                dstT.Translation = srcT.Translation + glm::vec3(1.0f, 0.0f, 1.0f);
-                dstT.Rotation = srcT.Rotation;
-                dstT.Scale = srcT.Scale;
-            }
-        }
+            ImGui::TextDisabled("%s", InActor->GetName().c_str());
+            ImGui::Separator();
 
-        ImGui::Separator();
-        if (ImGui::MenuItem("Delete Actor", "Del")) {
-            if (SelectedActor == InActor) {
-                SelectedActor = nullptr;
-                if (OnActorSelected)
-                    OnActorSelected(nullptr);
+            if (ImGui::MenuItem("Focus in Viewport", "F")) {
+                if (OnActorFocus)
+                    OnActorFocus(InActor);
             }
-            InWorld.DestroyActor(InActor);
+
+            if (ImGui::MenuItem("Rename", "F2")) {
+                bRenamingActor = true;
+                RenameTargetActor = InActor;
+                strncpy_s(RenameBuffer, InActor->GetName().c_str(), sizeof(RenameBuffer));
+            }
+
+            if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
+                AActor* dup = InWorld.SpawnActor(InActor->GetName() + "_Copy");
+                if (dup && InActor->HasComponent<FTransformComponent>()) {
+                    dup->GetComponent<FTransformComponent>() = InActor->GetComponent<FTransformComponent>();
+                    dup->GetComponent<FTransformComponent>().Translation += glm::vec3(1.0f, 0.0f, 0.0f);
+                }
+                if (SelectionSubsystem)
+                    SelectionSubsystem->SelectActor(dup, false);
+            }
+
+            if (InActor->GetAttachParentActor() != nullptr) {
+                if (ImGui::MenuItem("Detach from Parent")) {
+                    InActor->DetachFromActor();
+                }
+            }
+
+            if (ImGui::BeginMenu("Transform")) {
+                if (ImGui::MenuItem("Reset Location")) {
+                    if (InActor->HasComponent<FTransformComponent>()) {
+                        InActor->GetComponent<FTransformComponent>().Translation = glm::vec3(0.0f);
+                    }
+                }
+                if (ImGui::MenuItem("Reset Rotation")) {
+                    if (InActor->HasComponent<FTransformComponent>()) {
+                        InActor->GetComponent<FTransformComponent>().Rotation = glm::vec3(0.0f);
+                    }
+                }
+                if (ImGui::MenuItem("Reset Scale")) {
+                    if (InActor->HasComponent<FTransformComponent>()) {
+                        InActor->GetComponent<FTransformComponent>().Scale = glm::vec3(1.0f);
+                    }
+                }
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete", "Del")) {
+                InWorld.DestroyActor(InActor);
+                if (SelectionSubsystem)
+                    SelectionSubsystem->ClearActorSelection();
+            }
+
+            ImGui::EndPopup();
         }
     }
 
     void FOutlinerPanel::SpawnNewActor(UWorld& InWorld, const std::string& InType) {
-        if (InType == "StaticMesh") {
-            AActor* a = InWorld.SpawnActor("StaticMeshActor");
-            a->AddComponent<FStaticMeshComponent>();
-            SelectedActor = a;
-        } else if (InType == "DirectionalLight") {
-            AActor* a = InWorld.SpawnActor("DirectionalLight");
-            a->AddComponent<FDirectionalLightComponent>();
-            SelectedActor = a;
-        } else if (InType == "PointLight") {
-            AActor* a = InWorld.SpawnActor("PointLight");
-            a->AddComponent<FPointLightComponent>();
-            SelectedActor = a;
-        } else if (InType == "SpotLight") {
-            AActor* a = InWorld.SpawnActor("SpotLight");
-            a->AddComponent<FSpotLightComponent>();
-            SelectedActor = a;
-        } else if (InType == "Camera") {
-            AActor* a = InWorld.SpawnActor("CameraActor");
-            a->AddComponent<FCameraComponent>();
-            SelectedActor = a;
-        } else {
-            AActor* a = InWorld.SpawnActor("Actor");
-            SelectedActor = a;
-        }
-
-        if (OnActorSelected) {
-            OnActorSelected(SelectedActor);
+        AActor* spawned = FPlaceActorsPanel::SpawnActorAt(InWorld, InType, glm::vec3(0.0f, 0.0f, 0.0f));
+        if (spawned) {
+            if (SelectionSubsystem) {
+                SelectionSubsystem->SelectActor(spawned, false);
+            } else {
+                FallbackSelectedActor = spawned;
+            }
+            if (OnActorSelected) {
+                OnActorSelected(spawned);
+            }
         }
     }
 

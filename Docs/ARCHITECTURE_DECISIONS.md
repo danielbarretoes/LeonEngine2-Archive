@@ -52,7 +52,7 @@ Rather than a single monolithic build, LeonEngine2 separates code into three dis
 LeonEngine2 strictly decouples physical file locations on disk from asset references in code and maps:
 
 ```text
-/Engine/Shaders/PBR_Lit.glsl  ──►  Engine/Assets/Shaders/PBR_Lit.glsl
+/Engine/Shaders/PBR_Lit.glsl  ──►  Engine/Resources/Shaders/PBR_Lit.glsl
 /Game/Maps/ShowcaseLevel      ──►  Projects/<Project>/Content/Maps/ShowcaseLevel.lmap
 /Game/Materials/M_Floor       ──►  Projects/<Project>/Content/Materials/M_Floor.lmat
 ```
@@ -94,7 +94,7 @@ python Scripts/package_project.py --project Projects/Sandbox/Sandbox.lproject --
    - `<Name>.exe` and `<Name>.lproject`
    - `Content/` (game assets)
    - `Config/` (Multi-INI configurations)
-   - `Engine/Assets/` (runtime shaders, fonts, fallback textures)
+   - `Engine/Resources/` (runtime shaders, fonts, fallback textures)
    - Compiler runtime DLLs (MSVC / MinGW redistributables)
 4. **Archive Creation**: Compresses the staging directory into `<Name>-Win64-Shipping.zip` for one-click distribution.
 

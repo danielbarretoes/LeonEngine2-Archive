@@ -220,11 +220,11 @@ namespace Leon {
     }
 
     int UEngine::InternalRun(FApplicationCommandLineArgs InArgs, const std::string& InProjectOrConfigPath) {
-        // Shipping packages place Engine/Assets beside the exe; adopt that cwd so relative
-        // engine asset paths resolve when launched from Explorer (cwd != package root).
+        // Shipping packages place Engine/Resources beside the exe; adopt that cwd so relative
+        // engine resource paths resolve when launched from Explorer (cwd != package root).
         if (InArgs.Args && InArgs.Count > 0 && InArgs.Args[0]) {
             if (FProjectPaths::AdoptPackagedWorkingDirectory(InArgs.Args[0])) {
-                LE_CORE_INFO("UEngine: Adopted packaged working directory (Engine/Assets beside exe)");
+                LE_CORE_INFO("UEngine: Adopted packaged working directory (Engine/Resources beside exe)");
             }
         }
 

@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _leon_paths import engine_root, project_dir  # noqa: E402
 
 EXTENSIONS = (".hpp", ".h", ".cpp", ".c", ".inl")
-EXCLUDE_DIRS = {"ThirdParty", "build", "out", ".cache", ".git", ".vscode", "Legacy", "_deps"}
+EXCLUDE_DIRS = {"ThirdParty", "build", "out", ".cache", ".git", ".vscode", "_deps"}
 
 
 def find_clang_format() -> str:

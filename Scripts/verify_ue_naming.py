@@ -29,7 +29,6 @@ SKIP_DIR_NAMES = {
     "Content",
     "Intermediate",
     "Cache",
-    "Legacy",
     "Saved",
     "Resources",
 }

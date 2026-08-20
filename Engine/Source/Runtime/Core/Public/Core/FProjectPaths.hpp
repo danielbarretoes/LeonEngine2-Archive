@@ -37,7 +37,7 @@ namespace Leon {
         static std::string LocateProjectFile(const std::string& InPathOrDir);
 
         /**
-         * @brief If argv0 sits next to Engine/Assets (shipping layout), chdir there.
+         * @brief If argv0 sits next to Engine/Resources (shipping layout), chdir there.
          * Dev builds keep the caller's cwd (engine root) because that folder is absent.
          */
         static bool AdoptPackagedWorkingDirectory(const char* InExecutableArgv0);

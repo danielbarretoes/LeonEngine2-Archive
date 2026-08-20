@@ -1,9 +1,6 @@
 # Leon Editor — separate product entry point (Docs/NAMING.md skeleton).
 #   cmake -S Editor -B out/Editor -G Ninja -DCMAKE_BUILD_TYPE=Debug
 #   cmake --build out/Editor --target LeonEditor
-#
-# Legacy ImGui editor (pre-NAMING, leon::) lives under Editor/Legacy/ and is
-# not part of this target until ported panel-by-panel.
 
 cmake_minimum_required(VERSION 3.20)
 project(LeonEditor VERSION 0.1.0 LANGUAGES C CXX)
@@ -44,6 +41,8 @@ add_library(LeonEditorCore STATIC
     Source/Private/Panels/FPlaceActorsPanel.cpp
     Source/Private/Panels/FWorldSettingsPanel.cpp
     Source/Private/Panels/FProjectSettingsPanel.cpp
+    Source/Private/Subsystems/FEditorSelectionSubsystem.cpp
+    Source/Private/Subsystems/FEditorTransactionSubsystem.cpp
     Source/Private/UI/FEditorTheme.cpp
     Source/Private/UI/FLucideIcons.cpp
     Source/Private/Commands/FEditorHistory.cpp
@@ -105,14 +104,14 @@ if(WIN32)
     endif()
 endif()
 
-# Stage Engine/Assets beside the exe so relative shader/font paths resolve.
+# Stage Engine/Resources beside the exe so relative shader/font paths resolve.
 set(_leon_sync "${LEON_ENGINE_ROOT}/CMake/SyncDirectory.cmake")
 set(_editor_exe_dir "$<TARGET_FILE_DIR:LeonEditor>")
-set(LEON_ENGINE_ASSETS "${LEON_ENGINE_ROOT}/Engine/Assets")
+set(LEON_ENGINE_RESOURCES "${LEON_ENGINE_ROOT}/Engine/Resources")
 add_custom_command(TARGET LeonEditor POST_BUILD
     COMMAND ${CMAKE_COMMAND}
-        -DSRC=${LEON_ENGINE_ASSETS}
-        -DDST=${_editor_exe_dir}/Engine/Assets
+        -DSRC=${LEON_ENGINE_RESOURCES}
+        -DDST=${_editor_exe_dir}/Engine/Resources
         -DREMOVE_ORPHANS=ON
         -P ${_leon_sync}
     COMMAND ${CMAKE_COMMAND}

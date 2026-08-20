@@ -117,7 +117,7 @@ namespace Leon {
     void ALeonTournamentFlag::BuildVisual() {
         if (!FApplication::HasInstance())
             return;
-        auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
         if (!shader)
             return;
         auto va = FMeshPrimitives::CreateCylinder(0.12f, 0.12f, 0.9f, 10, true);

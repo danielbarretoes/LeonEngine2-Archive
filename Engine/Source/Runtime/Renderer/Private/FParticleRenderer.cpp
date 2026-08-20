@@ -18,7 +18,7 @@ namespace Leon {
     TRef<FVertexBuffer> FParticleRenderer::VertexBuffer = nullptr;
 
     void FParticleRenderer::Init() {
-        Shader = FShader::Create("Engine/Assets/Shaders/DebugLine.glsl");
+        Shader = FShader::Create("Engine/Resources/Shaders/DebugLine.glsl");
         VertexArray = FVertexArray::Create();
         VertexBuffer = FVertexBuffer::Create(MaxVertices * sizeof(FVertex));
         VertexBuffer->SetLayout({{EShaderDataType::Float3, "aPos"}, {EShaderDataType::Float4, "aColor"}});

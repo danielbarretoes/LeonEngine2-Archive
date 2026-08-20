@@ -14,6 +14,8 @@
 #include "Editor/Panels/FProjectSettingsPanel.hpp"
 #include "Editor/Panels/FToolbarPanel.hpp"
 #include "Editor/Panels/FWorldSettingsPanel.hpp"
+#include "Editor/Subsystems/FEditorSelectionSubsystem.hpp"
+#include "Editor/Subsystems/FEditorTransactionSubsystem.hpp"
 #include "Editor/Window/FEditorWindow.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -48,6 +50,8 @@ namespace Leon::Editor {
 
         TRef<UWorld> EditorWorld;
         AActor* SelectedActor = nullptr;
+        FEditorSelectionSubsystem SelectionSubsystem;
+        FEditorTransactionSubsystem TransactionSubsystem;
 
         FProjectHubPanel ProjectHub;
         FViewportPanel Viewport;
@@ -74,6 +78,16 @@ namespace Leon::Editor {
         bool bShowProjectHub = false;
         bool bDockspaceInitialized = false;
         bool bNeedResetLayout = false;
+
+        // Panel visibility toggles
+        bool bShowViewport = true;
+        bool bShowPlaceActors = true;
+        bool bShowOutliner = true;
+        bool bShowDetails = true;
+        bool bShowContentBrowser = true;
+        bool bShowOutputLog = true;
+        bool bShowWorldSettings = true;
+        bool bShowProjectSettings = true;
     };
 
 } // namespace Leon::Editor

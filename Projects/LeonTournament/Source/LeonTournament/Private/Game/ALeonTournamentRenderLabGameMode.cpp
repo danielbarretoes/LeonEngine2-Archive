@@ -236,7 +236,7 @@ namespace Leon {
         if (!World || !FApplication::HasInstance())
             return;
 
-        auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
         auto parent = UAssetManager::GetDefaultMaterial();
         if (!shader || !parent)
             return;

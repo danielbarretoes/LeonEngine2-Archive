@@ -119,9 +119,9 @@ namespace Leon {
         // -----------------------------------------------------------------------
         // 4. Pipeline shaders and geometry
         // -----------------------------------------------------------------------
-        ShadowDepthShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth.glsl");
-        ShadowDepthSkinnedShader = FShader::Create("Engine/Assets/Shaders/ShadowDepth_Skinned.glsl");
-        SkyboxShader = FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
+        ShadowDepthShader = FShader::Create("Engine/Resources/Shaders/ShadowDepth.glsl");
+        ShadowDepthSkinnedShader = FShader::Create("Engine/Resources/Shaders/ShadowDepth_Skinned.glsl");
+        SkyboxShader = FShader::Create("Engine/Resources/Shaders/Skybox.glsl");
 
         SkyboxVA = FMeshPrimitives::CreateCube(2.0f);
 

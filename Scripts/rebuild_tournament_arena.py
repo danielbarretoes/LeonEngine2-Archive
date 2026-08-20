@@ -93,7 +93,7 @@ def emit_box(
         f"      MetersPerUv: {mpu}",
         f"      SubdivisionsX: 24",
         f"      SubdivisionsZ: 24",
-        f'      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"',
+        f'      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"',
         f"      CastShadows: true",
         f"      ReceiveShadows: true",
         f"      VisibleInReflection: {'true' if visible_in_reflection else 'false'}",

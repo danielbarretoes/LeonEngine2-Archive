@@ -8,7 +8,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
+        const std::string shaderPath = "Engine/Resources/Shaders/PBR_Lit.glsl";
         REQUIRE(std::filesystem::exists(shaderPath));
 
         auto shader = Leon::FShader::Create(shaderPath);
@@ -84,7 +84,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Normal Mapping") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        const std::string shaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
+        const std::string shaderPath = "Engine/Resources/Shaders/PBR_Lit.glsl";
         auto shader = Leon::FShader::Create(shaderPath);
         shader->Bind();
 

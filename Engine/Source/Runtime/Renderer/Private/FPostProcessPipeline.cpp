@@ -15,14 +15,14 @@ namespace Leon {
         if (bInitialized)
             return;
 
-        BloomBrightPassShader = FShader::Create("Engine/Assets/Shaders/BloomBrightPass.glsl");
-        BloomDownsampleShader = FShader::Create("Engine/Assets/Shaders/BloomDownsample.glsl");
-        BloomUpsampleShader = FShader::Create("Engine/Assets/Shaders/BloomUpsample.glsl");
-        ToneMappingShader = FShader::Create("Engine/Assets/Shaders/ToneMapping.glsl");
-        FXAAShader = FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
-        SSAOShader = FShader::Create("Engine/Assets/Shaders/SSAO.glsl");
-        SSAOBlurShader = FShader::Create("Engine/Assets/Shaders/SSAOBlur.glsl");
-        SSAOCompositeShader = FShader::Create("Engine/Assets/Shaders/SSAOComposite.glsl");
+        BloomBrightPassShader = FShader::Create("Engine/Resources/Shaders/BloomBrightPass.glsl");
+        BloomDownsampleShader = FShader::Create("Engine/Resources/Shaders/BloomDownsample.glsl");
+        BloomUpsampleShader = FShader::Create("Engine/Resources/Shaders/BloomUpsample.glsl");
+        ToneMappingShader = FShader::Create("Engine/Resources/Shaders/ToneMapping.glsl");
+        FXAAShader = FShader::Create("Engine/Resources/Shaders/FXAA.glsl");
+        SSAOShader = FShader::Create("Engine/Resources/Shaders/SSAO.glsl");
+        SSAOBlurShader = FShader::Create("Engine/Resources/Shaders/SSAOBlur.glsl");
+        SSAOCompositeShader = FShader::Create("Engine/Resources/Shaders/SSAOComposite.glsl");
 
         std::mt19937 rng(0x5353414F);
         std::uniform_real_distribution<float> dist(-1.0f, 1.0f);

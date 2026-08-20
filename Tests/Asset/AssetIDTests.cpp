@@ -10,7 +10,7 @@ TEST_SUITE("AssetPath & Asset Identification Tests") {
         CHECK(FAssetPath::Normalize("Projects\\Sandbox\\Content\\Raw\\Mesh.fbx") ==
               "Projects/Sandbox/Content/Raw/Mesh.fbx");
         CHECK(FAssetPath::Normalize("C:\\Engine//Assets///Shaders\\\\PBR_Lit.glsl") ==
-              "C:/Engine/Assets/Shaders/PBR_Lit.glsl");
+              "C:/Engine/Resources/Shaders/PBR_Lit.glsl");
         CHECK(FAssetPath::Normalize("") == "");
     }
 

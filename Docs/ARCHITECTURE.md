@@ -89,8 +89,7 @@ LeonEngine2/
 │   ├── CMakeLists.txt                     # Separate product entry (out/Editor)
 │   ├── Source/Public/Editor/              # FEditorApp, FViewportPanel (NAMING)
 │   ├── Source/Private/
-│   ├── Resources/
-│   └── Legacy/                            # Pre-NAMING ImGui editor (not built)
+│   └── Resources/
 ├── Plugins/RHI/OpenGL/                    # FOpenGL* backend
 ├── Plugins/Physics/Jolt/                  # FJoltPhysicsDriver
 ├── Plugins/Networking/ENet/               # FENetTransport
@@ -169,7 +168,7 @@ This is **not** full Unreal config stacking (`Base.ini` + project + `Saved/Confi
 ### 3.3 Virtual Path Resolution (`FProjectPaths`)
 * `/Game/Maps/ShowcaseLevel` → `<ProjectRoot>/Content/Maps/ShowcaseLevel.lmap`
 * `/Game/Materials/M_StudioFloor` → `<ProjectRoot>/Content/Materials/M_StudioFloor.lmat`
-* `/Engine/Shaders/PBR_Lit.glsl` → `Engine/Assets/Shaders/PBR_Lit.glsl`
+* `/Engine/Shaders/PBR_Lit.glsl` → `Engine/Resources/Shaders/PBR_Lit.glsl`
 
 ### 3.4 Multi-INI Configuration
 1. **`DefaultEngine.ini`**: window, maps, GameMode class, renderer project defaults.

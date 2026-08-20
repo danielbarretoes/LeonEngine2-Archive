@@ -6,7 +6,7 @@ namespace Leon {
 
     FMaterial::FMaterial(const std::string& InName, const TRef<FShader>& InShader) : Name(InName), Shader(InShader) {
         if (!Shader) {
-            Shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+            Shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
         }
     }
 

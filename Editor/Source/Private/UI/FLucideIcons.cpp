@@ -7,7 +7,7 @@
 #include <string>
 
 // Include the vector path definitions
-#include "../../Legacy/include/leon/editor/LucideIconData.inl"
+#include "LucideIconData.inl"
 
 namespace Leon::Editor {
 

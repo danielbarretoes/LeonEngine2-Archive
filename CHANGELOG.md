@@ -645,10 +645,10 @@ This release consolidates the entire physical rendering pipeline of LeonEngine2 
   - `FDirectionalLight`: Directional sunlight with ambient, diffuse, and specular terms.
   - `FPointLight`: Omni-directional point light with distance attenuation (`constant`, `linear`, `quadratic`).
   - `FSpotLight`: Directional cone spot light with smooth penumbra cutoff (`cutOff`, `outerCutOff`) and distance attenuation.
-  - Upgraded multi-light Blinn-Phong shader (`Engine/Assets/Shaders/DirectionalLit.glsl`) calculating combined illumination from all light sources.
+  - Upgraded multi-light Blinn-Phong shader (`Engine/Resources/Shaders/DirectionalLit.glsl`) calculating combined illumination from all light sources.
 - **Performance & Diagnostics HUD Overlay (`FDebugOverlay` & `F1` Hotkey)**:
   - Global `F1` hotkey in `FApplication` toggling real-time performance telemetry.
-  - Integrated official **Inter TrueType Font** (`Engine/Assets/Fonts/Inter-Regular.ttf`) rasterized with `stb_truetype` for crisp, anti-aliased typography.
+  - Integrated official **Inter TrueType Font** (`Engine/Resources/Fonts/Inter-Regular.ttf`) rasterized with `stb_truetype` for crisp, anti-aliased typography.
   - Real-time **VRAM Telemetry** (dedicated video memory and current usage) via OpenGL `GL_NVX_gpu_memory_info` with Windows DXGI fallback.
   - Real-time smoothed **FPS**, **Frame Time (ms)**, **RAM usage (Process Working Set & Peak)**, **GPU model & OpenGL driver**, **Viewport resolution**, and **Render stats (Draw calls, Triangles, Vertices)**.
 - **3D Light Debug Gizmos & Wireframe Pipeline (`FDebugRenderer` & `F2` Hotkey)**:
@@ -661,9 +661,9 @@ This release consolidates the entire physical rendering pipeline of LeonEngine2 
   - Added `DrawLines` and `SetLineWidth` to `IRenderAPI`, `FRenderCommand`, and `FOpenGLRenderAPI`.
   - `FPlatformMemory`: Cross-platform RAM queries (Win32 `GetProcessMemoryInfo`), VRAM queries (`GL_NVX_gpu_memory_info` & DXGI), and OpenGL GPU strings.
 - **Engine vs Project Asset Separation**:
-  - `Engine/Assets/Fonts/Inter-Regular.ttf` for built-in engine typography.
-  - `Engine/Assets/Shaders/DirectionalLit.glsl` for built-in engine shaders.
-  - `Engine/Assets/Shaders/DebugLine.glsl` and `Engine/Assets/Shaders/DebugFont.glsl` for built-in debug rendering.
+  - `Engine/Resources/Fonts/Inter-Regular.ttf` for built-in engine typography.
+  - `Engine/Resources/Shaders/DirectionalLit.glsl` for built-in engine shaders.
+  - `Engine/Resources/Shaders/DebugLine.glsl` and `Engine/Resources/Shaders/DebugFont.glsl` for built-in debug rendering.
   - `Projects/Sandbox/Assets/Textures/Container_Diffuse.png` for project-specific textures.
 
 ---

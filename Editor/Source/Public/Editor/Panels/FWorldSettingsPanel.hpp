@@ -12,7 +12,7 @@ namespace Leon::Editor {
     public:
         FWorldSettingsPanel() = default;
 
-        void Draw(UWorld* InWorld);
+        void Draw(UWorld* InWorld, bool* bInOutOpen = nullptr);
 
     private:
         char GameModeOverride[128] = "";

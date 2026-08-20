@@ -532,7 +532,7 @@ namespace Leon {
 
             // Test /Engine/ resolution
             std::string resolvedEngine = FProjectPaths::ResolveVirtualPath("/Engine/Shaders/PBR_Lit.glsl");
-            CHECK(resolvedEngine == "Engine/Assets/Shaders/PBR_Lit.glsl");
+            CHECK(resolvedEngine == "Engine/Resources/Shaders/PBR_Lit.glsl");
 
             // Test MakeVirtualPath
             std::string virtGame = FProjectPaths::MakeVirtualPath("Projects/TestProject/Content/Textures/T_Test.ltex");

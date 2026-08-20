@@ -573,7 +573,7 @@ namespace Leon {
 
             TRef<FShader> shader = staticMeshComp.Shader
                                        ? staticMeshComp.Shader
-                                       : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+                                       : UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
             if (!shader)
                 continue;
 
@@ -631,7 +631,7 @@ namespace Leon {
             if (IsSkeletalMeshCulled(world, skel, reflectionFrustum))
                 continue;
             TRef<FShader> shader =
-                skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Skinned.glsl");
+                skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Skinned.glsl");
             if (!shader)
                 continue;
             UploadBonePalette(BonePaletteUBO.get(), skel.BonePalette);

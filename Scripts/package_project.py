@@ -8,7 +8,7 @@ Industry layout (double-clickable folder / zip):
     <ProjectName>.lproject
     Content/
     Config/
-    Engine/Assets/          # shaders, fonts, engine textures
+    Engine/Resources/          # shaders, fonts, engine textures
     <runtime DLLs>          # MinGW/MSVC redistributables when dynamically linked
 
 Usage:
@@ -286,7 +286,7 @@ def main() -> int:
         print(f"[ERROR] Missing Config/: {config_src}")
         return 1
     if not os.path.isdir(engine_assets_src):
-        print(f"[ERROR] Missing Engine/Assets: {engine_assets_src}")
+        print(f"[ERROR] Missing Engine/Resources: {engine_assets_src}")
         return 1
 
     if args.clean and os.path.isdir(stage_dir):
@@ -308,7 +308,7 @@ def main() -> int:
     _copytree(content_src, os.path.join(stage_dir, "Content"))
     print("[INFO] Staging Config/")
     _copytree(config_src, os.path.join(stage_dir, "Config"))
-    print("[INFO] Staging Engine/Assets/")
+    print("[INFO] Staging Engine/Resources/")
     _copytree(engine_assets_src, os.path.join(stage_dir, "Engine", "Assets"))
 
     lproject_dst = os.path.join(stage_dir, os.path.basename(project))

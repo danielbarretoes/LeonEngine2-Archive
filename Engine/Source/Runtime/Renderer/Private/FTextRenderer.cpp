@@ -26,14 +26,14 @@ namespace Leon {
     void FTextRenderer::Init() {
         LE_CORE_INFO("Initializing 3D In-World TextRenderer Subsystem...");
 
-        Shader = FShader::Create("Engine/Assets/Shaders/WorldText.glsl");
+        Shader = FShader::Create("Engine/Resources/Shaders/WorldText.glsl");
 
         std::vector<unsigned char> tempBitmap(AtlasDimension * AtlasDimension, 0);
 
-        // Load Inter-Bold TrueType Font from Engine Assets (with fallback to Inter-Regular)
-        std::ifstream file("Engine/Assets/Fonts/Inter-Bold.ttf", std::ios::binary | std::ios::ate);
+        // Load Inter-Bold TrueType Font from Engine Resources (with fallback to Inter-Regular)
+        std::ifstream file("Engine/Resources/Fonts/Inter-Bold.ttf", std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            file.open("Engine/Assets/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
+            file.open("Engine/Resources/Fonts/Inter-Regular.ttf", std::ios::binary | std::ios::ate);
         }
         if (file.is_open()) {
             std::streamsize size = file.tellg();

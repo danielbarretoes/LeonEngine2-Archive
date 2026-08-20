@@ -12,7 +12,7 @@ namespace Leon::Editor {
     public:
         FProjectSettingsPanel() = default;
 
-        void Draw(FProjectDescriptor& InOutDescriptor, const std::string& InProjectPath);
+        void Draw(FProjectDescriptor& InOutDescriptor, const std::string& InProjectPath, bool* bInOutOpen = nullptr);
     };
 
 } // namespace Leon::Editor

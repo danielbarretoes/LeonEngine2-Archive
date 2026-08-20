@@ -8,7 +8,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 
@@ -58,7 +58,7 @@ TEST_SUITE("Shader GPU - PBR_Lit.glsl Shadow Map Hardware PCF") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 

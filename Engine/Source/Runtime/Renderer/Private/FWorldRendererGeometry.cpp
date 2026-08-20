@@ -186,7 +186,7 @@ namespace Leon {
 
             TRef<FShader> activeShader = staticMeshComp.Shader
                                              ? staticMeshComp.Shader
-                                             : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+                                             : UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
             if (!activeShader)
                 continue;
 
@@ -258,7 +258,7 @@ namespace Leon {
                 continue;
 
             TRef<FShader> activeShader =
-                skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Skinned.glsl");
+                skel.Shader ? skel.Shader : UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Skinned.glsl");
             if (!activeShader)
                 continue;
 
@@ -413,7 +413,7 @@ namespace Leon {
         GPendingOpaques.clear();
 
         // Friend/foe silhouette: inverted-hull (expand along normals, cull front faces).
-        if (TRef<FShader> outlineShader = UAssetManager::GetShader("Engine/Assets/Shaders/Outline_Skinned.glsl")) {
+        if (TRef<FShader> outlineShader = UAssetManager::GetShader("Engine/Resources/Shaders/Outline_Skinned.glsl")) {
             FRenderCommand::SetCulling(true, ECullMode::Front);
             FRenderCommand::SetDepthMask(false);
             FRenderCommand::SetDepthFunc(EDepthFunc::LessEqual);

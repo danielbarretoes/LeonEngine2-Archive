@@ -44,7 +44,7 @@ TEST_SUITE("Shader GPU - SSAO") {
         auto sceneFBO = Leon::FFramebuffer::Create(sceneSpec);
         REQUIRE(sceneFBO != nullptr);
 
-        auto depthShader = Leon::FShader::Create("Engine/Assets/Shaders/ShadowDepth.glsl");
+        auto depthShader = Leon::FShader::Create("Engine/Resources/Shaders/ShadowDepth.glsl");
         REQUIRE(depthShader != nullptr);
         auto plane = Leon::FMeshPrimitives::CreatePlane(80.0f, 80.0f, 8, 8);
         REQUIRE(plane != nullptr);
@@ -76,7 +76,7 @@ TEST_SUITE("Shader GPU - SSAO") {
         auto aoFBO = Leon::FFramebuffer::Create(aoSpec);
         REQUIRE(aoFBO != nullptr);
 
-        auto ssao = Leon::FShader::Create("Engine/Assets/Shaders/SSAO.glsl");
+        auto ssao = Leon::FShader::Create("Engine/Resources/Shaders/SSAO.glsl");
         REQUIRE(ssao != nullptr);
 
         aoFBO->Bind();
@@ -120,7 +120,7 @@ TEST_SUITE("Shader GPU - SSAO") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/SSAOComposite.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/SSAOComposite.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 

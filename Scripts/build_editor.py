@@ -106,7 +106,7 @@ def main() -> int:
         if not os.path.isfile(exe_path):
             print(f"[ERROR] Executable not found at {exe_path}")
             return 1
-        # Run from exe dir so POST_BUILD Engine/Assets resolve.
+        # Run from exe dir so POST_BUILD Engine/Resources resolve.
         return subprocess.run([exe_path], cwd=os.path.dirname(exe_path)).returncode
 
     return 0

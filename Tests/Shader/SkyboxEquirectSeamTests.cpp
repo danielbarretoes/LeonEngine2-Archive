@@ -26,7 +26,7 @@ TEST_SUITE("Shader GPU - Skybox.glsl equirect wrap") {
         auto fbo = Leon::FFramebuffer::Create(spec);
         REQUIRE(fbo != nullptr);
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/Skybox.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/Skybox.glsl");
         REQUIRE(shader != nullptr);
         auto cube = Leon::FMeshPrimitives::CreateCube(2.0f);
         REQUIRE(cube != nullptr);

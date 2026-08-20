@@ -32,7 +32,7 @@ namespace Leon {
 
         auto startT = std::chrono::high_resolution_clock::now();
         std::vector<float> data(InSize * InSize * 2, 0.0f);
-        const std::string lutCachePath = "Engine/Assets/Textures/BRDF_LUT.bin";
+        const std::string lutCachePath = "Engine/Resources/Textures/BRDF_LUT.bin";
 
         bool bLoadedFromDisk = false;
         if (std::filesystem::exists(lutCachePath)) {
@@ -65,7 +65,7 @@ namespace Leon {
                 }
             }
 
-            std::filesystem::create_directories("Engine/Assets/Textures");
+            std::filesystem::create_directories("Engine/Resources/Textures");
             std::ofstream outFile(lutCachePath, std::ios::binary);
             if (outFile.is_open()) {
                 FBRDFLUTDiskHeader header{};

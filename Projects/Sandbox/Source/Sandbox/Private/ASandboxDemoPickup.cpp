@@ -43,7 +43,7 @@ namespace Leon {
         if (HasComponent<FMeshComponent>() || !FApplication::HasInstance())
             return;
         auto va = FMeshPrimitives::CreatePyramid(0.42f, 0.72f, 0.42f);
-        auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
         if (!va || !shader)
             return;
         auto& mesh = AddComponent<FMeshComponent>(va, shader);

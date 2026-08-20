@@ -10,7 +10,7 @@ TEST_SUITE("Shader GPU - Shadow Layer & Atlas Mapping") {
         auto& gl = FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = FShader::Create("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = FShader::Create("Engine/Resources/Shaders/PBR_Lit.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 

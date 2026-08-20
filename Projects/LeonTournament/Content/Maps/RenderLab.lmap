@@ -131,7 +131,7 @@ Actors:
       Radius: 0.5
       SubdivisionsX: 12
       SubdivisionsZ: 8
-      Shader: "Engine/Assets/Shaders/PBR_Lit.glsl"
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
       CastShadows: false
       ReceiveShadows: true
       VisibleInReflection: true

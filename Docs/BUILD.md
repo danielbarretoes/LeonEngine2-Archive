@@ -31,7 +31,6 @@ python Scripts/run_tests.py
 | `Editor/Source/Public/Editor/` | NAMING-compliant public API (`FEditorApp`, `FViewportPanel`) |
 | `Editor/Source/Private/` | Implementation + `main.cpp` |
 | `Editor/Resources/` | Icons / brand staged beside the exe |
-| `Editor/Legacy/` | Pre-NAMING ImGui editor — **not built**; port later |
 
 Contract and roadmap: [EDITOR_ROADMAP.md](EDITOR_ROADMAP.md), [NAMING.md](NAMING.md).
 

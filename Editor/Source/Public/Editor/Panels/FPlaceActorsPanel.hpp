@@ -3,11 +3,14 @@
 #include "Core/Base.hpp"
 #include "Engine/UWorld.hpp"
 #include <functional>
+#include <glm/glm.hpp>
+#include <string>
 
 namespace Leon::Editor {
 
     /**
-     * @brief Place Actors palette panel for quickly spawning actors into the active level.
+     * @brief Place Actors palette panel for quickly spawning actors into the active level
+     * with drag-and-drop support to the Viewport.
      */
     class FPlaceActorsPanel {
     public:
@@ -17,7 +20,9 @@ namespace Leon::Editor {
 
         void SetOnActorSpawned(FOnActorSpawned InCallback) { OnActorSpawned = std::move(InCallback); }
 
-        void Draw(UWorld* InWorld);
+        void Draw(UWorld* InWorld, bool* bInOutOpen = nullptr);
+
+        static AActor* SpawnActorAt(UWorld& InWorld, const std::string& InType, const glm::vec3& InLocation);
 
     private:
         void SpawnActor(UWorld& InWorld, const std::string& InType);

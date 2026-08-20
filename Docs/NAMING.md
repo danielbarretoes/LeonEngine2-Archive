@@ -105,8 +105,7 @@ ECS POD components (EnTT): `F*Component` / `FTag`.
 Editor/
 ├── Source/Public/Editor/     # FEditorApp.hpp, FViewportPanel.hpp, …
 ├── Source/Private/           # matching .cpp + main.cpp
-├── Resources/                # icons, brand
-└── Legacy/                   # pre-NAMING ImGui editor — not built; excluded from verify_ue_naming
+└── Resources/                # icons, brand
 ```
 
 - Same prefixes and `Leon::` / `Leon::Editor` as Runtime.

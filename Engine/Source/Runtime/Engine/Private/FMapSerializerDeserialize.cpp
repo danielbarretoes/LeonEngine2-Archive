@@ -80,7 +80,7 @@ namespace Leon {
         float MeshMetersPerUv = 1.0f;
         unsigned int MeshSubdivX = 24;
         unsigned int MeshSubdivZ = 24;
-        std::string ShaderPath = "Engine/Assets/Shaders/PBR_Lit.glsl";
+        std::string ShaderPath = "Engine/Resources/Shaders/PBR_Lit.glsl";
         bool bCastShadows = true;
         bool bReceiveShadows = true;
         bool bVisibleInReflection = true;

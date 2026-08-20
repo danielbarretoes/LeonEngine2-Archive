@@ -9,7 +9,7 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/FXAA.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 
@@ -91,7 +91,7 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/FXAA.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 
@@ -163,7 +163,7 @@ TEST_SUITE("Shader GPU - Post-Processing FXAA Pipeline") {
         auto& gl = Leon::TestGPU::FHeadlessGLContext::Get();
         REQUIRE(gl.IsValid());
 
-        auto shader = Leon::FShader::Create("Engine/Assets/Shaders/FXAA.glsl");
+        auto shader = Leon::FShader::Create("Engine/Resources/Shaders/FXAA.glsl");
         REQUIRE(shader != nullptr);
         shader->Bind();
 

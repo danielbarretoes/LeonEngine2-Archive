@@ -25,7 +25,7 @@ namespace Leon {
     void FDebugRenderer::Init() {
         LE_CORE_INFO("Initializing DebugRenderer Subsystem...");
 
-        Shader = FShader::Create("Engine/Assets/Shaders/DebugLine.glsl");
+        Shader = FShader::Create("Engine/Resources/Shaders/DebugLine.glsl");
 
         VertexArray = FVertexArray::Create();
         VertexBuffer = FVertexBuffer::Create(MaxLineVertices * sizeof(FDebugVertex));

@@ -87,20 +87,43 @@ namespace Leon::Editor {
         ProjectHub.LoadRecentProjects(EditorSavedDir);
         ProjectHub.SetOnProjectSelected([this](const std::string& path) { OpenProject(path); });
 
+        // Setup Selection & Transaction Subsystems & Panels
+        ContentBrowser.SetSelectionSubsystem(&SelectionSubsystem);
+        Outliner.SetSelectionSubsystem(&SelectionSubsystem);
+        Details.SetSelectionSubsystem(&SelectionSubsystem);
+        Details.SetTransactionSubsystem(&TransactionSubsystem);
+        Viewport.SetSelectionSubsystem(&SelectionSubsystem);
+
+        SelectionSubsystem.SetOnActorSelectionChanged([this](const std::unordered_set<AActor*>&) {
+            SelectedActor = SelectionSubsystem.GetPrimarySelectedActor();
+        });
+
         // Setup Outliner callbacks
-        Outliner.SetOnActorSelected([this](AActor* actor) { SelectedActor = actor; });
         Outliner.SetOnActorFocus([this](AActor* actor) { Viewport.FocusOnActor(actor); });
+
+        // Setup Viewport callback
+        Viewport.SetOnActorSelected([this](AActor* actor) { SelectionSubsystem.SelectActor(actor, false); });
+        Viewport.SetOnActorSpawned([this](AActor* actor) {
+            SelectionSubsystem.SelectActor(actor, false);
+            OutputLog.AddLog(ELogLevel::Info, "World",
+                             "Spawned actor via drop: " + (actor ? actor->GetName() : "null"));
+        });
 
         // Setup Place Actors callback
         PlaceActors.SetOnActorSpawned([this](AActor* actor) {
-            SelectedActor = actor;
-            Outliner.SetSelectedActor(actor);
+            SelectionSubsystem.SelectActor(actor, false);
             Viewport.FocusOnActor(actor);
             OutputLog.AddLog(ELogLevel::Info, "World", "Spawned actor: " + (actor ? actor->GetName() : "null"));
         });
 
         // Setup Content Browser callback
         ContentBrowser.SetOnMapSelected([this](const std::string& mapPath) { LoadMap(mapPath); });
+        ContentBrowser.SetOnSaveAll([this]() {
+            SaveCurrentMap();
+            if (!ActiveProjectPath.empty()) {
+                ActiveProjectDescriptor.Save(ActiveProjectPath);
+            }
+        });
 
         // Setup Toolbar callbacks
         Toolbar.SetOnOpenHub([this]() { bShowProjectHub = true; });
@@ -349,30 +372,62 @@ namespace Leon::Editor {
 
         BeginImGuiFrame();
 
+        auto SafeDrawPanel = [this](const char* PanelName, auto&& DrawFn) {
+            try {
+                DrawFn();
+            } catch (const std::exception& e) {
+                LE_CORE_ERROR("Exception in panel '{0}': {1}", PanelName, e.what());
+                OutputLog.AddLog(ELogLevel::Error, PanelName, std::string("Unhandled exception: ") + e.what());
+            } catch (...) {
+                LE_CORE_ERROR("Unknown exception in panel '{0}'", PanelName);
+                OutputLog.AddLog(ELogLevel::Error, PanelName, "Unknown exception caught during render");
+            }
+        };
+
         if (bShowProjectHub || ActiveProjectPath.empty()) {
             // Standalone pre-window: Only the Welcome / Project Hub is rendered
             bool bCanReturn = !ActiveProjectPath.empty();
-            ProjectHub.DrawFullscreen(bCanReturn, &bShowProjectHub);
+            SafeDrawPanel("ProjectHub", [&]() { ProjectHub.DrawFullscreen(bCanReturn, &bShowProjectHub); });
         } else {
             // Full Editor Suite with Dockspace and Viewport
-            DrawDockspace();
-            Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName);
+            SafeDrawPanel("Dockspace", [&]() { DrawDockspace(); });
+            SafeDrawPanel("Toolbar", [&]() { Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName); });
 
             // Left / Palette
-            PlaceActors.Draw(EditorWorld.get());
+            if (bShowPlaceActors) {
+                SafeDrawPanel("PlaceActors", [&]() { PlaceActors.Draw(EditorWorld.get(), &bShowPlaceActors); });
+            }
 
             // Center Viewport
-            Viewport.Draw(EditorWorld.get(), ActiveMapName, SelectedActor);
+            if (bShowViewport) {
+                SafeDrawPanel("Viewport", [&]() {
+                    Viewport.Draw(EditorWorld.get(), ActiveMapName, SelectedActor, &bShowViewport);
+                });
+            }
 
             // Right
-            Outliner.Draw(EditorWorld.get());
-            Details.Draw(SelectedActor);
-            WorldSettings.Draw(EditorWorld.get());
-            ProjectSettings.Draw(ActiveProjectDescriptor, ActiveProjectPath);
+            if (bShowOutliner) {
+                SafeDrawPanel("Outliner", [&]() { Outliner.Draw(EditorWorld.get(), &bShowOutliner); });
+            }
+            if (bShowDetails) {
+                SafeDrawPanel("Details", [&]() { Details.Draw(SelectedActor, &bShowDetails); });
+            }
+            if (bShowWorldSettings) {
+                SafeDrawPanel("WorldSettings", [&]() { WorldSettings.Draw(EditorWorld.get(), &bShowWorldSettings); });
+            }
+            if (bShowProjectSettings) {
+                SafeDrawPanel("ProjectSettings", [&]() {
+                    ProjectSettings.Draw(ActiveProjectDescriptor, ActiveProjectPath, &bShowProjectSettings);
+                });
+            }
 
             // Bottom
-            ContentBrowser.Draw();
-            OutputLog.Draw();
+            if (bShowContentBrowser) {
+                SafeDrawPanel("ContentBrowser", [&]() { ContentBrowser.Draw(&bShowContentBrowser); });
+            }
+            if (bShowOutputLog) {
+                SafeDrawPanel("OutputLog", [&]() { OutputLog.Draw(&bShowOutputLog); });
+            }
         }
 
         EndImGuiFrame();
@@ -486,7 +541,24 @@ namespace Leon::Editor {
                 if (ImGui::MenuItem("Project Browser"))
                     bShowProjectHub = true;
                 ImGui::Separator();
+                ImGui::MenuItem("Viewport", nullptr, &bShowViewport);
+                ImGui::MenuItem("Place Actors", nullptr, &bShowPlaceActors);
+                ImGui::MenuItem("World Outliner", nullptr, &bShowOutliner);
+                ImGui::MenuItem("Details", nullptr, &bShowDetails);
+                ImGui::MenuItem("Content Browser", nullptr, &bShowContentBrowser);
+                ImGui::MenuItem("Output Log", nullptr, &bShowOutputLog);
+                ImGui::MenuItem("World Settings", nullptr, &bShowWorldSettings);
+                ImGui::MenuItem("Project Settings", nullptr, &bShowProjectSettings);
+                ImGui::Separator();
                 if (ImGui::MenuItem("Reset to Default Layout")) {
+                    bShowViewport = true;
+                    bShowPlaceActors = true;
+                    bShowOutliner = true;
+                    bShowDetails = true;
+                    bShowContentBrowser = true;
+                    bShowOutputLog = true;
+                    bShowWorldSettings = true;
+                    bShowProjectSettings = true;
                     bNeedResetLayout = true;
                 }
                 ImGui::EndMenu();

@@ -32,7 +32,7 @@ python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
 | `Scripts/` | Engine tooling (`build_engine`, `build_editor`, `build_project`, …) |
 | `CMake/` | Shared CMake (stack, ImGui deps, sync) |
 | `Engine/` | Product-agnostic runtime (`LeonEngineCore`) |
-| `Editor/` | Out-of-process editor (`LeonEditor`); `Legacy/` not built |
+| `Editor/` | Out-of-process editor (`LeonEditor`) |
 | `Plugins/RHI/OpenGL/` | OpenGL 4.5 RHI plugin |
 | `Projects/Sandbox/` | Reference game (`.lproject`, Content, Main, GameMode/HUD) |
 | `Tools/` | Specialized engine tools (`AssetTool`, `Lightmass`, `ProjectTool`) |

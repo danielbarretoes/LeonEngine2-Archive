@@ -8,8 +8,8 @@
 TEST_SUITE("Cache - IBL .libl Binary Serialization") {
 
     TEST_CASE("Round-Trip Bitwise Identical Serialization & Corrupt Header Rejection") {
-        const std::string tempCachePath = "Engine/Assets/Textures/TempTestCache.libl";
-        std::filesystem::create_directories("Engine/Assets/Textures");
+        const std::string tempCachePath = "Engine/Resources/Textures/TempTestCache.libl";
+        std::filesystem::create_directories("Engine/Resources/Textures");
 
         Leon::FIBLCacheHeader header;
         header.Version = 5;

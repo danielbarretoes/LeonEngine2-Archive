@@ -38,7 +38,7 @@ namespace Leon {
 
         const float mpu = InMetersPerUv > 0.0f ? InMetersPerUv : 1.0f;
         auto va = FMeshPrimitives::CreateBox(InScale.x, InScale.y, InScale.z, mpu);
-        auto shader = UAssetManager::GetShader("Engine/Assets/Shaders/PBR_Lit.glsl");
+        auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
         if (!va || !shader)
             return actor;
 

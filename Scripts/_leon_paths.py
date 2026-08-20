@@ -54,8 +54,41 @@ def ensure_build_tools_in_path() -> None:
         os.environ["PATH"] = os.pathsep.join(new_entries) + os.pathsep + os.environ.get("PATH", "")
 
 
+def ensure_msvc_environment() -> None:
+    """Ensure MSVC compiler environment (INCLUDE, LIB, PATH) is initialized on Windows."""
+    if sys.platform != "win32":
+        return
+
+    if "INCLUDE" in os.environ and "LIB" in os.environ:
+        return
+
+    vcvars_candidates = [
+        r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat",
+        r"C:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars64.bat",
+        r"C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvars64.bat",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat",
+    ]
+
+    for vcvars in vcvars_candidates:
+        if os.path.isfile(vcvars):
+            try:
+                cmd = f'call "{vcvars}" && set'
+                output = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL)
+                for line in output.splitlines():
+                    if "=" in line:
+                        k, _, v = line.partition("=")
+                        os.environ[k.strip()] = v.strip()
+                break
+            except Exception:
+                pass
+
+
 # Run automatically upon importing _leon_paths
 ensure_build_tools_in_path()
+ensure_msvc_environment()
+
 
 
 def safe_rmtree(path: str) -> None:

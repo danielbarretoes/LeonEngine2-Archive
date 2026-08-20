@@ -17,7 +17,7 @@ Runtime: verify header + FNV-1a hash → GPU upload (~ms on hit)
 
 ## BRDF LUT (`BRDF_LUT.bin`)
 
-Path: `Engine/Assets/Textures/BRDF_LUT.bin`
+Path: `Engine/Resources/Textures/BRDF_LUT.bin`
 
 - Header: `LEONBRDF` **v2** (`Size`, `SampleCount`) + `256×256×2` float RG payload.
 - Split-sum scale/bias with IBL Smith (`k = a²/2`), texel centers `(x+0.5)/size`.
