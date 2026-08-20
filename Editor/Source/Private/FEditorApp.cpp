@@ -4,6 +4,7 @@
 #include "Core/FLog.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Core/FWindow.hpp"
+#include "Editor/UI/FEditorTheme.hpp"
 #include "Engine/FMapSerializer.hpp"
 
 #include <GLFW/glfw3.h>
@@ -12,8 +13,9 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 
-#include <filesystem>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
@@ -42,36 +44,37 @@ namespace Leon::Editor {
         ImGuiIniPath = (fs::path(EditorSavedDir) / "imgui.ini").string();
         IO.IniFilename = ImGuiIniPath.c_str();
 
-        ImGui::StyleColorsDark();
+        WindowConfigIniPath = (fs::path(EditorSavedDir) / "EditorWindow.ini").string();
+        if (fs::exists(WindowConfigIniPath)) {
+            std::ifstream in(WindowConfigIniPath);
+            if (in.is_open()) {
+                std::string line;
+                int w = 1600, h = 900, px = 100, py = 100, maxVal = 0;
+                while (std::getline(in, line)) {
+                    if (line.rfind("Width=", 0) == 0)
+                        w = std::stoi(line.substr(6));
+                    else if (line.rfind("Height=", 0) == 0)
+                        h = std::stoi(line.substr(7));
+                    else if (line.rfind("PosX=", 0) == 0)
+                        px = std::stoi(line.substr(5));
+                    else if (line.rfind("PosY=", 0) == 0)
+                        py = std::stoi(line.substr(5));
+                    else if (line.rfind("Maximized=", 0) == 0)
+                        maxVal = std::stoi(line.substr(10));
+                }
+                if (w > 400 && h > 300) {
+                    glfwSetWindowSize(Native, w, h);
+                    glfwSetWindowPos(Native, px, py);
+                }
+                if (maxVal == 1) {
+                    glfwMaximizeWindow(Native);
+                }
+            }
+        }
 
-        // Custom Unreal-style dark theme
-        ImGuiStyle& style = ImGui::GetStyle();
-        style.WindowRounding = 4.0f;
-        style.ChildRounding = 3.0f;
-        style.FrameRounding = 3.0f;
-        style.GrabRounding = 3.0f;
-        style.PopupRounding = 3.0f;
-        style.ScrollbarRounding = 4.0f;
-        style.TabRounding = 3.0f;
-
-        ImVec4* colors = style.Colors;
-        colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.14f, 1.0f);
-        colors[ImGuiCol_Header] = ImVec4(0.20f, 0.20f, 0.24f, 1.0f);
-        colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.26f, 0.32f, 1.0f);
-        colors[ImGuiCol_HeaderActive] = ImVec4(0.30f, 0.30f, 0.38f, 1.0f);
-        colors[ImGuiCol_Button] = ImVec4(0.20f, 0.22f, 0.27f, 1.0f);
-        colors[ImGuiCol_ButtonHovered] = ImVec4(0.28f, 0.32f, 0.40f, 1.0f);
-        colors[ImGuiCol_ButtonActive] = ImVec4(0.16f, 0.45f, 0.75f, 1.0f);
-        colors[ImGuiCol_FrameBg] = ImVec4(0.16f, 0.16f, 0.18f, 1.0f);
-        colors[ImGuiCol_FrameBgHovered] = ImVec4(0.22f, 0.22f, 0.26f, 1.0f);
-        colors[ImGuiCol_FrameBgActive] = ImVec4(0.28f, 0.28f, 0.34f, 1.0f);
-        colors[ImGuiCol_Tab] = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
-        colors[ImGuiCol_TabHovered] = ImVec4(0.28f, 0.32f, 0.40f, 1.0f);
-        colors[ImGuiCol_TabActive] = ImVec4(0.22f, 0.24f, 0.30f, 1.0f);
-        colors[ImGuiCol_TabUnfocused] = ImVec4(0.12f, 0.12f, 0.14f, 1.0f);
-        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.18f, 0.18f, 0.22f, 1.0f);
-        colors[ImGuiCol_TitleBg] = ImVec4(0.10f, 0.10f, 0.12f, 1.0f);
-        colors[ImGuiCol_TitleBgActive] = ImVec4(0.14f, 0.14f, 0.18f, 1.0f);
+        // Apply Unreal dark theme and load Inter fonts
+        FEditorTheme::ApplyTheme();
+        FEditorTheme::LoadFonts(IO, "Editor/Resources/Fonts");
 
         ImGui_ImplGlfw_InitForOpenGL(Native, true);
         ImGui_ImplOpenGL3_Init("#version 450");
@@ -88,6 +91,14 @@ namespace Leon::Editor {
         Outliner.SetOnActorSelected([this](AActor* actor) { SelectedActor = actor; });
         Outliner.SetOnActorFocus([this](AActor* actor) { Viewport.FocusOnActor(actor); });
 
+        // Setup Place Actors callback
+        PlaceActors.SetOnActorSpawned([this](AActor* actor) {
+            SelectedActor = actor;
+            Outliner.SetSelectedActor(actor);
+            Viewport.FocusOnActor(actor);
+            OutputLog.AddLog(ELogLevel::Info, "World", "Spawned actor: " + (actor ? actor->GetName() : "null"));
+        });
+
         // Setup Content Browser callback
         ContentBrowser.SetOnMapSelected([this](const std::string& mapPath) { LoadMap(mapPath); });
 
@@ -97,6 +108,9 @@ namespace Leon::Editor {
         Toolbar.SetOnBakeDraft([this]() { BakeLightmaps(false); });
         Toolbar.SetOnBakeProduction([this]() { BakeLightmaps(true); });
         Toolbar.SetOnRunGame([this]() { LaunchGame(); });
+        Toolbar.SetOnResetLayout([this]() { bNeedResetLayout = true; });
+
+        OutputLog.AddLog(ELogLevel::Info, "Editor", "LeonEditor suite ready (Inter typography active)");
 
         // Check command-line argument or environment for direct project boot
         const char* envProj = std::getenv("LEON_PROJECT");
@@ -104,16 +118,33 @@ namespace Leon::Editor {
             OpenProject(envProj);
             bShowProjectHub = false;
         } else {
-            // Default to launcher / welcome screen
+            // Default to standalone launcher / welcome screen
             bShowProjectHub = true;
         }
 
+        UpdateWindowTitle();
         LE_CORE_INFO("FEditorApp: ImGui editor host ready");
+    }
+
+    void FEditorApp::UpdateWindowTitle() {
+        GLFWwindow* native = GetWindow().GetNativeWindow();
+        if (!native)
+            return;
+
+        std::string title = "Leon Engine Editor";
+        if (!ActiveProjectDescriptor.ProjectName.empty()) {
+            title += " - [" + ActiveProjectDescriptor.ProjectName + "]";
+        }
+        if (!ActiveMapName.empty()) {
+            title += " - " + ActiveMapName;
+        }
+        glfwSetWindowTitle(native, title.c_str());
     }
 
     void FEditorApp::OpenProject(const std::string& InProjectPath) {
         if (InProjectPath.empty() || !fs::exists(InProjectPath)) {
             LE_CORE_ERROR("FEditorApp: Cannot open invalid project path '{0}'", InProjectPath);
+            OutputLog.AddLog(ELogLevel::Error, "Project", "Cannot open invalid project: " + InProjectPath);
             return;
         }
 
@@ -122,6 +153,7 @@ namespace Leon::Editor {
 
         if (!ActiveProjectDescriptor.Load(ActiveProjectPath)) {
             LE_CORE_ERROR("FEditorApp: Failed to load descriptor from '{0}'", ActiveProjectPath);
+            OutputLog.AddLog(ELogLevel::Error, "Project", "Failed to parse descriptor: " + ActiveProjectPath);
             return;
         }
 
@@ -131,6 +163,7 @@ namespace Leon::Editor {
         ContentBrowser.SetContentDirectory(contentDir);
 
         ProjectHub.AddRecentProject(ActiveProjectPath);
+        OutputLog.AddLog(ELogLevel::Info, "Project", "Opened project: " + ActiveProjectDescriptor.ProjectName);
 
         // Load Default Map from descriptor
         std::string defaultMap = ActiveProjectDescriptor.DefaultMap;
@@ -154,12 +187,18 @@ namespace Leon::Editor {
         }
 
         bShowProjectHub = false;
+        if (!fs::exists(ImGuiIniPath)) {
+            bNeedResetLayout = true;
+        }
+
+        UpdateWindowTitle();
         LE_CORE_INFO("FEditorApp: Opened project '{0}'", ActiveProjectDescriptor.ProjectName);
     }
 
     void FEditorApp::LoadMap(const std::string& InMapPath) {
         if (!fs::exists(InMapPath)) {
             LE_CORE_ERROR("FEditorApp: Map file not found '{0}'", InMapPath);
+            OutputLog.AddLog(ELogLevel::Error, "Map", "Map not found: " + InMapPath);
             return;
         }
 
@@ -178,11 +217,17 @@ namespace Leon::Editor {
             ActiveMapName = fs::path(InMapPath).stem().string();
             SelectedActor = nullptr;
             Outliner.SetSelectedActor(nullptr);
+            OutputLog.AddLog(ELogLevel::Info, "Map",
+                             "Loaded map: " + ActiveMapName + " (" +
+                                 std::to_string(EditorWorld->GetAllActors().size()) + " actors)");
             LE_CORE_INFO("FEditorApp: Successfully loaded map '{0}' ({1} actors)", ActiveMapName,
                          EditorWorld->GetAllActors().size());
         } else {
+            OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to deserialize map: " + InMapPath);
             LE_CORE_ERROR("FEditorApp: Failed to deserialize map '{0}'", InMapPath);
         }
+
+        UpdateWindowTitle();
     }
 
     void FEditorApp::SaveCurrentMap() {
@@ -200,10 +245,14 @@ namespace Leon::Editor {
 
         FMapSerializer serializer(EditorWorld);
         if (serializer.Serialize(ActiveMapPath)) {
+            OutputLog.AddLog(ELogLevel::Info, "Map", "Saved map: " + ActiveMapPath);
             LE_CORE_INFO("FEditorApp: Saved map to '{0}'", ActiveMapPath);
         } else {
+            OutputLog.AddLog(ELogLevel::Error, "Map", "Failed to save map: " + ActiveMapPath);
             LE_CORE_ERROR("FEditorApp: Failed to save map to '{0}'", ActiveMapPath);
         }
+
+        UpdateWindowTitle();
     }
 
     void FEditorApp::BakeLightmaps(bool bInProduction) {
@@ -218,6 +267,7 @@ namespace Leon::Editor {
         std::string quality = bInProduction ? "production" : "draft";
         std::string cmd = toolExe + " bake --project \"" + ActiveProjectPath + "\" --map \"" + ActiveMapName +
                           "\" --quality " + quality;
+        OutputLog.AddLog(ELogLevel::Info, "Lightmass", "Baking lightmaps (" + quality + ")...");
         LE_CORE_INFO("FEditorApp: Launching bake command: {0}", cmd);
         std::system(cmd.c_str());
     }
@@ -233,11 +283,62 @@ namespace Leon::Editor {
 
         if (fs::exists(gameExe)) {
             std::string cmd = "\"" + gameExe + "\"";
+            OutputLog.AddLog(ELogLevel::Info, "Game", "Launching game executable: " + gameExe);
             LE_CORE_INFO("FEditorApp: Launching game executable: {0}", cmd);
             std::system(cmd.c_str());
         } else {
+            OutputLog.AddLog(ELogLevel::Warning, "Game", "Game executable not found. Build project first.");
             LE_CORE_WARN("FEditorApp: Game executable not found at '{0}'. Build project first.", gameExe);
         }
+    }
+
+    void FEditorApp::ResetDefaultLayout() {
+        const ImGuiViewport* ViewportInfo = ImGui::GetMainViewport();
+        const ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
+
+        ImGui::DockBuilderRemoveNode(DockspaceId);
+        ImGui::DockBuilderAddNode(DockspaceId, ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderSetNodeSize(DockspaceId, ViewportInfo->WorkSize);
+
+        ImGuiID dockMain = DockspaceId;
+
+        // 1. Top toolbar strip (over all panels)
+        ImGuiID dockTop = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Up, 0.055f, nullptr, &dockMain);
+
+        // 2. Bottom panel (Content Browser + Output Log tabs)
+        ImGuiID dockBottom = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Down, 0.28f, nullptr, &dockMain);
+
+        // 3. Left panel (Place Actors palette)
+        ImGuiID dockLeft = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Left, 0.18f, nullptr, &dockMain);
+
+        // 4. Right panel (Outliner / Settings / Details)
+        ImGuiID dockRight = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Right, 0.26f, nullptr, &dockMain);
+        ImGuiID dockRightBottom = ImGui::DockBuilderSplitNode(dockRight, ImGuiDir_Down, 0.52f, nullptr, &dockRight);
+        ImGuiID dockRightTop = dockRight;
+
+        // Dock windows:
+        // Top
+        ImGui::DockBuilderDockWindow("##EditorToolbar", dockTop);
+
+        // Left
+        ImGui::DockBuilderDockWindow("Place Actors", dockLeft);
+
+        // Center Viewport
+        ImGui::DockBuilderDockWindow("Viewport", dockMain);
+
+        // Right Top: World Outliner, World Settings, Project Settings
+        ImGui::DockBuilderDockWindow("World Outliner", dockRightTop);
+        ImGui::DockBuilderDockWindow("World Settings", dockRightTop);
+        ImGui::DockBuilderDockWindow("Project Settings", dockRightTop);
+
+        // Right Bottom: Details
+        ImGui::DockBuilderDockWindow("Details", dockRightBottom);
+
+        // Bottom: Content Browser, Output Log
+        ImGui::DockBuilderDockWindow("Content Browser", dockBottom);
+        ImGui::DockBuilderDockWindow("Output Log", dockBottom);
+
+        ImGui::DockBuilderFinish(DockspaceId);
     }
 
     void FEditorApp::OnUpdate(FTimestep InTs) {
@@ -256,16 +357,47 @@ namespace Leon::Editor {
             // Full Editor Suite with Dockspace and Viewport
             DrawDockspace();
             Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName);
+
+            // Left / Palette
+            PlaceActors.Draw(EditorWorld.get());
+
+            // Center Viewport
             Viewport.Draw(EditorWorld.get(), ActiveMapName, SelectedActor);
+
+            // Right
             Outliner.Draw(EditorWorld.get());
             Details.Draw(SelectedActor);
+            WorldSettings.Draw(EditorWorld.get());
+            ProjectSettings.Draw(ActiveProjectDescriptor, ActiveProjectPath);
+
+            // Bottom
             ContentBrowser.Draw();
+            OutputLog.Draw();
         }
 
         EndImGuiFrame();
     }
 
     void FEditorApp::OnShutdown() {
+        GLFWwindow* native = GetWindow().GetNativeWindow();
+        if (native && !WindowConfigIniPath.empty()) {
+            bool bMax = (glfwGetWindowAttrib(native, GLFW_MAXIMIZED) == GLFW_TRUE);
+            int px = 0, py = 0, w = 1600, h = 900;
+            if (!bMax) {
+                glfwGetWindowPos(native, &px, &py);
+                glfwGetWindowSize(native, &w, &h);
+            }
+            std::ofstream out(WindowConfigIniPath);
+            if (out.is_open()) {
+                out << "[EditorWindow]\n";
+                out << "Width=" << w << "\n";
+                out << "Height=" << h << "\n";
+                out << "PosX=" << px << "\n";
+                out << "PosY=" << py << "\n";
+                out << "Maximized=" << (bMax ? 1 : 0) << "\n";
+            }
+        }
+
         if (EditorWorld) {
             EditorWorld->EndPlay();
             EditorWorld->Clear();
@@ -312,25 +444,11 @@ namespace Leon::Editor {
 
         const ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
 
-        // Setup initial default layout if dockspace is uninitialized
-        if (!bDockspaceInitialized && !fs::exists(ImGuiIniPath)) {
+        // Setup initial default layout if requested or on first run
+        if (bNeedResetLayout || (!bDockspaceInitialized && !fs::exists(ImGuiIniPath))) {
             bDockspaceInitialized = true;
-            ImGui::DockBuilderRemoveNode(DockspaceId);
-            ImGui::DockBuilderAddNode(DockspaceId, ImGuiDockNodeFlags_DockSpace);
-            ImGui::DockBuilderSetNodeSize(DockspaceId, ViewportInfo->WorkSize);
-
-            ImGuiID dockMain = DockspaceId;
-            ImGuiID dockTop = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Up, 0.05f, nullptr, &dockMain);
-            ImGuiID dockRight = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Right, 0.25f, nullptr, &dockMain);
-            ImGuiID dockRightBottom = ImGui::DockBuilderSplitNode(dockRight, ImGuiDir_Down, 0.55f, nullptr, &dockRight);
-            ImGuiID dockBottom = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Down, 0.30f, nullptr, &dockMain);
-
-            ImGui::DockBuilderDockWindow("##EditorToolbar", dockTop);
-            ImGui::DockBuilderDockWindow("Viewport", dockMain);
-            ImGui::DockBuilderDockWindow("World Outliner", dockRight);
-            ImGui::DockBuilderDockWindow("Details", dockRightBottom);
-            ImGui::DockBuilderDockWindow("Content Browser", dockBottom);
-            ImGui::DockBuilderFinish(DockspaceId);
+            bNeedResetLayout = false;
+            ResetDefaultLayout();
         }
 
         ImGui::DockSpace(DockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
@@ -354,9 +472,23 @@ namespace Leon::Editor {
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Edit")) {
+                if (ImGui::MenuItem("Undo", "Ctrl+Z", false, History.CanUndo())) {
+                    History.Undo();
+                }
+                if (ImGui::MenuItem("Redo", "Ctrl+Y", false, History.CanRedo())) {
+                    History.Redo();
+                }
+                ImGui::EndMenu();
+            }
+
             if (ImGui::BeginMenu("Window")) {
                 if (ImGui::MenuItem("Project Browser"))
                     bShowProjectHub = true;
+                ImGui::Separator();
+                if (ImGui::MenuItem("Reset to Default Layout")) {
+                    bNeedResetLayout = true;
+                }
                 ImGui::EndMenu();
             }
 

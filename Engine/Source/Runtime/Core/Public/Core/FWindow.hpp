@@ -31,11 +31,15 @@ namespace Leon {
         unsigned int Width;
         unsigned int Height;
         bool bVSync;
+        bool bConstrainAspect;
+        bool bResizable;
 
         FWindowProps(const std::string& InTitle = "LeonEngine2",
                      unsigned int InWidth = FWindowDisplayPolicy::DefaultWidth,
-                     unsigned int InHeight = FWindowDisplayPolicy::DefaultHeight, bool bInVSync = true)
-            : Title(InTitle), Width(InWidth), Height(InHeight), bVSync(bInVSync) {}
+                     unsigned int InHeight = FWindowDisplayPolicy::DefaultHeight, bool bInVSync = true,
+                     bool bInConstrainAspect = false, bool bInResizable = true)
+            : Title(InTitle), Width(InWidth), Height(InHeight), bVSync(bInVSync), bConstrainAspect(bInConstrainAspect),
+              bResizable(bInResizable) {}
     };
 
     class FWindow {

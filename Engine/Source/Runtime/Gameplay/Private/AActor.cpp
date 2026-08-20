@@ -183,6 +183,72 @@ namespace Leon {
         GetTransform().Scale = InScale;
     }
 
+    void AActor::AttachToActor(AActor* InParent) {
+        if (InParent == this || InParent == ParentActor)
+            return;
+        if (ParentActor) {
+            DetachFromActor();
+        }
+        if (InParent) {
+            ParentActor = InParent;
+            InParent->ChildActors.push_back(this);
+        }
+    }
+
+    void AActor::DetachFromActor() {
+        if (!ParentActor)
+            return;
+        auto& children = ParentActor->ChildActors;
+        children.erase(std::remove(children.begin(), children.end(), this), children.end());
+        ParentActor = nullptr;
+    }
+
+    glm::vec3 AActor::GetRelativeLocation() const {
+        if (ParentActor) {
+            return GetActorLocation() - ParentActor->GetActorLocation();
+        }
+        return GetActorLocation();
+    }
+
+    void AActor::SetRelativeLocation(const glm::vec3& InLocation) {
+        if (ParentActor) {
+            SetActorLocation(ParentActor->GetActorLocation() + InLocation);
+        } else {
+            SetActorLocation(InLocation);
+        }
+    }
+
+    glm::vec3 AActor::GetRelativeRotation() const {
+        if (ParentActor) {
+            return GetActorRotation() - ParentActor->GetActorRotation();
+        }
+        return GetActorRotation();
+    }
+
+    void AActor::SetRelativeRotation(const glm::vec3& InRotation) {
+        if (ParentActor) {
+            SetActorRotation(ParentActor->GetActorRotation() + InRotation);
+        } else {
+            SetActorRotation(InRotation);
+        }
+    }
+
+    glm::vec3 AActor::GetRelativeScale() const {
+        if (ParentActor) {
+            glm::vec3 parentScale = ParentActor->GetActorScale();
+            return GetActorScale() / glm::max(parentScale, glm::vec3(0.001f));
+        }
+        return GetActorScale();
+    }
+
+    void AActor::SetRelativeScale(const glm::vec3& InScale) {
+        if (ParentActor) {
+            SetActorScale(ParentActor->GetActorScale() * InScale);
+        } else {
+            SetActorScale(InScale);
+        }
+    }
+
     glm::mat4 AActor::GetActorWorldMatrix() const {
         if (RootComponent)
             return RootComponent->GetComponentWorldMatrix();

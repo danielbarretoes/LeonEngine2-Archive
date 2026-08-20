@@ -153,6 +153,19 @@ namespace Leon {
         glm::vec3 GetActorScale() const;
         void SetActorScale(const glm::vec3& InScale);
 
+        // Attachment / Hierarchy
+        void AttachToActor(AActor* InParent);
+        void DetachFromActor();
+        AActor* GetAttachParentActor() const { return ParentActor; }
+        const std::vector<AActor*>& GetAttachedActors() const { return ChildActors; }
+
+        glm::vec3 GetRelativeLocation() const;
+        void SetRelativeLocation(const glm::vec3& InLocation);
+        glm::vec3 GetRelativeRotation() const;
+        void SetRelativeRotation(const glm::vec3& InRotation);
+        glm::vec3 GetRelativeScale() const;
+        void SetRelativeScale(const glm::vec3& InScale);
+
         /** RootComponent world matrix when set; otherwise FTransformComponent. */
         glm::mat4 GetActorWorldMatrix() const;
 
@@ -239,6 +252,8 @@ namespace Leon {
         ENetRole LocalRole = ENetRole::Authority;
         std::vector<TRef<UActorComponent>> ActorComponents;
         USceneComponent* RootComponent = nullptr;
+        AActor* ParentActor = nullptr;
+        std::vector<AActor*> ChildActors;
 
         friend class UWorld;
         friend class FMapSerializer;

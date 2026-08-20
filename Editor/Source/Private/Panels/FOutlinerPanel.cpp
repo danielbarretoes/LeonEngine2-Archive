@@ -1,10 +1,11 @@
 #include "Editor/Panels/FOutlinerPanel.hpp"
-#include "Gameplay/AActor.hpp"
+#include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
+#include "Gameplay/AActor.hpp"
 
-#include <imgui.h>
 #include <algorithm>
 #include <cctype>
+#include <imgui.h>
 
 namespace Leon::Editor {
 
@@ -45,94 +46,148 @@ namespace Leon::Editor {
         ImGui::Separator();
         ImGui::Spacing();
 
-        DrawActorTree(*InWorld);
-
-        // Click outside on background to deselect
-        if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
-            SelectedActor = nullptr;
-            if (OnActorSelected)
-                OnActorSelected(nullptr);
-        }
-
-        ImGui::End();
-    }
-
-    void FOutlinerPanel::DrawActorTree(UWorld& InWorld) {
-        const auto& actors = InWorld.GetAllActors();
-
         std::string filter = FilterBuffer;
         std::transform(filter.begin(), filter.end(), filter.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
         ImGui::BeginChild("OutlinerActorsScroll", ImVec2(0, 0), false);
 
-        for (size_t i = 0; i < actors.size(); ++i) {
-            AActor* actor = actors[i].get();
+        const auto& actors = InWorld->GetAllActors();
+        for (const auto& actorPtr : actors) {
+            AActor* actor = actorPtr.get();
             if (!actor)
                 continue;
 
-            const std::string& name = actor->GetName();
-            if (!filter.empty()) {
-                std::string lowerName = name;
-                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
-                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                if (lowerName.find(filter) == std::string::npos) {
-                    continue;
-                }
+            // Only draw root actors at the top level; children are drawn recursively
+            if (actor->GetAttachParentActor() == nullptr || !filter.empty()) {
+                DrawActorNode(*InWorld, actor, filter);
             }
+        }
 
-            ImGui::PushID(static_cast<int>(i));
-
-            bool bIsSelected = (actor == SelectedActor);
-            ImGuiTreeNodeFlags flags =
-                ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
-            if (bIsSelected) {
-                flags |= ImGuiTreeNodeFlags_Selected;
-            }
-
-            // Determine badge icon / type tag
-            const char* typeTag = "[Actor]";
-            if (actor->HasComponent<FStaticMeshComponent>())
-                typeTag = "[Mesh]";
-            else if (actor->HasComponent<FDirectionalLightComponent>())
-                typeTag = "[DirLight]";
-            else if (actor->HasComponent<FPointLightComponent>())
-                typeTag = "[PointLight]";
-            else if (actor->HasComponent<FSpotLightComponent>())
-                typeTag = "[SpotLight]";
-            else if (actor->HasComponent<FCameraComponent>())
-                typeTag = "[Camera]";
-
-            ImGui::TextDisabled("%s", typeTag);
-            ImGui::SameLine();
-
-            ImGui::TreeNodeEx((void*)(uintptr_t)i, flags, "%s", name.c_str());
-
-            if (ImGui::IsItemClicked()) {
-                SelectedActor = actor;
-                if (OnActorSelected)
-                    OnActorSelected(actor);
-            }
-
-            // Double click to focus camera
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                if (OnActorFocus)
-                    OnActorFocus(actor);
-            }
-
-            // Context menu for actor
-            if (ImGui::BeginPopupContextItem()) {
-                SelectedActor = actor;
-                if (OnActorSelected)
-                    OnActorSelected(actor);
-                DrawContextMenu(InWorld, actor);
-                ImGui::EndPopup();
-            }
-
-            ImGui::PopID();
+        // Click on empty background to deselect
+        if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
+            SelectedActor = nullptr;
+            if (OnActorSelected)
+                OnActorSelected(nullptr);
         }
 
         ImGui::EndChild();
+        ImGui::End();
+    }
+
+    void FOutlinerPanel::DrawActorNode(UWorld& InWorld, AActor* InActor, const std::string& InFilter) {
+        if (!InActor)
+            return;
+
+        const std::string& name = InActor->GetName();
+        if (!InFilter.empty()) {
+            std::string lowerName = name;
+            std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (lowerName.find(InFilter) == std::string::npos) {
+                return;
+            }
+        }
+
+        const auto& children = InActor->GetAttachedActors();
+        bool bHasChildren = !children.empty();
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (bHasChildren) {
+            flags |= ImGuiTreeNodeFlags_OpenOnArrow;
+        } else {
+            flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        }
+
+        if (InActor == SelectedActor) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        ImGui::PushID(InActor);
+
+        // Determine Lucide Icon by component type
+        ELucideIcon icon = ELucideIcon::Package;
+        ImU32 iconColor = IM_COL32(180, 180, 190, 255);
+
+        if (InActor->HasComponent<FStaticMeshComponent>()) {
+            icon = ELucideIcon::Box;
+            iconColor = IM_COL32(80, 160, 255, 255);
+        } else if (InActor->HasComponent<FDirectionalLightComponent>()) {
+            icon = ELucideIcon::Sun;
+            iconColor = IM_COL32(255, 220, 80, 255);
+        } else if (InActor->HasComponent<FPointLightComponent>()) {
+            icon = ELucideIcon::Lightbulb;
+            iconColor = IM_COL32(255, 180, 60, 255);
+        } else if (InActor->HasComponent<FSpotLightComponent>()) {
+            icon = ELucideIcon::Crosshair;
+            iconColor = IM_COL32(255, 140, 60, 255);
+        } else if (InActor->HasComponent<FCameraComponent>()) {
+            icon = ELucideIcon::Clapperboard;
+            iconColor = IM_COL32(200, 100, 255, 255);
+        } else if (bHasChildren) {
+            icon = ELucideIcon::Boxes;
+            iconColor = IM_COL32(120, 220, 120, 255);
+        }
+
+        // Draw icon
+        ImVec2 curPos = ImGui::GetCursorScreenPos();
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        FLucideIcons::DrawIcon(drawList, ImVec2(curPos.x, curPos.y + 2.0f), ImVec2(curPos.x + 16.0f, curPos.y + 18.0f),
+                               icon, iconColor);
+        ImGui::Dummy(ImVec2(18.0f, 18.0f));
+        ImGui::SameLine();
+
+        bool bNodeOpen = ImGui::TreeNodeEx((void*)InActor, flags, "%s", name.c_str());
+
+        if (ImGui::IsItemClicked()) {
+            SelectedActor = InActor;
+            if (OnActorSelected)
+                OnActorSelected(InActor);
+        }
+
+        // Double-click to focus
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+            if (OnActorFocus)
+                OnActorFocus(InActor);
+        }
+
+        // Drag & Drop Source (reparenting)
+        if (ImGui::BeginDragDropSource()) {
+            AActor* dragActor = InActor;
+            ImGui::SetDragDropPayload("OUTLINER_ACTOR", &dragActor, sizeof(AActor*));
+            ImGui::Text("Attach: %s", name.c_str());
+            ImGui::EndDragDropSource();
+        }
+
+        // Drag & Drop Target (attach onto this actor)
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("OUTLINER_ACTOR")) {
+                AActor* droppedActor = *(AActor**)payload->Data;
+                if (droppedActor && droppedActor != InActor) {
+                    droppedActor->AttachToActor(InActor);
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        // Context Menu
+        if (ImGui::BeginPopupContextItem()) {
+            SelectedActor = InActor;
+            if (OnActorSelected)
+                OnActorSelected(InActor);
+            DrawContextMenu(InWorld, InActor);
+            ImGui::EndPopup();
+        }
+
+        // Recurse children if opened
+        if (bHasChildren && bNodeOpen) {
+            for (AActor* child : children) {
+                DrawActorNode(InWorld, child, InFilter);
+            }
+            ImGui::TreePop();
+        }
+
+        ImGui::PopID();
     }
 
     void FOutlinerPanel::DrawContextMenu(UWorld& InWorld, AActor* InActor) {
@@ -145,6 +200,12 @@ namespace Leon::Editor {
         if (ImGui::MenuItem("Focus in Viewport (F)")) {
             if (OnActorFocus)
                 OnActorFocus(InActor);
+        }
+
+        if (InActor->GetAttachParentActor() != nullptr) {
+            if (ImGui::MenuItem("Detach from Parent")) {
+                InActor->DetachFromActor();
+            }
         }
 
         if (ImGui::MenuItem("Duplicate")) {

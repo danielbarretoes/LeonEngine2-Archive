@@ -24,6 +24,7 @@ namespace Leon::Editor {
         using FOnProjectSelected = std::function<void(const std::string& InProjectPath)>;
 
         FProjectHubPanel();
+        ~FProjectHubPanel();
 
         void SetOnProjectSelected(FOnProjectSelected InCallback) { OnProjectSelected = std::move(InCallback); }
 
@@ -37,6 +38,9 @@ namespace Leon::Editor {
         void DrawFullscreen(bool bCanReturnToEditor = false, bool* bInOutOpen = nullptr);
 
     private:
+        void EnsureBrandTexture();
+        void DestroyBrandTexture();
+
         void DrawRecentTab();
         void DrawNewProjectTab();
         void CreateNewProject();
@@ -44,6 +48,11 @@ namespace Leon::Editor {
         FOnProjectSelected OnProjectSelected;
         std::vector<FRecentProjectInfo> RecentProjects;
         std::string SavedDirectory;
+
+        uint32_t BrandTextureId = 0;
+        int BrandWidth = 0;
+        int BrandHeight = 0;
+        bool bBrandLoadAttempted = false;
 
         int SelectedTab = 0; // 0: Recent, 1: New Project
         char NewProjectName[128] = "MyProject";

@@ -54,19 +54,29 @@ namespace Leon::Editor {
             }
             ImGui::PopStyleColor();
 
+            ImGui::SameLine();
+            ImGui::TextDisabled("|");
+            ImGui::SameLine();
+
+            // Reset Layout button
+            if (ImGui::Button("Reset Layout", ImVec2(100.0f, 26.0f))) {
+                if (OnResetLayout)
+                    OnResetLayout();
+            }
+
             // Right side: Active Project and Map badges
             float rightOffset = 380.0f;
             if (ImGui::GetWindowWidth() > rightOffset + 100.0f) {
                 ImGui::SameLine(ImGui::GetWindowWidth() - rightOffset);
                 ImGui::TextDisabled("Project:");
                 ImGui::SameLine();
-                ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "%s",
+                ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "%s",
                                    InProjectName.empty() ? "None" : InProjectName.c_str());
 
                 ImGui::SameLine();
                 ImGui::TextDisabled("Map:");
                 ImGui::SameLine();
-                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.7f, 1.0f), "%s",
+                ImGui::TextColored(ImVec4(0.9f, 0.6f, 0.2f, 1.0f), "%s",
                                    InMapName.empty() ? "Untitled" : InMapName.c_str());
             }
         }

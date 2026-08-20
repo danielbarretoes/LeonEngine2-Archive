@@ -1,0 +1,20 @@
+#pragma once
+
+#include "Core/Base.hpp"
+#include <string>
+
+namespace Leon::Editor {
+
+    /**
+     * @brief Interface for undoable editor commands.
+     */
+    class IEditorCommand {
+    public:
+        virtual ~IEditorCommand() = default;
+
+        virtual void Execute() = 0;
+        virtual void Undo() = 0;
+        virtual std::string GetDescription() const = 0;
+    };
+
+} // namespace Leon::Editor

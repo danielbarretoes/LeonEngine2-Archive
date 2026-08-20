@@ -1,7 +1,8 @@
 #include "Editor/Panels/FContentBrowserPanel.hpp"
-#include <imgui.h>
+#include "Editor/UI/FLucideIcons.hpp"
 #include <algorithm>
 #include <cctype>
+#include <imgui.h>
 
 namespace fs = std::filesystem;
 
@@ -124,7 +125,7 @@ namespace Leon::Editor {
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
         float panelWidth = ImGui::GetContentRegionAvail().x;
-        float itemSize = 100.0f;
+        float itemSize = 90.0f;
         int columns = std::max(1, static_cast<int>(panelWidth / (itemSize + 16.0f)));
 
         ImGui::BeginChild("AssetGridChild", ImVec2(0, 0), false);
@@ -148,34 +149,50 @@ namespace Leon::Editor {
             bool bIsDir = entry.is_directory();
             std::string ext = entry.path().extension().string();
 
-            ImVec4 badgeColor = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
-            const char* typeBadge = "[File]";
+            ImVec4 badgeColor = ImVec4(0.85f, 0.85f, 0.88f, 1.0f);
+            ELucideIcon icon = ELucideIcon::FileText;
+            ImU32 iconColor = IM_COL32(180, 180, 190, 255);
 
             if (bIsDir) {
-                badgeColor = ImVec4(0.9f, 0.7f, 0.2f, 1.0f);
-                typeBadge = "[Folder]";
+                badgeColor = ImVec4(0.95f, 0.75f, 0.25f, 1.0f);
+                icon = ELucideIcon::Folder;
+                iconColor = IM_COL32(240, 190, 60, 255);
             } else if (ext == ".lmap") {
-                badgeColor = ImVec4(1.0f, 0.4f, 0.2f, 1.0f);
-                typeBadge = "[Map]";
+                badgeColor = ImVec4(1.0f, 0.45f, 0.25f, 1.0f);
+                icon = ELucideIcon::Map;
+                iconColor = IM_COL32(255, 110, 60, 255);
             } else if (ext == ".lmat") {
-                badgeColor = ImVec4(0.2f, 0.8f, 0.4f, 1.0f);
-                typeBadge = "[Material]";
+                badgeColor = ImVec4(0.3f, 0.85f, 0.45f, 1.0f);
+                icon = ELucideIcon::Layers;
+                iconColor = IM_COL32(80, 220, 120, 255);
             } else if (ext == ".lmesh" || ext == ".obj" || ext == ".gltf") {
-                badgeColor = ImVec4(0.3f, 0.6f, 1.0f, 1.0f);
-                typeBadge = "[Mesh]";
+                badgeColor = ImVec4(0.35f, 0.65f, 1.0f, 1.0f);
+                icon = ELucideIcon::Box;
+                iconColor = IM_COL32(90, 170, 255, 255);
             } else if (ext == ".ltex" || ext == ".png" || ext == ".jpg" || ext == ".tga") {
-                badgeColor = ImVec4(0.8f, 0.3f, 0.8f, 1.0f);
-                typeBadge = "[Texture]";
+                badgeColor = ImVec4(0.85f, 0.4f, 0.85f, 1.0f);
+                icon = ELucideIcon::Image;
+                iconColor = IM_COL32(220, 100, 220, 255);
             } else if (ext == ".lhdr" || ext == ".hdr") {
-                badgeColor = ImVec4(0.2f, 0.9f, 0.9f, 1.0f);
-                typeBadge = "[Sky HDR]";
+                badgeColor = ImVec4(0.3f, 0.95f, 0.95f, 1.0f);
+                icon = ELucideIcon::Sun;
+                iconColor = IM_COL32(80, 240, 240, 255);
             }
 
             ImGui::BeginGroup();
 
-            // Box item button
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.20f, 1.0f));
-            if (ImGui::Button(typeBadge, ImVec2(itemSize, 60.0f))) {
+            // Box item button with Lucide icon inside
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.21f, 1.0f));
+            bool bClicked = ImGui::Button("##asset_btn", ImVec2(itemSize, 56.0f));
+            ImGui::PopStyleColor();
+
+            ImVec2 btnMin = ImGui::GetItemRectMin();
+            ImVec2 btnMax = ImGui::GetItemRectMax();
+            ImDrawList* draw = ImGui::GetWindowDrawList();
+            FLucideIcons::DrawIcon(draw, ImVec2(btnMin.x + (itemSize - 30.0f) * 0.5f, btnMin.y + 12.0f),
+                                   ImVec2(btnMin.x + (itemSize + 30.0f) * 0.5f, btnMin.y + 42.0f), icon, iconColor);
+
+            if (bClicked) {
                 if (bIsDir) {
                     CurrentDirectory = entry.path();
                 } else if (ext == ".lmap") {
@@ -183,7 +200,6 @@ namespace Leon::Editor {
                         OnMapSelected(entry.path().string());
                 }
             }
-            ImGui::PopStyleColor();
 
             // Double click to open
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {

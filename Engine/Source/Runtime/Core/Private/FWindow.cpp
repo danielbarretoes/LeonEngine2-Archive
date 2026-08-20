@@ -130,7 +130,11 @@ namespace Leon {
         Data.Width = InProps.Width;
         Data.Height = InProps.Height;
         Data.bVSync = InProps.bVSync;
-        FWindowDisplayPolicy::ConstrainClientSize(Data.Width, Data.Height);
+
+        if (InProps.bConstrainAspect) {
+            FWindowDisplayPolicy::ConstrainClientSize(Data.Width, Data.Height);
+        }
+
         WindowedWidth = Data.Width;
         WindowedHeight = Data.Height;
 
@@ -149,6 +153,7 @@ namespace Leon {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_RESIZABLE, InProps.bResizable ? GLFW_TRUE : GLFW_FALSE);
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -163,7 +168,13 @@ namespace Leon {
             return;
         }
         ++GLFWWindowCount;
-        ApplyHdClientConstraints();
+
+        if (InProps.bConstrainAspect) {
+            ApplyHdClientConstraints();
+        } else {
+            glfwSetWindowSizeLimits(NativeWindow, 400, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
+            glfwSetWindowAspectRatio(NativeWindow, GLFW_DONT_CARE, GLFW_DONT_CARE);
+        }
         glfwGetWindowPos(NativeWindow, &WindowedPosX, &WindowedPosY);
 
         // Initialize graphics context via RHI

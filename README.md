@@ -45,6 +45,7 @@ python Scripts/validate_project.py --project Projects/Sandbox/Sandbox.lproject
 - [Architecture](Docs/ARCHITECTURE.md)
 - [Architecture Decisions & Best Practices](Docs/ARCHITECTURE_DECISIONS.md)
 - [Product builds](Docs/BUILD.md)
+- [Editor architecture](Docs/EDITOR_ARCHITECTURE.md)
 - [Editor roadmap](Docs/EDITOR_ROADMAP.md)
 - [Engine architecture](Docs/ENGINE_ARCHITECTURE.md)
 - [Gameplay framework](Docs/GAMEPLAY_FRAMEWORK.md)

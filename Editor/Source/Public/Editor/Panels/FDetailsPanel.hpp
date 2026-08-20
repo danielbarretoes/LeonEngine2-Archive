@@ -6,7 +6,8 @@
 namespace Leon::Editor {
 
     /**
-     * @brief Details / Inspector panel for modifying actor properties and components.
+     * @brief Details / Inspector panel for modifying actor properties, components,
+     * and local vs world transforms.
      */
     class FDetailsPanel {
     public:
@@ -20,6 +21,8 @@ namespace Leon::Editor {
         void DrawLightComponents(AActor& InActor);
         void DrawCameraComponent(AActor& InActor);
         void DrawAddComponentMenu(AActor& InActor);
+
+        bool bLocalTransformMode = false;
     };
 
 } // namespace Leon::Editor

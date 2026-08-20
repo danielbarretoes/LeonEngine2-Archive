@@ -2,11 +2,21 @@
 #include "Core/FLog.hpp"
 #include "Core/FProjectDescriptor.hpp"
 #include "Core/FProjectPaths.hpp"
+#include "Editor/UI/FEditorTheme.hpp"
+#include "Editor/UI/FLucideIcons.hpp"
+#include "Editor/Utils/FEditorFileDialog.hpp"
 
+#include <glad/glad.h>
+#include <stb_image.h>
 #include <imgui.h>
 #include <fstream>
 #include <filesystem>
 #include <cstring>
+#include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -20,6 +30,84 @@ namespace Leon::Editor {
         std::strncpy(NewProjectPath, defaultParent.c_str(), sizeof(NewProjectPath) - 1);
         NewProjectPath[sizeof(NewProjectPath) - 1] = '\0';
 #endif
+    }
+
+    FProjectHubPanel::~FProjectHubPanel() {
+        DestroyBrandTexture();
+    }
+
+    void FProjectHubPanel::DestroyBrandTexture() {
+        if (BrandTextureId != 0) {
+            glDeleteTextures(1, &BrandTextureId);
+            BrandTextureId = 0;
+        }
+        BrandWidth = 0;
+        BrandHeight = 0;
+    }
+
+    void FProjectHubPanel::EnsureBrandTexture() {
+        if (bBrandLoadAttempted)
+            return;
+        bBrandLoadAttempted = true;
+
+        std::vector<std::string> logoCandidates = {
+            "Editor/Resources/Brand/LeonLogoUi.png",       "../Editor/Resources/Brand/LeonLogoUi.png",
+            "../../Editor/Resources/Brand/LeonLogoUi.png", "Resources/Brand/LeonLogoUi.png",
+            "Engine/Assets/Brand/LeonLogoUi.png",          "Editor/Resources/Brand/LeonLogo.png",
+        };
+
+#ifdef _WIN32
+        char exePath[MAX_PATH] = {};
+        if (GetModuleFileNameA(nullptr, exePath, MAX_PATH) > 0) {
+            fs::path exeDir = fs::path(exePath).parent_path();
+            logoCandidates.push_back((exeDir / "Resources" / "Brand" / "LeonLogoUi.png").string());
+            logoCandidates.push_back((exeDir / "Editor" / "Resources" / "Brand" / "LeonLogoUi.png").string());
+            logoCandidates.push_back(
+                (exeDir / ".." / ".." / "Editor" / "Resources" / "Brand" / "LeonLogoUi.png").string());
+        }
+#endif
+
+        const char* envRoot = std::getenv("LEON_ENGINE_ROOT");
+        if (envRoot && envRoot[0] != '\0') {
+            logoCandidates.push_back(
+                (fs::path(envRoot) / "Editor" / "Resources" / "Brand" / "LeonLogoUi.png").string());
+        }
+
+        std::string validPath;
+        for (const auto& p : logoCandidates) {
+            try {
+                if (fs::exists(p)) {
+                    validPath = fs::canonical(p).string();
+                    break;
+                }
+            } catch (...) {
+            }
+        }
+
+        if (validPath.empty())
+            return;
+
+        int w = 0, h = 0, channels = 0;
+        stbi_set_flip_vertically_on_load(0);
+        unsigned char* pixels = stbi_load(validPath.c_str(), &w, &h, &channels, 4);
+        if (!pixels || w <= 0 || h <= 0) {
+            if (pixels)
+                stbi_image_free(pixels);
+            return;
+        }
+
+        glGenTextures(1, &BrandTextureId);
+        glBindTexture(GL_TEXTURE_2D, BrandTextureId);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        stbi_image_free(pixels);
+        BrandWidth = w;
+        BrandHeight = h;
     }
 
     void FProjectHubPanel::LoadRecentProjects(const std::string& InSavedDir) {
@@ -133,6 +221,8 @@ namespace Leon::Editor {
     }
 
     void FProjectHubPanel::DrawFullscreen(bool bCanReturnToEditor, bool* bInOutOpen) {
+        EnsureBrandTexture();
+
         const ImGuiViewport* mainViewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(mainViewport->WorkPos);
         ImGui::SetNextWindowSize(mainViewport->WorkSize);
@@ -149,9 +239,9 @@ namespace Leon::Editor {
             float winW = ImGui::GetWindowWidth();
             float winH = ImGui::GetWindowHeight();
 
-            // Center card width/height
-            float cardW = std::min(winW - 60.0f, 960.0f);
-            float cardH = std::min(winH - 60.0f, 620.0f);
+            // Center card container
+            float cardW = std::min(winW - 60.0f, 980.0f);
+            float cardH = std::min(winH - 60.0f, 640.0f);
             float startX = (winW - cardW) * 0.5f;
             float startY = (winH - cardH) * 0.5f;
 
@@ -163,32 +253,44 @@ namespace Leon::Editor {
 
             if (ImGui::BeginChild("##LauncherCard", ImVec2(cardW, cardH), true,
                                   ImGuiWindowFlags_AlwaysUseWindowPadding)) {
-                // Header Banner
+                // Header with Logo
+                if (BrandTextureId != 0) {
+                    constexpr float kLogoSize = 56.0f;
+                    ImGui::Image(static_cast<ImTextureID>(static_cast<intptr_t>(BrandTextureId)),
+                                 ImVec2(kLogoSize, kLogoSize));
+                    ImGui::SameLine();
+                }
+
+                ImGui::BeginGroup();
+                if (FEditorTheme::FontBold)
+                    ImGui::PushFont(FEditorTheme::FontBold);
                 ImGui::TextColored(ImVec4(0.35f, 0.75f, 1.0f, 1.0f), "LEON ENGINE");
+                if (FEditorTheme::FontBold)
+                    ImGui::PopFont();
                 ImGui::SameLine();
                 ImGui::TextDisabled("v0.15.0  |  Unreal Engine-Aligned Micro Framework");
+                ImGui::TextDisabled("Select an existing project, browse your disk, or create a new game project.");
+                ImGui::EndGroup();
 
                 if (bCanReturnToEditor && bInOutOpen) {
-                    ImGui::SameLine(cardW - 140.0f);
-                    if (ImGui::Button("Back to Editor", ImVec2(110.0f, 26.0f))) {
+                    ImGui::SameLine(cardW - 150.0f);
+                    if (ImGui::Button("Back to Editor", ImVec2(120.0f, 28.0f))) {
                         *bInOutOpen = false;
                     }
                 }
-
-                ImGui::TextDisabled("Select an existing project, browse your disk, or create a new game project.");
 
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::Spacing();
 
-                // Left Tabs / Right Content
+                // Left Navigation Tabs / Right Workspace
                 ImGui::Columns(2, "LauncherColumns", false);
-                ImGui::SetColumnWidth(0, 190.0f);
+                ImGui::SetColumnWidth(0, 200.0f);
 
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 6.0f));
-                if (ImGui::Selectable("  Recent Projects", SelectedTab == 0, 0, ImVec2(170.0f, 36.0f)))
+                if (ImGui::Selectable("  Recent Projects", SelectedTab == 0, 0, ImVec2(180.0f, 36.0f)))
                     SelectedTab = 0;
-                if (ImGui::Selectable("  New Project", SelectedTab == 1, 0, ImVec2(170.0f, 36.0f)))
+                if (ImGui::Selectable("  New Project", SelectedTab == 1, 0, ImVec2(180.0f, 36.0f)))
                     SelectedTab = 1;
                 ImGui::PopStyleVar();
 
@@ -196,32 +298,30 @@ namespace Leon::Editor {
                 ImGui::Separator();
                 ImGui::Spacing();
 
-                // Browse disk button
-                if (ImGui::Button("Browse Disk...", ImVec2(170.0f, 34.0f))) {
-                    ImGui::OpenPopup("BrowseProjectPopup");
-                }
-
-                if (ImGui::BeginPopup("BrowseProjectPopup")) {
-                    static char browsePath[512] = "";
-                    ImGui::Text("Enter .lproject file path:");
-                    ImGui::InputText("##browsePath", browsePath, sizeof(browsePath));
-                    if (ImGui::Button("Open Project", ImVec2(120.0f, 0.0f))) {
-                        if (fs::exists(browsePath)) {
-                            AddRecentProject(browsePath);
-                            if (OnProjectSelected)
-                                OnProjectSelected(browsePath);
-                            if (bInOutOpen)
-                                *bInOutOpen = false;
-                            ImGui::CloseCurrentPopup();
-                        } else {
-                            bStatusIsError = true;
-                            StatusMessage = "Path not found on disk!";
+                // Native Windows Browse Button
+                if (ImGui::Button("Browse Disk...", ImVec2(180.0f, 34.0f))) {
+                    std::string picked = FEditorFileDialog::OpenFile(
+                        "Leon Project (*.lproject)\0*.lproject\0All Files (*.*)\0*.*\0", "Select LeonEngine Project");
+                    if (picked.empty()) {
+                        picked = FEditorFileDialog::PickFolder("Select LeonEngine Project Directory");
+                        if (!picked.empty()) {
+                            // Find .lproject in picked directory
+                            for (const auto& entry : fs::directory_iterator(picked)) {
+                                if (entry.path().extension() == ".lproject") {
+                                    picked = entry.path().string();
+                                    break;
+                                }
+                            }
                         }
                     }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Cancel"))
-                        ImGui::CloseCurrentPopup();
-                    ImGui::EndPopup();
+
+                    if (!picked.empty() && fs::exists(picked)) {
+                        AddRecentProject(picked);
+                        if (OnProjectSelected)
+                            OnProjectSelected(picked);
+                        if (bInOutOpen)
+                            *bInOutOpen = false;
+                    }
                 }
 
                 ImGui::NextColumn();
@@ -305,7 +405,20 @@ namespace Leon::Editor {
 
         ImGui::Spacing();
         ImGui::Text("Parent Directory:");
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 100.0f);
         ImGui::InputText("##NewProjectPath", NewProjectPath, sizeof(NewProjectPath));
+        ImGui::SameLine();
+        if (ImGui::Button("Browse...", ImVec2(90.0f, 0.0f))) {
+            std::string picked = FEditorFileDialog::PickFolder("Select Projects Root Folder");
+            if (!picked.empty()) {
+#ifdef _WIN32
+                strncpy_s(NewProjectPath, sizeof(NewProjectPath), picked.c_str(), _TRUNCATE);
+#else
+                std::strncpy(NewProjectPath, picked.c_str(), sizeof(NewProjectPath) - 1);
+                NewProjectPath[sizeof(NewProjectPath) - 1] = '\0';
+#endif
+            }
+        }
 
         ImGui::Spacing();
         ImGui::Text("Template:");

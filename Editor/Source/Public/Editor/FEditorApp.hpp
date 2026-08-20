@@ -2,12 +2,19 @@
 
 #include "Core/FApplication.hpp"
 #include "Core/FProjectDescriptor.hpp"
+#include "Editor/Commands/FEditorHistory.hpp"
 #include "Editor/FViewportPanel.hpp"
+#include "Editor/Gizmos/FTransformGizmo.hpp"
 #include "Editor/Panels/FContentBrowserPanel.hpp"
 #include "Editor/Panels/FDetailsPanel.hpp"
 #include "Editor/Panels/FOutlinerPanel.hpp"
+#include "Editor/Panels/FOutputLogPanel.hpp"
+#include "Editor/Panels/FPlaceActorsPanel.hpp"
 #include "Editor/Panels/FProjectHubPanel.hpp"
+#include "Editor/Panels/FProjectSettingsPanel.hpp"
 #include "Editor/Panels/FToolbarPanel.hpp"
+#include "Editor/Panels/FWorldSettingsPanel.hpp"
+#include "Editor/Window/FEditorWindow.hpp"
 #include "Engine/UWorld.hpp"
 
 #include <string>
@@ -16,7 +23,6 @@ namespace Leon::Editor {
 
     /**
      * @brief Out-of-process Unreal Engine-inspired editor host.
-     * Owns UWorld, Project Descriptor, Viewport, Outliner, Details, and Content Browser panels.
      */
     class FEditorApp : public FApplication {
     public:
@@ -31,12 +37,14 @@ namespace Leon::Editor {
         void SaveCurrentMap();
         void BakeLightmaps(bool bInProduction);
         void LaunchGame();
+        void ResetDefaultLayout();
 
     private:
         void BeginImGuiFrame();
         void EndImGuiFrame();
         void DrawDockspace();
         void DrawMenuBar();
+        void UpdateWindowTitle();
 
         TRef<UWorld> EditorWorld;
         AActor* SelectedActor = nullptr;
@@ -47,6 +55,12 @@ namespace Leon::Editor {
         FDetailsPanel Details;
         FContentBrowserPanel ContentBrowser;
         FToolbarPanel Toolbar;
+        FOutputLogPanel OutputLog;
+        FPlaceActorsPanel PlaceActors;
+        FWorldSettingsPanel WorldSettings;
+        FProjectSettingsPanel ProjectSettings;
+        FTransformGizmo Gizmo;
+        FEditorHistory History;
 
         std::string ActiveProjectPath;
         FProjectDescriptor ActiveProjectDescriptor;
@@ -55,9 +69,11 @@ namespace Leon::Editor {
 
         std::string ImGuiIniPath;
         std::string EditorSavedDir;
+        std::string WindowConfigIniPath;
         bool bImGuiReady = false;
         bool bShowProjectHub = false;
         bool bDockspaceInitialized = false;
+        bool bNeedResetLayout = false;
     };
 
 } // namespace Leon::Editor

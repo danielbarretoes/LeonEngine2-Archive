@@ -4,13 +4,14 @@
 #include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
 
-#include <string>
 #include <functional>
+#include <string>
 
 namespace Leon::Editor {
 
     /**
-     * @brief World Outliner panel listing actors in the current level.
+     * @brief World Outliner panel showing all scene actors, hierarchical parenting,
+     * type badges with Lucide icons, visibility, selection, and context menus.
      */
     class FOutlinerPanel {
     public:
@@ -22,19 +23,20 @@ namespace Leon::Editor {
         void SetOnActorSelected(FOnActorSelected InCallback) { OnActorSelected = std::move(InCallback); }
         void SetOnActorFocus(FOnActorFocus InCallback) { OnActorFocus = std::move(InCallback); }
 
-        AActor* GetSelectedActor() const { return SelectedActor; }
         void SetSelectedActor(AActor* InActor) { SelectedActor = InActor; }
+        AActor* GetSelectedActor() const { return SelectedActor; }
 
         void Draw(UWorld* InWorld);
 
     private:
-        void DrawActorTree(UWorld& InWorld);
+        void DrawActorNode(UWorld& InWorld, AActor* InActor, const std::string& InFilter);
         void DrawContextMenu(UWorld& InWorld, AActor* InActor);
         void SpawnNewActor(UWorld& InWorld, const std::string& InType);
 
-        AActor* SelectedActor = nullptr;
         FOnActorSelected OnActorSelected;
         FOnActorFocus OnActorFocus;
+
+        AActor* SelectedActor = nullptr;
         char FilterBuffer[128] = "";
     };
 

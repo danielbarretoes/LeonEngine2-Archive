@@ -40,6 +40,16 @@ add_library(LeonEditorCore STATIC
     Source/Private/Panels/FDetailsPanel.cpp
     Source/Private/Panels/FContentBrowserPanel.cpp
     Source/Private/Panels/FToolbarPanel.cpp
+    Source/Private/Panels/FOutputLogPanel.cpp
+    Source/Private/Panels/FPlaceActorsPanel.cpp
+    Source/Private/Panels/FWorldSettingsPanel.cpp
+    Source/Private/Panels/FProjectSettingsPanel.cpp
+    Source/Private/UI/FEditorTheme.cpp
+    Source/Private/UI/FLucideIcons.cpp
+    Source/Private/Commands/FEditorHistory.cpp
+    Source/Private/Gizmos/FTransformGizmo.cpp
+    Source/Private/Utils/FEditorFileDialog.cpp
+    Source/Private/Window/FEditorWindow.cpp
 )
 add_library(Leon::Editor ALIAS LeonEditorCore)
 
@@ -105,14 +115,16 @@ add_custom_command(TARGET LeonEditor POST_BUILD
         -DDST=${_editor_exe_dir}/Engine/Assets
         -DREMOVE_ORPHANS=ON
         -P ${_leon_sync}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_editor_exe_dir}/Engine/Assets/Brand
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_editor_exe_dir}/Engine/Assets/Icons
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Brand/LeonLogoUi.png
-        ${_editor_exe_dir}/Engine/Assets/Brand/LeonLogoUi.png
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/Resources/Icons/LeonEditor.png
-        ${_editor_exe_dir}/Engine/Assets/Icons/LeonEditor.png
+    COMMAND ${CMAKE_COMMAND}
+        -DSRC=${CMAKE_CURRENT_SOURCE_DIR}/Resources
+        -DDST=${_editor_exe_dir}/Resources
+        -DREMOVE_ORPHANS=OFF
+        -P ${_leon_sync}
+    COMMAND ${CMAKE_COMMAND}
+        -DSRC=${CMAKE_CURRENT_SOURCE_DIR}/Resources
+        -DDST=${_editor_exe_dir}/Editor/Resources
+        -DREMOVE_ORPHANS=OFF
+        -P ${_leon_sync}
 )
 
 leon_apply_compile_options(LeonEditorCore LeonEditor)

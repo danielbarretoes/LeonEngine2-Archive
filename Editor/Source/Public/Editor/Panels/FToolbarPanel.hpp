@@ -7,7 +7,7 @@
 namespace Leon::Editor {
 
     /**
-     * @brief Editor Toolbar panel for top-level actions (Save Map, Bake, Project Hub, Run).
+     * @brief Editor Toolbar panel for top-level actions (Save Map, Bake, Project Hub, Run, Reset Layout).
      */
     class FToolbarPanel {
     public:
@@ -20,6 +20,7 @@ namespace Leon::Editor {
         void SetOnBakeProduction(FActionCallback InCb) { OnBakeProduction = std::move(InCb); }
         void SetOnOpenHub(FActionCallback InCb) { OnOpenHub = std::move(InCb); }
         void SetOnRunGame(FActionCallback InCb) { OnRunGame = std::move(InCb); }
+        void SetOnResetLayout(FActionCallback InCb) { OnResetLayout = std::move(InCb); }
 
         void Draw(const std::string& InProjectName, const std::string& InMapName);
 
@@ -29,6 +30,7 @@ namespace Leon::Editor {
         FActionCallback OnBakeProduction;
         FActionCallback OnOpenHub;
         FActionCallback OnRunGame;
+        FActionCallback OnResetLayout;
     };
 
 } // namespace Leon::Editor
