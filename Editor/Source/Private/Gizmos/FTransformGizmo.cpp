@@ -152,8 +152,8 @@ namespace Leon::Editor {
         }
 
         auto& tc = primary->GetComponent<FTransformComponent>();
-        glm::vec3 actorPos = tc.Translation;
-        glm::mat4 viewProj = InCamera.GetProjectionMatrix() * InCamera.GetViewMatrix();
+        glm::vec3 actorPos = glm::vec3(primary->GetActorWorldMatrix()[3]);
+        glm::mat4 viewProj = InCamera.GetViewProjectionMatrix();
 
         bool bOriginInFront = false;
         glm::vec2 originScreen =
@@ -171,13 +171,16 @@ namespace Leon::Editor {
         glm::vec3 dirZ = glm::vec3(0.0f, 0.0f, 1.0f);
 
         if (CurrentMode == EGizmoMode::Local) {
-            glm::mat4 rotMatrix = glm::mat4(1.0f);
-            rotMatrix = glm::rotate(rotMatrix, glm::radians(tc.Rotation.z), glm::vec3(0, 0, 1));
-            rotMatrix = glm::rotate(rotMatrix, glm::radians(tc.Rotation.y), glm::vec3(0, 1, 0));
-            rotMatrix = glm::rotate(rotMatrix, glm::radians(tc.Rotation.x), glm::vec3(1, 0, 0));
-            dirX = glm::vec3(rotMatrix * glm::vec4(1, 0, 0, 0));
-            dirY = glm::vec3(rotMatrix * glm::vec4(0, 1, 0, 0));
-            dirZ = glm::vec3(rotMatrix * glm::vec4(0, 0, 1, 0));
+            const glm::mat4 world = primary->GetActorWorldMatrix();
+            dirX = glm::vec3(world[0]);
+            dirY = glm::vec3(world[1]);
+            dirZ = glm::vec3(world[2]);
+            const float lx = glm::length(dirX);
+            const float ly = glm::length(dirY);
+            const float lz = glm::length(dirZ);
+            dirX = lx > 1e-6f ? dirX / lx : glm::vec3(1.0f, 0.0f, 0.0f);
+            dirY = ly > 1e-6f ? dirY / ly : glm::vec3(0.0f, 1.0f, 0.0f);
+            dirZ = lz > 1e-6f ? dirZ / lz : glm::vec3(0.0f, 0.0f, 1.0f);
         }
 
         bool bXInFront = false, bYInFront = false, bZInFront = false;
@@ -223,9 +226,37 @@ namespace Leon::Editor {
             ActiveAxis == EGizmoAxis::None) {
             ActiveAxis = hoveredAxis;
             DragStartMouse = mouse;
-            InitialActorLocation = tc.Translation;
+            InitialActorLocation = actorPos;
             InitialActorRotation = tc.Rotation;
             InitialActorScale = tc.Scale;
+
+            DragAxisOrigin = actorPos;
+            if (ActiveAxis == EGizmoAxis::X)
+                DragAxisDir = dirX;
+            else if (ActiveAxis == EGizmoAxis::Y)
+                DragAxisDir = dirY;
+            else
+                DragAxisDir = dirZ;
+            const float axisLen = glm::length(DragAxisDir);
+            DragAxisDir = axisLen > 1e-6f ? DragAxisDir / axisLen : glm::vec3(1.0f, 0.0f, 0.0f);
+
+            glm::vec3 toCam = InCamera.GetPosition() - DragAxisOrigin;
+            glm::vec3 planeSide = glm::cross(DragAxisDir, toCam);
+            if (glm::length(planeSide) < 1e-4f)
+                planeSide = glm::cross(DragAxisDir, InCamera.GetRightDirection());
+            if (glm::length(planeSide) < 1e-4f)
+                planeSide = glm::cross(DragAxisDir, glm::vec3(0.0f, 1.0f, 0.0f));
+            if (glm::length(planeSide) < 1e-4f)
+                planeSide = glm::vec3(0.0f, 0.0f, 1.0f);
+            DragPlaneNormal = glm::normalize(glm::cross(DragAxisDir, planeSide));
+
+            DragStartAxisT = 0.0f;
+            glm::vec3 rayOrigin, rayDir, hit;
+            if (ScreenToWorldRay(InCamera, mouse, InViewportX, InViewportY, InViewportW, InViewportH, rayOrigin,
+                                 rayDir) &&
+                IntersectRayWithAxis(rayOrigin, rayDir, hit)) {
+                DragStartAxisT = glm::dot(hit - DragAxisOrigin, DragAxisDir);
+            }
 
             DragBefore.clear();
             for (AActor* actor : InActors) {
@@ -238,34 +269,26 @@ namespace Leon::Editor {
 
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && ActiveAxis != EGizmoAxis::None) {
             glm::vec2 deltaMouse = mouse - DragStartMouse;
-            float dragFactor = distToCam * 0.003f;
 
             if (CurrentOperation == EGizmoOperation::Translate) {
-                glm::vec3 deltaWorld(0.0f);
-                if (ActiveAxis == EGizmoAxis::X) {
-                    glm::vec2 axisDir2D = glm::normalize(posXScreen - originScreen);
-                    float proj = glm::dot(deltaMouse, axisDir2D);
-                    deltaWorld = dirX * (proj * dragFactor);
-                } else if (ActiveAxis == EGizmoAxis::Y) {
-                    glm::vec2 axisDir2D = glm::normalize(posYScreen - originScreen);
-                    float proj = glm::dot(deltaMouse, axisDir2D);
-                    deltaWorld = dirY * (proj * dragFactor);
-                } else if (ActiveAxis == EGizmoAxis::Z) {
-                    glm::vec2 axisDir2D = glm::normalize(posZScreen - originScreen);
-                    float proj = glm::dot(deltaMouse, axisDir2D);
-                    deltaWorld = dirZ * (proj * dragFactor);
-                }
+                glm::vec3 rayOrigin, rayDir, hit;
+                if (ScreenToWorldRay(InCamera, mouse, InViewportX, InViewportY, InViewportW, InViewportH, rayOrigin,
+                                     rayDir) &&
+                    IntersectRayWithAxis(rayOrigin, rayDir, hit)) {
+                    const float axisT = glm::dot(hit - DragAxisOrigin, DragAxisDir);
+                    const glm::vec3 deltaWorld = DragAxisDir * (axisT - DragStartAxisT);
 
-                for (const auto& before : DragBefore) {
-                    if (!before.Actor || before.Actor->IsPendingKill())
-                        continue;
-                    glm::vec3 newLoc = before.Location + deltaWorld;
-                    if (bSnapEnabled && TranslationSnap > 0.001f) {
-                        newLoc.x = std::round(newLoc.x / TranslationSnap) * TranslationSnap;
-                        newLoc.y = std::round(newLoc.y / TranslationSnap) * TranslationSnap;
-                        newLoc.z = std::round(newLoc.z / TranslationSnap) * TranslationSnap;
+                    for (const auto& before : DragBefore) {
+                        if (!before.Actor || before.Actor->IsPendingKill())
+                            continue;
+                        glm::vec3 newLoc = before.Location + deltaWorld;
+                        if (bSnapEnabled && TranslationSnap > 0.001f) {
+                            newLoc.x = std::round(newLoc.x / TranslationSnap) * TranslationSnap;
+                            newLoc.y = std::round(newLoc.y / TranslationSnap) * TranslationSnap;
+                            newLoc.z = std::round(newLoc.z / TranslationSnap) * TranslationSnap;
+                        }
+                        before.Actor->SetActorLocation(newLoc);
                     }
-                    before.Actor->SetActorLocation(newLoc);
                 }
 
             } else if (CurrentOperation == EGizmoOperation::Rotate) {

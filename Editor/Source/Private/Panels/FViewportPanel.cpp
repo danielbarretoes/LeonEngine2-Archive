@@ -803,8 +803,8 @@ namespace Leon::Editor {
                     if (!actor || !actor->template HasComponent<FTransformComponent>())
                         continue;
 
-                    const auto& tc = actor->template GetComponent<FTransformComponent>();
-                    glm::vec4 clip = vp * glm::vec4(tc.Translation, 1.0f);
+                    glm::vec3 worldPos = glm::vec3(actor->GetActorWorldMatrix()[3]);
+                    glm::vec4 clip = vp * glm::vec4(worldPos, 1.0f);
                     if (clip.w <= 0.001f)
                         continue;
 
@@ -891,8 +891,7 @@ namespace Leon::Editor {
             if (!actor || actor->IsPendingKill() || !actor->template HasComponent<FTransformComponent>())
                 continue;
 
-            const auto& tc = actor->template GetComponent<FTransformComponent>();
-            glm::mat4 worldTransform = tc.GetTransform();
+            glm::mat4 worldTransform = actor->GetActorWorldMatrix();
             glm::mat4 invWorld = glm::inverse(worldTransform);
 
             glm::vec3 localRayOrigin = glm::vec3(invWorld * glm::vec4(rayOrigin, 1.0f));
@@ -992,8 +991,7 @@ namespace Leon::Editor {
         if (!InSelectedActor || !InSelectedActor->HasComponent<FTransformComponent>())
             return;
 
-        const auto& tc = InSelectedActor->GetComponent<FTransformComponent>();
-        glm::mat4 model = tc.GetTransform();
+        glm::mat4 model = InSelectedActor->GetActorWorldMatrix();
         glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
 
         glm::vec3 localMin, localMax;
