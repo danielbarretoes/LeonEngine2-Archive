@@ -2,6 +2,8 @@
 #include "Assets/UAssetManager.hpp"
 #include "Assets/USkeletalMesh.hpp"
 #include "Assets/UStaticMesh.hpp"
+#include "Core/FApplication.hpp"
+#include "Core/FInput.hpp"
 #include "Core/FLog.hpp"
 #include "Editor/Context/FEditorHistory.hpp"
 #include "Editor/Panels/FPlaceActorsPanel.hpp"
@@ -9,15 +11,18 @@
 #include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/ECollisionChannel.hpp"
 #include "Gameplay/APlayerCameraManager.hpp"
 #include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerStart.hpp"
+#include "Physics/FHitResult.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "RHI/FFramebuffer.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <glad/glad.h>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <limits>
 #include <imgui.h>
@@ -161,6 +166,30 @@ namespace Leon::Editor {
             if (len < 1e-6f)
                 return false;
             OutDir = delta / len;
+            return true;
+        }
+
+        bool RayIntersectsAABB(const glm::vec3& InOrigin, const glm::vec3& InDir, const glm::vec3& InBoxMin,
+                               const glm::vec3& InBoxMax, float& OutT) {
+            float tMin = 0.0f;
+            float tMax = 10000.0f;
+            for (int i = 0; i < 3; ++i) {
+                if (std::abs(InDir[i]) < 1e-6f) {
+                    if (InOrigin[i] < InBoxMin[i] || InOrigin[i] > InBoxMax[i])
+                        return false;
+                } else {
+                    float invD = 1.0f / InDir[i];
+                    float t1 = (InBoxMin[i] - InOrigin[i]) * invD;
+                    float t2 = (InBoxMax[i] - InOrigin[i]) * invD;
+                    if (t1 > t2)
+                        std::swap(t1, t2);
+                    tMin = std::max(tMin, t1);
+                    tMax = std::min(tMax, t2);
+                    if (tMin > tMax)
+                        return false;
+                }
+            }
+            OutT = tMin;
             return true;
         }
 
@@ -364,8 +393,15 @@ namespace Leon::Editor {
 
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && bWindowHovered && !bAlt)
             bRmbNavigating = true;
-        if (ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+            if (bRmbNavigating && FApplication::HasInstance())
+                FApplication::Get().GetWindow().SetCursorVisible(true);
             bRmbNavigating = false;
+            bRmbLookPrimed = false;
+        }
+
+        if (bRmbNavigating && FApplication::HasInstance())
+            FApplication::Get().GetWindow().SetCursorVisible(false);
 
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && bWindowHovered)
             bMmbPanning = true;
@@ -414,10 +450,18 @@ namespace Leon::Editor {
                 PivotPoint += step;
             }
 
-            if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f) {
+            auto [mx, my] = FInput::GetMousePosition();
+            const glm::vec2 mouse(mx, my);
+            if (!bRmbLookPrimed) {
+                RmbLastMouse = mouse;
+                bRmbLookPrimed = true;
+            }
+            const glm::vec2 lookDelta = mouse - RmbLastMouse;
+            RmbLastMouse = mouse;
+            if (lookDelta.x != 0.0f || lookDelta.y != 0.0f) {
                 const float sens = 0.15f;
-                float yaw = EditorCamera.GetYaw() + io.MouseDelta.x * sens;
-                float pitch = std::clamp(EditorCamera.GetPitch() - io.MouseDelta.y * sens, -89.0f, 89.0f);
+                float yaw = EditorCamera.GetYaw() + lookDelta.x * sens;
+                float pitch = std::clamp(EditorCamera.GetPitch() - lookDelta.y * sens, -89.0f, 89.0f);
                 EditorCamera.SetRotation(pitch, yaw);
             }
         } else if (bRmbNavigating && ViewMode != EViewportViewMode::Perspective) {
@@ -459,9 +503,44 @@ namespace Leon::Editor {
 
         WorldRenderer->SetWireframeEnabled(ShadingMode == EViewportShadingMode::Wireframe);
         WorldRenderer->SetDebugMode(ShadingMode == EViewportShadingMode::Unlit ? 14 : 0);
+
+        struct FHiddenVisRestore {
+            AActor* Actor = nullptr;
+            bool bMesh = true;
+            bool bStatic = true;
+        };
+        std::vector<FHiddenVisRestore> HiddenRestore;
+        if (Context && !bPlayingInEditor) {
+            for (const auto& ActorRef : InWorld.GetAllActors()) {
+                AActor* Actor = ActorRef.get();
+                if (!Actor || !Context->IsActorHiddenInEditor(Actor))
+                    continue;
+                FHiddenVisRestore Restore;
+                Restore.Actor = Actor;
+                if (Actor->HasComponent<FMeshComponent>()) {
+                    Restore.bMesh = Actor->GetComponent<FMeshComponent>().bVisible;
+                    Actor->GetComponent<FMeshComponent>().bVisible = false;
+                }
+                if (Actor->HasComponent<FStaticMeshComponent>()) {
+                    Restore.bStatic = Actor->GetComponent<FStaticMeshComponent>().bVisible;
+                    Actor->GetComponent<FStaticMeshComponent>().bVisible = false;
+                }
+                HiddenRestore.push_back(Restore);
+            }
+        }
+
         WorldRenderer->Render(*Camera);
 
-        if (bShowEditorGizmos && !bPlayingInEditor) {
+        for (const FHiddenVisRestore& Restore : HiddenRestore) {
+            if (!Restore.Actor)
+                continue;
+            if (Restore.Actor->HasComponent<FMeshComponent>())
+                Restore.Actor->GetComponent<FMeshComponent>().bVisible = Restore.bMesh;
+            if (Restore.Actor->HasComponent<FStaticMeshComponent>())
+                Restore.Actor->GetComponent<FStaticMeshComponent>().bVisible = Restore.bStatic;
+        }
+
+        if (!bPlayingInEditor && (bShowEditorGizmos || bShowGrid)) {
             DrawEditorWorldGizmos(InWorld);
         }
     }
@@ -474,6 +553,13 @@ namespace Leon::Editor {
         fbo->Bind();
 
         FDebugRenderer::BeginScene(EditorCamera);
+        if (bShowGrid)
+            DrawEditorGrid();
+        if (!bShowEditorGizmos) {
+            FDebugRenderer::EndScene(false);
+            fbo->Unbind();
+            return;
+        }
         auto& reg = InWorld.GetRegistry();
 
         auto dirView = reg.view<FDirectionalLightComponent, FTransformComponent>();
@@ -561,6 +647,28 @@ namespace Leon::Editor {
         // Overlay without depth so volumes stay readable (matches game light-gizmo pass).
         FDebugRenderer::EndScene(false);
         fbo->Unbind();
+    }
+
+    void FViewportPanel::DrawEditorGrid() {
+        const float spacing = 1.0f;
+        const int halfCount = 25;
+        const float y = PivotPoint.y;
+        const float originX = std::round(PivotPoint.x / spacing) * spacing;
+        const float originZ = std::round(PivotPoint.z / spacing) * spacing;
+        const float extent = static_cast<float>(halfCount) * spacing;
+        const glm::vec4 minor(0.32f, 0.34f, 0.38f, 0.55f);
+        const glm::vec4 major(0.45f, 0.48f, 0.54f, 0.85f);
+
+        for (int i = -halfCount; i <= halfCount; ++i) {
+            const float x = originX + static_cast<float>(i) * spacing;
+            const float z = originZ + static_cast<float>(i) * spacing;
+            const bool bMajorX = (static_cast<int>(std::round(x)) % 10) == 0;
+            const bool bMajorZ = (static_cast<int>(std::round(z)) % 10) == 0;
+            FDebugRenderer::DrawLine(glm::vec3(x, y, originZ - extent), glm::vec3(x, y, originZ + extent),
+                                     bMajorX ? major : minor);
+            FDebugRenderer::DrawLine(glm::vec3(originX - extent, y, z), glm::vec3(originX + extent, y, z),
+                                     bMajorZ ? major : minor);
+        }
     }
 
     void FViewportPanel::DrawViewportAxisIndicator(const ImVec2& InViewportMin, const ImVec2& InViewportSize) {
@@ -793,10 +901,18 @@ namespace Leon::Editor {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Show Flags: editor gizmos (lights, PlayerStart, cameras)");
         }
+
+        ImGui::SameLine();
+        if (FEditorWidgets::DrawToggleButton(ELucideIcon::LayoutGrid, "##GridToggle", bShowGrid,
+                                             bShowGrid ? "Grid: On" : "Grid: Off")) {
+            bShowGrid = !bShowGrid;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Show Flags: world XZ grid");
+        }
     }
 
-    void FViewportPanel::Draw(UWorld* InWorld, const std::string& InMapName, AActor* InSelectedActor,
-                              bool* bInOutOpen) {
+    void FViewportPanel::Draw(UWorld* InWorld, const std::string& InMapName, bool* bInOutOpen) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::Viewport, bInOutOpen, ELucideIcon::Eye,
                                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
@@ -845,16 +961,15 @@ namespace Leon::Editor {
             }
 
             // Active Primary Selected Actor
-            AActor* activeActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : InSelectedActor;
+            AActor* activeActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : nullptr;
 
             std::vector<AActor*> gizmoActors;
-            if (Context) {
+            if (Context && !bPlayingInEditor) {
                 for (AActor* selected : Context->GetSelection().GetSelectedActors()) {
-                    if (selected && !selected->IsPendingKill())
+                    if (selected && !selected->IsPendingKill() && !Context->IsActorLockedInEditor(selected) &&
+                        !Context->IsActorHiddenInEditor(selected))
                         gizmoActors.push_back(selected);
                 }
-            } else if (activeActor && !activeActor->IsPendingKill()) {
-                gizmoActors.push_back(activeActor);
             }
 
             // Draw 3D Interactive Transform Gizmo
@@ -869,11 +984,9 @@ namespace Leon::Editor {
             // Draw Selection Wireframe for all selected actors
             if (!bPlayingInEditor && bHasViewportImage && Context) {
                 for (AActor* selected : Context->GetSelection().GetSelectedActors()) {
-                    if (selected && !selected->IsPendingKill())
+                    if (selected && !selected->IsPendingKill() && !Context->IsActorHiddenInEditor(selected))
                         DrawSelectionOutline(selected, vpMin, vpSize);
                 }
-            } else if (!bPlayingInEditor && activeActor && !activeActor->IsPendingKill() && bHasViewportImage) {
-                DrawSelectionOutline(activeActor, vpMin, vpSize);
             }
 
             // Unreal-like sprite icons for lights / PlayerStart / cameras
@@ -932,17 +1045,19 @@ namespace Leon::Editor {
                 }
             }
 
-            if (InWorld && bHasViewportImage && !bPickHandled && !bCameraBusy) {
+            if (!bPlayingInEditor && InWorld && bHasViewportImage && !bPickHandled && !bCameraBusy) {
                 ProcessMarqueeSelection(*InWorld, vpMin, vpSize);
+            } else if (bPlayingInEditor) {
+                bMarqueeSelecting = false;
             }
 
-            if (InWorld && bHasViewportImage) {
+            if (!bPlayingInEditor && InWorld && bHasViewportImage) {
                 if (const ImGuiPayload* payload = ImGui::GetDragDropPayload()) {
                     const bool bPlace = payload->IsDataType("PLACE_ACTOR_TYPE");
                     const bool bMesh = payload->IsDataType("CONTENT_BROWSER_ASSET");
                     if (bPlace || bMesh) {
                         glm::vec3 ghostPos = GetWorldRayIntersection(
-                            glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
+                            InWorld, glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
                         const char* label = "Place";
                         if (bPlace)
                             label = static_cast<const char*>(payload->Data);
@@ -954,18 +1069,15 @@ namespace Leon::Editor {
             }
 
             // Drag and Drop Targets from Place Actors & Content Browser
-            if (InWorld && ImGui::BeginDragDropTarget()) {
+            if (!bPlayingInEditor && InWorld && ImGui::BeginDragDropTarget()) {
                 // Actor Spawning from Place Actors
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("PLACE_ACTOR_TYPE")) {
                     const char* actorType = static_cast<const char*>(payload->Data);
                     if (actorType) {
                         glm::vec3 spawnPos = GetWorldRayIntersection(
-                            glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
+                            InWorld, glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
                         AActor* spawned = FPlaceActorsPanel::SpawnActorAt(*InWorld, actorType, spawnPos);
                         if (spawned) {
-                            if (Context) {
-                                Context->GetSelection().SelectActor(spawned, false);
-                            }
                             if (OnActorSpawned) {
                                 OnActorSpawned(spawned);
                             }
@@ -978,10 +1090,9 @@ namespace Leon::Editor {
                     const char* assetPath = static_cast<const char*>(payload->Data);
                     if (assetPath) {
                         std::string pathStr(assetPath);
-                        if (pathStr.ends_with(".obj") || pathStr.ends_with(".fbx") || pathStr.ends_with(".gltf") ||
-                            pathStr.ends_with(".lmesh")) {
+                        if (pathStr.ends_with(".lmesh")) {
                             glm::vec3 spawnPos = GetWorldRayIntersection(
-                                glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
+                                InWorld, glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
                             AActor* spawned = InWorld->SpawnActor<AActor>("DroppedMesh");
                             if (spawned) {
                                 auto& tc = spawned->AddComponent<FTransformComponent>();
@@ -989,9 +1100,6 @@ namespace Leon::Editor {
                                 auto& sm = spawned->AddComponent<FStaticMeshComponent>();
                                 sm.AssetPath = pathStr;
                                 sm.StaticMesh = UAssetManager::GetStaticMesh(pathStr);
-                                if (Context) {
-                                    Context->GetSelection().SelectActor(spawned, false);
-                                }
                                 if (OnActorSpawned) {
                                     OnActorSpawned(spawned);
                                 }
@@ -1066,6 +1174,9 @@ namespace Leon::Editor {
                 for (const auto& actor : InWorld.GetAllActors()) {
                     if (!actor || actor->IsPendingKill() || !actor->template HasComponent<FTransformComponent>())
                         continue;
+                    if (Context &&
+                        (Context->IsActorHiddenInEditor(actor.get()) || Context->IsActorLockedInEditor(actor.get())))
+                        continue;
 
                     ImVec2 screenPos;
                     if (!ProjectWorld(vp, ActorWorldOrigin(*actor), InViewportMin, InViewportSize, screenPos))
@@ -1132,6 +1243,8 @@ namespace Leon::Editor {
         for (const auto& actor : InWorld.GetAllActors()) {
             if (!actor || actor->IsPendingKill() || !actor->template HasComponent<FTransformComponent>())
                 continue;
+            if (Context && (Context->IsActorHiddenInEditor(actor.get()) || Context->IsActorLockedInEditor(actor.get())))
+                continue;
 
             glm::mat4 worldTransform = actor->GetActorWorldMatrix();
             glm::mat4 invWorld = glm::inverse(worldTransform);
@@ -1169,6 +1282,9 @@ namespace Leon::Editor {
             for (const auto& actor : InWorld.GetAllActors()) {
                 if (!actor || actor->IsPendingKill() || !actor->template HasComponent<FTransformComponent>())
                     continue;
+                if (Context &&
+                    (Context->IsActorHiddenInEditor(actor.get()) || Context->IsActorLockedInEditor(actor.get())))
+                    continue;
 
                 const bool bHasVolume = actor->template HasComponent<FStaticMeshComponent>() ||
                                         actor->template HasComponent<FMeshComponent>() ||
@@ -1192,18 +1308,61 @@ namespace Leon::Editor {
         return closestActor;
     }
 
-    glm::vec3 FViewportPanel::GetWorldRayIntersection(const glm::vec2& InScreenPos, const ImVec2& InViewportMin,
-                                                      const ImVec2& InViewportSize) {
+    glm::vec3 FViewportPanel::GetWorldRayIntersection(UWorld* InWorld, const glm::vec2& InScreenPos,
+                                                      const ImVec2& InViewportMin, const ImVec2& InViewportSize) {
         glm::vec3 rayOrigin, rayDir;
         if (!UnprojectScreenRay(EditorCamera, InScreenPos, InViewportMin, InViewportSize, rayOrigin, rayDir))
             return glm::vec3(0.0f);
 
-        if (std::abs(rayDir.y) > 0.0001f) {
-            float t = -rayOrigin.y / rayDir.y;
+        const glm::vec3 rayEnd = rayOrigin + rayDir * 10000.0f;
+        if (InWorld) {
+            FHitResult hit;
+            if (InWorld->LineTraceSingleByChannel(rayOrigin, rayEnd, ECollisionChannel::WorldStatic, nullptr, hit) &&
+                hit.bBlockingHit)
+                return hit.ImpactPoint;
+
+            float closestDist = 100000.0f;
+            glm::vec3 closestHit = rayOrigin;
+            bool bHit = false;
+            for (const auto& actor : InWorld->GetAllActors()) {
+                if (!actor || actor->IsPendingKill() || !actor->HasComponent<FTransformComponent>())
+                    continue;
+                if (Context && Context->IsActorHiddenInEditor(actor.get()))
+                    continue;
+
+                glm::mat4 worldTransform = actor->GetActorWorldMatrix();
+                glm::mat4 invWorld = glm::inverse(worldTransform);
+                glm::vec3 localOrigin = glm::vec3(invWorld * glm::vec4(rayOrigin, 1.0f));
+                glm::vec3 localDir = glm::vec3(invWorld * glm::vec4(rayDir, 0.0f));
+                const float localDirLen = glm::length(localDir);
+                if (localDirLen < 1e-6f)
+                    continue;
+                localDir /= localDirLen;
+
+                glm::vec3 boxMin, boxMax;
+                GetActorEditorLocalBounds(*actor, boxMin, boxMax);
+                float hitLocalT = 0.0f;
+                if (!RayIntersectsAABB(localOrigin, localDir, boxMin, boxMax, hitLocalT))
+                    continue;
+                const glm::vec3 hitLocalPos = localOrigin + localDir * hitLocalT;
+                const glm::vec3 hitWorldPos = glm::vec3(worldTransform * glm::vec4(hitLocalPos, 1.0f));
+                const float hitWorldDist = glm::dot(hitWorldPos - rayOrigin, rayDir);
+                if (hitWorldDist > 0.0f && hitWorldDist < closestDist) {
+                    closestDist = hitWorldDist;
+                    closestHit = hitWorldPos;
+                    bHit = true;
+                }
+            }
+            if (bHit)
+                return closestHit;
+        }
+
+        const float planeY = PivotPoint.y;
+        if (std::abs(rayDir.y) > 1e-4f) {
+            const float t = (planeY - rayOrigin.y) / rayDir.y;
             if (t > 0.0f)
                 return rayOrigin + rayDir * t;
         }
-
         return rayOrigin + rayDir * 10.0f;
     }
 
@@ -1293,11 +1452,17 @@ namespace Leon::Editor {
         const char* selName = InSelectedActor ? InSelectedActor->GetName().c_str() : "None";
         size_t selCount = Context ? Context->GetSelection().GetSelectedActorCount() : (InSelectedActor ? 1 : 0);
 
-        char statsText[256];
-        snprintf(statsText, sizeof(statsText),
-                 "Map: %s  |  FPS: %.0f (%.1f ms)  |  Speed: %.0f  |  Actors: %u  |  Selected: %zu (%s)",
-                 InMapName.empty() ? "Untitled" : InMapName.c_str(), FrameRate, FrameTimeMs, CameraSpeed, InActorCount,
-                 selCount, selName);
+        char statsText[320];
+        if (bPlayingInEditor) {
+            snprintf(statsText, sizeof(statsText),
+                     "PIE  |  Shift+Esc to Stop  |  Map: %s  |  FPS: %.0f (%.1f ms)  |  Actors: %u",
+                     InMapName.empty() ? "Untitled" : InMapName.c_str(), FrameRate, FrameTimeMs, InActorCount);
+        } else {
+            snprintf(statsText, sizeof(statsText),
+                     "Map: %s  |  FPS: %.0f (%.1f ms)  |  Speed: %.0f  |  Actors: %u  |  Selected: %zu (%s)",
+                     InMapName.empty() ? "Untitled" : InMapName.c_str(), FrameRate, FrameTimeMs, CameraSpeed,
+                     InActorCount, selCount, selName);
+        }
 
         drawList->AddText(ImVec2(overlayPos.x + 8.0f, overlayPos.y + 4.0f), IM_COL32(200, 205, 215, 255), statsText);
     }

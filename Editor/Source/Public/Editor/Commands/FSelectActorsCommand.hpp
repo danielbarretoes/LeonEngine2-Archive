@@ -19,6 +19,7 @@ namespace Leon::Editor {
         void Execute() override;
         void Undo() override;
         [[nodiscard]] std::string GetDescription() const override { return Description; }
+        [[nodiscard]] bool AffectsMap() const override { return false; }
 
     private:
         FEditorSelection* Selection = nullptr;

@@ -51,6 +51,12 @@ namespace Leon::Editor {
         std::string PlayerStartTag;
         int32_t PlayerStartTeamIndex = 0;
         bool bPlayerStartEnabled = true;
+
+        bool bHasTriggerVolume = false;
+        bool bTriggerEnabled = true;
+
+        bool bHasSkybox = false;
+        FSkyboxComponent Skybox;
     };
 
     FActorEditorSnapshot CaptureActorSnapshot(AActor& InActor);

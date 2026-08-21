@@ -17,6 +17,7 @@ namespace Leon {
         static constexpr const char* kMeshSphere = "Engine/Meshes/Sphere.lmesh";
         static constexpr const char* kMeshCylinder = "Engine/Meshes/Cylinder.lmesh";
         static constexpr const char* kMeshPlane = "Engine/Meshes/Plane.lmesh";
+        static constexpr const char* kMeshRamp = "Engine/Meshes/Ramp.lmesh";
 
         /** Create on-disk assets if missing, then register textures/materials/meshes in the asset manager. */
         static void EnsureAndRegister();

@@ -42,10 +42,9 @@ namespace Leon::Editor {
         if (ImGui::Combo("Net Mode", &NetIdx, NetModes, 4))
             PlaySettings->NetMode = static_cast<EPlayNetMode>(NetIdx);
 
-        const char* PlayModes[] = {"Selected Viewport", "New Editor Window"};
-        int PlayIdx = static_cast<int>(PlaySettings->PlayMode);
-        if (ImGui::Combo("Play Mode", &PlayIdx, PlayModes, 2))
-            PlaySettings->PlayMode = static_cast<EPlayMode>(PlayIdx);
+        PlaySettings->PlayMode = EPlayMode::SelectedViewport;
+        ImGui::TextUnformatted("Play Mode: Selected Viewport");
+        ImGui::TextDisabled("New Editor Window is not available yet.");
 
         ImGui::InputInt("Listen Port", &PlaySettings->ListenPort);
         char Addr[128] = {};
@@ -97,7 +96,7 @@ namespace Leon::Editor {
                     OnStop();
             }
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal))
-                ImGui::SetTooltip("Stop Play In Editor (Esc)");
+                ImGui::SetTooltip("Stop Play In Editor (Shift+Esc)");
         }
 
         ToolbarSameLine();

@@ -228,6 +228,64 @@ namespace Leon {
             return FinalizePrimitiveMesh(InName, std::move(verts), std::move(indices));
         }
 
+        TRef<UStaticMesh> BuildRampMesh(const std::string& InName, float InWidth, float InHeight, float InDepth) {
+            const float w = InWidth * 0.5f;
+            const float h = InHeight * 0.5f;
+            const float d = InDepth * 0.5f;
+            const float slopeLen = std::sqrt(4.0f * h * h + 4.0f * d * d);
+            const float ny = (2.0f * d) / slopeLen;
+            const float nz = (2.0f * h) / slopeLen;
+            const float by = (2.0f * h) / slopeLen;
+            const float bz = (-2.0f * d) / slopeLen;
+            const glm::vec2 uv[4] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+
+            std::vector<FCanonicalMeshVertex> verts;
+            std::vector<uint32_t> indices;
+
+            {
+                const glm::vec3 p[4] = {{-w, -h, -d}, {w, -h, -d}, {w, -h, d}, {-w, -h, d}};
+                PushQuadVerts(verts, p, uv, {0, -1, 0}, {1, 0, 0}, {0, 0, 1});
+                AppendQuadIndices(indices, 0);
+            }
+            {
+                const glm::vec3 p[4] = {{w, -h, -d}, {-w, -h, -d}, {-w, h, -d}, {w, h, -d}};
+                PushQuadVerts(verts, p, uv, {0, 0, -1}, {-1, 0, 0}, {0, 1, 0});
+                AppendQuadIndices(indices, 4);
+            }
+            {
+                const glm::vec3 p[4] = {{-w, -h, d}, {w, -h, d}, {w, h, -d}, {-w, h, -d}};
+                PushQuadVerts(verts, p, uv, {0, ny, nz}, {1, 0, 0}, {0, by, bz});
+                AppendQuadIndices(indices, 8);
+            }
+            {
+                const glm::vec3 a(-w, -h, -d), b(-w, -h, d), c(-w, h, -d);
+                const glm::vec3 n = glm::normalize(glm::cross(b - a, c - a));
+                const glm::vec3 t(0, 0, 1);
+                const glm::vec3 bit = glm::normalize(glm::cross(n, t));
+                const uint32_t base = static_cast<uint32_t>(verts.size());
+                PushVert(verts, a, n, {0, 0}, t, bit);
+                PushVert(verts, b, n, {1, 0}, t, bit);
+                PushVert(verts, c, n, {0, 1}, t, bit);
+                indices.push_back(base + 0);
+                indices.push_back(base + 1);
+                indices.push_back(base + 2);
+            }
+            {
+                const glm::vec3 a(w, -h, d), b(w, -h, -d), c(w, h, -d);
+                const glm::vec3 n = glm::normalize(glm::cross(b - a, c - a));
+                const glm::vec3 t(0, 0, -1);
+                const glm::vec3 bit = glm::normalize(glm::cross(n, t));
+                const uint32_t base = static_cast<uint32_t>(verts.size());
+                PushVert(verts, a, n, {0, 0}, t, bit);
+                PushVert(verts, b, n, {1, 0}, t, bit);
+                PushVert(verts, c, n, {1, 1}, t, bit);
+                indices.push_back(base + 0);
+                indices.push_back(base + 1);
+                indices.push_back(base + 2);
+            }
+            return FinalizePrimitiveMesh(InName, std::move(verts), std::move(indices));
+        }
+
         void EnsureWorldGridMaterialFile(const fs::path& InPath) {
             if (fs::exists(InPath))
                 return;
@@ -351,11 +409,13 @@ namespace Leon {
         auto sphere = ResolvePrimitiveMesh(kMeshSphere, "Sphere", BuildSphereMesh("Sphere", 0.5f, 32, 16));
         auto cylinder = ResolvePrimitiveMesh(kMeshCylinder, "Cylinder", BuildCylinderMesh("Cylinder", 0.5f, 1.0f, 32));
         auto plane = ResolvePrimitiveMesh(kMeshPlane, "Plane", BuildPlaneMesh("Plane", 2.0f, 2.0f));
+        auto ramp = ResolvePrimitiveMesh(kMeshRamp, "Ramp", BuildRampMesh("Ramp", 1.0f, 1.0f, 1.0f));
 
         RegisterMesh(kMeshCube, cube);
         RegisterMesh(kMeshSphere, sphere);
         RegisterMesh(kMeshCylinder, cylinder);
         RegisterMesh(kMeshPlane, plane);
+        RegisterMesh(kMeshRamp, ramp);
 
         LE_CORE_INFO("FEngineBuiltins: Registered Engine primitive meshes and M_WorldGrid");
     }

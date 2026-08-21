@@ -28,7 +28,7 @@ namespace Leon {
                                     bool bUsePlanarReflection = false, bool bVisibleInReflection = true);
 
         /**
-         * Editor/placeable shape: Cube, Sphere, Cylinder, or Plane.
+         * Editor/placeable shape: Cube, Sphere, Cylinder, Plane, or Ramp.
          * Prefers Engine builtin .lmesh (authored from Blender FBX when present).
          */
         static AActor* SpawnShape(UWorld* InWorld, const std::string& InShapeType, const std::string& InName,

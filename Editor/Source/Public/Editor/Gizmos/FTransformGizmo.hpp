@@ -15,7 +15,7 @@ namespace Leon::Editor {
     enum class EGizmoOperation { Select, Translate, Rotate, Scale };
     enum class EGizmoMode { World, Local };
 
-    enum class EGizmoAxis { None, X, Y, Z, PlaneXY, PlaneXZ, PlaneYZ, Uniform };
+    enum class EGizmoAxis { None, X, Y, Z };
 
     /**
      * @brief 3D viewport gizmo controller for manipulating actor transforms (Translate, Rotate, Scale)

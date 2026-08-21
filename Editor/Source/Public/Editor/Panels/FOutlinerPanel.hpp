@@ -7,12 +7,11 @@
 
 #include <functional>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace Leon::Editor {
 
-    enum class EOutlinerFilterCategory { All, StaticMeshes, Lights, Cameras, Characters, Audio, Volumes };
+        enum class EOutlinerFilterCategory { All, StaticMeshes, Lights, Cameras, Characters, Volumes };
 
     /**
      * @brief Live World Outliner: folders, actor hierarchy, multi-select (Ctrl/Shift),
@@ -34,8 +33,10 @@ namespace Leon::Editor {
         AActor* GetSelectedActor() const;
         void ScrollToActor(AActor* InActor);
 
-        bool IsActorHiddenInEditor(AActor* InActor) const { return HiddenActors.find(InActor) != HiddenActors.end(); }
-        bool IsActorLocked(AActor* InActor) const { return LockedActors.find(InActor) != LockedActors.end(); }
+        bool IsActorHiddenInEditor(AActor* InActor) const {
+            return Context && Context->IsActorHiddenInEditor(InActor);
+        }
+        bool IsActorLocked(AActor* InActor) const { return Context && Context->IsActorLockedInEditor(InActor); }
 
         void Draw(UWorld* InWorld, bool* bInOutOpen = nullptr);
 
@@ -67,9 +68,6 @@ namespace Leon::Editor {
 
         bool bRequestScroll = false;
         AActor* ActorToScrollTo = nullptr;
-
-        std::unordered_set<AActor*> HiddenActors;
-        std::unordered_set<AActor*> LockedActors;
 
         bool bRenamingActor = false;
         AActor* RenameTargetActor = nullptr;

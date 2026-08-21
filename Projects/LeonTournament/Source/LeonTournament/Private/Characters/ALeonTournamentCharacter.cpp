@@ -663,8 +663,10 @@ namespace Leon {
 
     void ALeonTournamentCharacter::SetupPlayerInputComponent(float DeltaSeconds) {
         if (APlayerController* pc = dynamic_cast<APlayerController*>(GetController())) {
-            if (!pc->IsGameInputAllowed())
+            if (!pc->IsGameInputAllowed()) {
+                ACharacter::SetupPlayerInputComponent(DeltaSeconds);
                 return;
+            }
         }
         // Free death camera: orbit look only when not spectating a teammate.
         if (bDeadFrozen) {

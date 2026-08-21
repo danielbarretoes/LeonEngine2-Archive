@@ -15,6 +15,8 @@
 #include "Gameplay/ANavMeshBoundsVolume.hpp"
 #include "Gameplay/APhysicsVolume.hpp"
 #include "Gameplay/AProjectile.hpp"
+#include "Gameplay/ASkyLight.hpp"
+#include "Gameplay/ATriggerVolume.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -49,6 +51,8 @@ namespace Leon {
         RegisterClass<ANavMeshBoundsVolume>("ANavMeshBoundsVolume");
         RegisterClass<ABlockingVolume>("ABlockingVolume");
         RegisterClass<APhysicsVolume>("APhysicsVolume");
+        RegisterClass<ASkyLight>("ASkyLight");
+        RegisterClass<ATriggerVolume>("ATriggerVolume");
         RegisterClass<AProjectile>("AProjectile");
     }
 

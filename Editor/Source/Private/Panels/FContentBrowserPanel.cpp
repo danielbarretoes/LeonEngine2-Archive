@@ -1,4 +1,5 @@
 #include "Editor/Panels/FContentBrowserPanel.hpp"
+#include "Assets/FAssetPath.hpp"
 #include "Core/FLog.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
@@ -6,6 +7,7 @@
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/Components.hpp"
+#include "Engine/UWorld.hpp"
 #include "Gameplay/AActor.hpp"
 
 #include <glad/glad.h>
@@ -527,8 +529,18 @@ namespace Leon::Editor {
             return "Material";
         if (ext == ".lmap")
             return "Level";
-        if (ext == ".obj" || ext == ".gltf" || ext == ".fbx" || ext == ".lmesh")
+        if (ext == ".lmesh")
             return "StaticMesh";
+        if (ext == ".lskeletalmesh")
+            return "SkeletalMesh";
+        if (ext == ".lskeleton")
+            return "Skeleton";
+        if (ext == ".lanim")
+            return "Animation";
+        if (ext == ".ltex" || ext == ".lhdr")
+            return "Texture";
+        if (ext == ".obj" || ext == ".gltf" || ext == ".fbx")
+            return "Source";
         if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".hdr")
             return "Texture";
         if (ext == ".wav" || ext == ".ogg" || ext == ".mp3")
@@ -633,7 +645,7 @@ namespace Leon::Editor {
             bool bIsTexture = (lowerExt == ".png" || lowerExt == ".jpg" || lowerExt == ".jpeg" || lowerExt == ".tga" ||
                                lowerExt == ".bmp" || lowerExt == ".hdr" || lowerExt == ".ltex");
             bool bIsMaterial = (lowerExt == ".lmat");
-            bool bIsMesh = (lowerExt == ".obj" || lowerExt == ".gltf" || lowerExt == ".fbx" || lowerExt == ".lmesh");
+            bool bIsMesh = (lowerExt == ".lmesh" || lowerExt == ".lskeletalmesh");
             bool bIsMap = (lowerExt == ".lmap");
             bool bIsScript = (lowerExt == ".lua");
             bool bIsAudio = (lowerExt == ".wav" || lowerExt == ".ogg" || lowerExt == ".mp3");
@@ -985,27 +997,98 @@ namespace Leon::Editor {
         }
     }
 
+    void FContentBrowserPanel::CopyNativeAssetIntoContent(const fs::path& InSrc) {
+        std::error_code ec;
+        if (!fs::exists(CurrentDirectory, ec) || ec) {
+            LE_CORE_ERROR("FContentBrowserPanel: Content directory is invalid");
+            if (OnNotify)
+                OnNotify("Cannot import: Content folder is invalid", true);
+            return;
+        }
+
+        fs::path dst = CurrentDirectory / InSrc.filename();
+        fs::copy_file(InSrc, dst, fs::copy_options::overwrite_existing, ec);
+        if (ec) {
+            LE_CORE_ERROR("FContentBrowserPanel: Failed to copy '{}' to '{}': {}", InSrc.string(), dst.string(),
+                          ec.message());
+            if (OnNotify)
+                OnNotify("Failed to copy " + InSrc.filename().string() + " into Content", true);
+            return;
+        }
+
+        LE_CORE_INFO("FContentBrowserPanel: Copied native asset to '{}'", dst.string());
+        if (OnNotify)
+            OnNotify("Copied " + InSrc.filename().string() + " into Content", false);
+        if (Context)
+            Context->GetSelection().SelectAsset(dst.string());
+    }
+
     void FContentBrowserPanel::ImportExternalAsset() {
         std::error_code ec;
         if (!fs::exists(CurrentDirectory, ec) || ec)
             return;
 
+        if (OnQueryImportBusy && OnQueryImportBusy()) {
+            if (OnNotify)
+                OnNotify("An import is already running", true);
+            return;
+        }
+
         std::string selectedFile = FEditorFileDialog::OpenFile(
             "All Supported Assets "
-            "(*.fbx;*.obj;*.gltf;*.png;*.jpg;*.tga;*.hdr;*.wav;*.ogg)\0*.fbx;*.obj;*.gltf;*.png;*.jpg;*.tga;*.hdr;*."
-            "wav;*.ogg\03D Models (*.fbx;*.obj;*.gltf)\0*.fbx;*.obj;*.gltf\0Textures "
-            "(*.png;*.jpg;*.tga;*.hdr)\0*.png;*.jpg;*.tga;*.hdr\0Audio (*.wav;*.ogg;*.mp3)\0*.wav;*.ogg;*.mp3\0All "
-            "Files (*.*)\0*.*\0",
+            "(*.fbx;*.obj;*.png;*.jpg;*.tga;*.hdr;*.wav;*.ogg;*.lmesh;*.ltex)\0"
+            "*.fbx;*.obj;*.png;*.jpg;*.tga;*.hdr;*.wav;*.ogg;*.lmesh;*.ltex\0"
+            "3D Models (*.fbx;*.obj)\0*.fbx;*.obj\0"
+            "Textures (*.png;*.jpg;*.tga;*.hdr)\0*.png;*.jpg;*.tga;*.hdr\0"
+            "Audio (*.wav;*.ogg;*.mp3)\0*.wav;*.ogg;*.mp3\0"
+            "Native Leon Assets "
+            "(*.lmesh;*.lskeletalmesh;*.lskeleton;*.lanim;*.ltex;*.lhdr;*.lmat;*.lmap)\0"
+            "*.lmesh;*.lskeletalmesh;*.lskeleton;*.lanim;*.ltex;*.lhdr;*.lmat;*.lmap\0"
+            "All Files (*.*)\0*.*\0",
             "Import Asset");
 
-        if (!selectedFile.empty() && fs::exists(selectedFile, ec) && !ec) {
-            fs::path src(selectedFile);
-            fs::path dst = CurrentDirectory / src.filename();
-            fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec);
-            if (!ec && Context) {
-                Context->GetSelection().SelectAsset(dst.string());
-            }
+        if (selectedFile.empty() || !fs::exists(selectedFile, ec) || ec)
+            return;
+
+        fs::path src(selectedFile);
+        std::string ext = src.extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        const bool bNativeCopy = (ext == ".lmesh" || ext == ".lskeletalmesh" || ext == ".lskeleton" ||
+                                  ext == ".lanim" || ext == ".ltex" || ext == ".lhdr" || ext == ".lmat" ||
+                                  ext == ".lmap" || ext == ".wav" || ext == ".ogg" || ext == ".mp3");
+        const bool bAssetToolSource = (ext == ".fbx" || ext == ".obj" || ext == ".png" || ext == ".jpg" ||
+                                       ext == ".jpeg" || ext == ".tga" || ext == ".bmp" || ext == ".hdr" ||
+                                       ext == ".exr");
+
+        if (bNativeCopy) {
+            CopyNativeAssetIntoContent(src);
+            return;
         }
+
+        if (ext == ".gltf" || ext == ".glb") {
+            LE_CORE_WARN("FContentBrowserPanel: GLTF import is not supported; use FBX/OBJ or a native .lmesh");
+            if (OnNotify)
+                OnNotify("GLTF is not supported. Import FBX/OBJ via AssetTool, or copy a native .lmesh", true);
+            return;
+        }
+
+        if (!bAssetToolSource) {
+            LE_CORE_WARN("FContentBrowserPanel: Unsupported import extension '{}'", ext);
+            if (OnNotify)
+                OnNotify("Unsupported import format: " + ext, true);
+            return;
+        }
+
+        if (!OnImportAsset) {
+            LE_CORE_ERROR("FContentBrowserPanel: Import pipeline is not wired");
+            if (OnNotify)
+                OnNotify("Import pipeline is not available", true);
+            return;
+        }
+
+        OnImportAsset(src.string());
     }
 
     void FContentBrowserPanel::DuplicateAsset(const fs::path& InPath) {
@@ -1089,39 +1172,50 @@ namespace Leon::Editor {
             return refs;
         }
 
+        auto PathsReferToSameAsset = [](const std::string& InA, const std::string& InB) -> bool {
+            if (InA.empty() || InB.empty())
+                return false;
+            const std::string a = FAssetPath::Normalize(InA);
+            const std::string b = FAssetPath::Normalize(InB);
+            if (a == b)
+                return true;
+            const std::string va = FProjectPaths::MakeVirtualPath(a);
+            const std::string vb = FProjectPaths::MakeVirtualPath(b);
+            if (!va.empty() && va == b)
+                return true;
+            if (!vb.empty() && vb == a)
+                return true;
+            if (!va.empty() && !vb.empty() && va == vb)
+                return true;
+            return false;
+        };
+
         UWorld* world = Context->GetActiveWorld();
-        std::string stem = InPath.stem().string();
-        std::string pathStr = InPath.string();
-        std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+        const std::string pathStr = FAssetPath::Normalize(InPath.string());
 
         for (const auto& actorPtr : world->GetAllActors()) {
             AActor* actor = actorPtr.get();
-            if (!actor) continue;
+            if (!actor)
+                continue;
 
             if (actor->HasComponent<FStaticMeshComponent>()) {
                 const auto& smc = actor->GetComponent<FStaticMeshComponent>();
-                std::string assetPath = smc.AssetPath;
-                std::replace(assetPath.begin(), assetPath.end(), '\\', '/');
-
-                if ((!assetPath.empty() && (pathStr.find(assetPath) != std::string::npos || assetPath.find(stem) != std::string::npos)) ||
-                    (smc.StaticMesh && smc.StaticMesh->GetName() == stem)) {
+                if (PathsReferToSameAsset(pathStr, smc.AssetPath)) {
                     refs.push_back({actor->GetName(), "StaticMeshComponent", actor});
                 }
 
                 for (const auto& matPath : smc.MaterialOverridePaths) {
-                    std::string normMat = matPath;
-                    std::replace(normMat.begin(), normMat.end(), '\\', '/');
-                    if (!normMat.empty() && (pathStr.find(normMat) != std::string::npos || normMat.find(stem) != std::string::npos)) {
+                    if (PathsReferToSameAsset(pathStr, matPath)) {
                         refs.push_back({actor->GetName(), "StaticMesh (Material Override)", actor});
                         break;
                     }
                 }
             }
 
-            if (actor->HasComponent<FMeshComponent>()) {
-                const auto& mc = actor->GetComponent<FMeshComponent>();
-                if (mc.MeshType == stem) {
-                    refs.push_back({actor->GetName(), "MeshComponent", actor});
+            if (actor->HasComponent<FMaterialComponent>()) {
+                const auto& mat = actor->GetComponent<FMaterialComponent>();
+                if (PathsReferToSameAsset(pathStr, mat.AssetPath)) {
+                    refs.push_back({actor->GetName(), "MaterialComponent", actor});
                 }
             }
         }
@@ -1236,6 +1330,21 @@ namespace Leon::Editor {
 
             auto PerformRename = [this]() {
                 if (RenameBuffer[0] != '\0' && !RenameTargetPath.empty()) {
+                    std::error_code dirEc;
+                    const bool bIsDir = fs::is_directory(RenameTargetPath, dirEc);
+                    if (!bIsDir) {
+                        const auto refs = FindAssetReferencesInWorld(RenameTargetPath);
+                        if (!refs.empty()) {
+                            LE_CORE_WARN(
+                                "FContentBrowserPanel: Rename of '{}' blocked: {} actor reference(s) in the loaded map",
+                                RenameTargetPath.string(), refs.size());
+                            if (OnNotify)
+                                OnNotify("Cannot rename: asset is referenced by actors in the loaded map", true);
+                            ImGui::CloseCurrentPopup();
+                            return;
+                        }
+                    }
+
                     std::error_code ec;
                     fs::path newPath = RenameTargetPath.parent_path() / RenameBuffer;
                     if (!fs::exists(newPath, ec) && !ec) {

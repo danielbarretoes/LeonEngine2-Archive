@@ -75,17 +75,31 @@ Editor/
 
 ---
 
-## Next Roadmap Phases
+## Next — Editor polish (Unreal-lite daily loop)
 
-1. **Material Graph / Shader Inspector** — visual or node-based material instance authoring with live shader recompilation.
-2. **PIE polish** — New Editor Window GLFW host, richer client process UI, shared-engine DLL game modules.
-3. **Behavior Tree / AI Blackboard Visualizer** — read/write `.lbt` and view live active execution node highlights during play.
-4. **UMG Canvas Editor** — visual drag-and-drop placement of UI widgets (`UCanvasPanel`, `UButton`, `UTextBlock`).
+Phases 0–1 shipped the host and panels. **Do not start Material Graph, UMG canvas, or BT visualizer until the daily loop is solid.**
+
+Canonical plan (types, files, NAMING.md): [EDITOR_POLISH_PLAN.md](EDITOR_POLISH_PLAN.md).
+
+| Phase | Focus |
+| :--- | :--- |
+| 2 | **Done** — dirty map, Ctrl+S, PIE must not poison selection, Details loads meshes, Outliner filter |
+| 3 | **Done** — PIE mouse capture, Esc = pause, Stop = Shift+Esc / toolbar, honest Play Settings |
+| 4 | **Done** — grid, surface place, Ramp / Skybox / `ATriggerVolume`, `FSpawnActorsCommand` |
+| 5 | **Done** — AssetTool import (not copy), exact asset refs, blank project without a game DLL |
+
+### Deferred (full Unreal, not lite)
+
+1. **Material Graph / Shader Inspector** — node-based material authoring.
+2. **New Editor Window PIE host** — extra GLFW window; `EPlayMode::NewEditorWindow` is UI-only today.
+3. **Behavior Tree / AI Blackboard Visualizer** — `.lbt` live node highlights.
+4. **UMG Canvas Editor** — drag-and-drop `UCanvasPanel` / `UButton` / `UTextBlock`.
 
 ## Play In Editor (implemented)
 
 - Toolbar **Play / Stop** starts an in-process `FPlaySession` (`PlayWorld`) using the open map and `WorldSettings.GameModeClass`.
-- `FPlaySettings` (1–4 players, NetMode, PlayMode) persists under `Editor/Saved/PlaySettings.json`.
+- While GameOnly, the editor hides and disables the GLFW cursor (same as packaged `FGameViewportLayer`) and does not let ImGui steal mouse/keyboard. **Esc** pauses the game; **Shift+Esc** or toolbar Stop ends PIE and restores the cursor.
+- `FPlaySettings` (1–4 players, NetMode) persists under `Editor/Saved/PlaySettings.json`. Play Mode is Selected Viewport only (`NewEditorWindow` is not hosted).
 - Multi-player: host listens; extra clients spawn as `LeonEditor --pie-role=client` processes.
 - `ENetMode::DedicatedServer` skips local Login; clients join via listen port.
 - Packaged run remains under Build → Launch Packaged Game.

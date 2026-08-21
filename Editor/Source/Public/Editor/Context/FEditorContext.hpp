@@ -6,15 +6,18 @@
 
 #include <functional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace Leon {
     class UWorld;
+    class AActor;
 }
 
 namespace Leon::Editor {
 
     using Leon::UWorld;
+    using Leon::AActor;
 
     /**
      * @brief Centralized state container and event bus for the LeonEditor.
@@ -51,6 +54,18 @@ namespace Leon::Editor {
          * Mutator receives the selection; if the set changes, a FSelectActorsCommand is pushed.
          */
         void ModifyActorSelectionWithUndo(const std::function<void(FEditorSelection&)>& InMutator);
+        void RecordSpawnedActor(AActor* InActor);
+
+        void MarkMapDirty(bool bInDirty = true);
+        void ClearMapDirty() { MarkMapDirty(false); }
+        [[nodiscard]] bool IsMapDirty() const { return bMapDirty; }
+
+        void SetActorHiddenInEditor(AActor* InActor, bool bInHidden);
+        [[nodiscard]] bool IsActorHiddenInEditor(const AActor* InActor) const;
+        void SetActorLockedInEditor(AActor* InActor, bool bInLocked);
+        [[nodiscard]] bool IsActorLockedInEditor(const AActor* InActor) const;
+        void ClearActorEditorFlags(AActor* InActor);
+        void ClearEditorVisibilityState();
 
         // Callbacks & Events
         void RegisterWorldChangedCallback(FWorldChangedCallback InCallback);
@@ -65,9 +80,13 @@ namespace Leon::Editor {
         std::string ActiveProjectPath;
         std::string ActiveMapPath{"Untitled"};
         std::string StatusMessage{"Ready"};
+        bool bMapDirty = false;
 
         FEditorSelection Selection;
         FEditorHistory History;
+
+        std::unordered_set<AActor*> HiddenActors;
+        std::unordered_set<AActor*> LockedActors;
 
         std::vector<FWorldChangedCallback> WorldChangedCallbacks;
         std::vector<FProjectChangedCallback> ProjectChangedCallbacks;

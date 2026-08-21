@@ -3,6 +3,7 @@
 #include "Core/FLog.hpp"
 #include "Editor/Context/FEditorSelection.hpp"
 #include "Gameplay/APlayerStart.hpp"
+#include "Gameplay/ATriggerVolume.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include "Renderer/FMeshPrimitives.hpp"
 #include "RHI/IRenderDriver.hpp"
@@ -60,6 +61,14 @@ namespace Leon::Editor {
             snap.PlayerStartTag = start->GetPlayerStartTag();
             snap.PlayerStartTeamIndex = start->GetTeamIndex();
             snap.bPlayerStartEnabled = start->IsEnabled();
+        }
+        if (auto* trigger = dynamic_cast<ATriggerVolume*>(&InActor)) {
+            snap.bHasTriggerVolume = true;
+            snap.bTriggerEnabled = trigger->IsEnabled();
+        }
+        if (InActor.HasComponent<FSkyboxComponent>()) {
+            snap.bHasSkybox = true;
+            snap.Skybox = InActor.GetComponent<FSkyboxComponent>();
         }
         return snap;
     }
@@ -126,6 +135,10 @@ namespace Leon::Editor {
                 start->SetEnabled(InSnapshot.bPlayerStartEnabled);
             }
         }
+        if (InSnapshot.bHasTriggerVolume) {
+            if (auto* trigger = dynamic_cast<ATriggerVolume*>(actor))
+                trigger->SetEnabled(InSnapshot.bTriggerEnabled);
+        }
 
         if (InSnapshot.bHasTransform) {
             if (!actor->HasComponent<FTransformComponent>())
@@ -162,6 +175,12 @@ namespace Leon::Editor {
             actor->AddComponent<FCameraComponent>(InSnapshot.Camera);
         if (InSnapshot.bHasBoxCollision)
             actor->AddComponent<FBoxCollisionComponent>(InSnapshot.BoxCollision);
+        if (InSnapshot.bHasSkybox) {
+            if (actor->HasComponent<FSkyboxComponent>())
+                actor->GetComponent<FSkyboxComponent>() = InSnapshot.Skybox;
+            else
+                actor->AddComponent<FSkyboxComponent>(InSnapshot.Skybox);
+        }
 
         return actor;
     }

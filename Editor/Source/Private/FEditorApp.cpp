@@ -4,6 +4,7 @@
 #include "Core/FLog.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Core/FWindow.hpp"
+#include "Core/events/FApplicationEvent.hpp"
 #include "Editor/Commands/FDeleteActorsCommand.hpp"
 #include "Editor/Commands/FDuplicateActorsCommand.hpp"
 #include "Editor/UI/FEditorTheme.hpp"
@@ -12,6 +13,7 @@
 #include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/FMapSerializer.hpp"
 #include "Gameplay/AActor.hpp"
+#include "Gameplay/APlayerController.hpp"
 #include "Lightmass/FLightmass.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 
@@ -27,6 +29,7 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 
+#include <cstring>
 #include <cstdlib>
 #include <cstdio>
 #include <algorithm>
@@ -195,8 +198,6 @@ namespace Leon::Editor {
 
         // Setup Context & Panels
         Context.GetSelection().RegisterActorSelectionCallback([this](const std::vector<AActor*>& actors) {
-            SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
-            // Empty selection (e.g. after Delete): drop gizmo hover/drag so viewport pick works again.
             if (actors.empty()) {
                 Viewport.CancelGizmoInteraction();
             }
@@ -206,14 +207,8 @@ namespace Leon::Editor {
         Outliner.SetEditorContext(&Context);
         Details.SetEditorContext(&Context);
         Viewport.SetEditorContext(&Context);
+        WorldSettings.SetEditorContext(&Context);
 
-        // Setup Outliner callbacks (Unreal-like):
-        // - Single click: select only (viewport outline follows Context selection).
-        // - Do NOT move the camera. Do NOT force-scroll (item is already under cursor).
-        // - Double-click / Focus menu / F: camera focus via OnActorFocus.
-        Outliner.SetOnActorSelected([this](AActor* actor) {
-            SelectedActor = actor;
-        });
         Outliner.SetOnActorFocus([this](AActor* actor) {
             if (actor) {
                 Viewport.FocusOnActor(actor);
@@ -221,25 +216,19 @@ namespace Leon::Editor {
         });
         Outliner.SetOnDeleteRequested([this]() { DeleteSelectedActors(); });
 
-        // Setup Viewport callback (Unreal-like):
-        // - Click pick already wrote Context selection + draws outline in viewport.
-        // - Scroll/reveal the actor in the Outliner (focus the tree row, not the camera).
-        // - Camera framing is F / outliner double-click only — never on pick.
         Viewport.SetOnActorSelected([this](AActor* actor) {
-            SelectedActor = actor;
             if (actor) {
                 Outliner.ScrollToActor(actor);
             }
         });
         Viewport.SetOnActorSpawned([this](AActor* actor) {
-            Context.GetSelection().SelectActor(actor, false);
+            Context.RecordSpawnedActor(actor);
             OutputLog.AddLog(ELogLevel::Info, "World",
                              "Spawned actor via drop: " + (actor ? actor->GetName() : "null"));
         });
 
-        // Setup Place Actors callback
         PlaceActors.SetOnActorSpawned([this](AActor* actor) {
-            Context.GetSelection().SelectActor(actor, false);
+            Context.RecordSpawnedActor(actor);
             Viewport.FocusOnActor(actor);
             OutputLog.AddLog(ELogLevel::Info, "World", "Spawned actor: " + (actor ? actor->GetName() : "null"));
         });
@@ -252,6 +241,13 @@ namespace Leon::Editor {
                 ActiveProjectDescriptor.Save(ActiveProjectPath);
             }
         });
+        ContentBrowser.SetOnNotify([this](const std::string& InMessage, bool bInError) {
+            OutputLog.AddLog(bInError ? ELogLevel::Error : ELogLevel::Info, "Content", InMessage);
+            if (bInError)
+                ShowToast(InMessage, true);
+        });
+        ContentBrowser.SetOnImportAsset([this](const std::string& InSourcePath) { StartAssetImport(InSourcePath); });
+        ContentBrowser.SetOnQueryImportBusy([this]() { return bImportRunning.load(); });
 
         // Setup Toolbar callbacks (Play In Editor)
         Toolbar.SetPlaySettings(&PlaySettings);
@@ -322,6 +318,13 @@ namespace Leon::Editor {
         LE_CORE_INFO("FEditorApp: ImGui editor host ready");
     }
 
+    std::string FEditorApp::FormatMapDisplayName() const {
+        std::string Name = ActiveMapName.empty() ? "Untitled" : ActiveMapName;
+        if (Context.IsMapDirty())
+            Name += " *";
+        return Name;
+    }
+
     void FEditorApp::UpdateWindowTitle() {
         GLFWwindow* native = GetWindow().GetNativeWindow();
         if (!native)
@@ -331,8 +334,8 @@ namespace Leon::Editor {
         if (!ActiveProjectDescriptor.ProjectName.empty()) {
             title += " - [" + ActiveProjectDescriptor.ProjectName + "]";
         }
-        if (!ActiveMapName.empty()) {
-            title += " - " + ActiveMapName;
+        if (!ActiveMapName.empty() || Context.IsMapDirty()) {
+            title += " - " + FormatMapDisplayName();
         }
         glfwSetWindowTitle(native, title.c_str());
     }
@@ -344,7 +347,21 @@ namespace Leon::Editor {
             return;
         }
 
-        ActiveProjectPath = fs::canonical(InProjectPath).string();
+        if (PlaySession.IsPlaying())
+            StopPlayInEditor();
+
+        if (!PromptIfMapDirty(EPendingUnsavedAction::OpenProject, InProjectPath))
+            return;
+
+        ApplyPendingOpenProject();
+    }
+
+    void FEditorApp::ApplyPendingOpenProject() {
+        const std::string ProjectPath = PendingUnsavedPath;
+        if (ProjectPath.empty() || !fs::exists(ProjectPath))
+            return;
+
+        ActiveProjectPath = fs::canonical(ProjectPath).string();
         FProjectPaths::SetProjectRoot(ActiveProjectPath);
 
         if (!ActiveProjectDescriptor.Load(ActiveProjectPath)) {
@@ -362,11 +379,9 @@ namespace Leon::Editor {
                              "Game module not loaded — PIE may lack project GameModes/classes.");
         }
 
-        // Update Content Browser root to project Content directory
         std::string contentDir = FProjectPaths::ProjectContentDir();
         ContentBrowser.SetContentDirectory(contentDir);
 
-        // Load Default Map from descriptor
         std::string defaultMap = ActiveProjectDescriptor.DefaultMap;
         if (!defaultMap.empty()) {
             std::string resolvedMap = FProjectPaths::ResolveVirtualPath(defaultMap);
@@ -374,13 +389,12 @@ namespace Leon::Editor {
                 resolvedMap += ".lmap";
             }
             if (fs::exists(resolvedMap)) {
-                LoadMap(resolvedMap);
+                ApplyPendingLoadMap(resolvedMap);
             } else {
                 LE_CORE_WARN("FEditorApp: Default map not found '{}', starting with empty level", resolvedMap);
-                LoadMap("");
+                ApplyPendingLoadMap("");
             }
         } else {
-            // Create a blank world
             if (EditorWorld) {
                 EditorWorld->EndPlay();
                 EditorWorld->Clear();
@@ -391,6 +405,7 @@ namespace Leon::Editor {
             ActiveMapName = "Untitled";
             Context.SetActiveWorld(EditorWorld.get());
             Context.SetActiveMapPath(ActiveMapPath);
+            Context.ClearMapDirty();
         }
 
         bShowProjectHub = false;
@@ -409,6 +424,17 @@ namespace Leon::Editor {
             return;
         }
 
+        if (!PromptIfMapDirty(EPendingUnsavedAction::LoadMap, InMapPath))
+            return;
+
+        ApplyPendingLoadMap(InMapPath);
+    }
+
+    void FEditorApp::ApplyPendingLoadMap() {
+        ApplyPendingLoadMap(PendingUnsavedPath);
+    }
+
+    void FEditorApp::ApplyPendingLoadMap(const std::string& InMapPath) {
         if (EditorWorld) {
             EditorWorld->EndPlay();
             EditorWorld->Clear();
@@ -423,11 +449,11 @@ namespace Leon::Editor {
             if (serializer.Deserialize(InMapPath)) {
                 ActiveMapPath = InMapPath;
                 ActiveMapName = fs::path(InMapPath).stem().string();
-                SelectedActor = nullptr;
                 Outliner.SetSelectedActor(nullptr);
                 Context.SetActiveWorld(EditorWorld.get());
                 Context.SetActiveMapPath(ActiveMapPath);
                 Context.GetHistory().Clear();
+                Context.ClearMapDirty();
                 OutputLog.AddLog(ELogLevel::Info, "Map",
                                  "Loaded map: " + ActiveMapName + " (" +
                                      std::to_string(EditorWorld->GetAllActors().size()) + " actors)");
@@ -446,10 +472,11 @@ namespace Leon::Editor {
         } else {
             ActiveMapPath.clear();
             ActiveMapName = "Untitled";
-            SelectedActor = nullptr;
             Outliner.SetSelectedActor(nullptr);
             Context.SetActiveWorld(EditorWorld.get());
             Context.SetActiveMapPath(ActiveMapPath);
+            Context.GetHistory().Clear();
+            Context.ClearMapDirty();
         }
 
         UpdateWindowTitle();
@@ -475,6 +502,7 @@ namespace Leon::Editor {
 
         FMapSerializer serializer(EditorWorld);
         if (serializer.Serialize(ActiveMapPath)) {
+            Context.ClearMapDirty();
             OutputLog.AddLog(ELogLevel::Info, "Map", "Saved map: " + ActiveMapPath);
             LE_CORE_INFO("FEditorApp: Successfully saved map '{}'", ActiveMapPath);
             UpdateWindowTitle();
@@ -483,7 +511,6 @@ namespace Leon::Editor {
             LE_CORE_ERROR("FEditorApp: Failed to save map '{}'", ActiveMapPath);
         }
     }
-
     void FEditorApp::BakeLightmaps(bool bInProduction) {
         if (ActiveProjectPath.empty() || ActiveMapPath.empty()) {
             OutputLog.AddLog(ELogLevel::Warning, "Build", "Cannot bake lightmaps: no map is active.");
@@ -620,7 +647,7 @@ namespace Leon::Editor {
                 const std::string mapPath = ActiveMapPath;
 
                 UAssetManager::InvalidateLightmaps();
-                LoadMap(mapPath);
+                ApplyPendingLoadMap(mapPath);
                 // LoadMap already refreshes lightmap trust.
                 if (EditorWorld && EditorWorld->AreLightmapsTrusted()) {
                     OutputLog.AddLog(ELogLevel::Info, "Build",
@@ -643,6 +670,128 @@ namespace Leon::Editor {
             OutputLog.AddLog(ELogLevel::Error, "Build", msg);
             ShowToast(msg, true);
             Context.SetStatusMessage("Lighting build failed");
+        }
+    }
+
+    void FEditorApp::StartAssetImport(const std::string& InSourcePath) {
+        if (ActiveProjectPath.empty()) {
+            OutputLog.AddLog(ELogLevel::Warning, "Content", "Cannot import: no project is open.");
+            ShowToast("Cannot import: no project is open", true);
+            return;
+        }
+        if (bImportRunning.load()) {
+            OutputLog.AddLog(ELogLevel::Warning, "Content", "An import is already running.");
+            ShowToast("Import already in progress", true);
+            return;
+        }
+
+        const fs::path scriptPath = FindRepoScript("import_assets.py", ActiveProjectPath);
+        if (scriptPath.empty()) {
+            OutputLog.AddLog(ELogLevel::Error, "Content",
+                             "Could not find Scripts/import_assets.py (run the editor from the LeonEngine repo).");
+            ShowToast("Import failed: import script not found", true);
+            return;
+        }
+
+        const fs::path repoRoot = scriptPath.parent_path().parent_path();
+        const std::string contentDir = FProjectPaths::ProjectContentDir();
+        const std::string project = ActiveProjectPath;
+
+        std::ostringstream cmd;
+#if defined(_WIN32)
+        cmd << "cmd /C \"cd /d \"" << repoRoot.string() << "\" && set PYTHONUNBUFFERED=1&& python -u \""
+            << scriptPath.string() << "\" --project \"" << project << "\" --file \"" << InSourcePath
+            << "\" --content \"" << contentDir << "\" --force 2>&1\"";
+#else
+        cmd << "cd \"" << repoRoot.string() << "\" && PYTHONUNBUFFERED=1 python -u \"" << scriptPath.string()
+            << "\" --project \"" << project << "\" --file \"" << InSourcePath << "\" --content \"" << contentDir
+            << "\" --force 2>&1";
+#endif
+
+        OutputLog.AddLog(ELogLevel::Info, "Content", "Starting AssetTool import: " + InSourcePath);
+        OutputLog.AddLog(ELogLevel::Info, "Content",
+                         "Invoking: python Scripts/import_assets.py --file " + InSourcePath);
+        Context.SetStatusMessage("Importing asset...");
+        ShowToast("Importing asset...");
+        bShowOutputLog = true;
+
+        bImportRunning = true;
+        bImportFinished = false;
+        ImportExitCode = 0;
+        {
+            std::lock_guard<std::mutex> Lock(ImportMutex);
+            ImportLogLines.clear();
+        }
+
+        std::thread([this, command = cmd.str()]() {
+#if defined(_WIN32)
+            FILE* Pipe = _popen(command.c_str(), "rt");
+#else
+            FILE* Pipe = popen(command.c_str(), "r");
+#endif
+            if (!Pipe) {
+                {
+                    std::lock_guard<std::mutex> Lock(ImportMutex);
+                    ImportLogLines.push_back("[ERROR] Failed to start AssetTool import process.");
+                }
+                ImportExitCode = -1;
+                bImportFinished = true;
+                bImportRunning = false;
+                return;
+            }
+
+            char Buf[1024];
+            while (std::fgets(Buf, sizeof(Buf), Pipe)) {
+                std::string Line(Buf);
+                while (!Line.empty() && (Line.back() == '\n' || Line.back() == '\r'))
+                    Line.pop_back();
+                if (Line.empty())
+                    continue;
+                std::lock_guard<std::mutex> Lock(ImportMutex);
+                ImportLogLines.push_back(std::move(Line));
+            }
+
+#if defined(_WIN32)
+            const int Res = _pclose(Pipe);
+#else
+            const int Res = pclose(Pipe);
+#endif
+            ImportExitCode = Res;
+            bImportFinished = true;
+            bImportRunning = false;
+        }).detach();
+    }
+
+    void FEditorApp::PollImportJob() {
+        std::deque<std::string> Pending;
+        {
+            std::lock_guard<std::mutex> Lock(ImportMutex);
+            Pending.swap(ImportLogLines);
+        }
+        for (const std::string& Line : Pending) {
+            ELogLevel Level = ELogLevel::Info;
+            if (Line.find("[ERROR]") != std::string::npos || Line.find("ERROR:") != std::string::npos) {
+                Level = ELogLevel::Error;
+            } else if (Line.find("[WARN]") != std::string::npos || Line.find("Warning") != std::string::npos) {
+                Level = ELogLevel::Warning;
+            }
+            OutputLog.AddLog(Level, "Content", Line);
+        }
+
+        if (!bImportFinished.exchange(false))
+            return;
+
+        const int code = ImportExitCode.load();
+        if (code == 0) {
+            const std::string msg = "Asset import finished. Native assets are under Content (Meshes/Textures/HDR).";
+            OutputLog.AddLog(ELogLevel::Info, "Content", msg);
+            ShowToast(msg, false);
+            Context.SetStatusMessage("Ready");
+        } else {
+            const std::string msg = "Asset import failed (exit " + std::to_string(code) + "). See Output Log.";
+            OutputLog.AddLog(ELogLevel::Error, "Content", msg);
+            ShowToast(msg, true);
+            Context.SetStatusMessage("Asset import failed");
         }
     }
 
@@ -685,9 +834,19 @@ namespace Leon::Editor {
             return;
         }
         if (!FGameModuleLoader::IsLoaded()) {
-            ShowToast("Cannot play: game module not loaded", true);
-            OutputLog.AddLog(ELogLevel::Error, "PIE", "Game module required for Play In Editor");
-            return;
+            const std::string gameMode = ActiveProjectDescriptor.DefaultGameMode.empty()
+                                             ? "AGameModeBase"
+                                             : ActiveProjectDescriptor.DefaultGameMode;
+            const bool bEngineGameMode = (gameMode == "AGameModeBase" || gameMode == "AGameMode");
+            if (!bEngineGameMode) {
+                ShowToast("Cannot play: game module not loaded", true);
+                OutputLog.AddLog(ELogLevel::Error, "PIE",
+                                 "Game module required for Play In Editor with GameMode " + gameMode);
+                return;
+            }
+            LE_CORE_INFO("FEditorApp: Playing without a game module (engine GameMode '{}')", gameMode);
+            OutputLog.AddLog(ELogLevel::Info, "PIE",
+                             "No game module loaded; using engine GameMode " + gameMode);
         }
 
         PlaySettings.Clamp();
@@ -698,12 +857,35 @@ namespace Leon::Editor {
 
         Toolbar.SetPlaying(true);
         Viewport.SetPlayingInEditor(true);
+        SyncPlayInEditorCursor();
     }
 
     void FEditorApp::StopPlayInEditor() {
         PlaySession.Stop();
         Toolbar.SetPlaying(false);
         Viewport.SetPlayingInEditor(false);
+        SyncPlayInEditorCursor();
+    }
+
+    void FEditorApp::SyncPlayInEditorCursor() {
+        if (!PlaySession.IsPlaying()) {
+            if (bPlayInEditorCursorHidden) {
+                GetWindow().SetCursorVisible(true);
+                bPlayInEditorCursorHidden = false;
+            }
+            return;
+        }
+
+        bool bShowCursor = true;
+        if (UWorld* PlayWorld = PlaySession.GetPlayWorld()) {
+            if (APlayerController* Pc = PlayWorld->GetFirstPlayerController()) {
+                bShowCursor = Pc->ShouldShowMouseCursor();
+                if (Pc->GetInputMode() == EInputMode::GameOnly)
+                    bShowCursor = false;
+            }
+        }
+        GetWindow().SetCursorVisible(bShowCursor);
+        bPlayInEditorCursorHidden = !bShowCursor;
     }
 
     bool FEditorApp::SpawnPieClientProcess(const FPlaySettings& InSettings, int InClientIndex) {
@@ -874,10 +1056,13 @@ namespace Leon::Editor {
             PlaySession.Tick(InTs.GetSeconds());
         Toolbar.SetPlaying(PlaySession.IsPlaying());
         Viewport.SetPlayingInEditor(PlaySession.IsPlaying());
+        SyncPlayInEditorCursor();
 
         BeginImGuiFrame();
 
-        if (PlaySession.IsPlaying() && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        const bool bPlaying = PlaySession.IsPlaying();
+        ImGuiIO& io = ImGui::GetIO();
+        if (bPlaying && !io.WantTextInput && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
             PlaySession.RequestStop();
 
         auto SafeDrawPanel = [this](const char* PanelName, auto&& DrawFn) {
@@ -900,30 +1085,48 @@ namespace Leon::Editor {
             // Full Editor Suite with Dockspace and Viewport
             SafeDrawPanel("Dockspace", [&]() { DrawDockspace(); });
 
-            // Left / Palette
             if (bShowPlaceActors) {
-                SafeDrawPanel("PlaceActors", [&]() { PlaceActors.Draw(EditorWorld.get(), &bShowPlaceActors); });
-            }
-
-            // Center Viewport
-            if (bShowViewport) {
-                SafeDrawPanel("Viewport", [&]() {
-                    UWorld* DrawWorld =
-                        PlaySession.IsPlaying() ? PlaySession.GetPlayWorld() : EditorWorld.get();
-                    Viewport.Draw(DrawWorld, ActiveMapName, SelectedActor, &bShowViewport);
+                SafeDrawPanel("PlaceActors", [&]() {
+                    if (bPlaying)
+                        ImGui::BeginDisabled();
+                    PlaceActors.Draw(EditorWorld.get(), &bShowPlaceActors);
+                    if (bPlaying)
+                        ImGui::EndDisabled();
                 });
             }
 
-            // Right
+            if (bShowViewport) {
+                SafeDrawPanel("Viewport", [&]() {
+                    UWorld* DrawWorld = bPlaying ? PlaySession.GetPlayWorld() : EditorWorld.get();
+                    Viewport.Draw(DrawWorld, FormatMapDisplayName(), &bShowViewport);
+                });
+            }
+
             if (bShowOutliner) {
-                SafeDrawPanel("Outliner", [&]() { Outliner.Draw(EditorWorld.get(), &bShowOutliner); });
+                SafeDrawPanel("Outliner", [&]() {
+                    if (bPlaying)
+                        ImGui::BeginDisabled();
+                    Outliner.Draw(EditorWorld.get(), &bShowOutliner);
+                    if (bPlaying)
+                        ImGui::EndDisabled();
+                });
             }
             if (bShowDetails) {
-                SafeDrawPanel("Details", [&]() { Details.Draw(SelectedActor, &bShowDetails); });
+                SafeDrawPanel("Details", [&]() {
+                    if (bPlaying)
+                        ImGui::BeginDisabled();
+                    Details.Draw(&bShowDetails);
+                    if (bPlaying)
+                        ImGui::EndDisabled();
+                });
             }
             if (bShowWorldSettings) {
                 SafeDrawPanel("WorldSettings", [&]() {
+                    if (bPlaying)
+                        ImGui::BeginDisabled();
                     WorldSettings.Draw(EditorWorld.get(), ActiveProjectDescriptor.DefaultGameMode, &bShowWorldSettings);
+                    if (bPlaying)
+                        ImGui::EndDisabled();
                 });
             }
             if (bShowProjectSettings) {
@@ -946,21 +1149,24 @@ namespace Leon::Editor {
             }
 
             // Global Edit hotkeys (Unreal-like)
-            ImGuiIO& io = ImGui::GetIO();
-            if (!io.WantTextInput) {
+            if (!io.WantTextInput && !bPlaying) {
+                if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+                    SaveCurrentMap();
+                }
+                if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_P, false)) {
+                    bShowProjectHub = true;
+                }
                 if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
                     if (io.KeyShift) {
                         if (Context.GetHistory().CanRedo()) {
                             const std::string desc = Context.GetHistory().GetRedoDescription();
                             Context.GetHistory().Redo();
-                            SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
                             OutputLog.AddLog(ELogLevel::Info, "Edit", "Redo: " + desc);
                             ShowToast("Redo: " + desc);
                         }
                     } else if (Context.GetHistory().CanUndo()) {
                         const std::string desc = Context.GetHistory().GetUndoDescription();
                         Context.GetHistory().Undo();
-                        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
                         OutputLog.AddLog(ELogLevel::Info, "Edit", "Undo: " + desc);
                         ShowToast("Undo: " + desc);
                     }
@@ -968,13 +1174,16 @@ namespace Leon::Editor {
                     if (Context.GetHistory().CanRedo()) {
                         const std::string desc = Context.GetHistory().GetRedoDescription();
                         Context.GetHistory().Redo();
-                        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
                         OutputLog.AddLog(ELogLevel::Info, "Edit", "Redo: " + desc);
                         ShowToast("Redo: " + desc);
                     }
                 }
                 if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-                    DeleteSelectedActors();
+                    ImGuiWindow* NavWin = ImGui::GetCurrentContext() ? ImGui::GetCurrentContext()->NavWindow : nullptr;
+                    const bool bContentFocused =
+                        NavWin && NavWin->Name && std::strstr(NavWin->Name, "Content Browser") != nullptr;
+                    if (!bContentFocused)
+                        DeleteSelectedActors();
                 } else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false)) {
                     DuplicateSelectedActors();
                 }
@@ -982,7 +1191,10 @@ namespace Leon::Editor {
         }
 
         PollBakeJob();
+        PollImportJob();
+        DrawUnsavedChangesModal();
         DrawToastOverlay();
+        UpdateWindowTitle();
 
         EndImGuiFrame();
     }
@@ -1026,19 +1238,18 @@ namespace Leon::Editor {
         }
 
         std::vector<AActor*> actorsToDelete = Context.GetSelection().GetSelectedActors();
-        if (actorsToDelete.empty() && SelectedActor) {
-            actorsToDelete.push_back(SelectedActor);
-        }
         if (actorsToDelete.empty()) {
             return;
         }
+
+        for (AActor* Actor : actorsToDelete)
+            Context.ClearActorEditorFlags(Actor);
 
         auto command =
             std::make_unique<FDeleteActorsCommand>(EditorWorld.get(), &Context.GetSelection(), actorsToDelete);
         const std::string desc = command->GetDescription();
         Context.GetHistory().ExecuteCommand(std::move(command));
         Viewport.CancelGizmoInteraction();
-        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
         OutputLog.AddLog(ELogLevel::Info, "Edit", desc + "  (Ctrl+Z to undo)");
         ShowToast(desc);
     }
@@ -1048,8 +1259,6 @@ namespace Leon::Editor {
             return;
 
         std::vector<AActor*> sources = Context.GetSelection().GetSelectedActors();
-        if (sources.empty() && SelectedActor)
-            sources.push_back(SelectedActor);
         if (sources.empty())
             return;
 
@@ -1058,15 +1267,104 @@ namespace Leon::Editor {
         const std::string desc = command->GetDescription();
         Context.GetHistory().ExecuteCommand(std::move(command));
         Viewport.CancelGizmoInteraction();
-        SelectedActor = Context.GetSelection().GetPrimarySelectedActor();
         OutputLog.AddLog(ELogLevel::Info, "Edit", desc + "  (Ctrl+Z to undo)");
         ShowToast(desc);
     }
 
+    bool FEditorApp::PromptIfMapDirty(EPendingUnsavedAction InAction, const std::string& InPath) {
+        PendingUnsavedPath = InPath;
+        if (!Context.IsMapDirty())
+            return true;
+        PendingUnsavedAction = InAction;
+        bOpenUnsavedModal = true;
+        return false;
+    }
+
+    void FEditorApp::ExecutePendingUnsavedAction(bool bInSaveFirst) {
+        if (bInSaveFirst) {
+            SaveCurrentMap();
+            if (Context.IsMapDirty())
+                return;
+        } else {
+            Context.ClearMapDirty();
+        }
+
+        const EPendingUnsavedAction Action = PendingUnsavedAction;
+        PendingUnsavedAction = EPendingUnsavedAction::None;
+        bOpenUnsavedModal = false;
+
+        switch (Action) {
+        case EPendingUnsavedAction::LoadMap:
+            ApplyPendingLoadMap();
+            break;
+        case EPendingUnsavedAction::OpenProject:
+            ApplyPendingOpenProject();
+            break;
+        case EPendingUnsavedAction::CloseApp:
+            Close();
+            break;
+        case EPendingUnsavedAction::None:
+            break;
+        }
+    }
+
+    void FEditorApp::DrawUnsavedChangesModal() {
+        if (bOpenUnsavedModal) {
+            ImGui::OpenPopup("Unsaved Changes");
+            bOpenUnsavedModal = false;
+        }
+
+        if (ImGui::BeginPopupModal("Unsaved Changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextUnformatted("The current map has unsaved changes.");
+            ImGui::Spacing();
+            if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::Save, "##UnsavedSave", "Save", ImVec2(120.0f, 0.0f))) {
+                ExecutePendingUnsavedAction(true);
+                if (PendingUnsavedAction == EPendingUnsavedAction::None)
+                    ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (FEditorWidgets::DrawButton(ELucideIcon::Trash, "##UnsavedDiscard", "Don't Save", ImVec2(120.0f, 0.0f))) {
+                ExecutePendingUnsavedAction(false);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (FEditorWidgets::DrawButton(ELucideIcon::X, "##UnsavedCancel", "Cancel", ImVec2(120.0f, 0.0f))) {
+                PendingUnsavedAction = EPendingUnsavedAction::None;
+                PendingUnsavedPath.clear();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    void FEditorApp::OnEvent(FEvent& InEvent) {
+        if (InEvent.GetEventType() == EEventType::WindowClose && Context.IsMapDirty()) {
+            glfwSetWindowShouldClose(GetWindow().GetNativeWindow(), GLFW_FALSE);
+            PendingUnsavedAction = EPendingUnsavedAction::CloseApp;
+            PendingUnsavedPath.clear();
+            bOpenUnsavedModal = true;
+            InEvent.bHandled = true;
+            return;
+        }
+        FApplication::OnEvent(InEvent);
+    }
+
     void FEditorApp::BeginImGuiFrame() {
+        ImGuiIO& Io = ImGui::GetIO();
+        if (bPlayInEditorCursorHidden)
+            Io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+        else
+            Io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        if (bPlayInEditorCursorHidden) {
+            Io.WantCaptureMouse = false;
+            Io.WantCaptureKeyboard = false;
+            Io.WantTextInput = false;
+        }
     }
 
     void FEditorApp::EndImGuiFrame() {
@@ -1114,7 +1412,7 @@ namespace Leon::Editor {
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
             if (ImGui::BeginChild("##EditorToolbarStrip", ImVec2(stripW, toolbarH), false,
                                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-                Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName, Context.GetStatusMessage());
+                Toolbar.Draw(ActiveProjectDescriptor.ProjectName, FormatMapDisplayName(), Context.GetStatusMessage());
             }
             ImGui::EndChild();
             ImGui::PopStyleVar(2);
@@ -1272,12 +1570,13 @@ namespace Leon::Editor {
                     bShowProjectHub = true;
                 }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Save Current Map", "Ctrl+S", false, !ActiveMapPath.empty())) {
+                if (ImGui::MenuItem("Save Current Map", "Ctrl+S")) {
                     SaveCurrentMap();
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Exit", "Alt+F4")) {
-                    Close();
+                    if (PromptIfMapDirty(EPendingUnsavedAction::CloseApp))
+                        Close();
                 }
                 ImGui::EndMenu();
             }
@@ -1291,7 +1590,7 @@ namespace Leon::Editor {
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Duplicate", "Ctrl+D", false,
-                                    Context.GetSelection().GetSelectedActorCount() > 0 || SelectedActor != nullptr)) {
+                                    Context.GetSelection().GetSelectedActorCount() > 0)) {
                     DuplicateSelectedActors();
                 }
                 ImGui::EndMenu();

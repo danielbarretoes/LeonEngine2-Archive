@@ -36,7 +36,7 @@ namespace Leon::Editor {
         void SetOnActorSelected(FOnActorSelected InCallback) { OnActorSelected = std::move(InCallback); }
         void SetOnActorSpawned(FOnActorSpawned InCallback) { OnActorSpawned = std::move(InCallback); }
 
-        void Draw(UWorld* InWorld, const std::string& InMapName, AActor* InSelectedActor, bool* bInOutOpen = nullptr);
+        void Draw(UWorld* InWorld, const std::string& InMapName, bool* bInOutOpen = nullptr);
         void FocusOnActor(AActor* InActor);
         void CancelGizmoInteraction() { Gizmo.CancelInteraction(); }
 
@@ -66,6 +66,7 @@ namespace Leon::Editor {
 
         /** Unreal Show Flags → Gizmos: light volumes into the scene FBO. */
         void DrawEditorWorldGizmos(UWorld& InWorld);
+        void DrawEditorGrid();
         /** Screen-space billboard icons for lights / PlayerStart. */
         void DrawEditorGizmoIcons(UWorld& InWorld, const ImVec2& InViewportMin, const ImVec2& InViewportSize);
         /** Unreal-style RGB axis tripod in the viewport corner. */
@@ -74,7 +75,7 @@ namespace Leon::Editor {
         void DrawSelectionOutline(AActor* InSelectedActor, const ImVec2& InViewportMin, const ImVec2& InViewportSize);
         void DrawPlacementGhost(const glm::vec3& InWorldPos, const ImVec2& InViewportMin, const ImVec2& InViewportSize,
                                 const char* InLabel);
-        glm::vec3 GetWorldRayIntersection(const glm::vec2& InScreenPos, const ImVec2& InViewportMin,
+        glm::vec3 GetWorldRayIntersection(UWorld* InWorld, const glm::vec2& InScreenPos, const ImVec2& InViewportMin,
                                           const ImVec2& InViewportSize);
 
         FPerspectiveCamera EditorCamera{45.0f, 1.778f, 0.1f, 1000.0f};
@@ -94,10 +95,13 @@ namespace Leon::Editor {
         bool bShowStatistics = true;
         /** Unreal Show Flags → Gizmos (lights, PlayerStart sprites). */
         bool bShowEditorGizmos = true;
+        bool bShowGrid = true;
         bool bPlayingInEditor = false;
 
         glm::vec3 PivotPoint{0.0f, 0.0f, 0.0f};
         bool bRmbNavigating = false;
+        bool bRmbLookPrimed = false;
+        glm::vec2 RmbLastMouse{0.0f, 0.0f};
         bool bMmbPanning = false;
         bool bAltOrbiting = false;
         EViewportViewMode AppliedViewMode = EViewportViewMode::Perspective;

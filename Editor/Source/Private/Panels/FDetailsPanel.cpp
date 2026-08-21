@@ -1,3 +1,4 @@
+#include "Assets/UAssetManager.hpp"
 #include "Editor/Panels/FDetailsPanel.hpp"
 #include "Core/FLog.hpp"
 #include "Editor/Commands/FTransformActorsCommand.hpp"
@@ -6,6 +7,7 @@
 #include "Engine/Components.hpp"
 #include "Engine/EMobility.hpp"
 #include "Gameplay/APlayerStart.hpp"
+#include "Gameplay/ATriggerVolume.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -32,6 +34,16 @@ namespace Leon::Editor {
             const char* mobilityNames[] = {"Static", "Stationary", "Movable"};
             return FEditorWidgets::DrawPropertySelect("Mobility", InId, InOutMobilityIndex, mobilityNames, 3, nullptr,
                                                       InDefaultIndex);
+        }
+
+        void ApplyStaticMeshPath(FStaticMeshComponent& InMeshComp, const std::string& InPath) {
+            InMeshComp.AssetPath = InPath;
+            InMeshComp.StaticMesh = InPath.empty() ? nullptr : UAssetManager::GetStaticMesh(InPath);
+        }
+
+        void ApplyMaterialPath(FMaterialComponent& InMatComp, const std::string& InPath) {
+            InMatComp.AssetPath = InPath;
+            InMatComp.MaterialInstance = InPath.empty() ? nullptr : UAssetManager::GetMaterialInstance(InPath);
         }
 
     } // namespace
@@ -72,19 +84,16 @@ namespace Leon::Editor {
         bTransformUndoPending = false;
     }
 
-    void FDetailsPanel::Draw(AActor* InSelectedActor, bool* bInOutOpen) {
+    void FDetailsPanel::Draw(bool* bInOutOpen) {
         FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::Details, bInOutOpen, ELucideIcon::Component);
 
         try {
-            // Determine active selection from Context if available
             std::vector<AActor*> selectedActors;
-            if (Context && Context->GetSelection().GetSelectedActorCount() > 0) {
+            if (Context) {
                 for (AActor* act : Context->GetSelection().GetSelectedActors()) {
                     if (act && !act->IsPendingKill())
                         selectedActors.push_back(act);
                 }
-            } else if (InSelectedActor && !InSelectedActor->IsPendingKill()) {
-                selectedActors.push_back(InSelectedActor);
             }
 
             if (selectedActors.empty()) {
@@ -142,6 +151,8 @@ namespace Leon::Editor {
                              ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
             if (nameBuffer[0] != '\0') {
                 InActor.SetName(nameBuffer);
+                if (Context)
+                    Context->MarkMapDirty();
             }
         }
 
@@ -156,6 +167,8 @@ namespace Leon::Editor {
         // Components & Properties
         DrawTransformComponent(InActor, InFilter);
         DrawPlayerStartProperties(InActor, InFilter);
+        DrawTriggerVolumeProperties(InActor, InFilter);
+        DrawSkyboxComponent(InActor, InFilter);
         DrawStaticMeshComponent(InActor, InFilter);
         DrawMaterialComponent(InActor, InFilter);
         DrawLightComponents(InActor, InFilter);
@@ -324,6 +337,50 @@ namespace Leon::Editor {
         }
     }
 
+    void FDetailsPanel::DrawTriggerVolumeProperties(AActor& InActor, const std::string& InFilter) {
+        auto* trigger = dynamic_cast<ATriggerVolume*>(&InActor);
+        if (!trigger)
+            return;
+        if (!MatchesFilter("Trigger Volume Enabled Overlap", InFilter))
+            return;
+
+        if (ImGui::CollapsingHeader("Trigger Volume", ImGuiTreeNodeFlags_DefaultOpen)) {
+            FEditorWidgets::BeginPropertyGrid();
+            bool bEnabled = trigger->IsEnabled();
+            static const bool DefaultEnabled = true;
+            if (FEditorWidgets::DrawPropertyCheckbox("Enabled", "##TriggerEnabled", &bEnabled, nullptr,
+                                                     &DefaultEnabled)) {
+                trigger->SetEnabled(bEnabled);
+                if (Context)
+                    Context->MarkMapDirty();
+            }
+            FEditorWidgets::EndPropertyGrid();
+            ImGui::TextDisabled("Overlap only — does not block movement.");
+        }
+    }
+
+    void FDetailsPanel::DrawSkyboxComponent(AActor& InActor, const std::string& InFilter) {
+        if (!InActor.HasComponent<FSkyboxComponent>())
+            return;
+        if (!MatchesFilter("Sky Light Skybox Environment HDR", InFilter))
+            return;
+
+        if (ImGui::CollapsingHeader("Sky Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+            auto& sky = InActor.GetComponent<FSkyboxComponent>();
+            FEditorWidgets::BeginPropertyGrid();
+            static const bool DefaultEnabled = true;
+            if (FEditorWidgets::DrawPropertyCheckbox("Enabled", "##SkyEnabled", &sky.bEnabled, nullptr, &DefaultEnabled)) {
+                if (Context)
+                    Context->MarkMapDirty();
+            }
+            if (FEditorWidgets::DrawPropertyDragFloat("Exposure", "##SkyExposure", &sky.Exposure, 0.01f, 0.0f, 8.0f)) {
+                if (Context)
+                    Context->MarkMapDirty();
+            }
+            FEditorWidgets::EndPropertyGrid();
+        }
+    }
+
     void FDetailsPanel::DrawStaticMeshComponent(AActor& InActor, const std::string& InFilter) {
         if (!InActor.HasComponent<FStaticMeshComponent>())
             return;
@@ -342,10 +399,17 @@ namespace Leon::Editor {
             if (ImGui::InputText("##MeshAssetPath", meshPathBuffer, sizeof(meshPathBuffer))) {
                 meshComp.AssetPath = meshPathBuffer;
             }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                ApplyStaticMeshPath(meshComp, meshComp.AssetPath);
+                if (Context)
+                    Context->MarkMapDirty();
+            }
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ASSET")) {
                     std::string droppedPath = static_cast<const char*>(payload->Data);
-                    meshComp.AssetPath = droppedPath;
+                    ApplyStaticMeshPath(meshComp, droppedPath);
+                    if (Context)
+                        Context->MarkMapDirty();
                 }
                 ImGui::EndDragDropTarget();
             }
@@ -354,11 +418,16 @@ namespace Leon::Editor {
             static const bool DefaultCastShadows = true;
             FEditorWidgets::DrawPropertyCheckbox("Cast Shadows", "##CastShadowsMesh", &meshComp.bCastShadows, nullptr,
                                                  &DefaultCastShadows);
+            if (ImGui::IsItemDeactivatedAfterEdit() && Context)
+                Context->MarkMapDirty();
 
             int mobility = static_cast<int>(meshComp.Mobility);
             const int DefaultMeshMobility = static_cast<int>(EComponentMobility::Static);
-            if (DrawMobilityCombo("##StaticMeshMobility", &mobility, &DefaultMeshMobility))
+            if (DrawMobilityCombo("##StaticMeshMobility", &mobility, &DefaultMeshMobility)) {
                 meshComp.Mobility = static_cast<EComponentMobility>(mobility);
+                if (Context)
+                    Context->MarkMapDirty();
+            }
 
             FEditorWidgets::EndPropertyGrid();
         }
@@ -382,10 +451,17 @@ namespace Leon::Editor {
             if (ImGui::InputText("##MatAssetPath", matPathBuffer, sizeof(matPathBuffer))) {
                 matComp.AssetPath = matPathBuffer;
             }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                ApplyMaterialPath(matComp, matComp.AssetPath);
+                if (Context)
+                    Context->MarkMapDirty();
+            }
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ASSET")) {
                     std::string droppedPath = static_cast<const char*>(payload->Data);
-                    matComp.AssetPath = droppedPath;
+                    ApplyMaterialPath(matComp, droppedPath);
+                    if (Context)
+                        Context->MarkMapDirty();
                 }
                 ImGui::EndDragDropTarget();
             }
@@ -547,24 +623,38 @@ namespace Leon::Editor {
 
             if (!InActor.HasComponent<FStaticMeshComponent>() && ImGui::MenuItem("Static Mesh Component")) {
                 InActor.AddComponent<FStaticMeshComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
             if (!InActor.HasComponent<FMaterialComponent>() && ImGui::MenuItem("Material Component")) {
                 InActor.AddComponent<FMaterialComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
             if (!InActor.HasComponent<FDirectionalLightComponent>() && ImGui::MenuItem("Directional Light")) {
                 InActor.AddComponent<FDirectionalLightComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
             if (!InActor.HasComponent<FPointLightComponent>() && ImGui::MenuItem("Point Light")) {
                 InActor.AddComponent<FPointLightComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
             if (!InActor.HasComponent<FSpotLightComponent>() && ImGui::MenuItem("Spot Light")) {
                 InActor.AddComponent<FSpotLightComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
             if (!InActor.HasComponent<FCameraComponent>() && ImGui::MenuItem("Camera Component")) {
                 InActor.AddComponent<FCameraComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
             if (!InActor.HasComponent<FBoxCollisionComponent>() && ImGui::MenuItem("Box Collision Component")) {
                 InActor.AddComponent<FBoxCollisionComponent>();
+                if (Context)
+                    Context->MarkMapDirty();
             }
 
             ImGui::EndPopup();

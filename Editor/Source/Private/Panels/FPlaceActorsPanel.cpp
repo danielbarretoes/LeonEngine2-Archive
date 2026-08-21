@@ -9,6 +9,8 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/APawn.hpp"
 #include "Gameplay/APlayerStart.hpp"
+#include "Gameplay/ASkyLight.hpp"
+#include "Gameplay/ATriggerVolume.hpp"
 #include "Gameplay/FProceduralPrimitiveSpawner.hpp"
 #include "Gameplay/UClassRegistry.hpp"
 #include <cstring>
@@ -42,11 +44,23 @@ namespace Leon::Editor {
                     auto& spot = spawned->AddComponent<FSpotLightComponent>();
                     SyncSpotLightFromTransform(spot.Light, InLocation, spawned->GetActorRotation());
                 }
-            } else if (InType == "Cube" || InType == "Sphere" || InType == "Cylinder" || InType == "Plane") {
+            } else if (InType == "Cube" || InType == "Sphere" || InType == "Cylinder" || InType == "Plane" ||
+                       InType == "Ramp") {
                 spawned = FProceduralPrimitiveSpawner::SpawnShape(&InWorld, InType, InType + "Actor", InLocation);
                 return spawned;
             } else if (InType == "BlockingVolume") {
                 spawned = InWorld.SpawnActor<ABlockingVolume>("BlockingVolume");
+            } else if (InType == "TriggerVolume") {
+                spawned = InWorld.SpawnActor<ATriggerVolume>("TriggerVolume");
+            } else if (InType == "Skybox" || InType == "SkyLight") {
+                for (const auto& existing : InWorld.GetAllActors()) {
+                    if (existing && existing->HasComponent<FSkyboxComponent>()) {
+                        LE_CORE_WARN("FPlaceActorsPanel: Sky Light already exists ('{}'); maps support one skybox",
+                                     existing->GetName());
+                        return nullptr;
+                    }
+                }
+                spawned = InWorld.SpawnActor<ASkyLight>("SkyLight");
             } else if (UClassRegistry::Get().HasClass(InType)) {
                 spawned = UClassRegistry::Get().CreateActorOfClass(InType, &InWorld, InType);
             } else if (UClassRegistry::Get().HasClass("A" + InType)) {
@@ -118,6 +132,7 @@ namespace Leon::Editor {
                 drawPlaceItem("Sphere", "Sphere", ELucideIcon::Circle);
                 drawPlaceItem("Cylinder", "Cylinder", ELucideIcon::Boxes);
                 drawPlaceItem("Plane", "Plane", ELucideIcon::Square);
+                drawPlaceItem("Ramp", "Ramp", ELucideIcon::Layers);
             } else if (SelectedCategory == 3) {
                 drawPlaceItem("Blocking Volume", "BlockingVolume", ELucideIcon::Hexagon);
                 drawPlaceItem("Trigger Volume", "TriggerVolume", ELucideIcon::Activity);

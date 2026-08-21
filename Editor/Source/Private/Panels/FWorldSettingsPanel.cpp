@@ -57,6 +57,8 @@ namespace Leon::Editor {
 
                 FEditorWidgets::DrawPropertyClassSelect("GameMode Override", "##GameModeClass", Ws->GameModeClass,
                                                         GameModes, NoneLabel.c_str(), &EmptyDefault);
+                if (ImGui::IsItemDeactivatedAfterEdit() && Context)
+                    Context->MarkMapDirty();
 
                 FEditorWidgets::EndPropertyGrid();
                 ImGui::TextDisabled("None = project DefaultGameMode. Override to force a GameMode for this map.");
@@ -66,11 +68,15 @@ namespace Leon::Editor {
                 FEditorWidgets::BeginPropertyGrid();
                 FEditorWidgets::DrawPropertyCheckbox("Enable Static Lighting", "##EnableStaticLighting",
                                                      &Ws->bStaticLighting, nullptr, &Defaults.bStaticLighting);
+                if (ImGui::IsItemDeactivatedAfterEdit() && Context)
+                    Context->MarkMapDirty();
                 int LightmapRes = static_cast<int>(Ws->LightmapResolution);
                 const int DefaultLightmapRes = static_cast<int>(Defaults.LightmapResolution);
                 if (FEditorWidgets::DrawPropertyDragInt("Default Lightmap Resolution", "##LightmapRes", &LightmapRes,
                                                         16, 32, 4096, nullptr, &DefaultLightmapRes)) {
                     Ws->LightmapResolution = static_cast<uint32_t>(LightmapRes);
+                    if (Context)
+                        Context->MarkMapDirty();
                 }
                 FEditorWidgets::EndPropertyGrid();
             }

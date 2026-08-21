@@ -12,6 +12,11 @@ namespace Leon::Editor {
         NumberOfPlayers = std::clamp(NumberOfPlayers, 1, 4);
         if (ListenPort <= 0)
             ListenPort = 7777;
+        if (PlayMode != EPlayMode::SelectedViewport) {
+            LE_CORE_WARN("FPlaySettings: Play mode {} is not implemented; using Selected Viewport",
+                         static_cast<int>(PlayMode));
+            PlayMode = EPlayMode::SelectedViewport;
+        }
     }
 
     bool FPlaySettings::LoadFromFile(const std::string& InPath) {

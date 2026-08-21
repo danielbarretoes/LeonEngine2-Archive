@@ -514,19 +514,15 @@ namespace Leon::Editor {
 
         if (FEditorWidgets::DrawToolbarIconButton(bIsHidden ? ELucideIcon::EyeOff : ELucideIcon::Eye, "##Vis", true,
                                                   18.0f)) {
-            if (bIsHidden)
-                HiddenActors.erase(InActor);
-            else
-                HiddenActors.insert(InActor);
+            if (Context)
+                Context->SetActorHiddenInEditor(InActor, !bIsHidden);
         }
         ImGui::SameLine();
 
         if (FEditorWidgets::DrawToolbarIconButton(bIsLocked ? ELucideIcon::Lock : ELucideIcon::LockOpen, "##Lock",
                                                   true, 18.0f)) {
-            if (bIsLocked)
-                LockedActors.erase(InActor);
-            else
-                LockedActors.insert(InActor);
+            if (Context)
+                Context->SetActorLockedInEditor(InActor, !bIsLocked);
         }
         ImGui::SameLine();
 
@@ -833,7 +829,7 @@ namespace Leon::Editor {
             if (!InFolderPath.empty())
                 spawned->SetFolderPath(InFolderPath);
             if (Context) {
-                Context->GetSelection().SelectActor(spawned, false);
+                Context->RecordSpawnedActor(spawned);
             } else {
                 FallbackSelectedActor = spawned;
             }

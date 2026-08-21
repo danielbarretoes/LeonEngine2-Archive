@@ -16,6 +16,8 @@ namespace Leon::Editor {
         virtual void Execute() = 0;
         virtual void Undo() = 0;
         [[nodiscard]] virtual std::string GetDescription() const = 0;
+        /** Selection-only commands must return false so Ctrl+Z of a pick does not dirty the map. */
+        [[nodiscard]] virtual bool AffectsMap() const { return true; }
     };
 
 } // namespace Leon::Editor

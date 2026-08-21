@@ -78,9 +78,9 @@ namespace Leon {
         if (InParams.bBeginPlay)
             InWorld.BeginPlay();
 
-        // DefaultPawn fly camera expects GameOnly input (Unreal PIE).
+        // Possessed pawn look (fly camera and game characters) expects GameOnly, matching packaged FGameViewportLayer.
         if (APlayerController* Pc = InWorld.GetFirstPlayerController()) {
-            if (Pc->GetPawn() && Pc->GetPawn()->GetClass() == "ADefaultPawn")
+            if (Pc->GetPawn())
                 Pc->SetInputModeGameOnly();
         }
         return true;

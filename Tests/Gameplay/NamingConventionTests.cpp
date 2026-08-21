@@ -53,6 +53,8 @@ TEST_SUITE("Naming conventions") {
         CHECK(UClassRegistry::Get().HasClass("AHUD"));
         CHECK(UClassRegistry::Get().HasClass("ABlockingVolume"));
         CHECK(UClassRegistry::Get().HasClass("APhysicsVolume"));
+        CHECK(UClassRegistry::Get().HasClass("ASkyLight"));
+        CHECK(UClassRegistry::Get().HasClass("ATriggerVolume"));
         CHECK(UClassRegistry::Get().HasClass("ANavMeshBoundsVolume"));
         CHECK(UClassRegistry::Get().HasClass("AProjectile"));
 

@@ -23,6 +23,70 @@ namespace fs = std::filesystem;
 
 namespace Leon::Editor {
 
+    namespace {
+        void WriteProjectMap(const fs::path& InMapPath, const std::string& InMapName, bool bInStarterLevel) {
+            std::ofstream mapFile(InMapPath);
+            mapFile << "# LeonEngine2 Map Asset File (.lmap)\n";
+            mapFile << "Map:\n";
+            mapFile << "  Name: \"" << InMapName << "\"\n";
+            mapFile << "  Version: \"2.1\"\n\n";
+            mapFile << "Environment:\n";
+            mapFile << "  WorldSettings:\n";
+            mapFile << "    GameModeClass: \"AGameModeBase\"\n";
+            mapFile << "    StaticLighting: false\n";
+            mapFile << "    LightingBuildQuality: Draft\n";
+            mapFile << "    LightmapResolution: 64\n";
+            mapFile << "    NumIndirectBounces: 2\n";
+            mapFile << "    SamplesPerTexel: 8\n";
+            mapFile << "    IndirectIntensity: 1\n";
+            mapFile << "    AmbientOcclusion: true\n";
+            mapFile << "    AOIntensity: 1\n";
+            mapFile << "    AORadius: 1\n";
+            mapFile << "    TexelPadding: 2\n";
+            mapFile << "    WorldScale: 1\n";
+            mapFile << "  Skybox:\n";
+            mapFile << "    Enabled: true\n";
+            mapFile << "    Exposure: 1\n";
+            mapFile << "    SunIntensity: 3.5\n";
+            mapFile << "    EnvironmentIntensity: 1.2\n";
+            mapFile << "    UseHDREnvironmentMap: false\n";
+            mapFile << "    SkyZenithColor: [0.18, 0.44, 0.88]\n";
+            mapFile << "    HorizonColor: [0.78, 0.84, 0.95]\n";
+            mapFile << "    GroundColor: [0.22, 0.24, 0.28]\n";
+            mapFile << "    SunColor: [1, 0.98, 0.92]\n\n";
+            mapFile << "Actors:\n";
+            mapFile << "  - Name: \"DirectionalLight\"\n";
+            mapFile << "    Class: \"AActor\"\n";
+            mapFile << "    Transform:\n";
+            mapFile << "      Translation: [0, 8, 0]\n";
+            mapFile << "      Rotation: [0, 0, 0]\n";
+            mapFile << "      Scale: [1, 1, 1]\n";
+            mapFile << "    DirectionalLight:\n";
+            mapFile << "      Enabled: true\n";
+            mapFile << "      Direction: [-0.35, -1, -0.25]\n";
+            mapFile << "      Color: [1, 0.98, 0.92]\n";
+            mapFile << "      Intensity: 3.5\n";
+            mapFile << "      Mobility: Stationary\n";
+            if (bInStarterLevel) {
+                mapFile << "  - Name: \"Floor\"\n";
+                mapFile << "    Class: \"AActor\"\n";
+                mapFile << "    Transform:\n";
+                mapFile << "      Translation: [0, 0, 0]\n";
+                mapFile << "      Rotation: [0, 0, 0]\n";
+                mapFile << "      Scale: [8, 0.2, 8]\n";
+                mapFile << "    StaticMesh:\n";
+                mapFile << "      Type: \"Cube\"\n";
+                mapFile << "      Size: 1\n";
+                mapFile << "  - Name: \"PlayerStart\"\n";
+                mapFile << "    Class: \"APlayerStart\"\n";
+                mapFile << "    Transform:\n";
+                mapFile << "      Translation: [0, 2, 4]\n";
+                mapFile << "      Rotation: [0, 180, 0]\n";
+                mapFile << "      Scale: [1, 1, 1]\n";
+            }
+        }
+    } // namespace
+
     FProjectHubPanel::FProjectHubPanel() {
         std::string defaultParent = (fs::current_path() / "Projects").string();
 #ifdef _WIN32
@@ -441,7 +505,7 @@ namespace Leon::Editor {
 
         ImGui::Spacing();
         ImGui::Text("Template:");
-        const char* templates[] = {"Blank Project (C++ & Empty Map)", "3D Showcase Level (Materials & Lighting)"};
+        const char* templates[] = {"Blank Project (Empty Map)", "Starter Level (Light + Floor)"};
         FEditorWidgets::DrawSelect("##TemplateCombo", &SelectedTemplateIndex, templates, IM_ARRAYSIZE(templates));
 
         ImGui::Spacing();
@@ -475,7 +539,10 @@ namespace Leon::Editor {
         try {
             fs::create_directories(projectDir / "Config");
             fs::create_directories(projectDir / "Content" / "Maps");
-            fs::create_directories(projectDir / "Source" / NewProjectName);
+            fs::create_directories(projectDir / "Content" / "Meshes");
+            fs::create_directories(projectDir / "Content" / "Textures");
+            fs::create_directories(projectDir / "Content" / "Audio");
+            fs::create_directories(projectDir / "Raw");
 
             fs::path lprojectPath = projectDir / (std::string(NewProjectName) + ".lproject");
             FProjectDescriptor desc;
@@ -483,10 +550,11 @@ namespace Leon::Editor {
             desc.EngineVersion = "0.15.0";
             desc.DefaultMap = "/Game/Maps/MainLevel";
             desc.DefaultGameMode = "AGameModeBase";
+            desc.GameModule.clear();
             desc.Save(lprojectPath.string());
 
             std::ofstream engineIni(projectDir / "Config" / "DefaultEngine.ini");
-            engineIni << "[/Script/Engine.Engine]\nDefaultMap=/Game/Maps/MainLevel\n";
+            engineIni << "[/Script/Engine.Engine]\nDefaultMap=/Game/Maps/MainLevel\nGameModeClass=AGameModeBase\n";
 
             std::ofstream gameIni(projectDir / "Config" / "DefaultGame.ini");
             gameIni << "[/Script/EngineSettings.GeneralProjectSettings]\nProjectName=" << NewProjectName << "\n";
@@ -494,13 +562,11 @@ namespace Leon::Editor {
             std::ofstream inputIni(projectDir / "Config" / "DefaultInput.ini");
             inputIni << "[/Script/Engine.InputSettings]\n";
 
-            std::ofstream mapFile(projectDir / "Content" / "Maps" / "MainLevel.lmap");
-            mapFile << "Name: MainLevel\n";
-            mapFile << "Environment:\n  StaticLighting: true\n  LightmapResolution: 512\n";
-            mapFile << "Actors:\n";
-            mapFile << "  - Name: DirectionalLight_0\n    Type: DirectionalLight\n    DirectionalLight:\n      Color: "
-                       "[1.0, 0.95, 0.85]\n      Intensity: 3.0\n";
-            mapFile << "    Transform:\n      Position: [0, 10, 0]\n      Rotation: [-45, 45, 0]\n";
+            const bool bStarter = (SelectedTemplateIndex == 1);
+            WriteProjectMap(projectDir / "Content" / "Maps" / "MainLevel.lmap", "MainLevel", bStarter);
+
+            LE_CORE_INFO("FProjectHubPanel: Created {} project '{}' (GameMode AGameModeBase, no game DLL)",
+                         bStarter ? "starter" : "blank", NewProjectName);
 
             bStatusIsError = false;
             StatusMessage = "Project created successfully!";

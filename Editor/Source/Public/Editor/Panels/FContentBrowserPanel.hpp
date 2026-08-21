@@ -24,6 +24,9 @@ namespace Leon::Editor {
     public:
         using FOnMapSelected = std::function<void(const std::string& InMapPath)>;
         using FOnSaveAll = std::function<void()>;
+        using FOnNotify = std::function<void(const std::string& InMessage, bool bInError)>;
+        using FOnImportAsset = std::function<void(const std::string& InSourcePath)>;
+        using FOnQueryBusy = std::function<bool()>;
 
         FContentBrowserPanel() = default;
         ~FContentBrowserPanel();
@@ -32,6 +35,9 @@ namespace Leon::Editor {
         void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
         void SetOnMapSelected(FOnMapSelected InCallback) { OnMapSelected = std::move(InCallback); }
         void SetOnSaveAll(FOnSaveAll InCallback) { OnSaveAll = std::move(InCallback); }
+        void SetOnNotify(FOnNotify InCallback) { OnNotify = std::move(InCallback); }
+        void SetOnImportAsset(FOnImportAsset InCallback) { OnImportAsset = std::move(InCallback); }
+        void SetOnQueryImportBusy(FOnQueryBusy InCallback) { OnQueryImportBusy = std::move(InCallback); }
 
         void Draw(bool* bInOutOpen = nullptr);
 
@@ -76,6 +82,7 @@ namespace Leon::Editor {
         void CreateNewFolder();
         void CreateNewAsset(const std::string& InAssetType);
         void ImportExternalAsset();
+        void CopyNativeAssetIntoContent(const std::filesystem::path& InSrc);
         void OpenInExplorer(const std::filesystem::path& InPath);
         void DeleteItem(const std::filesystem::path& InPath);
         void DuplicateAsset(const std::filesystem::path& InPath);
@@ -96,6 +103,9 @@ namespace Leon::Editor {
         FEditorContext* Context = nullptr;
         FOnMapSelected OnMapSelected;
         FOnSaveAll OnSaveAll;
+        FOnNotify OnNotify;
+        FOnImportAsset OnImportAsset;
+        FOnQueryBusy OnQueryImportBusy;
 
         // Settings & Filters
         char SearchBuffer[128] = "";

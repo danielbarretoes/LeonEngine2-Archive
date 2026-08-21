@@ -79,6 +79,8 @@ namespace Leon {
             CHECK(registry.HasClass("AHUD"));
             CHECK(registry.HasClass("ABlockingVolume"));
             CHECK(registry.HasClass("APhysicsVolume"));
+            CHECK(registry.HasClass("ASkyLight"));
+            CHECK(registry.HasClass("ATriggerVolume"));
             CHECK_FALSE(registry.HasClass("Actor"));
             CHECK_FALSE(registry.HasClass("HUD"));
 

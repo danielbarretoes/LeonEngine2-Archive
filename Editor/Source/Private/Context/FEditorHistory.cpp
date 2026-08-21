@@ -4,11 +4,17 @@ namespace Leon::Editor {
 
     FEditorHistory::FEditorHistory(size_t InMaxUndoSteps) : MaxUndoSteps(InMaxUndoSteps) {}
 
+    void FEditorHistory::NotifyIfAffectsMap(const IEditorCommand& InCommand) {
+        if (OnMapAffectingCommand && InCommand.AffectsMap())
+            OnMapAffectingCommand();
+    }
+
     void FEditorHistory::ExecuteCommand(std::unique_ptr<IEditorCommand> InCommand) {
         if (!InCommand)
             return;
 
         InCommand->Execute();
+        NotifyIfAffectsMap(*InCommand);
 
         RedoStack.clear();
 
@@ -22,6 +28,7 @@ namespace Leon::Editor {
         if (!InCommand)
             return;
 
+        NotifyIfAffectsMap(*InCommand);
         RedoStack.clear();
         UndoStack.push_back(std::move(InCommand));
         if (UndoStack.size() > MaxUndoSteps) {
@@ -37,6 +44,7 @@ namespace Leon::Editor {
         UndoStack.pop_back();
 
         command->Undo();
+        NotifyIfAffectsMap(*command);
         RedoStack.push_back(std::move(command));
         return true;
     }
@@ -49,6 +57,7 @@ namespace Leon::Editor {
         RedoStack.pop_back();
 
         command->Execute();
+        NotifyIfAffectsMap(*command);
         UndoStack.push_back(std::move(command));
         return true;
     }

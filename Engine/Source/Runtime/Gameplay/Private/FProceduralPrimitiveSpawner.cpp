@@ -122,6 +122,13 @@ namespace Leon {
                 box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
                 box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
             }
+        } else if (InShapeType == "Ramp") {
+            meshPath = FEngineBuiltins::kMeshRamp;
+            if (auto box = actor->AddActorComponent<UBoxComponent>("Box")) {
+                box->SetBoxExtent(glm::vec3(0.5f));
+                box->SetCollisionObjectType(ECollisionChannel::WorldStatic);
+                box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            }
         } else {
             return actor;
         }
@@ -142,6 +149,8 @@ namespace Leon {
                 va = FMeshPrimitives::CreateCylinder(0.5f, 0.5f, 1.0f, 32);
             else if (InShapeType == "Plane")
                 va = FMeshPrimitives::CreatePlane(2.0f, 2.0f, 1, 1);
+            else if (InShapeType == "Ramp")
+                va = FMeshPrimitives::CreateRamp(1.0f, 1.0f, 1.0f);
 
             auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
             if (va && shader) {

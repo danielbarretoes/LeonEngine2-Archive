@@ -4,6 +4,7 @@
 #include "Gameplay/ACharacter.hpp"
 #include "Gameplay/ABlockingVolume.hpp"
 #include "Gameplay/APhysicsVolume.hpp"
+#include "Gameplay/ATriggerVolume.hpp"
 #include "Gameplay/UPrimitiveComponent.hpp"
 #include "Gameplay/UCharacterMovementComponent.hpp"
 #include "Gameplay/USpringArmComponent.hpp"
@@ -143,6 +144,22 @@ TEST_SUITE("Physics / Collision") {
         BeginActor(vol);
         vol->GravityScale = 0.3f;
         CHECK(vol->GravityScale == doctest::Approx(0.3f));
+    }
+
+    TEST_CASE("ATriggerVolume does not block traces") {
+        auto world = MakePhysWorld("TriggerVol");
+        auto* trigger = world->SpawnActor<Leon::ATriggerVolume>("Trig");
+        trigger->SetActorLocation({0.0f, 1.0f, 6.0f});
+        trigger->SetActorScale({2.0f, 2.0f, 2.0f});
+        trigger->PostInitializeComponents();
+        BeginActor(trigger);
+        CHECK(trigger->IsEnabled());
+        CHECK(trigger->GetBoxComponent());
+        CHECK(trigger->GetBoxComponent()->GetGenerateOverlapEvents());
+        CHECK_FALSE(trigger->GetBoxComponent()->GetCollisionEnabled() == Leon::ECollisionEnabled::QueryAndPhysics);
+        Leon::FHitResult hit;
+        CHECK_FALSE(
+            world->LineTraceByChannel({0, 1, 0}, {0, 1, 12}, Leon::ECollisionChannel::WorldStatic, nullptr, hit));
     }
 }
 

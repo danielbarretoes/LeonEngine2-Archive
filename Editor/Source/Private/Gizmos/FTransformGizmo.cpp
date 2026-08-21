@@ -290,9 +290,10 @@ namespace Leon::Editor {
                             continue;
                         glm::vec3 newLoc = before.Location + deltaWorld;
                         if (bSnapEnabled && TranslationSnap > 0.001f) {
-                            newLoc.x = std::round(newLoc.x / TranslationSnap) * TranslationSnap;
-                            newLoc.y = std::round(newLoc.y / TranslationSnap) * TranslationSnap;
-                            newLoc.z = std::round(newLoc.z / TranslationSnap) * TranslationSnap;
+                            const float along = glm::dot(deltaWorld, DragAxisDir);
+                            const float snappedAlong =
+                                std::round(along / TranslationSnap) * TranslationSnap;
+                            newLoc = before.Location + DragAxisDir * snappedAlong;
                         }
                         before.Actor->SetActorLocation(newLoc);
                     }
@@ -322,9 +323,12 @@ namespace Leon::Editor {
                         continue;
                     glm::vec3 newRot = before.Rotation + rotDelta;
                     if (bSnapEnabled && RotationSnap > 0.001f) {
-                        newRot.x = std::round(newRot.x / RotationSnap) * RotationSnap;
-                        newRot.y = std::round(newRot.y / RotationSnap) * RotationSnap;
-                        newRot.z = std::round(newRot.z / RotationSnap) * RotationSnap;
+                        if (ActiveAxis == EGizmoAxis::X)
+                            newRot.x = std::round(newRot.x / RotationSnap) * RotationSnap;
+                        else if (ActiveAxis == EGizmoAxis::Y)
+                            newRot.y = std::round(newRot.y / RotationSnap) * RotationSnap;
+                        else
+                            newRot.z = std::round(newRot.z / RotationSnap) * RotationSnap;
                     }
                     before.Actor->SetActorRotation(newRot);
                 }
@@ -346,9 +350,12 @@ namespace Leon::Editor {
                         newScale.z = std::max(0.01f, before.Scale.z * scaleFactor);
 
                     if (bSnapEnabled && ScaleSnap > 0.001f) {
-                        newScale.x = std::round(newScale.x / ScaleSnap) * ScaleSnap;
-                        newScale.y = std::round(newScale.y / ScaleSnap) * ScaleSnap;
-                        newScale.z = std::round(newScale.z / ScaleSnap) * ScaleSnap;
+                        if (ActiveAxis == EGizmoAxis::X)
+                            newScale.x = std::round(newScale.x / ScaleSnap) * ScaleSnap;
+                        else if (ActiveAxis == EGizmoAxis::Y)
+                            newScale.y = std::round(newScale.y / ScaleSnap) * ScaleSnap;
+                        else
+                            newScale.z = std::round(newScale.z / ScaleSnap) * ScaleSnap;
                     }
                     before.Actor->SetActorScale(newScale);
                 }

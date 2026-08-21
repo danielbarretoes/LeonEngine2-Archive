@@ -54,6 +54,7 @@ add_library(LeonEditorCore STATIC
     Source/Private/Commands/FTransformActorsCommand.cpp
     Source/Private/Commands/FSelectActorsCommand.cpp
     Source/Private/Commands/FDuplicateActorsCommand.cpp
+    Source/Private/Commands/FSpawnActorsCommand.cpp
     Source/Private/Panels/FViewportPanel.cpp
     Source/Private/Panels/FProjectHubPanel.cpp
     Source/Private/Panels/FOutlinerPanel.cpp

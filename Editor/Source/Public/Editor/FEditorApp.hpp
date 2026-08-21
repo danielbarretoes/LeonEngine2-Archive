@@ -22,6 +22,7 @@
 #include "Engine/UWorld.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <deque>
 #include <mutex>
 #include <string>
@@ -39,6 +40,7 @@ namespace Leon::Editor {
         void OnInit() override;
         void OnUpdate(FTimestep InTs) override;
         void OnShutdown() override;
+        void OnEvent(FEvent& InEvent) override;
 
         void OpenProject(const std::string& InProjectPath);
         void LoadMap(const std::string& InMapPath);
@@ -71,11 +73,28 @@ namespace Leon::Editor {
         /** Duplicate selection with +X offset (Unreal Ctrl+D). */
         void DuplicateSelectedActors();
         void PollBakeJob();
+        void StartAssetImport(const std::string& InSourcePath);
+        void PollImportJob();
         void DrawToastOverlay();
         void ShowToast(const std::string& InMessage, bool bInError = false);
+        void SyncPlayInEditorCursor();
+
+        enum class EPendingUnsavedAction : uint8_t {
+            None = 0,
+            LoadMap,
+            OpenProject,
+            CloseApp,
+        };
+
+        [[nodiscard]] bool PromptIfMapDirty(EPendingUnsavedAction InAction, const std::string& InPath = {});
+        void DrawUnsavedChangesModal();
+        void ExecutePendingUnsavedAction(bool bInSaveFirst);
+        void ApplyPendingLoadMap();
+        void ApplyPendingLoadMap(const std::string& InMapPath);
+        void ApplyPendingOpenProject();
+        [[nodiscard]] std::string FormatMapDisplayName() const;
 
         TRef<UWorld> EditorWorld;
-        AActor* SelectedActor = nullptr;
 
         FEditorContext Context;
 
@@ -130,10 +149,24 @@ namespace Leon::Editor {
         std::mutex BakeMutex;
         std::deque<std::string> BakeLogLines;
 
+        // Async Content Browser import (AssetTool via Scripts/import_assets.py)
+        std::atomic<bool> bImportRunning{false};
+        std::atomic<bool> bImportFinished{false};
+        std::atomic<int> ImportExitCode{0};
+        std::mutex ImportMutex;
+        std::deque<std::string> ImportLogLines;
+
         // Transient toast (bottom-center, Unreal-like notification)
         std::string ToastMessage;
         float ToastSecondsRemaining = 0.0f;
         bool bToastError = false;
+
+        EPendingUnsavedAction PendingUnsavedAction = EPendingUnsavedAction::None;
+        std::string PendingUnsavedPath;
+        bool bOpenUnsavedModal = false;
+
+        /** True while PIE GameOnly hides and disables the OS cursor (restored on Stop / UI pause). */
+        bool bPlayInEditorCursorHidden = false;
 
         /** Set when launched as a PIE client child process. */
         bool bPieClientBootstrap = false;

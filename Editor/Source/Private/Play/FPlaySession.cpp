@@ -65,6 +65,11 @@ namespace Leon::Editor {
         }
 
         FPlaySettings Settings = InSettings;
+        if (Settings.PlayMode == EPlayMode::NewEditorWindow) {
+            LE_CORE_WARN("FPlaySession: New Editor Window play mode is not implemented; using Selected Viewport");
+            if (LogFn)
+                LogFn("New Editor Window is not available; playing in Selected Viewport", false);
+        }
         Settings.Clamp();
         if (Settings.NumberOfPlayers > 1 && Settings.NetMode == EPlayNetMode::Standalone)
             Settings.NetMode = EPlayNetMode::ListenServer;

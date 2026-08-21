@@ -20,7 +20,7 @@ namespace Leon::Editor {
 
         void SetEditorContext(FEditorContext* InContext) { Context = InContext; }
 
-        void Draw(AActor* InSelectedActor, bool* bInOutOpen = nullptr);
+        void Draw(bool* bInOutOpen = nullptr);
 
     private:
         void DrawSingleActorDetails(AActor& InActor, const std::string& InFilter);
@@ -28,6 +28,8 @@ namespace Leon::Editor {
 
         void DrawTransformComponent(AActor& InActor, const std::string& InFilter);
         void DrawPlayerStartProperties(AActor& InActor, const std::string& InFilter);
+        void DrawTriggerVolumeProperties(AActor& InActor, const std::string& InFilter);
+        void DrawSkyboxComponent(AActor& InActor, const std::string& InFilter);
         void DrawStaticMeshComponent(AActor& InActor, const std::string& InFilter);
         void DrawMaterialComponent(AActor& InActor, const std::string& InFilter);
         void DrawLightComponents(AActor& InActor, const std::string& InFilter);
