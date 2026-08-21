@@ -3,6 +3,7 @@
 #include "Core/FApplication.hpp"
 #include "Core/FProjectDescriptor.hpp"
 #include "Editor/Context/FEditorContext.hpp"
+#include "Editor/FEditorLayoutStore.hpp"
 #include "Editor/Gizmos/FTransformGizmo.hpp"
 #include "Editor/Panels/FContentBrowserPanel.hpp"
 #include "Editor/Panels/FDetailsPanel.hpp"
@@ -41,6 +42,9 @@ namespace Leon::Editor {
         void BakeLightmaps(bool bInProduction);
         void LaunchGame();
         void ResetDefaultLayout();
+        void RequestResetDefaultLayout();
+        void RequestLoadNamedLayout(const std::string& InName);
+        bool SaveCurrentLayoutAs(const std::string& InName);
 
         [[nodiscard]] FEditorContext& GetContext() { return Context; }
         [[nodiscard]] const FEditorContext& GetContext() const { return Context; }
@@ -50,6 +54,10 @@ namespace Leon::Editor {
         void EndImGuiFrame();
         void DrawDockspace();
         void DrawMenuBar();
+        void DrawLayoutMenus();
+        void DrawSaveLayoutModal();
+        void ApplyPanelVisibility(const FEditorPanelVisibility& InPanels);
+        [[nodiscard]] FEditorPanelVisibility CapturePanelVisibility() const;
         void UpdateWindowTitle();
         /** Clears selection first, cancels gizmo, then destroys via undo history. */
         void DeleteSelectedActors();
@@ -84,10 +92,15 @@ namespace Leon::Editor {
         std::string ImGuiIniPath;
         std::string EditorSavedDir;
         std::string WindowConfigIniPath;
+        FEditorLayoutStore LayoutStore;
         bool bImGuiReady = false;
         bool bShowProjectHub = false;
         bool bDockspaceInitialized = false;
         bool bNeedResetLayout = false;
+        bool bNeedLoadNamedLayout = false;
+        std::string PendingLayoutName;
+        bool bOpenSaveLayoutModal = false;
+        char SaveLayoutNameBuffer[64] = {};
         bool bStartupMaximizeApplied = false;
 
         // Panel visibility toggles

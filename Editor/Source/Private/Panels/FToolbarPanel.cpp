@@ -1,4 +1,7 @@
 #include "Editor/Panels/FToolbarPanel.hpp"
+#include "Editor/UI/FEditorTheme.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
+#include "Editor/UI/FLucideIcons.hpp"
 #include <imgui.h>
 
 namespace Leon::Editor {
@@ -6,7 +9,7 @@ namespace Leon::Editor {
     void FToolbarPanel::Draw(const std::string& InProjectName, const std::string& InMapName,
                              const std::string& InStatusMessage) {
         // Contents only — host (dockspace) owns the fixed strip; do not create a dockable window.
-        if (ImGui::Button("Project Browser", ImVec2(120.0f, 26.0f))) {
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Folder, "Project Browser", "TB_Hub")) {
             if (OnOpenHub)
                 OnOpenHub();
         }
@@ -15,7 +18,7 @@ namespace Leon::Editor {
         ImGui::TextDisabled("|");
         ImGui::SameLine();
 
-        if (ImGui::Button("Save Map", ImVec2(90.0f, 26.0f))) {
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Save, "Save Map", "TB_Save")) {
             if (OnSaveMap)
                 OnSaveMap();
         }
@@ -24,12 +27,12 @@ namespace Leon::Editor {
         ImGui::TextDisabled("|");
         ImGui::SameLine();
 
-        if (ImGui::Button("Bake (Draft)", ImVec2(100.0f, 26.0f))) {
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Sun, "Bake Draft", "TB_BakeDraft")) {
             if (OnBakeDraft)
                 OnBakeDraft();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Bake (Production)", ImVec2(130.0f, 26.0f))) {
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Flame, "Bake Production", "TB_BakeProd")) {
             if (OnBakeProduction)
                 OnBakeProduction();
         }
@@ -38,18 +41,23 @@ namespace Leon::Editor {
         ImGui::TextDisabled("|");
         ImGui::SameLine();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.55f, 0.25f, 1.0f));
-        if (ImGui::Button("Play Game", ImVec2(90.0f, 26.0f))) {
-            if (OnRunGame)
-                OnRunGame();
+        {
+            FControlStyle playStyle;
+            playStyle.bOverrideAccent = true;
+            playStyle.Accent = FEditorTheme::GetTokens().Success;
+            playStyle.bOverrideFrame = true;
+            playStyle.Frame = FEditorTheme::GetTokens().Success;
+            if (FEditorWidgets::DrawToolbarButton(ELucideIcon::Play, "Play Game", "TB_Play", 26.0f, &playStyle)) {
+                if (OnRunGame)
+                    OnRunGame();
+            }
         }
-        ImGui::PopStyleColor();
 
         ImGui::SameLine();
         ImGui::TextDisabled("|");
         ImGui::SameLine();
 
-        if (ImGui::Button("Reset Layout", ImVec2(100.0f, 26.0f))) {
+        if (FEditorWidgets::DrawToolbarButton(ELucideIcon::LayoutGrid, "Reset Layout", "TB_Reset")) {
             if (OnResetLayout)
                 OnResetLayout();
         }
@@ -58,7 +66,7 @@ namespace Leon::Editor {
             ImGui::SameLine();
             ImGui::TextDisabled("|");
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "%s", InStatusMessage.c_str());
+            ImGui::TextColored(FEditorTheme::GetTokens().Warning, "%s", InStatusMessage.c_str());
         }
 
         float rightOffset = 380.0f;
@@ -71,10 +79,10 @@ namespace Leon::Editor {
             else
                 ImGui::SameLine();
 
+            const FUiTokens& t = FEditorTheme::GetTokens();
             ImGui::TextDisabled("Project:");
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "%s",
-                               InProjectName.empty() ? "None" : InProjectName.c_str());
+            ImGui::TextColored(t.Accent, "%s", InProjectName.empty() ? "None" : InProjectName.c_str());
 
             ImGui::SameLine();
             ImGui::TextDisabled("Map:");

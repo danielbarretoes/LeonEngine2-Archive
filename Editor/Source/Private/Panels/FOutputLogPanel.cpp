@@ -108,15 +108,15 @@ namespace Leon::Editor {
     }
 
     void FOutputLogPanel::Draw(bool* bInOutOpen) {
-        FEditorWidgets::BeginPanelWindow("  Output Log", bInOutOpen, ELucideIcon::FileText);
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::OutputLog, bInOutOpen, ELucideIcon::FileText);
 
         try {
-            if (ImGui::Button("Clear")) {
+            if (FEditorWidgets::DrawButton(ELucideIcon::Trash, "##LogClear", "Clear")) {
                 Clear();
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("Copy")) {
+            if (FEditorWidgets::DrawButton(ELucideIcon::Copy, "##LogCopy", "Copy")) {
                 CopySelectedToClipboard();
             }
             if (ImGui::IsItemHovered()) {
@@ -124,23 +124,27 @@ namespace Leon::Editor {
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("Copy All")) {
+            if (FEditorWidgets::DrawButton(ELucideIcon::Copy, "##LogCopyAll", "Copy All")) {
                 CopyAllVisibleToClipboard();
             }
 
             ImGui::SameLine();
-            ImGui::Checkbox("Info", &bShowInfo);
+            FEditorWidgets::DrawCheckbox("##ShowInfo", &bShowInfo, "Info");
             ImGui::SameLine();
-            ImGui::Checkbox("Warnings", &bShowWarnings);
+            FEditorWidgets::DrawCheckbox("##ShowWarnings", &bShowWarnings, "Warnings");
             ImGui::SameLine();
-            ImGui::Checkbox("Errors", &bShowErrors);
+            FEditorWidgets::DrawCheckbox("##ShowErrors", &bShowErrors, "Errors");
 
             ImGui::SameLine();
-            ImGui::Checkbox("Auto-Scroll", &bAutoScroll);
+            FEditorWidgets::DrawCheckbox("##AutoScroll", &bAutoScroll, "Auto-Scroll");
 
             ImGui::SameLine(ImGui::GetWindowWidth() - 200.0f);
-            ImGui::SetNextItemWidth(190.0f);
-            ImGui::InputTextWithHint("##LogFilter", "Filter log...", FilterBuffer, sizeof(FilterBuffer));
+            {
+                FControlStyle style;
+                style.Width = 190.0f;
+                FEditorWidgets::DrawSearchInput("LogFilter", FilterBuffer, sizeof(FilterBuffer), "Filter log...",
+                                                &style);
+            }
 
             ImGui::Separator();
 

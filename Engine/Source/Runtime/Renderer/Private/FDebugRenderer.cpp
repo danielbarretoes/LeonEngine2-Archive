@@ -78,7 +78,8 @@ namespace Leon {
                               static_cast<unsigned int>(LineVertices.size() * sizeof(FDebugVertex)));
 
         VertexArray->Bind();
-        FRenderCommand::SetLineWidth(2.5f);
+        // Core GL only guarantees line width 1.0; values > 1.0 are deprecated and spam GL debug.
+        FRenderCommand::SetLineWidth(1.0f);
         FRenderCommand::DrawLines(VertexArray, static_cast<unsigned int>(LineVertices.size()));
 
         FRenderCommand::SetPolygonOffset(false);
@@ -87,7 +88,6 @@ namespace Leon {
         FRenderCommand::SetDepthFunc(EDepthFunc::Less);
         FRenderCommand::SetCulling(true, ECullMode::Back);
         FRenderCommand::SetBlendState(false);
-        FRenderCommand::SetLineWidth(1.0f);
 
         LineVertices.clear();
     }

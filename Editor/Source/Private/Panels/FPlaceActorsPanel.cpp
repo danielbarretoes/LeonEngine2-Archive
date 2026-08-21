@@ -67,7 +67,7 @@ namespace Leon::Editor {
     }
 
     void FPlaceActorsPanel::Draw(UWorld* InWorld, bool* bInOutOpen) {
-        FEditorWidgets::BeginPanelWindow("  Place Actors", bInOutOpen, ELucideIcon::Boxes);
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::PlaceActors, bInOutOpen, ELucideIcon::Boxes);
 
         try {
             if (!InWorld) {
@@ -78,59 +78,47 @@ namespace Leon::Editor {
 
             // Category Tabs
             const char* categories[] = {"Basic", "Lights", "Shapes", "Volumes"};
-            for (int i = 0; i < 4; ++i) {
-                if (i > 0)
-                    ImGui::SameLine();
-                if (ImGui::RadioButton(categories[i], SelectedCategory == i)) {
-                    SelectedCategory = i;
-                }
-            }
+            const ELucideIcon categoryIcons[] = {ELucideIcon::Package, ELucideIcon::Lightbulb, ELucideIcon::Box,
+                                                 ELucideIcon::Hexagon};
+            FEditorWidgets::DrawSegmentedControl("PlaceCategory", &SelectedCategory, categoryIcons, categories, 4);
 
             ImGui::Separator();
             ImGui::Spacing();
 
             ImDrawList* drawList = ImGui::GetWindowDrawList();
+            (void)drawList;
 
-            auto drawPlaceItem = [this, InWorld, drawList](const char* label, const char* type, ELucideIcon icon,
-                                                           ImU32 color) {
-                ImVec2 curPos = ImGui::GetCursorScreenPos();
-                if (ImGui::Button(label, ImVec2(-1.0f, 32.0f))) {
+            auto drawPlaceItem = [this, InWorld](const char* label, const char* type, ELucideIcon icon) {
+                if (FEditorWidgets::DrawButton(icon, type, label, ImVec2(-1.0f, 32.0f))) {
                     SpawnActor(*InWorld, type);
                 }
 
-                // Drag & Drop Source for Viewport
                 if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
                     ImGui::SetDragDropPayload("PLACE_ACTOR_TYPE", type, std::strlen(type) + 1);
                     ImGui::Text("Spawn: %s", label);
                     ImGui::EndDragDropSource();
                 }
-
-                FLucideIcons::DrawIcon(drawList, ImVec2(curPos.x + 8.0f, curPos.y + 7.0f),
-                                       ImVec2(curPos.x + 26.0f, curPos.y + 25.0f), icon, color);
             };
 
             if (SelectedCategory == 0) {
-                drawPlaceItem("   Empty Actor", "Empty", ELucideIcon::Package, IM_COL32(180, 180, 190, 255));
-                drawPlaceItem("   Character Actor", "Character", ELucideIcon::PersonStanding,
-                              IM_COL32(100, 200, 255, 255));
-                drawPlaceItem("   Pawn Actor", "Pawn", ELucideIcon::User, IM_COL32(120, 220, 140, 255));
-                drawPlaceItem("   Camera Actor", "Camera", ELucideIcon::Clapperboard, IM_COL32(200, 120, 255, 255));
-                drawPlaceItem("   Player Start", "PlayerStart", ELucideIcon::Waypoints, IM_COL32(255, 180, 60, 255));
+                drawPlaceItem("Empty Actor", "Empty", ELucideIcon::Package);
+                drawPlaceItem("Character Actor", "Character", ELucideIcon::PersonStanding);
+                drawPlaceItem("Pawn Actor", "Pawn", ELucideIcon::User);
+                drawPlaceItem("Camera Actor", "Camera", ELucideIcon::Clapperboard);
+                drawPlaceItem("Player Start", "PlayerStart", ELucideIcon::Waypoints);
             } else if (SelectedCategory == 1) {
-                drawPlaceItem("   Directional Light", "DirectionalLight", ELucideIcon::Sun,
-                              IM_COL32(255, 220, 80, 255));
-                drawPlaceItem("   Point Light", "PointLight", ELucideIcon::Lightbulb, IM_COL32(255, 180, 60, 255));
-                drawPlaceItem("   Spot Light", "SpotLight", ELucideIcon::Crosshair, IM_COL32(255, 130, 60, 255));
-                drawPlaceItem("   Sky Light / Skybox", "Skybox", ELucideIcon::Sun, IM_COL32(100, 220, 255, 255));
+                drawPlaceItem("Directional Light", "DirectionalLight", ELucideIcon::Sun);
+                drawPlaceItem("Point Light", "PointLight", ELucideIcon::Lightbulb);
+                drawPlaceItem("Spot Light", "SpotLight", ELucideIcon::Crosshair);
+                drawPlaceItem("Sky Light / Skybox", "Skybox", ELucideIcon::Globe);
             } else if (SelectedCategory == 2) {
-                drawPlaceItem("   Cube", "Cube", ELucideIcon::Box, IM_COL32(80, 160, 255, 255));
-                drawPlaceItem("   Sphere", "Sphere", ELucideIcon::Circle, IM_COL32(80, 180, 255, 255));
-                drawPlaceItem("   Cylinder", "Cylinder", ELucideIcon::Boxes, IM_COL32(100, 160, 255, 255));
-                drawPlaceItem("   Plane", "Plane", ELucideIcon::Square, IM_COL32(120, 160, 255, 255));
+                drawPlaceItem("Cube", "Cube", ELucideIcon::Box);
+                drawPlaceItem("Sphere", "Sphere", ELucideIcon::Circle);
+                drawPlaceItem("Cylinder", "Cylinder", ELucideIcon::Boxes);
+                drawPlaceItem("Plane", "Plane", ELucideIcon::Square);
             } else if (SelectedCategory == 3) {
-                drawPlaceItem("   Blocking Volume", "BlockingVolume", ELucideIcon::Hexagon,
-                              IM_COL32(255, 100, 100, 255));
-                drawPlaceItem("   Trigger Volume", "TriggerVolume", ELucideIcon::Activity, IM_COL32(255, 180, 50, 255));
+                drawPlaceItem("Blocking Volume", "BlockingVolume", ELucideIcon::Hexagon);
+                drawPlaceItem("Trigger Volume", "TriggerVolume", ELucideIcon::Activity);
             }
         } catch (const std::exception& e) {
             LE_CORE_ERROR("FPlaceActorsPanel: Exception during Draw: {}", e.what());

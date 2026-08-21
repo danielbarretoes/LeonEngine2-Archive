@@ -62,6 +62,33 @@ namespace leon::editor::lucide_data {
     static constexpr const char* k_chevron_right[] = {
         "m9 18 6-6-6-6",
     };
+    static constexpr const char* k_chevron_down[] = {
+        "m6 9 6 6 6-6",
+    };
+    static constexpr const char* k_check[] = {
+        "M20 6 9 17l-5-5",
+    };
+    static constexpr const char* k_copy[] = {
+        "M 8.0 4.0 H 16.0 A 2.0 2.0 0 0 1 18.0 6.0 V 16.0 A 2.0 2.0 0 0 1 16.0 18.0 H 8.0 A 2.0 2.0 0 0 1 6.0 16.0 V "
+        "6.0 A 2.0 2.0 0 0 1 8.0 4.0 Z",
+        "M2 14v6a2 2 0 0 0 2 2h6",
+    };
+    static constexpr const char* k_pencil[] = {
+        "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 "
+        "2 0 0 0 .83-.497z",
+        "m15 5 4 4",
+    };
+    static constexpr const char* k_trash_2[] = {
+        "M3 6h18",
+        "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6",
+        "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2",
+        "M10 11v6",
+        "M14 11v6",
+    };
+    static constexpr const char* k_x[] = {
+        "M18 6 6 18",
+        "m6 6 12 12",
+    };
     static constexpr const char* k_clapperboard[] = {
         "M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z",
         "m6.2 5.3 3.1 3.9",
@@ -375,6 +402,12 @@ namespace leon::editor::lucide_data {
         if (std::strcmp(name, "chevron-right") == 0) {
             return {k_chevron_right, static_cast<int>(sizeof(k_chevron_right) / sizeof(k_chevron_right[0]))};
         }
+        if (std::strcmp(name, "chevron-down") == 0) {
+            return {k_chevron_down, static_cast<int>(sizeof(k_chevron_down) / sizeof(k_chevron_down[0]))};
+        }
+        if (std::strcmp(name, "check") == 0) {
+            return {k_check, static_cast<int>(sizeof(k_check) / sizeof(k_check[0]))};
+        }
         if (std::strcmp(name, "circle") == 0) {
             return {k_circle, static_cast<int>(sizeof(k_circle) / sizeof(k_circle[0]))};
         }
@@ -383,6 +416,9 @@ namespace leon::editor::lucide_data {
         }
         if (std::strcmp(name, "component") == 0) {
             return {k_component, static_cast<int>(sizeof(k_component) / sizeof(k_component[0]))};
+        }
+        if (std::strcmp(name, "copy") == 0) {
+            return {k_copy, static_cast<int>(sizeof(k_copy) / sizeof(k_copy[0]))};
         }
         if (std::strcmp(name, "cpu") == 0) {
             return {k_cpu, static_cast<int>(sizeof(k_cpu) / sizeof(k_cpu[0]))};
@@ -462,6 +498,9 @@ namespace leon::editor::lucide_data {
         if (std::strcmp(name, "pause") == 0) {
             return {k_pause, static_cast<int>(sizeof(k_pause) / sizeof(k_pause[0]))};
         }
+        if (std::strcmp(name, "pencil") == 0) {
+            return {k_pencil, static_cast<int>(sizeof(k_pencil) / sizeof(k_pencil[0]))};
+        }
         if (std::strcmp(name, "person-standing") == 0) {
             return {k_person_standing, static_cast<int>(sizeof(k_person_standing) / sizeof(k_person_standing[0]))};
         }
@@ -504,6 +543,9 @@ namespace leon::editor::lucide_data {
         if (std::strcmp(name, "swords") == 0) {
             return {k_swords, static_cast<int>(sizeof(k_swords) / sizeof(k_swords[0]))};
         }
+        if (std::strcmp(name, "trash-2") == 0) {
+            return {k_trash_2, static_cast<int>(sizeof(k_trash_2) / sizeof(k_trash_2[0]))};
+        }
         if (std::strcmp(name, "unplug") == 0) {
             return {k_unplug, static_cast<int>(sizeof(k_unplug) / sizeof(k_unplug[0]))};
         }
@@ -512,6 +554,9 @@ namespace leon::editor::lucide_data {
         }
         if (std::strcmp(name, "waypoints") == 0) {
             return {k_waypoints, static_cast<int>(sizeof(k_waypoints) / sizeof(k_waypoints[0]))};
+        }
+        if (std::strcmp(name, "x") == 0) {
+            return {k_x, static_cast<int>(sizeof(k_x) / sizeof(k_x[0]))};
         }
         if (std::strcmp(name, "zap") == 0) {
             return {k_zap, static_cast<int>(sizeof(k_zap) / sizeof(k_zap[0]))};

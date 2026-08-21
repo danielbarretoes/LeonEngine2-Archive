@@ -7,6 +7,8 @@
 #include "Editor/Commands/FDeleteActorsCommand.hpp"
 #include "Editor/Commands/FDuplicateActorsCommand.hpp"
 #include "Editor/UI/FEditorTheme.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
+#include "Editor/UI/FLucideIcons.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/FMapSerializer.hpp"
 #include "Gameplay/AActor.hpp"
@@ -20,6 +22,8 @@
 #include <imgui_internal.h>
 
 #include <cstdlib>
+#include <cstdio>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -52,9 +56,25 @@ namespace Leon::Editor {
         IO.IniFilename = ImGuiIniPath.c_str();
 
         WindowConfigIniPath = (fs::path(EditorSavedDir) / "EditorWindow.ini").string();
-        // Always open maximized with the default dock layout (ignore previous imgui.ini dock state).
+        // Always open maximized; restore last named layout if present, else bundled Default.
         glfwMaximizeWindow(Native);
-        bNeedResetLayout = true;
+        LayoutStore.Init(EditorSavedDir);
+        if (!LayoutStore.GetActiveLayoutName().empty()) {
+            const std::string& Active = LayoutStore.GetActiveLayoutName();
+            const bool bExists =
+                std::find(LayoutStore.GetLayoutNames().begin(), LayoutStore.GetLayoutNames().end(), Active) !=
+                LayoutStore.GetLayoutNames().end();
+            if (bExists) {
+                PendingLayoutName = Active;
+                bNeedLoadNamedLayout = true;
+                bNeedResetLayout = false;
+            } else {
+                LayoutStore.ClearActiveLayout();
+                bNeedResetLayout = true;
+            }
+        } else {
+            bNeedResetLayout = true;
+        }
 
         // Apply Unreal dark theme and load Inter fonts
         FEditorTheme::ApplyTheme();
@@ -137,7 +157,7 @@ namespace Leon::Editor {
         Toolbar.SetOnBakeDraft([this]() { BakeLightmaps(false); });
         Toolbar.SetOnBakeProduction([this]() { BakeLightmaps(true); });
         Toolbar.SetOnRunGame([this]() { LaunchGame(); });
-        Toolbar.SetOnResetLayout([this]() { bNeedResetLayout = true; });
+        Toolbar.SetOnResetLayout([this]() { RequestResetDefaultLayout(); });
 
         // Mirror engine/editor logs into the Output Log panel (console still prints).
         FLog::SetSink([this](Leon::ELogLevel level, std::string_view tag, std::string_view message) {
@@ -520,24 +540,73 @@ namespace Leon::Editor {
         ImGuiID dockRightBottom = dockRight;
 
         // Left: Place Actors
-        ImGui::DockBuilderDockWindow("  Place Actors", dockLeft);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::PlaceActors, dockLeft);
 
         // Center: Viewport
-        ImGui::DockBuilderDockWindow("  Viewport", dockMain);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::Viewport, dockMain);
 
         // Right Top: World Outliner, World Settings, Project Settings
-        ImGui::DockBuilderDockWindow("  World Outliner", dockRightTop);
-        ImGui::DockBuilderDockWindow("  World Settings", dockRightTop);
-        ImGui::DockBuilderDockWindow("  Project Settings", dockRightTop);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::WorldOutliner, dockRightTop);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::WorldSettings, dockRightTop);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::ProjectSettings, dockRightTop);
 
         // Right Bottom: Details
-        ImGui::DockBuilderDockWindow("  Details", dockRightBottom);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::Details, dockRightBottom);
 
         // Bottom: Content Browser, Output Log
-        ImGui::DockBuilderDockWindow("  Content Browser", dockBottom);
-        ImGui::DockBuilderDockWindow("  Output Log", dockBottom);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::ContentBrowser, dockBottom);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::OutputLog, dockBottom);
 
         ImGui::DockBuilderFinish(DockspaceId);
+    }
+
+    void FEditorApp::RequestResetDefaultLayout() {
+        bNeedLoadNamedLayout = false;
+        PendingLayoutName.clear();
+        bNeedResetLayout = true;
+    }
+
+    void FEditorApp::RequestLoadNamedLayout(const std::string& InName) {
+        const std::string Name = FEditorLayoutStore::SanitizeLayoutName(InName);
+        if (Name.empty())
+            return;
+        PendingLayoutName = Name;
+        bNeedResetLayout = false;
+        bNeedLoadNamedLayout = true;
+    }
+
+    bool FEditorApp::SaveCurrentLayoutAs(const std::string& InName) {
+        if (!LayoutStore.SaveNamedLayout(InName, CapturePanelVisibility())) {
+            ShowToast("Could not save layout (invalid name?)", true);
+            return false;
+        }
+        ShowToast("Layout saved: " + LayoutStore.GetActiveLayoutName());
+        OutputLog.AddLog(ELogLevel::Info, "Layout", "Saved layout '" + LayoutStore.GetActiveLayoutName() + "'");
+        return true;
+    }
+
+    FEditorPanelVisibility FEditorApp::CapturePanelVisibility() const {
+        FEditorPanelVisibility Panels;
+        Panels.bShowViewport = bShowViewport;
+        Panels.bShowPlaceActors = bShowPlaceActors;
+        Panels.bShowOutliner = bShowOutliner;
+        Panels.bShowDetails = bShowDetails;
+        Panels.bShowContentBrowser = bShowContentBrowser;
+        Panels.bShowOutputLog = bShowOutputLog;
+        Panels.bShowWorldSettings = bShowWorldSettings;
+        Panels.bShowProjectSettings = bShowProjectSettings;
+        return Panels;
+    }
+
+    void FEditorApp::ApplyPanelVisibility(const FEditorPanelVisibility& InPanels) {
+        bShowViewport = InPanels.bShowViewport;
+        bShowPlaceActors = InPanels.bShowPlaceActors;
+        bShowOutliner = InPanels.bShowOutliner;
+        bShowDetails = InPanels.bShowDetails;
+        bShowContentBrowser = InPanels.bShowContentBrowser;
+        bShowOutputLog = InPanels.bShowOutputLog;
+        bShowWorldSettings = InPanels.bShowWorldSettings;
+        bShowProjectSettings = InPanels.bShowProjectSettings;
     }
 
     void FEditorApp::OnUpdate(FTimestep InTs) {
@@ -774,23 +843,142 @@ namespace Leon::Editor {
 
         const ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
 
-        // Always apply default layout on first dock frame of a session (and when Reset is requested).
-        if (bNeedResetLayout || !bDockspaceInitialized) {
+        if (bNeedResetLayout) {
             bDockspaceInitialized = true;
             bNeedResetLayout = false;
-            bShowViewport = true;
-            bShowPlaceActors = true;
-            bShowOutliner = true;
-            bShowDetails = true;
-            bShowContentBrowser = true;
-            bShowOutputLog = true;
-            bShowWorldSettings = true;
-            bShowProjectSettings = true;
+            bNeedLoadNamedLayout = false;
+            PendingLayoutName.clear();
+            // Tear down current dock tree so the bundled Default.ini can rebuild cleanly.
+            ImGui::DockBuilderRemoveNode(DockspaceId);
+            FEditorPanelVisibility Panels;
+            if (LayoutStore.LoadBundledDefaultLayout(Panels)) {
+                ApplyPanelVisibility(Panels);
+                OutputLog.AddLog(ELogLevel::Info, "Layout", "Reset to default layout");
+                ShowToast("Layout: Default");
+            } else {
+                ApplyPanelVisibility(FEditorPanelVisibility{});
+                ResetDefaultLayout();
+                LayoutStore.ClearActiveLayout();
+                ShowToast("Bundled default missing — used fallback dock layout", true);
+            }
+        } else if (bNeedLoadNamedLayout) {
+            bDockspaceInitialized = true;
+            bNeedLoadNamedLayout = false;
+            // Tear down current dock tree so the ini snapshot can rebuild cleanly.
+            ImGui::DockBuilderRemoveNode(DockspaceId);
+            FEditorPanelVisibility Panels;
+            if (LayoutStore.LoadNamedLayout(PendingLayoutName, Panels)) {
+                ApplyPanelVisibility(Panels);
+                OutputLog.AddLog(ELogLevel::Info, "Layout", "Loaded layout '" + PendingLayoutName + "'");
+                ShowToast("Layout: " + PendingLayoutName);
+            } else {
+                ApplyPanelVisibility(FEditorPanelVisibility{});
+                ResetDefaultLayout();
+                LayoutStore.ClearActiveLayout();
+                ShowToast("Layout not found — reset to default", true);
+            }
+            PendingLayoutName.clear();
+        } else if (!bDockspaceInitialized) {
+            bDockspaceInitialized = true;
+            ApplyPanelVisibility(FEditorPanelVisibility{});
             ResetDefaultLayout();
         }
 
         ImGui::DockSpace(DockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        DrawSaveLayoutModal();
         ImGui::End();
+    }
+
+    void FEditorApp::DrawLayoutMenus() {
+        if (ImGui::BeginMenu("Layout")) {
+            if (ImGui::MenuItem("Save Layout As...")) {
+                const std::string& Active = LayoutStore.GetActiveLayoutName();
+                if (!Active.empty()) {
+                    std::snprintf(SaveLayoutNameBuffer, sizeof(SaveLayoutNameBuffer), "%s", Active.c_str());
+                } else {
+                    SaveLayoutNameBuffer[0] = '\0';
+                }
+                bOpenSaveLayoutModal = true;
+            }
+
+            ImGui::Separator();
+
+            const bool bIsDefault = LayoutStore.GetActiveLayoutName().empty();
+            if (ImGui::MenuItem("Default", nullptr, bIsDefault)) {
+                RequestResetDefaultLayout();
+            }
+
+            LayoutStore.RefreshLayoutList();
+            const auto& Names = LayoutStore.GetLayoutNames();
+            if (!Names.empty()) {
+                ImGui::Separator();
+                for (const std::string& Name : Names) {
+                    const bool bSelected = (LayoutStore.GetActiveLayoutName() == Name);
+                    if (ImGui::MenuItem(Name.c_str(), nullptr, bSelected)) {
+                        RequestLoadNamedLayout(Name);
+                    }
+                }
+            }
+
+            if (!Names.empty()) {
+                ImGui::Separator();
+                if (ImGui::BeginMenu("Delete Layout")) {
+                    for (const std::string& Name : Names) {
+                        if (ImGui::MenuItem(Name.c_str())) {
+                            const bool bWasActive = (LayoutStore.GetActiveLayoutName() == Name);
+                            if (LayoutStore.DeleteNamedLayout(Name)) {
+                                OutputLog.AddLog(ELogLevel::Info, "Layout", "Deleted layout '" + Name + "'");
+                                ShowToast("Deleted layout: " + Name);
+                                if (bWasActive)
+                                    RequestResetDefaultLayout();
+                            }
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
+            }
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Reset to Default Layout")) {
+                RequestResetDefaultLayout();
+            }
+            ImGui::EndMenu();
+        }
+    }
+
+    void FEditorApp::DrawSaveLayoutModal() {
+        if (bOpenSaveLayoutModal) {
+            ImGui::OpenPopup("Save Layout As");
+            bOpenSaveLayoutModal = false;
+        }
+
+        if (ImGui::BeginPopupModal("Save Layout As", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextUnformatted("Name for the current dock layout:");
+            ImGui::SetNextItemWidth(280.0f);
+            const bool bEnter = ImGui::InputText("##SaveLayoutName", SaveLayoutNameBuffer, sizeof(SaveLayoutNameBuffer),
+                                                 ImGuiInputTextFlags_EnterReturnsTrue |
+                                                     ImGuiInputTextFlags_AutoSelectAll);
+
+            const std::string Sanitized = FEditorLayoutStore::SanitizeLayoutName(SaveLayoutNameBuffer);
+            const bool bCanSave = !Sanitized.empty();
+            if (!bCanSave && SaveLayoutNameBuffer[0] != '\0') {
+                ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f),
+                                   "Use letters, numbers, spaces, - or _ (not Default/Main).");
+            }
+
+            if ((bEnter ||
+                 FEditorWidgets::DrawPrimaryButton(ELucideIcon::Save, "##SaveLayout", "Save", ImVec2(120.0f, 0.0f))) &&
+                bCanSave) {
+                if (SaveCurrentLayoutAs(Sanitized))
+                    ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (FEditorWidgets::DrawButton(ELucideIcon::X, "##CancelSaveLayout", "Cancel", ImVec2(120.0f, 0.0f))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
     }
 
     void FEditorApp::DrawMenuBar() {
@@ -839,18 +1027,12 @@ namespace Leon::Editor {
                 ImGui::MenuItem("Project Settings", nullptr, &bShowProjectSettings);
                 ImGui::Separator();
                 if (ImGui::MenuItem("Reset to Default Layout")) {
-                    bShowViewport = true;
-                    bShowPlaceActors = true;
-                    bShowOutliner = true;
-                    bShowDetails = true;
-                    bShowContentBrowser = true;
-                    bShowOutputLog = true;
-                    bShowWorldSettings = true;
-                    bShowProjectSettings = true;
-                    bNeedResetLayout = true;
+                    RequestResetDefaultLayout();
                 }
                 ImGui::EndMenu();
             }
+
+            DrawLayoutMenus();
 
             if (ImGui::BeginMenu("Build")) {
                 if (ImGui::MenuItem("Bake Lightmaps (Draft)", nullptr, false, !ActiveMapPath.empty())) {

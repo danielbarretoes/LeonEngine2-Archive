@@ -30,6 +30,7 @@ namespace Leon::Editor {
         Circle,
         ChevronLeft,
         ChevronRight,
+        ChevronDown,
         Download,
         Zap,
         Flame,
@@ -63,6 +64,11 @@ namespace Leon::Editor {
         MousePointer,
         Move,
         Scaling,
+        X,
+        Copy,
+        Trash,
+        Pencil,
+        Check,
         Count
     };
 

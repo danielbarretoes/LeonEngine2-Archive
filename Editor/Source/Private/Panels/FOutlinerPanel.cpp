@@ -223,7 +223,8 @@ namespace Leon::Editor {
                                                                   : ("Parent: " + CreateFolderParentPath).c_str());
             ImGui::SetNextItemWidth(240.0f);
             ImGui::InputText("##NewFolderName", CreateFolderBuffer, sizeof(CreateFolderBuffer));
-            if (ImGui::Button("Create", ImVec2(120, 0))) {
+            if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::FolderPlus, "##CreateFolder", "Create",
+                                                  ImVec2(120, 0))) {
                 std::string name = CreateFolderBuffer;
                 while (!name.empty() && (name.front() == '/' || name.front() == '\\'))
                     name.erase(name.begin());
@@ -235,7 +236,7 @@ namespace Leon::Editor {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0)))
+            if (FEditorWidgets::DrawButton(ELucideIcon::X, "##CancelCreateFolder", "Cancel", ImVec2(120, 0)))
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
@@ -255,7 +256,7 @@ namespace Leon::Editor {
         if (ImGui::BeginPopupModal("Rename Outliner Folder", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::SetNextItemWidth(240.0f);
             ImGui::InputText("##RenameFolderName", RenameFolderBuffer, sizeof(RenameFolderBuffer));
-            if (ImGui::Button("Rename", ImVec2(120, 0))) {
+            if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::Pencil, "##RenameFolder", "Rename", ImVec2(120, 0))) {
                 std::string leaf = RenameFolderBuffer;
                 while (!leaf.empty() && (leaf.front() == '/' || leaf.front() == '\\'))
                     leaf.erase(leaf.begin());
@@ -267,14 +268,14 @@ namespace Leon::Editor {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0)))
+            if (FEditorWidgets::DrawButton(ELucideIcon::X, "##CancelRenameFolder", "Cancel", ImVec2(120, 0)))
                 ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
     }
 
     void FOutlinerPanel::Draw(UWorld* InWorld, bool* bInOutOpen) {
-        FEditorWidgets::BeginPanelWindow("  World Outliner", bInOutOpen, ELucideIcon::Layers);
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::WorldOutliner, bInOutOpen, ELucideIcon::Layers);
 
         try {
             if (!InWorld) {
@@ -285,25 +286,15 @@ namespace Leon::Editor {
 
             VisibleActorOrder.clear();
 
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 30.0f);
-            ImGui::InputTextWithHint("##OutlinerSearch", "Search Actors...", FilterBuffer, sizeof(FilterBuffer));
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X##ClearOutlinerSearch")) {
-                FilterBuffer[0] = '\0';
-            }
+            FEditorWidgets::DrawSearchInput("OutlinerSearch", FilterBuffer, sizeof(FilterBuffer), "Search Actors...");
 
             const char* filterNames[] = {"All", "Meshes", "Lights", "Cameras", "Characters", "Volumes"};
-            for (int i = 0; i < 6; ++i) {
-                if (i > 0)
-                    ImGui::SameLine();
-                bool bActive = (static_cast<int>(ActiveCategory) == i);
-                if (bActive)
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.45f, 0.8f, 1.0f));
-                if (ImGui::SmallButton(filterNames[i])) {
-                    ActiveCategory = static_cast<EOutlinerFilterCategory>(i);
-                }
-                if (bActive)
-                    ImGui::PopStyleColor();
+            const ELucideIcon filterIcons[] = {ELucideIcon::LayoutGrid, ELucideIcon::Box,     ELucideIcon::Sun,
+                                               ELucideIcon::Clapperboard, ELucideIcon::PersonStanding,
+                                               ELucideIcon::Hexagon};
+            int cat = static_cast<int>(ActiveCategory);
+            if (FEditorWidgets::DrawSegmentedControl("OutlinerCategory", &cat, filterIcons, filterNames, 6)) {
+                ActiveCategory = static_cast<EOutlinerFilterCategory>(cat);
             }
 
             ImGui::Separator();
@@ -521,24 +512,22 @@ namespace Leon::Editor {
 
         ImGui::PushID(InActor);
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-        if (ImGui::SmallButton(bIsHidden ? "[H]" : "[V]")) {
+        if (FEditorWidgets::DrawToolbarIconButton(bIsHidden ? ELucideIcon::EyeOff : ELucideIcon::Eye, "##Vis", true,
+                                                  18.0f)) {
             if (bIsHidden)
                 HiddenActors.erase(InActor);
             else
                 HiddenActors.insert(InActor);
         }
-        ImGui::PopStyleColor();
         ImGui::SameLine();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-        if (ImGui::SmallButton(bIsLocked ? "[L]" : "[U]")) {
+        if (FEditorWidgets::DrawToolbarIconButton(bIsLocked ? ELucideIcon::Lock : ELucideIcon::LockOpen, "##Lock",
+                                                  true, 18.0f)) {
             if (bIsLocked)
                 LockedActors.erase(InActor);
             else
                 LockedActors.insert(InActor);
         }
-        ImGui::PopStyleColor();
         ImGui::SameLine();
 
         ELucideIcon icon = ELucideIcon::Package;

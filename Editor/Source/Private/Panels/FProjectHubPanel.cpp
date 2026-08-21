@@ -3,6 +3,7 @@
 #include "Core/FProjectDescriptor.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Editor/UI/FEditorTheme.hpp"
+#include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 
@@ -274,8 +275,9 @@ namespace Leon::Editor {
                     ImGui::EndGroup();
 
                     if (bCanReturnToEditor && bInOutOpen) {
-                        ImGui::SameLine(cardW - 150.0f);
-                        if (ImGui::Button("Back to Editor", ImVec2(120.0f, 28.0f))) {
+                        ImGui::SameLine(cardW - 170.0f);
+                        if (FEditorWidgets::DrawButton(ELucideIcon::ChevronLeft, "##BackEditor", "Back to Editor",
+                                                       ImVec2(150.0f, 28.0f))) {
                             *bInOutOpen = false;
                         }
                     }
@@ -300,7 +302,8 @@ namespace Leon::Editor {
                     ImGui::Spacing();
 
                     // Native Windows Browse Button
-                    if (ImGui::Button("Browse Disk...", ImVec2(180.0f, 34.0f))) {
+                    if (FEditorWidgets::DrawButton(ELucideIcon::Folder, "##BrowseDisk", "Browse Disk...",
+                                                   ImVec2(180.0f, 34.0f))) {
                         std::string picked =
                             FEditorFileDialog::OpenFile("Leon Project (*.lproject)\0*.lproject\0All Files (*.*)\0*.*\0",
                                                         "Select LeonEngine Project");
@@ -383,12 +386,18 @@ namespace Leon::Editor {
                 ImGui::TextDisabled("%s", proj.Path.c_str());
                 ImGui::EndGroup();
 
-                ImGui::SameLine(ImGui::GetWindowWidth() - 110.0f);
-                if (ImGui::Button(bExists ? "Open" : "Missing", ImVec2(90.0f, 32.0f)) && bExists) {
-                    AddRecentProject(proj.Path);
-                    if (OnProjectSelected) {
-                        OnProjectSelected(proj.Path);
+                ImGui::SameLine(ImGui::GetWindowWidth() - 120.0f);
+                if (bExists) {
+                    if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::FolderOpen, "##OpenProject", "Open",
+                                                          ImVec2(100.0f, 32.0f))) {
+                        AddRecentProject(proj.Path);
+                        if (OnProjectSelected) {
+                            OnProjectSelected(proj.Path);
+                        }
                     }
+                } else {
+                    FEditorWidgets::DrawButton(ELucideIcon::Unplug, "##MissingProject", "Missing",
+                                               ImVec2(100.0f, 32.0f));
                 }
 
                 ImGui::Separator();
@@ -412,7 +421,7 @@ namespace Leon::Editor {
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 100.0f);
         ImGui::InputText("##NewProjectPath", NewProjectPath, sizeof(NewProjectPath));
         ImGui::SameLine();
-        if (ImGui::Button("Browse...", ImVec2(90.0f, 0.0f))) {
+        if (FEditorWidgets::DrawButton(ELucideIcon::Folder, "##BrowseParent", "Browse...", ImVec2(110.0f, 0.0f))) {
             std::string picked = FEditorFileDialog::PickFolder("Select Projects Root Folder");
             if (!picked.empty()) {
 #ifdef _WIN32
@@ -427,7 +436,7 @@ namespace Leon::Editor {
         ImGui::Spacing();
         ImGui::Text("Template:");
         const char* templates[] = {"Blank Project (C++ & Empty Map)", "3D Showcase Level (Materials & Lighting)"};
-        ImGui::Combo("##TemplateCombo", &SelectedTemplateIndex, templates, IM_ARRAYSIZE(templates));
+        FEditorWidgets::DrawSelect("##TemplateCombo", &SelectedTemplateIndex, templates, IM_ARRAYSIZE(templates));
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -437,7 +446,8 @@ namespace Leon::Editor {
         ImGui::TextDisabled("Will create project at:\n%s", fullTarget.string().c_str());
 
         ImGui::Spacing();
-        if (ImGui::Button("Create & Open Project", ImVec2(200.0f, 36.0f))) {
+        if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::FolderPlus, "##CreateProject", "Create & Open Project",
+                                              ImVec2(220.0f, 36.0f))) {
             CreateNewProject();
         }
     }

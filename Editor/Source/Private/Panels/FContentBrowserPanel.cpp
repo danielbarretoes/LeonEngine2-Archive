@@ -2,6 +2,7 @@
 #include "Core/FLog.hpp"
 #include "Core/FProjectPaths.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
+#include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Editor/Utils/FEditorFileDialog.hpp"
 #include "Engine/Components.hpp"
@@ -270,7 +271,7 @@ namespace Leon::Editor {
     }
 
     void FContentBrowserPanel::Draw(bool* bInOutOpen) {
-        FEditorWidgets::BeginPanelWindow("  Content Browser", bInOutOpen, ELucideIcon::Folder);
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::ContentBrowser, bInOutOpen, ELucideIcon::Folder);
 
         try {
             std::error_code ec;
@@ -380,17 +381,18 @@ namespace Leon::Editor {
         if (ImGui::BeginPopup("ContentBrowserSettingsPopup")) {
             ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "View Settings");
             ImGui::Separator();
-            ImGui::SliderFloat("Card Size", &CardSize, 60.0f, 160.0f, "%.0f px");
-            ImGui::Checkbox("Show Extensions", &bShowExtensions);
+            FEditorWidgets::DrawSliderFloat("##CardSize", &CardSize, 60.0f, 160.0f, "%.0f px");
+            ImGui::SameLine();
+            ImGui::TextUnformatted("Card Size");
+            FEditorWidgets::DrawCheckbox("##ShowExt", &bShowExtensions, "Show Extensions");
 
             ImGui::Spacing();
             ImGui::TextDisabled("View Mode");
-            if (ImGui::RadioButton("Grid", ViewMode == EContentBrowserViewMode::Grid)) {
-                ViewMode = EContentBrowserViewMode::Grid;
-            }
-            ImGui::SameLine();
-            if (ImGui::RadioButton("List", ViewMode == EContentBrowserViewMode::List)) {
-                ViewMode = EContentBrowserViewMode::List;
+            const char* viewModes[] = {"Grid", "List"};
+            const ELucideIcon viewIcons[] = {ELucideIcon::LayoutGrid, ELucideIcon::FileText};
+            int vm = (ViewMode == EContentBrowserViewMode::Grid) ? 0 : 1;
+            if (FEditorWidgets::DrawSegmentedControl("##CBViewMode", &vm, viewIcons, viewModes, 2)) {
+                ViewMode = (vm == 0) ? EContentBrowserViewMode::Grid : EContentBrowserViewMode::List;
             }
             ImGui::EndPopup();
         }
@@ -1185,26 +1187,30 @@ namespace Leon::Editor {
             ImGui::Spacing();
 
             // Confirm Delete button (Red)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.15f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.25f, 0.25f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+            {
+                FControlStyle delStyle;
+                delStyle.bOverrideAccent = true;
+                delStyle.Accent = FEditorTheme::GetTokens().Destructive;
+                const char* delLabel =
+                    CachedDeleteReferences.empty() ? "Delete" : "Delete & Unlink References";
+                const float delW = CachedDeleteReferences.empty() ? 120.0f : 230.0f;
+                bool bConfirmed = FEditorWidgets::DrawPrimaryButton(ELucideIcon::Trash, "##ConfirmDelete", delLabel,
+                                                                    ImVec2(delW, 28.0f), &delStyle);
 
-            bool bConfirmed = ImGui::Button(CachedDeleteReferences.empty() ? "Delete" : "Delete & Unlink References",
-                                            ImVec2(CachedDeleteReferences.empty() ? 100.0f : 210.0f, 28.0f));
-            ImGui::PopStyleColor(3);
-
-            if (bConfirmed || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-                if (!CachedDeleteReferences.empty()) {
-                    UnlinkAssetReferences(DeleteTargetPath, CachedDeleteReferences);
+                if (bConfirmed || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                    if (!CachedDeleteReferences.empty()) {
+                        UnlinkAssetReferences(DeleteTargetPath, CachedDeleteReferences);
+                    }
+                    DeleteItem(DeleteTargetPath);
+                    CachedDeleteReferences.clear();
+                    DeleteTargetPath.clear();
+                    ImGui::CloseCurrentPopup();
                 }
-                DeleteItem(DeleteTargetPath);
-                CachedDeleteReferences.clear();
-                DeleteTargetPath.clear();
-                ImGui::CloseCurrentPopup();
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(90.0f, 28.0f)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if (FEditorWidgets::DrawButton(ELucideIcon::X, "##CancelDelete", "Cancel", ImVec2(100.0f, 28.0f)) ||
+                ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                 CachedDeleteReferences.clear();
                 DeleteTargetPath.clear();
                 ImGui::CloseCurrentPopup();
@@ -1244,12 +1250,14 @@ namespace Leon::Editor {
                 ImGui::CloseCurrentPopup();
             };
 
-            if (ImGui::Button("Rename", ImVec2(100.0f, 0)) || bEnterPressed) {
+            if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::Pencil, "##RenameConfirm", "Rename", ImVec2(120.0f, 0)) ||
+                bEnterPressed) {
                 PerformRename();
             }
 
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(100.0f, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            if (FEditorWidgets::DrawButton(ELucideIcon::X, "##RenameCancel", "Cancel", ImVec2(120.0f, 0)) ||
+                ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                 ImGui::CloseCurrentPopup();
             }
 

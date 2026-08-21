@@ -6,6 +6,7 @@
 #include "Editor/Context/FEditorHistory.hpp"
 #include "Editor/Panels/FPlaceActorsPanel.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
+#include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
 #include "Gameplay/APlayerStart.hpp"
@@ -448,7 +449,8 @@ namespace Leon::Editor {
 
         // Coordinate Space Toggle: World / Local
         bool bWorld = (Gizmo.GetMode() == EGizmoMode::World);
-        if (ImGui::Button(bWorld ? "World" : "Local", ImVec2(50.0f, btnHeight))) {
+        if (FEditorWidgets::DrawToggleButton(bWorld ? ELucideIcon::Globe : ELucideIcon::Move, "##CoordSpace", true,
+                                             bWorld ? "World" : "Local", ImVec2(0, btnHeight))) {
             Gizmo.SetMode(bWorld ? EGizmoMode::Local : EGizmoMode::World);
         }
         if (ImGui::IsItemHovered()) {
@@ -459,14 +461,16 @@ namespace Leon::Editor {
 
         // Snapping Toggle
         bool bSnap = Gizmo.IsSnappingEnabled();
-        if (bSnap) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.55f, 0.35f, 1.0f));
-        }
-        if (ImGui::Button("Snap", ImVec2(44.0f, btnHeight))) {
-            Gizmo.SetSnappingEnabled(!bSnap);
-        }
-        if (bSnap) {
-            ImGui::PopStyleColor();
+        {
+            FControlStyle snapStyle;
+            if (bSnap) {
+                snapStyle.bOverrideAccent = true;
+                snapStyle.Accent = FEditorTheme::GetTokens().Success;
+            }
+            if (FEditorWidgets::DrawToggleButton(ELucideIcon::Magnet, "##SnapToggle", bSnap, "Snap",
+                                                 ImVec2(0, btnHeight), &snapStyle)) {
+                Gizmo.SetSnappingEnabled(!bSnap);
+            }
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Grid Snapping: %s", bSnap ? "Enabled" : "Disabled");
@@ -475,7 +479,7 @@ namespace Leon::Editor {
         ImGui::SameLine();
 
         // Snapping Value Dropdown
-        if (ImGui::Button("##SnapMenu", ImVec2(18.0f, btnHeight))) {
+        if (FEditorWidgets::DrawToolbarIconButton(ELucideIcon::ChevronDown, "##SnapMenu", true, btnHeight)) {
             ImGui::OpenPopup("SnapSettingsPopup");
         }
         if (ImGui::BeginPopup("SnapSettingsPopup")) {
@@ -521,40 +525,41 @@ namespace Leon::Editor {
 
         // View Mode: Perspective / Top / Front / Side
         const char* viewModeNames[] = {"Perspective", "Top", "Front", "Side"};
-        ImGui::SetNextItemWidth(100.0f);
         int vmIdx = static_cast<int>(ViewMode);
-        if (ImGui::Combo("##ViewModeCombo", &vmIdx, viewModeNames, 4)) {
-            ViewMode = static_cast<EViewportViewMode>(vmIdx);
+        {
+            FControlStyle style;
+            style.Width = 110.0f;
+            if (FEditorWidgets::DrawSelect("##ViewModeCombo", &vmIdx, viewModeNames, 4, &style)) {
+                ViewMode = static_cast<EViewportViewMode>(vmIdx);
+            }
         }
 
         ImGui::SameLine();
 
         // Shading Mode: Lit / Unlit / Wireframe
         const char* shadingNames[] = {"Lit", "Unlit", "Wireframe"};
-        ImGui::SetNextItemWidth(90.0f);
         int smIdx = static_cast<int>(ShadingMode);
-        if (ImGui::Combo("##ShadingCombo", &smIdx, shadingNames, 3)) {
-            ShadingMode = static_cast<EViewportShadingMode>(smIdx);
+        {
+            FControlStyle style;
+            style.Width = 100.0f;
+            if (FEditorWidgets::DrawSelect("##ShadingCombo", &smIdx, shadingNames, 3, &style)) {
+                ShadingMode = static_cast<EViewportShadingMode>(smIdx);
+            }
         }
 
         ImGui::SameLine();
 
         // Stats Toggle
-        if (ImGui::SmallButton(bShowStatistics ? "Hide Stats" : "Show Stats")) {
+        if (FEditorWidgets::DrawToggleButton(ELucideIcon::Activity, "##StatsToggle", bShowStatistics,
+                                             bShowStatistics ? "Hide Stats" : "Show Stats")) {
             bShowStatistics = !bShowStatistics;
         }
 
         ImGui::SameLine();
-        // Unreal Show Flags → Gizmos (capture state BEFORE toggle so Push/Pop stay balanced)
-        const bool bGizmosOn = bShowEditorGizmos;
-        if (bGizmosOn) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.22f, 0.45f, 0.78f, 1.0f));
-        }
-        if (ImGui::SmallButton(bGizmosOn ? "Gizmos: On" : "Gizmos: Off")) {
+        if (FEditorWidgets::DrawToggleButton(bShowEditorGizmos ? ELucideIcon::Eye : ELucideIcon::EyeOff,
+                                             "##GizmosToggle", bShowEditorGizmos,
+                                             bShowEditorGizmos ? "Gizmos: On" : "Gizmos: Off")) {
             bShowEditorGizmos = !bShowEditorGizmos;
-        }
-        if (bGizmosOn) {
-            ImGui::PopStyleColor();
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Show Flags: editor gizmos (lights, PlayerStart, cameras)");
@@ -564,7 +569,7 @@ namespace Leon::Editor {
     void FViewportPanel::Draw(UWorld* InWorld, const std::string& InMapName, AActor* InSelectedActor,
                               bool* bInOutOpen) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        FEditorWidgets::BeginPanelWindow("  Viewport", bInOutOpen, ELucideIcon::Eye,
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::Viewport, bInOutOpen, ELucideIcon::Eye,
                                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         ImGui::PopStyleVar();
 

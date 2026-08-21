@@ -61,6 +61,8 @@ namespace Leon::Editor {
                 return "chevron-left";
             case ELucideIcon::ChevronRight:
                 return "chevron-right";
+            case ELucideIcon::ChevronDown:
+                return "chevron-down";
             case ELucideIcon::Download:
                 return "download";
             case ELucideIcon::Zap:
@@ -127,6 +129,16 @@ namespace Leon::Editor {
                 return "move";
             case ELucideIcon::Scaling:
                 return "scaling";
+            case ELucideIcon::X:
+                return "x";
+            case ELucideIcon::Copy:
+                return "copy";
+            case ELucideIcon::Trash:
+                return "trash-2";
+            case ELucideIcon::Pencil:
+                return "pencil";
+            case ELucideIcon::Check:
+                return "check";
             case ELucideIcon::Count:
                 break;
             }

@@ -7,7 +7,7 @@
 namespace Leon::Editor {
 
     void FWorldSettingsPanel::Draw(UWorld* InWorld, bool* bInOutOpen) {
-        FEditorWidgets::BeginPanelWindow("  World Settings", bInOutOpen, ELucideIcon::Globe);
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::WorldSettings, bInOutOpen, ELucideIcon::Globe);
 
         try {
             if (!InWorld) {
@@ -17,17 +17,23 @@ namespace Leon::Editor {
             }
 
             if (ImGui::CollapsingHeader("GameMode", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Text("GameMode Override:");
-                ImGui::InputText("##GameModeOverride", GameModeOverride, sizeof(GameModeOverride));
+                FEditorWidgets::DrawInputText("GameMode Override", "##GameModeOverride", GameModeOverride,
+                                              sizeof(GameModeOverride));
             }
 
             if (ImGui::CollapsingHeader("Lightmass / Static Lighting", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::Checkbox("Enable Static Lighting", &bEnableStaticLighting);
-                ImGui::DragInt("Default Lightmap Resolution", &LightmapResolution, 16, 32, 4096);
+                FEditorWidgets::BeginPropertyGrid();
+                FEditorWidgets::DrawPropertyCheckbox("Enable Static Lighting", "##EnableStaticLighting",
+                                                     &bEnableStaticLighting);
+                FEditorWidgets::DrawPropertyDragInt("Default Lightmap Resolution", "##LightmapRes", &LightmapResolution,
+                                                    16, 32, 4096);
+                FEditorWidgets::EndPropertyGrid();
             }
 
             if (ImGui::CollapsingHeader("Physics", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::DragFloat("Global Gravity Z", &Gravity, 0.1f, -50.0f, 50.0f);
+                FEditorWidgets::BeginPropertyGrid();
+                FEditorWidgets::DrawPropertyDragFloat("Global Gravity Z", "##GravityZ", &Gravity, 0.1f, -50.0f, 50.0f);
+                FEditorWidgets::EndPropertyGrid();
             }
         } catch (const std::exception& e) {
             LE_CORE_ERROR("FWorldSettingsPanel: Exception during Draw: {}", e.what());

@@ -45,6 +45,7 @@ include("${LEON_ENGINE_ROOT}/CMake/LeonCompileOptions.cmake")
 
 add_library(LeonEditorCore STATIC
     Source/Private/FEditorApp.cpp
+    Source/Private/FEditorLayoutStore.cpp
     Source/Private/Context/FEditorContext.cpp
     Source/Private/Context/FEditorSelection.cpp
     Source/Private/Context/FEditorHistory.cpp

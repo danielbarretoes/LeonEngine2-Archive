@@ -1,0 +1,13 @@
+{
+  "Name": "Default",
+  "Panels": {
+    "Viewport": true,
+    "PlaceActors": true,
+    "Outliner": true,
+    "Details": true,
+    "ContentBrowser": true,
+    "OutputLog": true,
+    "WorldSettings": true,
+    "ProjectSettings": true
+  }
+}

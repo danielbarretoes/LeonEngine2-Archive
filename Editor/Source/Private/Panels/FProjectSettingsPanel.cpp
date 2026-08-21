@@ -1,5 +1,6 @@
 #include "Editor/Panels/FProjectSettingsPanel.hpp"
 #include "Core/FLog.hpp"
+#include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include <cstring>
@@ -9,7 +10,7 @@ namespace Leon::Editor {
 
     void FProjectSettingsPanel::Draw(FProjectDescriptor& InOutDescriptor, const std::string& InProjectPath,
                                      bool* bInOutOpen) {
-        FEditorWidgets::BeginPanelWindow("  Project Settings", bInOutOpen, ELucideIcon::Settings);
+        FEditorWidgets::BeginPanelWindow(FPanelWindowTitles::ProjectSettings, bInOutOpen, ELucideIcon::Settings);
 
         try {
             char nameBuf[128];
@@ -26,26 +27,26 @@ namespace Leon::Editor {
             std::strncpy(gmBuf, InOutDescriptor.DefaultGameMode.c_str(), sizeof(gmBuf) - 1);
 #endif
 
-            ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "General Project Settings");
+            ImGui::TextColored(FEditorTheme::GetTokens().Accent, "General Project Settings");
             ImGui::Separator();
             ImGui::Spacing();
 
-            if (ImGui::InputText("Project Name", nameBuf, sizeof(nameBuf))) {
+            if (FEditorWidgets::DrawInputText("Project Name", "##ProjectName", nameBuf, sizeof(nameBuf))) {
                 InOutDescriptor.ProjectName = nameBuf;
             }
 
             ImGui::TextDisabled("Engine Version: %s", InOutDescriptor.EngineVersion.c_str());
 
             ImGui::Spacing();
-            ImGui::TextColored(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), "Default Maps & Modes");
+            ImGui::TextColored(FEditorTheme::GetTokens().Accent, "Default Maps & Modes");
             ImGui::Separator();
             ImGui::Spacing();
 
-            if (ImGui::InputText("Editor Startup Map", mapBuf, sizeof(mapBuf))) {
+            if (FEditorWidgets::DrawInputText("Editor Startup Map", "##DefaultMap", mapBuf, sizeof(mapBuf))) {
                 InOutDescriptor.DefaultMap = mapBuf;
             }
 
-            if (ImGui::InputText("Default GameMode", gmBuf, sizeof(gmBuf))) {
+            if (FEditorWidgets::DrawInputText("Default GameMode", "##DefaultGM", gmBuf, sizeof(gmBuf))) {
                 InOutDescriptor.DefaultGameMode = gmBuf;
             }
 
@@ -53,7 +54,8 @@ namespace Leon::Editor {
             ImGui::Separator();
             ImGui::Spacing();
 
-            if (ImGui::Button("Save Settings", ImVec2(120.0f, 32.0f))) {
+            if (FEditorWidgets::DrawPrimaryButton(ELucideIcon::Save, "##SaveSettings", "Save Settings",
+                                                  ImVec2(160.0f, 32.0f))) {
                 if (!InProjectPath.empty()) {
                     InOutDescriptor.Save(InProjectPath);
                 }

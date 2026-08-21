@@ -267,7 +267,10 @@ namespace Leon {
     }
 
     void FOpenGLRenderAPI::SetLineWidth(float InWidth) {
-        glLineWidth(InWidth);
+        // Wide lines (> 1.0) are deprecated in core GL and will become invalid.
+        // Clamp so callers cannot reintroduce GL_DEBUG deprecation spam.
+        const float width = (InWidth > 1.0f) ? 1.0f : ((InWidth < 0.0f) ? 0.0f : InWidth);
+        glLineWidth(width);
     }
 
     FOpenGLRenderAPI::~FOpenGLRenderAPI() {
