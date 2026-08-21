@@ -287,14 +287,9 @@ namespace Leon::Editor {
 
             DrawTopBar();
 
-            ImGui::Spacing();
-
-            // Row 2: Folders + Search / mosaic
             ImGui::Columns(2, "ContentBrowserSplitLayout", true);
             ImGui::SetColumnWidth(0, 210.0f);
 
-            ImGui::TextDisabled("Folders");
-            ImGui::Separator();
             ImGui::BeginChild("FolderTreeScrollRegion", ImVec2(0, 0), false);
             DrawDirectoryTree(BaseContentPath);
             ImGui::EndChild();
@@ -470,6 +465,9 @@ namespace Leon::Editor {
         }
         if (!bHasSubdirs) {
             flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        } else {
+            // Expand folder tree by default the first time each node is seen.
+            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         }
 
         ImGui::PushID(pathStr.c_str());

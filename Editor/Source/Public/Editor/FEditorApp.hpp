@@ -19,6 +19,7 @@
 #include "Engine/UWorld.hpp"
 
 #include <atomic>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -98,10 +99,10 @@ namespace Leon::Editor {
         bool bDockspaceInitialized = false;
         bool bNeedResetLayout = false;
         bool bNeedLoadNamedLayout = false;
+        bool bNeedFocusContentBrowser = false;
         std::string PendingLayoutName;
         bool bOpenSaveLayoutModal = false;
         char SaveLayoutNameBuffer[64] = {};
-        bool bStartupMaximizeApplied = false;
 
         // Panel visibility toggles
         bool bShowViewport = true;
@@ -119,6 +120,7 @@ namespace Leon::Editor {
         std::atomic<int> BakeExitCode{0};
         std::string BakeModeLabel;
         std::mutex BakeMutex;
+        std::deque<std::string> BakeLogLines;
 
         // Transient toast (bottom-center, Unreal-like notification)
         std::string ToastMessage;

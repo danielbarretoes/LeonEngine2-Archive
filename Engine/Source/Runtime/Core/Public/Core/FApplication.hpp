@@ -21,6 +21,10 @@ namespace Leon {
         std::string Name = "LeonEngine App";
         unsigned int WindowWidth = FWindowDisplayPolicy::DefaultWidth;
         unsigned int WindowHeight = FWindowDisplayPolicy::DefaultHeight;
+        /** Game executables: 16:9 HD client policy. Editor must leave this false. */
+        bool bHdClientPolicy = false;
+        /** Editor: OS-maximized from glfwCreateWindow. Games stay windowed unless fullscreen INI. */
+        bool bMaximized = false;
         FApplicationCommandLineArgs CommandLineArgs;
     };
 

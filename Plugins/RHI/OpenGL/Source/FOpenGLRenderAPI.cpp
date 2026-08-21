@@ -35,13 +35,11 @@ namespace Leon {
 
     void FOpenGLRenderAPI::SetViewport(unsigned int InX, unsigned int InY, unsigned int InWidth,
                                        unsigned int InHeight) {
-        if (ViewportX == InX && ViewportY == InY && ViewportW == InWidth && ViewportH == InHeight)
-            return;
-
         ViewportX = InX;
         ViewportY = InY;
         ViewportW = InWidth;
         ViewportH = InHeight;
+        // Always issue glViewport: ImGui (and other backends) change GL viewport without going through this cache.
         glViewport((GLint)InX, (GLint)InY, (GLsizei)InWidth, (GLsizei)InHeight);
     }
 
@@ -232,6 +230,8 @@ namespace Leon {
         CurrentFBO = InRendererID;
         glBindFramebuffer(GL_FRAMEBUFFER, InRendererID);
         FRenderer::GetStatsMutable().FBOSwitches++;
+        // FBO change invalidates any assumption that the cached viewport still matches GL.
+        ViewportW = 0xFFFFFFFFu;
     }
 
     void FOpenGLRenderAPI::DrawArrays(const TRef<FVertexArray>& InVertexArray, unsigned int InVertexCount) {

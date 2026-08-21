@@ -25,14 +25,21 @@ namespace Leon {
         uint32_t Width = 0;
         uint32_t Height = 0;
         uint32_t Channels = 4;
+        /** Only RGBA32F is cooked by FHDRImporter today. */
         uint32_t Format = static_cast<uint32_t>(EHDRPixelFormat::RGBA32F);
+        /** Only Equirectangular is cooked by FHDRImporter today. */
         uint32_t Projection = static_cast<uint32_t>(EHDREnvironmentProjection::Equirectangular);
         uint32_t ColorSpace = 0; // 0 = Linear
+        /**
+         * Remaining exposure scale to apply at runtime. Importer bakes ExposureBias into
+         * pixels and writes 1.0 here so Load never double-applies.
+         */
         float ExposureBias = 1.0f;
-        uint32_t MipCount = 1;
-        uint64_t TotalDataSize = 0; // Total float payload size in bytes
+        uint32_t MipCount = 1; // always 1 for cooked .lhdr
+        uint64_t TotalDataSize = 0; // float payload size in bytes (W*H*Channels*4)
     };
 #pragma pack(pop)
+    static_assert(sizeof(FLHDRHeader) == 64, "FLHDRHeader must stay 64 bytes packed");
 
     /**
      * @brief Container for deserialized native HDR texture asset data.

@@ -52,15 +52,20 @@ namespace Leon::Editor {
         bBrandLoadAttempted = true;
 
         std::vector<std::string> logoCandidates = {
-            "Editor/Resources/Brand/LeonLogoUi.png",       "../Editor/Resources/Brand/LeonLogoUi.png",
-            "../../Editor/Resources/Brand/LeonLogoUi.png", "Resources/Brand/LeonLogoUi.png",
-            "Engine/Resources/Brand/LeonLogoUi.png",       "Editor/Resources/Brand/LeonLogo.png",
+            "Engine/Resources/Icon/Logo.png",
+            "Editor/Resources/Brand/LeonLogoUi.png",
+            "../Editor/Resources/Brand/LeonLogoUi.png",
+            "../../Editor/Resources/Brand/LeonLogoUi.png",
+            "Resources/Brand/LeonLogoUi.png",
+            "Engine/Resources/Brand/LeonLogoUi.png",
+            "Editor/Resources/Brand/LeonLogo.png",
         };
 
 #ifdef _WIN32
         char exePath[MAX_PATH] = {};
         if (GetModuleFileNameA(nullptr, exePath, MAX_PATH) > 0) {
             fs::path exeDir = fs::path(exePath).parent_path();
+            logoCandidates.push_back((exeDir / "Engine" / "Resources" / "Icon" / "Logo.png").string());
             logoCandidates.push_back((exeDir / "Resources" / "Brand" / "LeonLogoUi.png").string());
             logoCandidates.push_back((exeDir / "Editor" / "Resources" / "Brand" / "LeonLogoUi.png").string());
             logoCandidates.push_back(
@@ -70,6 +75,7 @@ namespace Leon::Editor {
 
         const char* envRoot = std::getenv("LEON_ENGINE_ROOT");
         if (envRoot && envRoot[0] != '\0') {
+            logoCandidates.push_back((fs::path(envRoot) / "Engine" / "Resources" / "Icon" / "Logo.png").string());
             logoCandidates.push_back(
                 (fs::path(envRoot) / "Editor" / "Resources" / "Brand" / "LeonLogoUi.png").string());
         }

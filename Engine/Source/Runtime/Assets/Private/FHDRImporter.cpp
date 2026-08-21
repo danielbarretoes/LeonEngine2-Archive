@@ -55,9 +55,31 @@ namespace Leon {
             return false;
         }
 
-        size_t expectedFloats = static_cast<size_t>(Header.Width) * Header.Height * Header.Channels;
-        Pixels.resize(expectedFloats);
-        file.read(reinterpret_cast<char*>(Pixels.data()), expectedFloats * sizeof(float));
+        if (Header.Width == 0 || Header.Height == 0 || Header.Width > kMaxCookedHDRDim ||
+            Header.Height > kMaxCookedHDRDim || Header.Channels == 0 || Header.Channels > 4) {
+            LE_CORE_ERROR("FNativeHDRData: Invalid dimensions/channels in '{0}'", InFilePath);
+            return false;
+        }
+        if (Header.Format != static_cast<uint32_t>(EHDRPixelFormat::RGBA32F)) {
+            LE_CORE_ERROR("FNativeHDRData: Unsupported Format {0} in '{1}' (only RGBA32F)", Header.Format, InFilePath);
+            return false;
+        }
+
+        const uint64_t expectedFloats =
+            static_cast<uint64_t>(Header.Width) * static_cast<uint64_t>(Header.Height) * Header.Channels;
+        if (expectedFloats > (static_cast<uint64_t>(kMaxCookedHDRDim) * kMaxCookedHDRDim * 4ull)) {
+            LE_CORE_ERROR("FNativeHDRData: Payload too large in '{0}'", InFilePath);
+            return false;
+        }
+        if (Header.TotalDataSize != 0 &&
+            Header.TotalDataSize != expectedFloats * sizeof(float)) {
+            LE_CORE_ERROR("FNativeHDRData: TotalDataSize mismatch in '{0}'", InFilePath);
+            return false;
+        }
+
+        Pixels.resize(static_cast<size_t>(expectedFloats));
+        file.read(reinterpret_cast<char*>(Pixels.data()),
+                  static_cast<std::streamsize>(expectedFloats * sizeof(float)));
 
         if (file.gcount() != static_cast<std::streamsize>(expectedFloats * sizeof(float))) {
             LE_CORE_ERROR("FNativeHDRData: Corrupted or truncated payload in '{0}'", InFilePath);
@@ -113,6 +135,8 @@ namespace Leon {
                 OutData.Pixels[i + 2] *= bias;
             }
         }
+        // Bias already applied to pixels — store remaining scale = 1 so Load never double-applies.
+        OutData.Header.ExposureBias = 1.0f;
 
         LE_CORE_INFO("FHDRImporter: Imported raw HDR '{0}' -> Native .lhdr ({1}x{2}, RGBA32F)", InSourcePath, width,
                      height);

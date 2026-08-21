@@ -352,6 +352,11 @@ namespace Leon {
         file.read(reinterpret_cast<char*>(&indexCount), sizeof(indexCount));
         file.read(reinterpret_cast<char*>(&submeshCount), sizeof(submeshCount));
         file.read(reinterpret_cast<char*>(&materialSlotCount), sizeof(materialSlotCount));
+        if (!file.good() || vertexCount > kMaxCookedMeshVertices || indexCount > kMaxCookedMeshVertices * 3u ||
+            submeshCount > 100000 || materialSlotCount > 100000) {
+            LE_CORE_ERROR("UStaticMesh: Invalid counts in \"{0}\"", InFilePath);
+            return false;
+        }
 
         file.read(reinterpret_cast<char*>(&BoundsMin), sizeof(glm::vec3));
         file.read(reinterpret_cast<char*>(&BoundsMax), sizeof(glm::vec3));
@@ -363,6 +368,10 @@ namespace Leon {
         for (uint32_t i = 0; i < submeshCount; ++i) {
             uint32_t nameLen = 0;
             file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
+            if (!file.good() || nameLen > kMaxCookedNameLen) {
+                LE_CORE_ERROR("UStaticMesh: Invalid submesh name length in \"{0}\"", InFilePath);
+                return false;
+            }
             if (nameLen > 0) {
                 Submeshes[i].Name.resize(nameLen);
                 file.read(&Submeshes[i].Name[0], nameLen);
@@ -382,12 +391,16 @@ namespace Leon {
         for (uint32_t i = 0; i < materialSlotCount; ++i) {
             uint32_t slotNameLen = 0;
             file.read(reinterpret_cast<char*>(&slotNameLen), sizeof(slotNameLen));
+            if (!file.good() || slotNameLen > kMaxCookedNameLen)
+                return false;
             if (slotNameLen > 0) {
                 MaterialSlots[i].SlotName.resize(slotNameLen);
                 file.read(&MaterialSlots[i].SlotName[0], slotNameLen);
             }
             uint32_t matPathLen = 0;
             file.read(reinterpret_cast<char*>(&matPathLen), sizeof(matPathLen));
+            if (!file.good() || matPathLen > kMaxCookedNameLen)
+                return false;
             if (matPathLen > 0) {
                 MaterialSlots[i].DefaultMaterialPath.resize(matPathLen);
                 file.read(&MaterialSlots[i].DefaultMaterialPath[0], matPathLen);

@@ -70,6 +70,11 @@ namespace Leon::Editor {
         glm::vec2 WorldToScreen(const glm::vec3& InWorldPos, const glm::mat4& InViewProj, float InVx, float InVy,
                                 float InVw, float InVh, bool& OutInFront) const;
 
+        bool ScreenToWorldRay(const FPerspectiveCamera& InCamera, const glm::vec2& InMouse, float InVx, float InVy,
+                              float InVw, float InVh, glm::vec3& OutOrigin, glm::vec3& OutDir) const;
+
+        bool IntersectRayWithAxis(const glm::vec3& InRayOrigin, const glm::vec3& InRayDir, glm::vec3& OutHit) const;
+
         void CommitDragIfNeeded(FEditorHistory* InHistory);
 
         EGizmoOperation CurrentOperation = EGizmoOperation::Translate;
@@ -86,6 +91,12 @@ namespace Leon::Editor {
         glm::vec3 InitialActorLocation = glm::vec3(0.0f);
         glm::vec3 InitialActorRotation = glm::vec3(0.0f);
         glm::vec3 InitialActorScale = glm::vec3(1.0f);
+
+        /** Frozen at click so translation follows the mouse along the axis (not a 2D screen heuristic). */
+        glm::vec3 DragAxisOrigin = glm::vec3(0.0f);
+        glm::vec3 DragAxisDir = glm::vec3(1.0f, 0.0f, 0.0f);
+        glm::vec3 DragPlaneNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+        float DragStartAxisT = 0.0f;
 
         std::vector<FActorTransformState> DragBefore;
         bool bDragRecorded = false;

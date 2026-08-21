@@ -9,11 +9,14 @@
 #include "RHI/IRenderDriver.hpp"
 
 #include "Core/FProjectPaths.hpp"
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+
+#include <glm/glm.hpp>
 
 namespace Leon {
 
@@ -484,31 +487,81 @@ namespace Leon {
             float roughness = -1.0f;
             float metallic = -1.0f;
             float normalScale = -1.0f;
+            glm::vec3 albedoOverride(-1.0f);
+            bool bHasAlbedo = false;
+
+            auto trimKeyValue = [](const std::string& InLine, const char* Key, std::string& OutValue) -> bool {
+                const size_t KeyLen = std::strlen(Key);
+                size_t Pos = InLine.find(Key);
+                if (Pos == std::string::npos)
+                    return false;
+                size_t Start = Pos + KeyLen;
+                while (Start < InLine.size() &&
+                       (InLine[Start] == ' ' || InLine[Start] == '\t' || InLine[Start] == ':'))
+                    ++Start;
+                if (Start < InLine.size() && InLine[Start] == '"') {
+                    size_t End = InLine.find('"', Start + 1);
+                    if (End == std::string::npos)
+                        return false;
+                    OutValue = InLine.substr(Start + 1, End - Start - 1);
+                    return true;
+                }
+                OutValue = InLine.substr(Start);
+                while (!OutValue.empty() && (OutValue.back() == '\r' || OutValue.back() == ' ' || OutValue.back() == '\t'))
+                    OutValue.pop_back();
+                return !OutValue.empty();
+            };
 
             while (std::getline(file, line)) {
-                size_t pPos = line.find("Parent:");
-                if (pPos != std::string::npos) {
-                    size_t q1 = line.find('"', pPos);
-                    size_t q2 = line.find('"', q1 + 1);
-                    if (q1 != std::string::npos && q2 != std::string::npos) {
-                        parentPath = line.substr(q1 + 1, q2 - q1 - 1);
+                // Skip comments / empty
+                size_t NonWs = line.find_first_not_of(" \t\r\n");
+                if (NonWs == std::string::npos || line[NonWs] == '#' || line[NonWs] == '/')
+                    continue;
+
+                std::string Value;
+                if (trimKeyValue(line, "Parent", Value)) {
+                    parentPath = Value;
+                    continue;
+                }
+                if (trimKeyValue(line, "Roughness", Value)) {
+                    try {
+                        roughness = std::stof(Value);
+                    } catch (...) {
                     }
+                    continue;
                 }
-                size_t rPos = line.find("Roughness:");
-                if (rPos != std::string::npos) {
-                    roughness = std::stof(line.substr(rPos + 10));
+                if (trimKeyValue(line, "Metallic", Value)) {
+                    try {
+                        metallic = std::stof(Value);
+                    } catch (...) {
+                    }
+                    continue;
                 }
-                size_t mPos = line.find("Metallic:");
-                if (mPos != std::string::npos) {
-                    metallic = std::stof(line.substr(mPos + 9));
+                if (trimKeyValue(line, "NormalScale", Value)) {
+                    try {
+                        normalScale = std::stof(Value);
+                    } catch (...) {
+                    }
+                    continue;
                 }
-                size_t nPos = line.find("NormalScale:");
-                if (nPos != std::string::npos) {
-                    normalScale = std::stof(line.substr(nPos + 12));
+                if (trimKeyValue(line, "Albedo", Value) || trimKeyValue(line, "AlbedoColor", Value)) {
+                    // Accept "r,g,b" or [r, g, b]
+                    for (char& C : Value) {
+                        if (C == '[' || C == ']' || C == ',')
+                            C = ' ';
+                    }
+                    std::istringstream Iss(Value);
+                    float R = 0, G = 0, B = 0;
+                    if (Iss >> R >> G >> B) {
+                        albedoOverride = glm::vec3(R, G, B);
+                        bHasAlbedo = true;
+                    }
                 }
             }
 
             auto parentMat = GetMaterial(parentPath);
+            if (!parentMat)
+                parentMat = GetDefaultMaterial();
             auto instance = parentMat->CreateInstance();
             if (roughness >= 0.0f)
                 instance->SetRoughness(roughness);
@@ -516,6 +569,8 @@ namespace Leon {
                 instance->SetMetallic(metallic);
             if (normalScale >= 0.0f)
                 instance->SetNormalScale(normalScale);
+            if (bHasAlbedo)
+                instance->SetAlbedoColor(albedoOverride);
             return instance;
         }
 

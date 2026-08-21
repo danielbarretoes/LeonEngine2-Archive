@@ -30,7 +30,7 @@ namespace Leon {
         }
     } // namespace
 
-    UBlendSpace::UBlendSpace(const std::string& InName) : Name(InName) {}
+    UBlendSpace::UBlendSpace(const std::string& InName) : Name(InName), UUID(FUUID::FromPath(InName)) {}
 
     TRef<UBlendSpace> UBlendSpace::Create(const std::string& InName) {
         return MakeRef<UBlendSpace>(InName);
@@ -163,6 +163,8 @@ namespace Leon {
         uint32_t count = static_cast<uint32_t>(Samples.size());
         file.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
         file.write(reinterpret_cast<const char*>(&version), sizeof(version));
+        file.write(reinterpret_cast<const char*>(&UUID.High), sizeof(UUID.High));
+        file.write(reinterpret_cast<const char*>(&UUID.Low), sizeof(UUID.Low));
         WriteString(file, Name);
         WriteString(file, SkeletonPath);
         file.write(reinterpret_cast<const char*>(&is2d), sizeof(is2d));
@@ -192,9 +194,15 @@ namespace Leon {
         uint8_t is2d = 0;
         file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
         file.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (magic != LBLEND_MAGIC || version != LBLEND_VERSION) {
+        if (magic != LBLEND_MAGIC || (version != 1 && version != LBLEND_VERSION)) {
             LE_CORE_ERROR("UBlendSpace: Invalid magic/version in \"{0}\"", InFilePath);
             return false;
+        }
+        if (version >= 2) {
+            file.read(reinterpret_cast<char*>(&UUID.High), sizeof(UUID.High));
+            file.read(reinterpret_cast<char*>(&UUID.Low), sizeof(UUID.Low));
+        } else {
+            UUID = FUUID::FromPath(InFilePath);
         }
         if (!ReadString(file, Name) || !ReadString(file, SkeletonPath))
             return false;

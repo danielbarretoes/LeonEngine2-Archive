@@ -4,7 +4,16 @@
 #include "Core/events/FKeyEvent.hpp"
 #include "Core/events/FMouseEvent.hpp"
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#define GLFW_EXPOSE_NATIVE_WIN32
+#endif
 #include <GLFW/glfw3.h>
+#ifdef _WIN32
+#include <GLFW/glfw3native.h>
+#endif
 #include <fstream>
 #include <sstream>
 
@@ -57,6 +66,7 @@ namespace Leon::Editor {
 
         NativeWindow = glfwCreateWindow(static_cast<int>(WindowWidth), static_cast<int>(WindowHeight),
                                         BaseTitle.c_str(), nullptr, nullptr);
+        glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
         if (!NativeWindow) {
             LE_CORE_ERROR("FEditorWindow: Failed to create GLFW editor window!");
             return;
@@ -78,6 +88,26 @@ namespace Leon::Editor {
 
         glfwSetWindowUserPointer(NativeWindow, this);
         SetVSync(InProps.bVSync);
+
+#ifdef _WIN32
+        if (HWND hwnd = glfwGetWin32Window(NativeWindow)) {
+            HINSTANCE inst = GetModuleHandleW(nullptr);
+            HICON bigIcon = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, 0, 0,
+                                                          LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED));
+            HICON smallIcon = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON,
+                                                            GetSystemMetrics(SM_CXSMICON),
+                                                            GetSystemMetrics(SM_CYSMICON),
+                                                            LR_DEFAULTCOLOR | LR_SHARED));
+            if (bigIcon) {
+                SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(bigIcon));
+                SetClassLongPtrW(hwnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(bigIcon));
+            }
+            if (smallIcon) {
+                SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(smallIcon));
+                SetClassLongPtrW(hwnd, GCLP_HICONSM, reinterpret_cast<LONG_PTR>(smallIcon));
+            }
+        }
+#endif
 
         // GLFW Event Callbacks
         glfwSetWindowSizeCallback(NativeWindow, [](GLFWwindow* window, int width, int height) {

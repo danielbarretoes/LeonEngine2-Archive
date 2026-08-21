@@ -15,6 +15,12 @@
 #include "Lightmass/FLightmass.hpp"
 #include "Renderer/FPerspectiveCamera.hpp"
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -27,6 +33,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -35,14 +42,42 @@ namespace Leon::Editor {
     FEditorApp::FEditorApp()
         : FApplication([] {
               FApplicationProps Props;
-              Props.Name = "Leon Engine - Editor";
+              Props.Name = "Leon Engine Editor";
               Props.WindowWidth = 1600;
               Props.WindowHeight = 900;
+              Props.bMaximized = true;
+              Props.bHdClientPolicy = false;
               return Props;
           }()) {}
 
     void FEditorApp::OnInit() {
         GLFWwindow* Native = GetWindow().GetNativeWindow();
+
+        std::vector<fs::path> iconCandidates = {
+            fs::path("Engine") / "Resources" / "Icon" / "Logo.png",
+            fs::path("Editor") / "Resources" / "Icons" / "LeonEditor.png",
+            fs::path("Resources") / "Icons" / "LeonEditor.png",
+        };
+#ifdef _WIN32
+        char exePath[MAX_PATH] = {};
+        if (GetModuleFileNameA(nullptr, exePath, MAX_PATH) > 0) {
+            const fs::path exeDir = fs::path(exePath).parent_path();
+            iconCandidates.push_back(exeDir / "Engine" / "Resources" / "Icon" / "Logo.png");
+            iconCandidates.push_back(exeDir / "Editor" / "Resources" / "Icons" / "LeonEditor.png");
+            iconCandidates.push_back(exeDir / "Resources" / "Icons" / "LeonEditor.png");
+        }
+#endif
+        if (const char* envRoot = std::getenv("LEON_ENGINE_ROOT"); envRoot && envRoot[0] != '\0') {
+            iconCandidates.push_back(fs::path(envRoot) / "Engine" / "Resources" / "Icon" / "Logo.png");
+            iconCandidates.push_back(fs::path(envRoot) / "Editor" / "Resources" / "Icons" / "LeonEditor.png");
+        }
+        for (const fs::path& candidate : iconCandidates) {
+            std::error_code existsEc;
+            if (fs::exists(candidate, existsEc)) {
+                GetWindow().SetIconFromFile(candidate.string());
+                break;
+            }
+        }
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& IO = ImGui::GetIO();
@@ -56,8 +91,6 @@ namespace Leon::Editor {
         IO.IniFilename = ImGuiIniPath.c_str();
 
         WindowConfigIniPath = (fs::path(EditorSavedDir) / "EditorWindow.ini").string();
-        // Always open maximized; restore last named layout if present, else bundled Default.
-        glfwMaximizeWindow(Native);
         LayoutStore.Init(EditorSavedDir);
         if (!LayoutStore.GetActiveLayoutName().empty()) {
             const std::string& Active = LayoutStore.GetActiveLayoutName();
@@ -400,12 +433,14 @@ namespace Leon::Editor {
         const fs::path repoRoot = scriptPath.parent_path().parent_path();
         std::ostringstream cmd;
 #if defined(_WIN32)
-        cmd << "cmd /C \"cd /d \"" << repoRoot.string() << "\" && python \"" << scriptPath.string()
-            << "\" --project \"" << project << "\" --map \"" << mapPath << "\" --quality " << quality
-            << " --force\"";
+        // python -u + 2>&1 so progress lines flush and stderr merges into the captured pipe.
+        cmd << "cmd /C \"cd /d \"" << repoRoot.string() << "\" && set PYTHONUNBUFFERED=1&& python -u \""
+            << scriptPath.string() << "\" --project \"" << project << "\" --map \"" << mapPath
+            << "\" --quality " << quality << " --force 2>&1\"";
 #else
-        cmd << "cd \"" << repoRoot.string() << "\" && python \"" << scriptPath.string() << "\" --project \""
-            << project << "\" --map \"" << mapPath << "\" --quality " << quality << " --force";
+        cmd << "cd \"" << repoRoot.string() << "\" && PYTHONUNBUFFERED=1 python -u \"" << scriptPath.string()
+            << "\" --project \"" << project << "\" --map \"" << mapPath << "\" --quality " << quality
+            << " --force 2>&1";
 #endif
 
         OutputLog.AddLog(ELogLevel::Info, "Build",
@@ -421,16 +456,69 @@ namespace Leon::Editor {
         bBakeRunning = true;
         bBakeFinished = false;
         BakeExitCode = 0;
+        {
+            std::lock_guard<std::mutex> Lock(BakeMutex);
+            BakeLogLines.clear();
+        }
 
         std::thread([this, command = cmd.str()]() {
-            const int res = std::system(command.c_str());
-            BakeExitCode = res;
+#if defined(_WIN32)
+            FILE* Pipe = _popen(command.c_str(), "rt");
+#else
+            FILE* Pipe = popen(command.c_str(), "r");
+#endif
+            if (!Pipe) {
+                {
+                    std::lock_guard<std::mutex> Lock(BakeMutex);
+                    BakeLogLines.push_back("[ERROR] Failed to start lighting build process.");
+                }
+                BakeExitCode = -1;
+                bBakeFinished = true;
+                bBakeRunning = false;
+                return;
+            }
+
+            char Buf[1024];
+            while (std::fgets(Buf, sizeof(Buf), Pipe)) {
+                std::string Line(Buf);
+                while (!Line.empty() && (Line.back() == '\n' || Line.back() == '\r'))
+                    Line.pop_back();
+                if (Line.empty())
+                    continue;
+                std::lock_guard<std::mutex> Lock(BakeMutex);
+                BakeLogLines.push_back(std::move(Line));
+            }
+
+#if defined(_WIN32)
+            const int Res = _pclose(Pipe);
+#else
+            const int Res = pclose(Pipe);
+#endif
+            // Windows: _pclose returns the process exit code directly with MSVC CRT.
+            BakeExitCode = Res;
             bBakeFinished = true;
             bBakeRunning = false;
         }).detach();
     }
 
     void FEditorApp::PollBakeJob() {
+        // Forward Lightmass / script stdout into the editor Output Log while the job runs.
+        std::deque<std::string> Pending;
+        {
+            std::lock_guard<std::mutex> Lock(BakeMutex);
+            Pending.swap(BakeLogLines);
+        }
+        for (const std::string& Line : Pending) {
+            ELogLevel Level = ELogLevel::Info;
+            if (Line.find("[ERROR]") != std::string::npos || Line.find("ERROR:") != std::string::npos ||
+                Line.find("Bake failed") != std::string::npos) {
+                Level = ELogLevel::Error;
+            } else if (Line.find("[WARN]") != std::string::npos || Line.find("Warning") != std::string::npos) {
+                Level = ELogLevel::Warning;
+            }
+            OutputLog.AddLog(Level, "Build", Line);
+        }
+
         if (!bBakeFinished.exchange(false))
             return;
 
@@ -553,9 +641,9 @@ namespace Leon::Editor {
         // Right Bottom: Details
         ImGui::DockBuilderDockWindow(FPanelWindowTitles::Details, dockRightBottom);
 
-        // Bottom: Content Browser, Output Log
-        ImGui::DockBuilderDockWindow(FPanelWindowTitles::ContentBrowser, dockBottom);
+        // Bottom: Output Log then Content Browser last so Content Browser is the active tab.
         ImGui::DockBuilderDockWindow(FPanelWindowTitles::OutputLog, dockBottom);
+        ImGui::DockBuilderDockWindow(FPanelWindowTitles::ContentBrowser, dockBottom);
 
         ImGui::DockBuilderFinish(DockspaceId);
     }
@@ -615,15 +703,6 @@ namespace Leon::Editor {
             return;
         }
 
-        // Re-assert maximize after the first frames (display/DPI settle).
-        if (!bStartupMaximizeApplied) {
-            if (GLFWwindow* native = GetWindow().GetNativeWindow()) {
-                if (glfwGetWindowAttrib(native, GLFW_MAXIMIZED) != GLFW_TRUE)
-                    glfwMaximizeWindow(native);
-            }
-            bStartupMaximizeApplied = true;
-        }
-
         BeginImGuiFrame();
 
         auto SafeDrawPanel = [this](const char* PanelName, auto&& DrawFn) {
@@ -680,6 +759,11 @@ namespace Leon::Editor {
             }
             if (bShowOutputLog) {
                 SafeDrawPanel("OutputLog", [&]() { OutputLog.Draw(&bShowOutputLog); });
+            }
+
+            if (bNeedFocusContentBrowser) {
+                ImGui::SetWindowFocus(FPanelWindowTitles::ContentBrowser);
+                bNeedFocusContentBrowser = false;
             }
 
             // Global Edit hotkeys (Unreal-like)
@@ -742,7 +826,7 @@ namespace Leon::Editor {
                 out << "Height=" << h << "\n";
                 out << "PosX=" << px << "\n";
                 out << "PosY=" << py << "\n";
-                out << "Maximized=1\n";
+                out << "Maximized=" << (bMax ? 1 : 0) << "\n";
             }
         }
 
@@ -853,12 +937,14 @@ namespace Leon::Editor {
             FEditorPanelVisibility Panels;
             if (LayoutStore.LoadBundledDefaultLayout(Panels)) {
                 ApplyPanelVisibility(Panels);
+                bNeedFocusContentBrowser = true;
                 OutputLog.AddLog(ELogLevel::Info, "Layout", "Reset to default layout");
                 ShowToast("Layout: Default");
             } else {
                 ApplyPanelVisibility(FEditorPanelVisibility{});
                 ResetDefaultLayout();
                 LayoutStore.ClearActiveLayout();
+                bNeedFocusContentBrowser = true;
                 ShowToast("Bundled default missing — used fallback dock layout", true);
             }
         } else if (bNeedLoadNamedLayout) {

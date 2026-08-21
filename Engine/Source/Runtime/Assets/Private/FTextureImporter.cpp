@@ -72,7 +72,18 @@ namespace Leon {
         }
 
         Mips.clear();
+        if (Header.MipCount == 0 || Header.MipCount > kMaxCookedMipCount) {
+            LE_CORE_ERROR("FNativeTextureData: Invalid MipCount {0} in \"{1}\"", Header.MipCount, InFilePath);
+            return false;
+        }
+        if (Header.Width == 0 || Header.Height == 0 || Header.Width > kMaxCookedTextureDim ||
+            Header.Height > kMaxCookedTextureDim || Header.Channels == 0 || Header.Channels > 4) {
+            LE_CORE_ERROR("FNativeTextureData: Invalid dimensions/channels in \"{0}\"", InFilePath);
+            return false;
+        }
+
         Mips.resize(Header.MipCount);
+        uint64_t accounted = 0;
 
         for (uint32_t i = 0; i < Header.MipCount; ++i) {
             FLTexMipHeader mipHeader;
@@ -82,6 +93,22 @@ namespace Leon {
                 return false;
             }
 
+            if (mipHeader.Width == 0 || mipHeader.Height == 0 || mipHeader.Width > kMaxCookedTextureDim ||
+                mipHeader.Height > kMaxCookedTextureDim) {
+                LE_CORE_ERROR("FNativeTextureData: Invalid mip {0} size in \"{1}\"", i, InFilePath);
+                return false;
+            }
+
+            const uint64_t expected =
+                static_cast<uint64_t>(mipHeader.Width) * static_cast<uint64_t>(mipHeader.Height) * Header.Channels;
+            if (expected > static_cast<uint64_t>(kMaxCookedTextureDim) * kMaxCookedTextureDim * 4ull ||
+                mipHeader.DataSize != expected) {
+                LE_CORE_ERROR("FNativeTextureData: Mip {0} DataSize mismatch in \"{1}\" (got {2}, expected {3})", i,
+                              InFilePath, mipHeader.DataSize, expected);
+                return false;
+            }
+
+            accounted += sizeof(FLTexMipHeader) + mipHeader.DataSize;
             Mips[i].Level = mipHeader.Level;
             Mips[i].Width = mipHeader.Width;
             Mips[i].Height = mipHeader.Height;
@@ -94,6 +121,12 @@ namespace Leon {
                     return false;
                 }
             }
+        }
+
+        if (Header.TotalDataSize != 0 && Header.TotalDataSize != accounted) {
+            LE_CORE_ERROR("FNativeTextureData: TotalDataSize mismatch in \"{0}\" (header {1}, accounted {2})",
+                          InFilePath, Header.TotalDataSize, accounted);
+            return false;
         }
 
         return true;

@@ -16,21 +16,27 @@ namespace Leon {
         RGBA32F = 2
     };
 
+#pragma pack(push, 1)
     /**
-     * @brief Native lightmap atlas asset (.llightmap). Stores baked irradiance (not final shaded color).
+     * Native lightmap atlas header (.llightmap).
+     * ContentHash stores the bake-input hash used for cache invalidation (not a pixel hash).
+     * Use ComputePixelHash() if you need a hash of the irradiance payload itself.
      */
     struct FLightmapHeader {
         uint32_t Magic = LLIGHTMAP_MAGIC;
         uint32_t Version = LLIGHTMAP_VERSION;
         uint32_t Width = 0;
         uint32_t Height = 0;
+        /** On-disk payload is always RGBA32F; GPU upload may convert to RGBA16F. */
         uint32_t PixelFormat = static_cast<uint32_t>(ELightmapPixelFormat::RGBA32F);
         uint32_t ChannelCount = 4;
         uint32_t bIsHDR = 1;
         uint32_t PayloadSize = 0;
-        uint64_t ContentHash = 0;
+        uint64_t ContentHash = 0; ///< Bake-input hash (see SetContentHash / GetBakeInputHash)
         uint32_t Reserved[4] = {0, 0, 0, 0};
     };
+#pragma pack(pop)
+    static_assert(sizeof(FLightmapHeader) == 56, "FLightmapHeader must stay 56 bytes packed");
 
     class FLightmapAsset {
     public:
@@ -41,6 +47,7 @@ namespace Leon {
         ELightmapPixelFormat GetPixelFormat() const { return static_cast<ELightmapPixelFormat>(Header.PixelFormat); }
         bool IsHDR() const { return Header.bIsHDR != 0; }
         uint64_t GetContentHash() const { return Header.ContentHash; }
+        uint64_t GetBakeInputHash() const { return Header.ContentHash; }
         void SetContentHash(uint64_t InHash) { Header.ContentHash = InHash; }
         const FLightmapHeader& GetHeader() const { return Header; }
 
@@ -48,7 +55,9 @@ namespace Leon {
         std::vector<float>& GetPixelsRGBA32F() { return Pixels; }
 
         void Allocate(uint32_t InWidth, uint32_t InHeight);
-        void ComputeContentHash();
+        /** FNV-1a over dimensions + pixel payload (does not replace bake-input ContentHash unless assigned). */
+        uint64_t ComputePixelHash() const;
+        void ComputeContentHash(); ///< Sets ContentHash = ComputePixelHash() (legacy helper)
 
         bool SaveToFile(const std::string& InFilePath) const;
         bool LoadFromFile(const std::string& InFilePath);

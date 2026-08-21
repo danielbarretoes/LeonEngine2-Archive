@@ -39,7 +39,7 @@ namespace Leon {
         glm::vec3 Color{1.0f};
     };
 
-    constexpr uint32_t LMESH_MAGIC = 0x48534D4C; // 'LMESH' in little-endian
+    constexpr uint32_t LMESH_MAGIC = 0x48534D4C; // on-disk ASCII 'LMSH' (LE uint32)
     constexpr uint32_t LMESH_VERSION = 5;
     constexpr uint32_t LMESH_VERSION_V1 = 1;
     constexpr uint32_t LMESH_VERSION_V2 = 2;

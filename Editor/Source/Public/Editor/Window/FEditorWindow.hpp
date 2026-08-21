@@ -18,12 +18,12 @@ namespace Leon::Editor {
         std::string Title = "Leon Engine Editor";
         unsigned int Width = 1600;
         unsigned int Height = 900;
-        bool bMaximized = false;
+        bool bMaximized = true;
         bool bVSync = true;
 
         FEditorWindowProps() = default;
         FEditorWindowProps(const std::string& InTitle, unsigned int InWidth, unsigned int InHeight,
-                           bool bInMaximized = false, bool bInVSync = true)
+                           bool bInMaximized = true, bool bInVSync = true)
             : Title(InTitle), Width(InWidth), Height(InHeight), bMaximized(bInMaximized), bVSync(bInVSync) {}
     };
 

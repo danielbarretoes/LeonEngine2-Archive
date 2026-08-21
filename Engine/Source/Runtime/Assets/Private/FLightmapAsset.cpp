@@ -20,6 +20,10 @@ namespace Leon {
     }
 
     void FLightmapAsset::ComputeContentHash() {
+        Header.ContentHash = ComputePixelHash();
+    }
+
+    uint64_t FLightmapAsset::ComputePixelHash() const {
         uint64_t hash = 14695981039346656037ull;
         auto feed = [&](const void* data, size_t size) {
             const auto* bytes = static_cast<const uint8_t*>(data);
@@ -33,7 +37,7 @@ namespace Leon {
         feed(&Header.PixelFormat, sizeof(Header.PixelFormat));
         if (!Pixels.empty())
             feed(Pixels.data(), Pixels.size() * sizeof(float));
-        Header.ContentHash = hash;
+        return hash;
     }
 
     bool FLightmapAsset::SaveToFile(const std::string& InFilePath) const {

@@ -322,6 +322,8 @@ namespace Leon {
         uint32_t SampleCountPrefilter = 256;
         uint32_t Reserved[4] = {0, 0, 0, 0};
     };
+    // Natural alignment (MSVC) pads after Version for uint64 — keep layout stable; do not pack(1).
+    static_assert(sizeof(FIBLCacheHeader) == 64, "FIBLCacheHeader must stay 64 bytes on this ABI");
 
     struct FBRDFLUTDiskHeader {
         char Magic[8] = {'L', 'E', 'O', 'N', 'B', 'R', 'D', 'F'};

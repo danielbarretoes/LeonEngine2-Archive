@@ -54,7 +54,7 @@ namespace Leon {
         bool SaveToFile(const std::string& InPath) const;
         bool LoadFromFile(const std::string& InPath);
 
-        static constexpr uint32_t Magic = 0x4853504C; // LPHY
+        static constexpr uint32_t Magic = 0x4853504C; // on-disk ASCII 'LPSH' (LE uint32)
         static constexpr uint32_t Version = 3;
 
     private:

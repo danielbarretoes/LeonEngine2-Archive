@@ -5,7 +5,19 @@
 #include "Core/events/FMouseEvent.hpp"
 
 #include <algorithm>
+#include <vector>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#define GLFW_EXPOSE_NATIVE_WIN32
+#endif
 #include <GLFW/glfw3.h>
+#ifdef _WIN32
+#include <GLFW/glfw3native.h>
+#endif
+#include <stb_image.h>
 
 namespace Leon {
 
@@ -130,8 +142,9 @@ namespace Leon {
         Data.Width = InProps.Width;
         Data.Height = InProps.Height;
         Data.bVSync = InProps.bVSync;
+        Data.bHdClientPolicy = InProps.bConstrainAspect;
 
-        if (InProps.bConstrainAspect) {
+        if (Data.bHdClientPolicy) {
             FWindowDisplayPolicy::ConstrainClientSize(Data.Width, Data.Height);
         }
 
@@ -154,6 +167,7 @@ namespace Leon {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_RESIZABLE, InProps.bResizable ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_MAXIMIZED, InProps.bMaximized ? GLFW_TRUE : GLFW_FALSE);
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -163,16 +177,17 @@ namespace Leon {
 #endif
 
         NativeWindow = glfwCreateWindow((int)Data.Width, (int)Data.Height, Data.Title.c_str(), nullptr, nullptr);
+        glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
         if (!NativeWindow) {
             LE_CORE_ERROR("Failed to create GLFW window!");
             return;
         }
         ++GLFWWindowCount;
 
-        if (InProps.bConstrainAspect) {
+        if (Data.bHdClientPolicy) {
             ApplyHdClientConstraints();
         } else {
-            glfwSetWindowSizeLimits(NativeWindow, 400, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
+            glfwSetWindowSizeLimits(NativeWindow, 640, 480, GLFW_DONT_CARE, GLFW_DONT_CARE);
             glfwSetWindowAspectRatio(NativeWindow, GLFW_DONT_CARE, GLFW_DONT_CARE);
         }
         glfwGetWindowPos(NativeWindow, &WindowedPosX, &WindowedPosY);
@@ -187,6 +202,7 @@ namespace Leon {
 
         glfwSetWindowUserPointer(NativeWindow, &Data);
         SetVSync(InProps.bVSync);
+        ApplyEmbeddedWin32Icon();
 
         // GLFW event callbacks
         glfwSetWindowSizeCallback(NativeWindow, [](GLFWwindow* window, int width, int height) {
@@ -200,7 +216,8 @@ namespace Leon {
         });
 
         glfwSetWindowMaximizeCallback(NativeWindow, [](GLFWwindow* window, int maximized) {
-            if (maximized)
+            FWindowData& data = *(FWindowData*)glfwGetWindowUserPointer(window);
+            if (maximized && data.bHdClientPolicy)
                 SnapGlfwWindowToLargestHdClient(window);
         });
 
@@ -328,7 +345,8 @@ namespace Leon {
             Data.Width = WindowedWidth;
             Data.Height = WindowedHeight;
             Data.bFullscreen = false;
-            ApplyHdClientConstraints();
+            if (Data.bHdClientPolicy)
+                ApplyHdClientConstraints();
         }
 
         SetVSync(Data.bVSync);
@@ -339,6 +357,105 @@ namespace Leon {
             return;
         Data.bCursorVisible = bVisible;
         glfwSetInputMode(NativeWindow, GLFW_CURSOR, bVisible ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+    }
+
+    void FWindow::ApplyEmbeddedWin32Icon() {
+#ifdef _WIN32
+        if (!NativeWindow)
+            return;
+        HWND hwnd = glfwGetWin32Window(NativeWindow);
+        if (!hwnd)
+            return;
+
+        HINSTANCE inst = GetModuleHandleW(nullptr);
+        const int smallW = GetSystemMetrics(SM_CXSMICON);
+        const int smallH = GetSystemMetrics(SM_CYSMICON);
+        HICON smallIcon = static_cast<HICON>(LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, smallW, smallH,
+                                                        LR_DEFAULTCOLOR | LR_SHARED));
+        HICON bigIcon = static_cast<HICON>(
+            LoadImageW(inst, MAKEINTRESOURCEW(1), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_DEFAULTCOLOR | LR_SHARED));
+        if (!bigIcon)
+            bigIcon = static_cast<HICON>(
+                LoadImageW(inst, L"GLFW_ICON", IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_SHARED));
+        if (!smallIcon && bigIcon)
+            smallIcon = bigIcon;
+
+        if (bigIcon) {
+            SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(bigIcon));
+            SetClassLongPtrW(hwnd, GCLP_HICON, reinterpret_cast<LONG_PTR>(bigIcon));
+        }
+        if (smallIcon) {
+            SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(smallIcon));
+            SetClassLongPtrW(hwnd, GCLP_HICONSM, reinterpret_cast<LONG_PTR>(smallIcon));
+        }
+#endif
+    }
+
+    void FWindow::SetIconFromFile(const std::string& InPath) {
+        if (!NativeWindow || InPath.empty())
+            return;
+
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        stbi_set_flip_vertically_on_load(0);
+        stbi_uc* pixels = stbi_load(InPath.c_str(), &width, &height, &channels, 4);
+        if (!pixels || width <= 0 || height <= 0) {
+            if (pixels)
+                stbi_image_free(pixels);
+            return;
+        }
+
+        const int sizes[] = {16, 32, 48, 256};
+        std::vector<std::vector<unsigned char>> buffers;
+        std::vector<GLFWimage> images;
+        buffers.reserve(4);
+        images.reserve(4);
+
+        auto downscale = [&](int dw, int dh) {
+            std::vector<unsigned char> dst(static_cast<size_t>(dw) * static_cast<size_t>(dh) * 4u);
+            for (int y = 0; y < dh; ++y) {
+                const int y0 = y * height / dh;
+                const int y1 = std::max(y0 + 1, (y + 1) * height / dh);
+                for (int x = 0; x < dw; ++x) {
+                    const int x0 = x * width / dw;
+                    const int x1 = std::max(x0 + 1, (x + 1) * width / dw);
+                    unsigned int r = 0, g = 0, b = 0, a = 0, n = 0;
+                    for (int sy = y0; sy < y1; ++sy) {
+                        for (int sx = x0; sx < x1; ++sx) {
+                            const stbi_uc* p = pixels + (sy * width + sx) * 4;
+                            r += p[0];
+                            g += p[1];
+                            b += p[2];
+                            a += p[3];
+                            ++n;
+                        }
+                    }
+                    unsigned char* d = dst.data() + (y * dw + x) * 4;
+                    d[0] = static_cast<unsigned char>(r / n);
+                    d[1] = static_cast<unsigned char>(g / n);
+                    d[2] = static_cast<unsigned char>(b / n);
+                    d[3] = static_cast<unsigned char>(a / n);
+                }
+            }
+            return dst;
+        };
+
+        for (int size : sizes) {
+            if (width == size && height == size) {
+                buffers.emplace_back(pixels, pixels + static_cast<size_t>(width) * static_cast<size_t>(height) * 4u);
+            } else {
+                buffers.push_back(downscale(size, size));
+            }
+            GLFWimage img{};
+            img.width = size;
+            img.height = size;
+            img.pixels = buffers.back().data();
+            images.push_back(img);
+        }
+
+        glfwSetWindowIcon(NativeWindow, static_cast<int>(images.size()), images.data());
+        stbi_image_free(pixels);
     }
 
 } // namespace Leon

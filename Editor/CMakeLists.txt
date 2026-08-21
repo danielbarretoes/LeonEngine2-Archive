@@ -110,18 +110,20 @@ set_target_properties(LeonEditor PROPERTIES OUTPUT_NAME LeonEditor)
 
 # Windows: embed .ico for Explorer / taskbar before GLFW sets the live icon.
 if(WIN32)
+    enable_language(RC)
     set(LEON_EDITOR_ICO_SRC "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Icons/LeonEditor.ico")
-    if(EXISTS "${LEON_EDITOR_ICO_SRC}")
-        file(TO_CMAKE_PATH "${LEON_EDITOR_ICO_SRC}" LEON_EDITOR_ICO)
-        set(LEON_EDITOR_RC "${CMAKE_CURRENT_BINARY_DIR}/LeonEditor.rc")
-        configure_file(
-            "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Icons/LeonEditor.rc.in"
-            "${LEON_EDITOR_RC}"
-            @ONLY
-        )
-        target_sources(LeonEditor PRIVATE "${LEON_EDITOR_RC}")
-        set_source_files_properties("${LEON_EDITOR_RC}" PROPERTIES OBJECT_DEPENDS "${LEON_EDITOR_ICO_SRC}")
+    if(NOT EXISTS "${LEON_EDITOR_ICO_SRC}")
+        message(FATAL_ERROR "Missing ${LEON_EDITOR_ICO_SRC} — run python Scripts/make-editor-icon.py")
     endif()
+    file(TO_CMAKE_PATH "${LEON_EDITOR_ICO_SRC}" LEON_EDITOR_ICO)
+    set(LEON_EDITOR_RC "${CMAKE_CURRENT_BINARY_DIR}/LeonEditor.rc")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/Resources/Icons/LeonEditor.rc.in"
+        "${LEON_EDITOR_RC}"
+        @ONLY
+    )
+    target_sources(LeonEditor PRIVATE "${LEON_EDITOR_RC}")
+    set_source_files_properties("${LEON_EDITOR_RC}" PROPERTIES OBJECT_DEPENDS "${LEON_EDITOR_ICO_SRC}")
 endif()
 
 # Stage Engine/Resources beside the exe so relative shader/font paths resolve.

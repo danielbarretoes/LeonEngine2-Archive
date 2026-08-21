@@ -26,6 +26,13 @@ namespace Leon {
         Lightmap
     };
 
+    /** Shared Load caps for cooked binary assets (DoS / OOM guard). */
+    constexpr uint32_t kMaxCookedTextureDim = 16384;
+    constexpr uint32_t kMaxCookedMipCount = 32;
+    constexpr uint32_t kMaxCookedMeshVertices = 50'000'000;
+    constexpr uint32_t kMaxCookedNameLen = 4096;
+    constexpr uint32_t kMaxCookedHDRDim = 16384;
+
     inline const char* AssetTypeToString(EAssetType InType) {
         switch (InType) {
         case EAssetType::Texture:

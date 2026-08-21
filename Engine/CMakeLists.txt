@@ -49,6 +49,7 @@ set(LEON_ENGINE_SOURCES
     # because stb_image is already a Core dependency; Pipeline keeps FBX (ufbx) + Lightmass.
     Source/Runtime/Assets/Private/FHDRImporter.cpp
     Source/Runtime/Assets/Private/FTextureImporter.cpp
+    Source/Runtime/Assets/Private/FAssetExporter.cpp
     Source/Runtime/Assets/Private/FLightmapAsset.cpp
     # Renderer
     Source/Runtime/Renderer/Private/FWorldRenderer.cpp

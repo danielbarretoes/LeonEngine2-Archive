@@ -190,6 +190,10 @@ namespace Leon {
         file.write(reinterpret_cast<const char*>(&bindCount), sizeof(bindCount));
         if (bindCount > 0)
             file.write(reinterpret_cast<const char*>(InverseBindPoses.data()), bindCount * sizeof(glm::mat4));
+
+        // v3: AssetForwardAxis
+        const uint8_t forwardAxis = static_cast<uint8_t>(AssetForwardAxis);
+        file.write(reinterpret_cast<const char*>(&forwardAxis), sizeof(forwardAxis));
         return file.good();
     }
 
@@ -203,7 +207,7 @@ namespace Leon {
         uint32_t magic = 0, version = 0, vertexCount = 0, indexCount = 0, submeshCount = 0, materialSlotCount = 0;
         file.read(reinterpret_cast<char*>(&magic), sizeof(magic));
         file.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (magic != LSKELETALMESH_MAGIC || (version != 1 && version != LSKELETALMESH_VERSION)) {
+        if (magic != LSKELETALMESH_MAGIC || version < 1 || version > LSKELETALMESH_VERSION) {
             LE_CORE_ERROR("USkeletalMesh: Invalid magic/version in \"{0}\"", InFilePath);
             return false;
         }
@@ -258,6 +262,19 @@ namespace Leon {
             InverseBindPoses.resize(bindCount);
             if (bindCount > 0)
                 file.read(reinterpret_cast<char*>(InverseBindPoses.data()), bindCount * sizeof(glm::mat4));
+        }
+
+        AssetForwardAxis = EAssetForwardAxis::SourcePosZ;
+        if (version >= 3) {
+            uint8_t forwardAxis = 0;
+            file.read(reinterpret_cast<char*>(&forwardAxis), sizeof(forwardAxis));
+            if (!file)
+                return false;
+            if (forwardAxis > static_cast<uint8_t>(EAssetForwardAxis::SourcePosZ)) {
+                LE_CORE_ERROR("USkeletalMesh: Invalid AssetForwardAxis in \"{0}\"", InFilePath);
+                return false;
+            }
+            AssetForwardAxis = static_cast<EAssetForwardAxis>(forwardAxis);
         }
 
         AssetPath = InFilePath;

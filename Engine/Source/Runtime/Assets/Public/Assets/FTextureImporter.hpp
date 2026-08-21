@@ -22,12 +22,13 @@ namespace Leon {
         uint32_t Height = 0;
         uint32_t Channels = 4;
         uint32_t MipCount = 1;
-        uint32_t Format = 0;        // ETextureFormat (0 = RGBA8)
+        uint32_t Format = 0;        // ETextureFormat (0 = RGBA8) — only RGBA8 is cooked today
         uint32_t ColorSpace = 0;    // ETextureColorSpace (0 = Linear, 1 = sRGB)
         uint32_t Semantic = 0;      // ETextureSemantic
         uint32_t WrapMode = 0;      // 0 = Repeat, 1 = Clamp
         uint32_t FilterMode = 0;    // 0 = LinearMipmapLinear
-        uint64_t TotalDataSize = 0; // Total byte size of all mip payloads
+        /** Byte size of all mip headers + pixel payloads that follow the header. */
+        uint64_t TotalDataSize = 0;
     };
 
     struct FLTexMipHeader {
@@ -37,6 +38,8 @@ namespace Leon {
         uint32_t DataSize = 0;
     };
 #pragma pack(pop)
+    static_assert(sizeof(FLTexHeader) == 68, "FLTexHeader must stay 68 bytes packed");
+    static_assert(sizeof(FLTexMipHeader) == 16, "FLTexMipHeader must stay 16 bytes packed");
 
     struct FTextureMipData {
         uint32_t Level = 0;

@@ -40,7 +40,7 @@ One static-mesh layout: `FCanonicalMeshVertex` (68 bytes, 17 tightly packed floa
 
 Bitangent is not stored. Reconstruct `B = cross(N, T) * w`. Invariant: `T × B ≈ N` when `w = +1`. Mirrored UVs use `w = −1`. Negative scale also flips `w` in the vertex shader via `determinant(u_NormalMatrix)`.
 
-On-disk `.lmesh` version **4** matches this layout (unique-UV1 flag). Versions 1–3 are converted at load (no dual runtime path).
+On-disk `.lmesh` version **5** matches this layout plus reduced LODs (v4 unique-UV1 flag; v1–v3 converted at load; no dual runtime path).
 
 ## Color management
 
@@ -185,7 +185,7 @@ Window resize → `UEngine` → `FWorldRenderer::OnViewportResize` → HDR FBO, 
 | `.libl` | v6, HDR hash, sizes, sample counts |
 | BRDF LUT | `LEONBRDF` v2 |
 | `.llightmap` | v2 + bake input hash (algorithm **5**) |
-| `.lmesh` | v4 (v1–v3 migrated on load) |
+| `.lmesh` | v5 (v1–v4 migrated on load) |
 
 ## Debug views (`u_DebugMode`)
 

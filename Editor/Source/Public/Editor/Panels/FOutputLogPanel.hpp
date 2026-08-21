@@ -2,7 +2,6 @@
 
 #include "Core/Base.hpp"
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace Leon::Editor {
@@ -32,11 +31,17 @@ namespace Leon::Editor {
 
     private:
         std::string FormatEntry(const FLogEntry& InEntry) const;
+        bool PassesFilters(const FLogEntry& InEntry, const std::string& InFilterLower) const;
+        std::string MakeFilterLower() const;
+        void RebuildVisibleText();
+        void CacheSelectionFromActiveLog();
 
         std::vector<FLogEntry> Entries;
-        std::unordered_set<size_t> SelectedIndices;
+        std::string VisibleLogText;
+        std::string CachedSelection;
         char FilterBuffer[128] = "";
         bool bAutoScroll = true;
+        bool bWasAtBottom = true;
         bool bShowInfo = true;
         bool bShowWarnings = true;
         bool bShowErrors = true;

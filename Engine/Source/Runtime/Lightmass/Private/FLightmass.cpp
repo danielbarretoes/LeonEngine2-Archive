@@ -924,7 +924,10 @@ namespace Leon {
         LogLM("Bake lights (Static+Stationary): " + std::to_string(result.StaticLightCount));
 
         if (instances.empty()) {
-            result.Message = "No static geometry to bake";
+            // Empty maps (e.g. PlayerStart + lights only) are a successful no-op bake.
+            result.bSuccess = true;
+            result.Message = "Nothing to bake (no static geometry)";
+            LogLM(result.Message);
             return result;
         }
 

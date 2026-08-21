@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Windows / GLFW application icons must stay binary
+*.png binary
+*.ico binary

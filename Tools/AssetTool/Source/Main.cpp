@@ -1,5 +1,6 @@
 #include "ToolsCommon/CommandRegistry.hpp"
 #include "AssetTool/Commands/ImportCommand.hpp"
+#include "AssetTool/Commands/ExportCommand.hpp"
 #include "AssetTool/Commands/ValidateCommand.hpp"
 #include "AssetTool/Commands/InspectCommand.hpp"
 
@@ -10,6 +11,7 @@ int main(int argc, char** argv) {
 
     FCommandRegistry registry("LeonEngine2 Asset Tool (Asset Pipeline & Cooking)");
     registry.RegisterCommand(std::make_unique<FImportCommand>());
+    registry.RegisterCommand(std::make_unique<FExportCommand>());
     registry.RegisterCommand(std::make_unique<FValidateCommand>());
     registry.RegisterCommand(std::make_unique<FInspectCommand>());
 

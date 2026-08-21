@@ -29,7 +29,9 @@ namespace Leon {
         FLog::Init();
         LE_CORE_INFO("Initializing LeonEngine FApplication: {0}", InProps.Name);
 
-        AppWindow = FWindow::Create(FWindowProps(InProps.Name, InProps.WindowWidth, InProps.WindowHeight));
+        FWindowProps WindowProps(InProps.Name, InProps.WindowWidth, InProps.WindowHeight, true,
+                                 InProps.bHdClientPolicy, true, InProps.bMaximized);
+        AppWindow = FWindow::Create(WindowProps);
         WindowCreationTime = std::chrono::high_resolution_clock::now();
         AppWindow->SetEventCallback(LE_BIND_EVENT_FN(FApplication::OnEvent));
 

@@ -31,15 +31,18 @@ namespace Leon {
         unsigned int Width;
         unsigned int Height;
         bool bVSync;
+        /** Game client: 16:9, 720p–1080p cap, maximize snaps to HD. Editor leaves this false. */
         bool bConstrainAspect;
         bool bResizable;
+        /** OS-maximized at glfwCreateWindow. Independent of game HD maximize-snap. */
+        bool bMaximized;
 
         FWindowProps(const std::string& InTitle = "LeonEngine2",
                      unsigned int InWidth = FWindowDisplayPolicy::DefaultWidth,
                      unsigned int InHeight = FWindowDisplayPolicy::DefaultHeight, bool bInVSync = true,
-                     bool bInConstrainAspect = false, bool bInResizable = true)
+                     bool bInConstrainAspect = false, bool bInResizable = true, bool bInMaximized = false)
             : Title(InTitle), Width(InWidth), Height(InHeight), bVSync(bInVSync), bConstrainAspect(bInConstrainAspect),
-              bResizable(bInResizable) {}
+              bResizable(bInResizable), bMaximized(bInMaximized) {}
     };
 
     class FWindow {
@@ -64,6 +67,9 @@ namespace Leon {
         void SetCursorVisible(bool bVisible);
         bool IsCursorVisible() const { return Data.bCursorVisible; }
 
+        /** Title-bar / taskbar icon from an RGBA PNG. Also applies the exe resource on Windows. */
+        void SetIconFromFile(const std::string& InPath);
+
         GLFWwindow* GetNativeWindow() const { return NativeWindow; }
 
         static TScope<FWindow> Create(const FWindowProps& InProps = FWindowProps());
@@ -72,6 +78,7 @@ namespace Leon {
         void Init(const FWindowProps& InProps);
         void Shutdown();
         void ApplyHdClientConstraints();
+        void ApplyEmbeddedWin32Icon();
 
     private:
         GLFWwindow* NativeWindow = nullptr;
@@ -88,6 +95,7 @@ namespace Leon {
             bool bVSync = true;
             bool bFullscreen = false;
             bool bCursorVisible = true;
+            bool bHdClientPolicy = false;
             FEventCallbackFn EventCallback;
         };
 

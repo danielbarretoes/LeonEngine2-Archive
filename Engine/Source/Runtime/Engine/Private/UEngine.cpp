@@ -374,6 +374,7 @@ namespace Leon {
         appProps.CommandLineArgs = InArgs;
         appProps.WindowWidth = windowWidth;
         appProps.WindowHeight = windowHeight;
+        appProps.bHdClientPolicy = true;
 
         auto app = CreateScope<FApplication>(appProps);
         app->GetWindow().SetVSync(bVSync);

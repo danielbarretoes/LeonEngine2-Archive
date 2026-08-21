@@ -45,6 +45,46 @@ namespace Leon::Editor {
         return glm::vec2(sx, sy);
     }
 
+    bool FTransformGizmo::ScreenToWorldRay(const FPerspectiveCamera& InCamera, const glm::vec2& InMouse, float InVx,
+                                           float InVy, float InVw, float InVh, glm::vec3& OutOrigin,
+                                           glm::vec3& OutDir) const {
+        if (InVw <= 1e-4f || InVh <= 1e-4f)
+            return false;
+
+        const float relX = (InMouse.x - InVx) / InVw;
+        const float relY = (InMouse.y - InVy) / InVh;
+        const float ndcX = relX * 2.0f - 1.0f;
+        const float ndcY = 1.0f - relY * 2.0f;
+
+        const glm::mat4 invVP = glm::inverse(InCamera.GetProjectionMatrix() * InCamera.GetViewMatrix());
+        glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
+        glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+        if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
+            return false;
+
+        nearPoint /= nearPoint.w;
+        farPoint /= farPoint.w;
+        OutOrigin = glm::vec3(nearPoint);
+        const glm::vec3 delta = glm::vec3(farPoint - nearPoint);
+        const float len = glm::length(delta);
+        if (len < 1e-6f)
+            return false;
+        OutDir = delta / len;
+        return true;
+    }
+
+    bool FTransformGizmo::IntersectRayWithAxis(const glm::vec3& InRayOrigin, const glm::vec3& InRayDir,
+                                               glm::vec3& OutHit) const {
+        const float denom = glm::dot(DragPlaneNormal, InRayDir);
+        if (std::abs(denom) < 1e-6f)
+            return false;
+        const float t = glm::dot(DragAxisOrigin - InRayOrigin, DragPlaneNormal) / denom;
+        if (t < 0.0f)
+            return false;
+        OutHit = InRayOrigin + InRayDir * t;
+        return true;
+    }
+
     void FTransformGizmo::CommitDragIfNeeded(FEditorHistory* InHistory) {
         if (!bDragRecorded || !InHistory || DragBefore.empty()) {
             DragBefore.clear();

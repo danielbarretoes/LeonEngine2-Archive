@@ -54,7 +54,13 @@ namespace Leon::Tools {
 
         auto result = FLightmass::BakeMap(mapPath, settings, bForce);
         UAssetManager::Shutdown();
-        return result.bSuccess ? 0 : 1;
+        if (!result.bSuccess) {
+            std::cerr << "[ERROR] Bake failed: " << result.Message << "\n";
+            return 1;
+        }
+        if (!result.Message.empty())
+            std::cout << "[Lightmass] " << result.Message << "\n";
+        return 0;
     }
 
 } // namespace Leon::Tools

@@ -31,6 +31,9 @@ namespace Leon {
         const std::string& GetAssetPath() const { return AssetPath; }
         void SetAssetPath(const std::string& InPath) { AssetPath = InPath; }
 
+        const FUUID& GetUUID() const { return UUID; }
+        void SetUUID(const FUUID& InUUID) { UUID = InUUID; }
+
         const std::string& GetSkeletonPath() const { return SkeletonPath; }
         void SetSkeletonPath(const std::string& InPath) { SkeletonPath = InPath; }
 
@@ -62,6 +65,7 @@ namespace Leon {
         std::string Name;
         std::string AssetPath;
         std::string SkeletonPath;
+        FUUID UUID;
         bool bIs2D = false;
         glm::vec2 AxisMin{0.0f, -180.0f};
         glm::vec2 AxisMax{600.0f, 180.0f};

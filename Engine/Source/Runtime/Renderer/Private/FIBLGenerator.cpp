@@ -130,6 +130,23 @@ namespace Leon {
             return false;
         }
 
+        const auto fileSize = static_cast<uint64_t>(std::filesystem::file_size(cachePath));
+        auto faceBytes = [](uint32_t size) -> uint64_t {
+            return static_cast<uint64_t>(size) * size * 4ull * sizeof(float) * 6ull;
+        };
+        uint64_t expected = sizeof(FIBLCacheHeader) + faceBytes(header.EnvSize) + faceBytes(header.IrradSize);
+        for (uint32_t mip = 0; mip < header.PrefilterMips; ++mip) {
+            uint32_t mipSize = header.PrefilterBaseSize >> mip;
+            if (mipSize == 0)
+                return false;
+            expected += faceBytes(mipSize);
+        }
+        if (fileSize < expected) {
+            LE_CORE_WARN("FIBLGenerator: IBL cache '{0}' truncated (have {1}, need {2})", cachePath, fileSize,
+                         expected);
+            return false;
+        }
+
         // 1. Load Environment Cubemap
         OutEnv.EnvironmentCubemap = FTextureCube::Create(header.EnvSize, header.EnvSize, true);
         std::vector<float> envFaceBuffer(header.EnvSize * header.EnvSize * 4);
