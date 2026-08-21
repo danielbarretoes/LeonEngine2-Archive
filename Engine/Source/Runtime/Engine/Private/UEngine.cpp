@@ -1,4 +1,5 @@
 #include "Engine/UEngine.hpp"
+#include "Engine/FGameplaySession.hpp"
 #include "FGameViewportLayer.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FLog.hpp"
@@ -404,24 +405,20 @@ namespace Leon {
             return 1;
         }
 
-        // 6. Instantiate and Configure GameMode
-        AGameModeBase* gameMode = nullptr;
-        if (!GameModeConfig.GameModeClass.empty() && UClassRegistry::Get().HasClass(GameModeConfig.GameModeClass)) {
-            gameMode = dynamic_cast<AGameModeBase*>(
-                UClassRegistry::Get().CreateActorOfClass(GameModeConfig.GameModeClass, ActiveWorld.get(), "GameMode"));
-        }
-        if (!gameMode) {
-            gameMode = ActiveWorld->SpawnActor<AGameModeBase>("GameMode");
-        }
-        ApplyGameModeConfig(gameMode);
-        ActiveWorld->SetGameMode(gameMode);
-
-        // 7. Initialize UI + audio before BeginPlay
+        // 6-7. UI/audio, then GameMode + InitWorld + BeginPlay (shared with Editor PIE)
         FUIRenderer::Init();
         FAudioDevice::Get().Init();
-
-        ActiveWorld->InitWorld();
-        ActiveWorld->BeginPlay();
+        {
+            FGameplaySessionParams SessionParams;
+            SessionParams.GameModeConfig = GameModeConfig;
+            SessionParams.NetMode = ENetMode::Standalone;
+            if (!FGameplaySession::Start(*ActiveWorld, SessionParams)) {
+                LE_CORE_ERROR("UEngine: Fatal — failed to start gameplay session");
+                return 1;
+            }
+            GameModeConfig.GameModeClass =
+                FGameplaySession::ResolveGameModeClassFromWorld(*ActiveWorld, GameModeConfig.GameModeClass);
+        }
 
         // 8. Push Viewport Layer and Execute Engine Loop
         auto* viewportLayer = new FGameViewportLayer(ActiveWorld);

@@ -2,6 +2,7 @@
 
 #include "Core/Base.hpp"
 #include "Engine/UWorld.hpp"
+#include <string>
 
 namespace Leon::Editor {
 
@@ -12,13 +13,7 @@ namespace Leon::Editor {
     public:
         FWorldSettingsPanel() = default;
 
-        void Draw(UWorld* InWorld, bool* bInOutOpen = nullptr);
-
-    private:
-        char GameModeOverride[128] = "";
-        bool bEnableStaticLighting = true;
-        int LightmapResolution = 512;
-        float Gravity = -9.81f;
+        void Draw(UWorld* InWorld, const std::string& InProjectDefaultGameMode = {}, bool* bInOutOpen = nullptr);
     };
 
 } // namespace Leon::Editor

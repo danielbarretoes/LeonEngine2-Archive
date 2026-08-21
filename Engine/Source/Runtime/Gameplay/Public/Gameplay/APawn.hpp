@@ -25,7 +25,7 @@ namespace Leon {
         bool IsControlled() const { return Controller != nullptr; }
         bool IsLocallyControlled() const;
 
-        virtual void SetupPlayerInputComponent(float DeltaSeconds) {}
+        virtual void SetupPlayerInputComponent(float /*DeltaSeconds*/) {}
 
     protected:
         AController* Controller = nullptr;

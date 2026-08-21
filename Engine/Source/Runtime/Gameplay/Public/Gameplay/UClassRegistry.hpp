@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace Leon {
 
@@ -29,6 +30,12 @@ namespace Leon {
 
         AActor* CreateActorOfClass(const std::string& InClassName, UWorld* InWorld, const std::string& InName = "");
         bool HasClass(const std::string& InClassName) const;
+
+        /** Sorted list of registered class names (for editor class pickers). */
+        std::vector<std::string> GetRegisteredClassNames() const;
+
+        /** Subset whose name contains InSubstring (e.g. "GameMode"). */
+        std::vector<std::string> GetRegisteredClassNamesContaining(const std::string& InSubstring) const;
 
     private:
         UClassRegistry();

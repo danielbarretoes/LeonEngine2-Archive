@@ -1,4 +1,6 @@
 #include "Assets/FEngineBuiltins.hpp"
+#include "Assets/FLightmapUV.hpp"
+#include "Assets/FMeshImporter.hpp"
 #include "Assets/UAssetManager.hpp"
 #include "Assets/UStaticMesh.hpp"
 #include "Core/FLog.hpp"
@@ -66,6 +68,8 @@ namespace Leon {
             mesh->GetSubmeshes().push_back(sub);
             mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
             mesh->CalculateBounds();
+            // Build* helpers write PackLightmapCell / island UVs into LightmapUV.
+            mesh->SetHasUniqueLightmapUV(true);
             return mesh;
         }
 
@@ -241,16 +245,62 @@ namespace Leon {
                 LE_CORE_INFO("FEngineBuiltins: Wrote {}", InPath.string());
         }
 
-        void EnsureMeshFile(const std::string& InVirtualPath, const TRef<UStaticMesh>& InMesh) {
+        void EnsureMeshFile(const std::string& InVirtualPath, const TRef<UStaticMesh>& InMesh, bool bForceWrite = false) {
             if (!InMesh)
                 return;
             const std::string disk = UAssetManager::ResolveVirtualPath(InVirtualPath);
-            if (disk.empty() || fs::exists(disk))
+            if (disk.empty())
+                return;
+            if (!bForceWrite && fs::exists(disk))
                 return;
             fs::create_directories(fs::path(disk).parent_path());
             InMesh->SetAssetPath(InVirtualPath);
             if (InMesh->SaveToFile(disk))
                 LE_CORE_INFO("FEngineBuiltins: Wrote {}", disk);
+        }
+
+        /** Prefer authored FBX next to the .lmesh (Blender export); else keep procedural mesh. */
+        TRef<UStaticMesh> ResolvePrimitiveMesh(const std::string& InVirtualPath, const std::string& InName,
+                                               const TRef<UStaticMesh>& InProceduralFallback) {
+            const std::string lmeshDisk = UAssetManager::ResolveVirtualPath(InVirtualPath);
+            if (lmeshDisk.empty())
+                return InProceduralFallback;
+
+            const fs::path fbxPath = fs::path(lmeshDisk).replace_extension(".fbx");
+            if (fs::exists(fbxPath)) {
+                FMeshImportSettings settings;
+                settings.bSplitStaticMeshes = false;
+                settings.bExtractMaterials = false;
+                settings.bGenerateTangents = true;
+                settings.bGenerateNormalsIfMissing = true;
+
+                FMeshImportResult result;
+                if (FMeshImporter::ImportFBX(fbxPath.string(), settings, result) && result.StaticMesh) {
+                    auto mesh = result.StaticMesh;
+                    mesh->GetMaterialSlots().clear();
+                    mesh->GetMaterialSlots().push_back({"Default", FEngineBuiltins::kWorldGridMaterial, nullptr});
+                    if (mesh->GetSubmeshes().empty()) {
+                        FStaticSubmesh sub;
+                        sub.Name = InName;
+                        sub.IndexCount = static_cast<uint32_t>(mesh->GetIndices().size());
+                        sub.VertexCount = static_cast<uint32_t>(mesh->GetVertices().size());
+                        sub.MaterialSlotIndex = 0;
+                        mesh->GetSubmeshes().push_back(sub);
+                    }
+                    // FBX import leaves LightmapUV at (0,0) — bake needs unique UV1.
+                    FLightmapUV::GenerateBoxPackedLightmapUVs(*mesh);
+                    mesh->CalculateBounds();
+                    EnsureMeshFile(InVirtualPath, mesh, true);
+                    LE_CORE_INFO("FEngineBuiltins: Imported primitive '{}' from {} (with lightmap UVs)", InName,
+                                 fbxPath.string());
+                    return mesh;
+                }
+                for (const auto& err : result.Errors)
+                    LE_CORE_WARN("FEngineBuiltins: FBX import '{}': {}", fbxPath.string(), err);
+            }
+
+            EnsureMeshFile(InVirtualPath, InProceduralFallback, false);
+            return InProceduralFallback;
         }
 
         void RegisterMesh(const std::string& InVirtualPath, const TRef<UStaticMesh>& InMesh) {
@@ -297,15 +347,10 @@ namespace Leon {
         const fs::path engineRes = fs::path(FProjectPaths::EngineContentDir());
         RegisterWorldGrid(engineRes);
 
-        auto cube = BuildBoxMesh("Cube", 1.0f);
-        auto sphere = BuildSphereMesh("Sphere", 0.5f, 32, 16);
-        auto cylinder = BuildCylinderMesh("Cylinder", 0.5f, 1.0f, 32);
-        auto plane = BuildPlaneMesh("Plane", 2.0f, 2.0f);
-
-        EnsureMeshFile(kMeshCube, cube);
-        EnsureMeshFile(kMeshSphere, sphere);
-        EnsureMeshFile(kMeshCylinder, cylinder);
-        EnsureMeshFile(kMeshPlane, plane);
+        auto cube = ResolvePrimitiveMesh(kMeshCube, "Cube", BuildBoxMesh("Cube", 1.0f));
+        auto sphere = ResolvePrimitiveMesh(kMeshSphere, "Sphere", BuildSphereMesh("Sphere", 0.5f, 32, 16));
+        auto cylinder = ResolvePrimitiveMesh(kMeshCylinder, "Cylinder", BuildCylinderMesh("Cylinder", 0.5f, 1.0f, 32));
+        auto plane = ResolvePrimitiveMesh(kMeshPlane, "Plane", BuildPlaneMesh("Plane", 2.0f, 2.0f));
 
         RegisterMesh(kMeshCube, cube);
         RegisterMesh(kMeshSphere, sphere);

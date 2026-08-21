@@ -233,6 +233,7 @@ namespace Leon {
             for (auto entity : spotView) {
                 auto [spotComp, transform] = spotView.get<FSpotLightComponent, FTransformComponent>(entity);
                 if (spotComp.bEnabled) {
+                    SyncSpotLightFromTransform(spotComp.Light, transform.Translation, transform.Rotation);
                     FDebugRenderer::DrawSpotLightGizmo(spotComp.Light);
                 }
             }

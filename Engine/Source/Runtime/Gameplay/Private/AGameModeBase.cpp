@@ -39,7 +39,10 @@ namespace Leon {
     }
 
     void AGameModeBase::StartPlay() {
-        if (World && World->GetNetMode() == ENetMode::Client)
+        if (!World)
+            return;
+        const ENetMode NetMode = World->GetNetMode();
+        if (NetMode == ENetMode::Client || NetMode == ENetMode::DedicatedServer)
             return;
         Login("Player_0");
     }
@@ -122,6 +125,14 @@ namespace Leon {
     APlayerController* AGameModeBase::Login(const std::string& InPlayerName) {
         if (!World)
             return nullptr;
+
+        if (MaxPlayers > 0) {
+            const int32_t Current = static_cast<int32_t>(World->GetPlayerControllers().size());
+            if (Current >= MaxPlayers) {
+                LE_CORE_WARN("AGameModeBase: Login rejected for '{0}' (MaxPlayers={1})", InPlayerName, MaxPlayers);
+                return nullptr;
+            }
+        }
 
         APlayerController* pc = nullptr;
         if (!PlayerControllerClass.empty()) {

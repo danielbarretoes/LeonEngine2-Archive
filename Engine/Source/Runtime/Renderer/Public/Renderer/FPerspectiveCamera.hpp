@@ -13,6 +13,12 @@ namespace Leon {
         void SetProjection(float InFOV, float InAspectRatio, float InNearClip, float InFarClip);
         void SetViewportSize(uint32_t InWidth, uint32_t InHeight);
 
+        /** Editor ortho views (Top / Front / Side). Game cameras stay perspective. */
+        void SetOrthographic(bool bInOrthographic, float InHeight = 20.0f);
+        bool IsOrthographic() const { return bOrthographic; }
+        float GetOrthoHeight() const { return OrthoHeight; }
+        void SetOrthoHeight(float InHeight);
+
         const glm::vec3& GetPosition() const { return Position; }
         void SetPosition(const glm::vec3& InPosition) {
             Position = InPosition;
@@ -47,6 +53,8 @@ namespace Leon {
         float AspectRatio = 1.777778f;
         float NearClip = 0.1f;
         float FarClip = 1000.0f;
+        bool bOrthographic = false;
+        float OrthoHeight = 20.0f;
 
         glm::vec3 Position = {0.0f, 0.0f, 3.0f};
         float Pitch = 0.0f;

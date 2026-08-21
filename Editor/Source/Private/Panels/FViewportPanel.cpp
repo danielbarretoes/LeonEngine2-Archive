@@ -9,6 +9,8 @@
 #include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
 #include "Engine/Components.hpp"
+#include "Gameplay/APlayerCameraManager.hpp"
+#include "Gameplay/APlayerController.hpp"
 #include "Gameplay/APlayerStart.hpp"
 #include "Renderer/FDebugRenderer.hpp"
 #include "RHI/FFramebuffer.hpp"
@@ -50,6 +52,122 @@ namespace Leon::Editor {
                     InOutMax[i] = mid + InMinExtent * 0.5f;
                 }
             }
+        }
+
+        glm::vec3 ActorWorldOrigin(AActor& InActor) {
+            return glm::vec3(InActor.GetActorWorldMatrix()[3]);
+        }
+
+        bool ProjectWorld(const glm::mat4& InViewProj, const glm::vec3& InWorld, const ImVec2& InMin,
+                          const ImVec2& InSize, ImVec2& OutScreen) {
+            glm::vec4 clip = InViewProj * glm::vec4(InWorld, 1.0f);
+            if (clip.w <= 0.001f)
+                return false;
+            glm::vec3 ndc = glm::vec3(clip) / clip.w;
+            OutScreen = ImVec2(InMin.x + (ndc.x * 0.5f + 0.5f) * InSize.x,
+                               InMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InSize.y);
+            return true;
+        }
+
+        ImVec2 ClipToScreen(const glm::vec4& InClip, const ImVec2& InMin, const ImVec2& InSize) {
+            const glm::vec3 ndc = glm::vec3(InClip) / InClip.w;
+            return ImVec2(InMin.x + (ndc.x * 0.5f + 0.5f) * InSize.x,
+                          InMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InSize.y);
+        }
+
+        bool ClipLineToRect(ImVec2& InOutA, ImVec2& InOutB, const ImVec2& InMin, const ImVec2& InMax) {
+            const float dx = InOutB.x - InOutA.x;
+            const float dy = InOutB.y - InOutA.y;
+            float t0 = 0.0f;
+            float t1 = 1.0f;
+            auto Clip = [&](float p, float q) -> bool {
+                if (std::abs(p) < 1e-8f)
+                    return q >= 0.0f;
+                const float r = q / p;
+                if (p < 0.0f) {
+                    if (r > t1)
+                        return false;
+                    if (r > t0)
+                        t0 = r;
+                } else {
+                    if (r < t0)
+                        return false;
+                    if (r < t1)
+                        t1 = r;
+                }
+                return true;
+            };
+            if (!Clip(-dx, InOutA.x - InMin.x) || !Clip(dx, InMax.x - InOutA.x) || !Clip(-dy, InOutA.y - InMin.y) ||
+                !Clip(dy, InMax.y - InOutA.y))
+                return false;
+            const ImVec2 origin = InOutA;
+            InOutA = ImVec2(origin.x + t0 * dx, origin.y + t0 * dy);
+            InOutB = ImVec2(origin.x + t1 * dx, origin.y + t1 * dy);
+            return true;
+        }
+
+        /** Clip a world-space segment to the near plane, project, then clip to the viewport.
+         *  Only the near plane is clipped in 3D — x/y frustum clip at w≈0 shoots a line
+         *  across the screen through the camera. */
+        bool ClipProjectLine(const glm::mat4& InViewProj, const glm::vec3& InA, const glm::vec3& InB,
+                             const ImVec2& InMin, const ImVec2& InSize, ImVec2& OutA, ImVec2& OutB) {
+            glm::vec4 a = InViewProj * glm::vec4(InA, 1.0f);
+            glm::vec4 b = InViewProj * glm::vec4(InB, 1.0f);
+
+            // OpenGL near plane: ndc.z >= -1 → z + w >= 0
+            const float d0 = a.z + a.w;
+            const float d1 = b.z + b.w;
+            const bool in0 = d0 >= 0.0f;
+            const bool in1 = d1 >= 0.0f;
+            if (!in0 && !in1)
+                return false;
+            if (in0 != in1) {
+                const float denom = d0 - d1;
+                if (std::abs(denom) < 1e-12f)
+                    return false;
+                const glm::vec4 hit = a + (b - a) * (d0 / denom);
+                if (!in0)
+                    a = hit;
+                else
+                    b = hit;
+            }
+
+            if (a.w <= 0.05f || b.w <= 0.05f)
+                return false;
+
+            OutA = ClipToScreen(a, InMin, InSize);
+            OutB = ClipToScreen(b, InMin, InSize);
+
+            const ImVec2 rectMax(InMin.x + InSize.x, InMin.y + InSize.y);
+            return ClipLineToRect(OutA, OutB, InMin, rectMax);
+        }
+
+        bool UnprojectScreenRay(const FPerspectiveCamera& InCamera, const glm::vec2& InScreen, const ImVec2& InMin,
+                                const ImVec2& InSize, glm::vec3& OutOrigin, glm::vec3& OutDir) {
+            if (InSize.x <= 1e-4f || InSize.y <= 1e-4f)
+                return false;
+            const float ndcX = ((InScreen.x - InMin.x) / InSize.x) * 2.0f - 1.0f;
+            const float ndcY = 1.0f - ((InScreen.y - InMin.y) / InSize.y) * 2.0f;
+            const glm::mat4 invVP = glm::inverse(InCamera.GetViewProjectionMatrix());
+            glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
+            glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+            if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
+                return false;
+            nearPoint /= nearPoint.w;
+            farPoint /= farPoint.w;
+            OutOrigin = glm::vec3(nearPoint);
+            const glm::vec3 delta = glm::vec3(farPoint - nearPoint);
+            const float len = glm::length(delta);
+            if (len < 1e-6f)
+                return false;
+            OutDir = delta / len;
+            return true;
+        }
+
+        bool IsPlayerStartActor(AActor& InActor) {
+            return dynamic_cast<APlayerStart*>(&InActor) != nullptr ||
+                   InActor.GetClass().find("PlayerStart") != std::string::npos ||
+                   InActor.GetName().find("PlayerStart") != std::string::npos;
         }
 
     } // namespace
@@ -134,6 +252,7 @@ namespace Leon::Editor {
         if (!bCameraInitialized) {
             EditorCamera.SetPosition(glm::vec3(0.0f, 5.0f, 10.0f));
             EditorCamera.SetRotation(-20.0f, -90.0f);
+            PivotPoint = glm::vec3(0.0f, 0.0f, 0.0f);
             bCameraInitialized = true;
         }
     }
@@ -143,18 +262,89 @@ namespace Leon::Editor {
             return;
         }
 
-        const auto& tc = InActor->GetComponent<FTransformComponent>();
         glm::vec3 localMin, localMax;
         GetActorEditorLocalBounds(*InActor, localMin, localMax);
 
         glm::vec3 worldMin, worldMax;
-        TransformAABBCorners(localMin, localMax, tc.GetTransform(), worldMin, worldMax);
-        const glm::vec3 target = (worldMin + worldMax) * 0.5f;
+        TransformAABBCorners(localMin, localMax, InActor->GetActorWorldMatrix(), worldMin, worldMax);
+        PivotPoint = (worldMin + worldMax) * 0.5f;
         const float radius = glm::length(worldMax - worldMin) * 0.5f;
         const float dist = std::max(radius * 2.5f, 2.0f);
 
+        if (ViewMode != EViewportViewMode::Perspective) {
+            OrthoHeight = std::max(radius * 3.0f, 4.0f);
+            EditorCamera.SetPosition(PivotPoint - EditorCamera.GetForwardDirection() * dist);
+            EditorCamera.SetOrthoHeight(OrthoHeight);
+            return;
+        }
+
         glm::vec3 forward = EditorCamera.GetForwardDirection();
-        EditorCamera.SetPosition(target - forward * dist);
+        EditorCamera.SetPosition(PivotPoint - forward * dist);
+    }
+
+    void FViewportPanel::OrbitAroundPivot(float InYawDelta, float InPitchDelta) {
+        float dist = glm::length(EditorCamera.GetPosition() - PivotPoint);
+        dist = std::max(dist, 0.25f);
+        float yaw = EditorCamera.GetYaw() + InYawDelta;
+        float pitch = std::clamp(EditorCamera.GetPitch() + InPitchDelta, -89.0f, 89.0f);
+        EditorCamera.SetRotation(pitch, yaw);
+        EditorCamera.SetPosition(PivotPoint - EditorCamera.GetForwardDirection() * dist);
+    }
+
+    void FViewportPanel::PanCamera(float InDeltaX, float InDeltaY) {
+        const float dist = std::max(glm::length(EditorCamera.GetPosition() - PivotPoint), 1.0f);
+        const float scale = EditorCamera.IsOrthographic() ? (OrthoHeight * 0.0025f) : (dist * 0.0025f);
+        const glm::vec3 delta = (-EditorCamera.GetRightDirection() * InDeltaX + EditorCamera.GetUpDirection() * InDeltaY) *
+                                scale;
+        EditorCamera.SetPosition(EditorCamera.GetPosition() + delta);
+        PivotPoint += delta;
+    }
+
+    void FViewportPanel::DollyCamera(float InAmount) {
+        if (EditorCamera.IsOrthographic() || ViewMode != EViewportViewMode::Perspective) {
+            OrthoHeight = std::clamp(OrthoHeight * (1.0f - InAmount * 0.12f), 0.5f, 400.0f);
+            EditorCamera.SetOrthoHeight(OrthoHeight);
+            return;
+        }
+        glm::vec3 pos = EditorCamera.GetPosition();
+        glm::vec3 forward = EditorCamera.GetForwardDirection();
+        pos += forward * InAmount * CameraSpeed * 0.45f;
+        EditorCamera.SetPosition(pos);
+        // Keep pivot in front of the camera so orbit stays stable.
+        const float along = glm::dot(PivotPoint - pos, forward);
+        if (along < 0.5f)
+            PivotPoint = pos + forward * std::max(along, 2.0f);
+    }
+
+    void FViewportPanel::ApplyViewMode() {
+        if (ViewMode == AppliedViewMode)
+            return;
+
+        if (AppliedViewMode == EViewportViewMode::Perspective && ViewMode != EViewportViewMode::Perspective) {
+            SavedPerspPosition = EditorCamera.GetPosition();
+            SavedPerspPitch = EditorCamera.GetPitch();
+            SavedPerspYaw = EditorCamera.GetYaw();
+        }
+
+        AppliedViewMode = ViewMode;
+        const float dist = std::max(glm::length(EditorCamera.GetPosition() - PivotPoint), 8.0f);
+
+        if (ViewMode == EViewportViewMode::Perspective) {
+            EditorCamera.SetOrthographic(false);
+            EditorCamera.SetPosition(SavedPerspPosition);
+            EditorCamera.SetRotation(SavedPerspPitch, SavedPerspYaw);
+            return;
+        }
+
+        if (ViewMode == EViewportViewMode::Top)
+            EditorCamera.SetRotation(-89.0f, -90.0f);
+        else if (ViewMode == EViewportViewMode::Front)
+            EditorCamera.SetRotation(0.0f, -90.0f);
+        else
+            EditorCamera.SetRotation(0.0f, 180.0f);
+
+        EditorCamera.SetPosition(PivotPoint - EditorCamera.GetForwardDirection() * dist);
+        EditorCamera.SetOrthographic(true, OrthoHeight);
     }
 
     void FViewportPanel::ProcessCameraInput() {
@@ -163,24 +353,45 @@ namespace Leon::Editor {
         if (dt <= 0.0f || dt > 0.1f)
             dt = 0.016f;
 
-        // Hotkey 'F' to focus selected actor
+        const bool bWindowHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+        const bool bAlt = io.KeyAlt;
+
         if (ImGui::IsKeyPressed(ImGuiKey_F, false) && !io.WantTextInput) {
             AActor* primaryActor = Context ? Context->GetSelection().GetPrimarySelectedActor() : nullptr;
-            if (primaryActor) {
+            if (primaryActor)
                 FocusOnActor(primaryActor);
+        }
+
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && bWindowHovered && !bAlt)
+            bRmbNavigating = true;
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+            bRmbNavigating = false;
+
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && bWindowHovered)
+            bMmbPanning = true;
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Middle))
+            bMmbPanning = false;
+
+        if (bAlt && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && bWindowHovered)
+            bAltOrbiting = true;
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            bAltOrbiting = false;
+
+        if (bWindowHovered && io.MouseWheel != 0.0f) {
+            if (bRmbNavigating) {
+                CameraSpeed = std::clamp(CameraSpeed + io.MouseWheel * 1.5f, 1.0f, 50.0f);
+            } else {
+                DollyCamera(io.MouseWheel);
             }
         }
 
-        // Hotkey 'Delete' — handled by FEditorApp::DeleteSelectedActors (undoable).
-        // Do not destroy here or Ctrl+Z cannot restore.
-
-        // Camera Speed adjustment via mouse wheel
-        if (ImGui::IsWindowHovered() && io.MouseWheel != 0.0f) {
-            CameraSpeed = std::clamp(CameraSpeed + io.MouseWheel * 1.5f, 1.0f, 50.0f);
-        }
-
-        // RMB Navigation (Unreal style: WASD + QE)
-        if (ImGui::IsMouseDown(1) && ImGui::IsWindowHovered()) {
+        if (bMmbPanning || (bAlt && ImGui::IsMouseDown(ImGuiMouseButton_Middle))) {
+            PanCamera(io.MouseDelta.x, io.MouseDelta.y);
+        } else if (bAltOrbiting || (bAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left))) {
+            OrbitAroundPivot(io.MouseDelta.x * 0.25f, -io.MouseDelta.y * 0.25f);
+        } else if (bAlt && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+            DollyCamera(io.MouseDelta.y * 0.05f);
+        } else if (bRmbNavigating && ViewMode == EViewportViewMode::Perspective) {
             float speed = CameraSpeed * (io.KeyShift ? 3.0f : 1.0f);
             glm::vec3 moveDir(0.0f);
 
@@ -198,16 +409,19 @@ namespace Leon::Editor {
                 moveDir -= EditorCamera.GetUpDirection();
 
             if (glm::length(moveDir) > 0.001f) {
-                EditorCamera.SetPosition(EditorCamera.GetPosition() + glm::normalize(moveDir) * speed * dt);
+                const glm::vec3 step = glm::normalize(moveDir) * speed * dt;
+                EditorCamera.SetPosition(EditorCamera.GetPosition() + step);
+                PivotPoint += step;
             }
 
-            // Mouse Look
             if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f) {
-                float sens = 0.15f;
+                const float sens = 0.15f;
                 float yaw = EditorCamera.GetYaw() + io.MouseDelta.x * sens;
                 float pitch = std::clamp(EditorCamera.GetPitch() - io.MouseDelta.y * sens, -89.0f, 89.0f);
                 EditorCamera.SetRotation(pitch, yaw);
             }
+        } else if (bRmbNavigating && ViewMode != EViewportViewMode::Perspective) {
+            PanCamera(io.MouseDelta.x, io.MouseDelta.y);
         }
     }
 
@@ -223,13 +437,31 @@ namespace Leon::Editor {
 
         WorldRenderer->OnViewportResize(InWidth, InHeight);
 
-        float aspect = static_cast<float>(InWidth) / static_cast<float>(InHeight);
-        EditorCamera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
+        const float aspect = static_cast<float>(InWidth) / static_cast<float>(InHeight);
+        FPerspectiveCamera* Camera = &EditorCamera;
+        FPerspectiveCamera PlayCamera(45.0f, aspect, 0.1f, 1000.0f);
+
+        if (bPlayingInEditor) {
+            if (APlayerController* Pc = InWorld.GetFirstPlayerController()) {
+                if (Pc->GetPlayerCameraManager())
+                    Pc->GetPlayerCameraManager()->SetAspectRatio(aspect);
+                Pc->GetPlayerViewPoint(PlayCamera);
+                Camera = &PlayCamera;
+            } else {
+                EditorCamera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
+            }
+        } else if (ViewMode == EViewportViewMode::Perspective) {
+            EditorCamera.SetProjection(45.0f, aspect, 0.1f, 1000.0f);
+        } else {
+            EditorCamera.SetViewportSize(InWidth, InHeight);
+            EditorCamera.SetOrthographic(true, OrthoHeight);
+        }
 
         WorldRenderer->SetWireframeEnabled(ShadingMode == EViewportShadingMode::Wireframe);
-        WorldRenderer->Render(EditorCamera);
+        WorldRenderer->SetDebugMode(ShadingMode == EViewportShadingMode::Unlit ? 14 : 0);
+        WorldRenderer->Render(*Camera);
 
-        if (bShowEditorGizmos) {
+        if (bShowEditorGizmos && !bPlayingInEditor) {
             DrawEditorWorldGizmos(InWorld);
         }
     }
@@ -252,7 +484,10 @@ namespace Leon::Editor {
             FDirectionalLight light = dirComp.Light;
             if (glm::length(light.Direction) < 1e-5f)
                 light.Direction = glm::vec3(0.0f, -1.0f, 0.0f);
-            FDebugRenderer::DrawDirectionalLightGizmo(light, transform.Translation, 2.5f);
+            glm::vec3 pos = transform.Translation;
+            if (AActor* actor = InWorld.FindActorByEntity(entity))
+                pos = ActorWorldOrigin(*actor);
+            FDebugRenderer::DrawDirectionalLightGizmo(light, pos, 2.5f);
         }
 
         auto pointView = reg.view<FPointLightComponent, FTransformComponent>();
@@ -262,6 +497,8 @@ namespace Leon::Editor {
                 continue;
             FPointLight light = pointComp.Light;
             light.Position = transform.Translation;
+            if (AActor* actor = InWorld.FindActorByEntity(entity))
+                light.Position = ActorWorldOrigin(*actor);
             FDebugRenderer::DrawPointLightGizmo(light);
         }
 
@@ -271,11 +508,16 @@ namespace Leon::Editor {
             if (!spotComp.bEnabled)
                 continue;
             FSpotLight light = spotComp.Light;
-            light.Position = transform.Translation;
-            if (glm::length(light.Direction) < 1e-5f) {
-                glm::mat4 rot = glm::toMat4(glm::quat(glm::radians(transform.Rotation)));
-                light.Direction = glm::normalize(glm::vec3(rot * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+            glm::vec3 pos = transform.Translation;
+            glm::vec3 euler = transform.Rotation;
+            if (AActor* actor = InWorld.FindActorByEntity(entity)) {
+                pos = ActorWorldOrigin(*actor);
+                euler = actor->GetActorRotation();
             }
+            SyncSpotLightFromTransform(light, pos, euler);
+            // Keep component in sync so lighting / save match the gizmo.
+            spotComp.Light.Position = light.Position;
+            spotComp.Light.Direction = light.Direction;
             FDebugRenderer::DrawSpotLightGizmo(light);
         }
 
@@ -284,14 +526,11 @@ namespace Leon::Editor {
             AActor* actor = actorRef.get();
             if (!actor || actor->IsPendingKill() || !actor->HasComponent<FTransformComponent>())
                 continue;
-            const bool bPlayerStart = dynamic_cast<APlayerStart*>(actor) != nullptr ||
-                                      actor->GetClass().find("PlayerStart") != std::string::npos ||
-                                      actor->GetName().find("PlayerStart") != std::string::npos;
-            if (!bPlayerStart)
+            if (!IsPlayerStartActor(*actor))
                 continue;
 
+            const glm::vec3 p = ActorWorldOrigin(*actor);
             const auto& tc = actor->GetComponent<FTransformComponent>();
-            const glm::vec3 p = tc.Translation;
             const glm::vec4 col(0.15f, 0.85f, 1.0f, 1.0f);
             const float s = 0.35f;
             FDebugRenderer::DrawLine(p + glm::vec3(0, s, 0), p + glm::vec3(s, 0, 0), col);
@@ -361,18 +600,10 @@ namespace Leon::Editor {
             return;
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+        glm::mat4 vp = EditorCamera.GetViewProjectionMatrix();
 
         auto Project = [&](const glm::vec3& world, ImVec2& out) -> bool {
-            glm::vec4 clip = vp * glm::vec4(world, 1.0f);
-            if (clip.w <= 0.001f)
-                return false;
-            glm::vec3 ndc = glm::vec3(clip) / clip.w;
-            if (ndc.x < -1.2f || ndc.x > 1.2f || ndc.y < -1.2f || ndc.y > 1.2f)
-                return false;
-            out = ImVec2(InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x,
-                         InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y);
-            return true;
+            return ProjectWorld(vp, world, InViewportMin, InViewportSize, out);
         };
 
         auto DrawBillboard = [&](const glm::vec3& world, ELucideIcon icon, ImU32 color, const char* label) {
@@ -394,7 +625,7 @@ namespace Leon::Editor {
             AActor* actor = actorRef.get();
             if (!actor || actor->IsPendingKill() || !actor->HasComponent<FTransformComponent>())
                 continue;
-            const glm::vec3 pos = actor->GetComponent<FTransformComponent>().Translation;
+            const glm::vec3 pos = ActorWorldOrigin(*actor);
 
             if (actor->HasComponent<FDirectionalLightComponent>() &&
                 actor->GetComponent<FDirectionalLightComponent>().bEnabled) {
@@ -405,9 +636,7 @@ namespace Leon::Editor {
             } else if (actor->HasComponent<FSpotLightComponent>() &&
                        actor->GetComponent<FSpotLightComponent>().bEnabled) {
                 DrawBillboard(pos, ELucideIcon::Crosshair, IM_COL32(255, 140, 50, 255), "Spot");
-            } else if (dynamic_cast<APlayerStart*>(actor) ||
-                       actor->GetClass().find("PlayerStart") != std::string::npos ||
-                       actor->GetName().find("PlayerStart") != std::string::npos) {
+            } else if (IsPlayerStartActor(*actor)) {
                 DrawBillboard(pos, ELucideIcon::Waypoints, IM_COL32(80, 200, 255, 255), "Start");
             } else if (actor->HasComponent<FCameraComponent>()) {
                 DrawBillboard(pos, ELucideIcon::Clapperboard, IM_COL32(200, 120, 255, 255), "Cam");
@@ -575,7 +804,15 @@ namespace Leon::Editor {
 
         try {
             EnsureCamera();
-            ProcessCameraInput();
+            if (!bPlayingInEditor) {
+                ApplyViewMode();
+                ProcessCameraInput();
+            }
+
+            if (!bPlayingInEditor && !ImGui::GetIO().WantTextInput && !ImGui::IsMouseDown(ImGuiMouseButton_Right) &&
+                (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) || ImGui::IsWindowFocused())) {
+                Gizmo.ProcessHotkeys();
+            }
 
             // Toolbar at top of viewport (above the 3D image — not overlapping pick coords)
             ImGui::SetCursorPos(ImVec2(8.0f, 28.0f));
@@ -621,7 +858,7 @@ namespace Leon::Editor {
             }
 
             // Draw 3D Interactive Transform Gizmo
-            if (!gizmoActors.empty() && bHasViewportImage) {
+            if (!bPlayingInEditor && !gizmoActors.empty() && bHasViewportImage) {
                 FEditorHistory* history = Context ? &Context->GetHistory() : nullptr;
                 Gizmo.Draw(gizmoActors, EditorCamera, vpMin.x, vpMin.y, vpSize.x, vpSize.y, history);
             } else {
@@ -630,17 +867,17 @@ namespace Leon::Editor {
             }
 
             // Draw Selection Wireframe for all selected actors
-            if (bHasViewportImage && Context) {
+            if (!bPlayingInEditor && bHasViewportImage && Context) {
                 for (AActor* selected : Context->GetSelection().GetSelectedActors()) {
                     if (selected && !selected->IsPendingKill())
                         DrawSelectionOutline(selected, vpMin, vpSize);
                 }
-            } else if (activeActor && !activeActor->IsPendingKill() && bHasViewportImage) {
+            } else if (!bPlayingInEditor && activeActor && !activeActor->IsPendingKill() && bHasViewportImage) {
                 DrawSelectionOutline(activeActor, vpMin, vpSize);
             }
 
             // Unreal-like sprite icons for lights / PlayerStart / cameras
-            if (InWorld && bHasViewportImage) {
+            if (!bPlayingInEditor && InWorld && bHasViewportImage) {
                 DrawEditorGizmoIcons(*InWorld, vpMin, vpSize);
             }
 
@@ -650,59 +887,70 @@ namespace Leon::Editor {
             }
 
             // Actor Selection and Raycast Picking
-            // NOTE: ImGuiHoveredFlags_AllowWhenBlockedByActiveItem is required because
-            // ImGui::Image() captures hover by default, which would prevent picking.
             const bool bWindowHoveredForPick = ImGui::IsWindowHovered(
                 ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
                 ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+            const bool bCameraBusy = bRmbNavigating || bMmbPanning || bAltOrbiting || ImGui::GetIO().KeyAlt;
 
             bool bPickHandled = false;
-            if (InWorld && bHasViewportImage && ImGui::IsMouseClicked(0) && bWindowHoveredForPick &&
-                !Gizmo.IsDragging() && !Gizmo.IsHovered()) {
+            if (!bPlayingInEditor && InWorld && bHasViewportImage && ImGui::IsMouseClicked(0) && bWindowHoveredForPick &&
+                !Gizmo.IsDragging() && !Gizmo.IsHovered() && !bCameraBusy) {
                 ImVec2 mousePos = ImGui::GetMousePos();
                 const bool bOverImage =
                     mousePos.x >= vpMin.x && mousePos.x <= vpMin.x + vpSize.x && mousePos.y >= vpMin.y &&
                     mousePos.y <= vpMin.y + vpSize.y;
 
-                // Ctrl/Shift + click may start marquee; only consume as a point-pick without those mods,
-                // or when modifiers are held but we still want toggle/add under the cursor (Unreal).
                 if (bOverImage) {
                     glm::vec2 clickPos(mousePos.x, mousePos.y);
                     AActor* hitActor = PickActorAtScreenPos(*InWorld, clickPos, vpMin, vpSize);
 
+                    if (ImGui::IsMouseDoubleClicked(0) && hitActor) {
+                        FocusOnActor(hitActor);
+                    }
+
                     bool bCtrl = ImGui::GetIO().KeyCtrl;
                     bool bShift = ImGui::GetIO().KeyShift;
 
-                    if (Context) {
-                        Context->ModifyActorSelectionWithUndo([&](FEditorSelection& selection) {
-                            if (hitActor) {
-                                if (bCtrl) {
+                    if (hitActor) {
+                        if (Context) {
+                            Context->ModifyActorSelectionWithUndo([&](FEditorSelection& selection) {
+                                if (bCtrl)
                                     selection.ToggleActorSelection(hitActor);
-                                } else if (bShift) {
+                                else if (bShift)
                                     selection.SelectActor(hitActor, true);
-                                } else {
+                                else
                                     selection.SelectActor(hitActor, false);
-                                }
-                            } else if (!bCtrl && !bShift) {
-                                selection.ClearActorSelection();
-                            }
-                        });
+                            });
+                        }
+                        if (OnActorSelected)
+                            OnActorSelected(hitActor);
+                        bPickHandled = true;
+                    } else {
+                        // Empty click: start marquee (commit/clear on release).
+                        bPickHandled = false;
                     }
-
-                    // Fire callback AFTER selection is updated in Context.
-                    // Scrolls Outliner only — never moves the camera (Unreal: F / double-click).
-                    if (OnActorSelected) {
-                        OnActorSelected(hitActor);
-                    }
-
-                    // Let marquee start on modifier+empty drag; point picks always consume the click.
-                    bPickHandled = hitActor != nullptr || (!bCtrl && !bShift);
                 }
             }
 
-            // Marquee Selection Box (only when picking did not consume the click)
-            if (InWorld && bHasViewportImage && !bPickHandled) {
+            if (InWorld && bHasViewportImage && !bPickHandled && !bCameraBusy) {
                 ProcessMarqueeSelection(*InWorld, vpMin, vpSize);
+            }
+
+            if (InWorld && bHasViewportImage) {
+                if (const ImGuiPayload* payload = ImGui::GetDragDropPayload()) {
+                    const bool bPlace = payload->IsDataType("PLACE_ACTOR_TYPE");
+                    const bool bMesh = payload->IsDataType("CONTENT_BROWSER_ASSET");
+                    if (bPlace || bMesh) {
+                        glm::vec3 ghostPos = GetWorldRayIntersection(
+                            glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y), vpMin, vpSize);
+                        const char* label = "Place";
+                        if (bPlace)
+                            label = static_cast<const char*>(payload->Data);
+                        else if (payload->Data)
+                            label = static_cast<const char*>(payload->Data);
+                        DrawPlacementGhost(ghostPos, vpMin, vpSize, label ? label : "Place");
+                    }
+                }
             }
 
             // Drag and Drop Targets from Place Actors & Content Browser
@@ -775,11 +1023,15 @@ namespace Leon::Editor {
         const bool bHoveredForMarquee = ImGui::IsWindowHovered(
             ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
             ImGuiHoveredFlags_AllowWhenBlockedByPopup);
-        if (ImGui::IsMouseClicked(0) && bHoveredForMarquee && !Gizmo.IsDragging()) {
-            if (io.KeyShift || io.KeyCtrl) {
+        if (ImGui::IsMouseClicked(0) && bHoveredForMarquee && !Gizmo.IsDragging() && !Gizmo.IsHovered() &&
+            !bRmbNavigating && !bMmbPanning && !bAltOrbiting) {
+            const ImVec2 mp = io.MousePos;
+            const bool bOverImage = mp.x >= InViewportMin.x && mp.x <= InViewportMin.x + InViewportSize.x &&
+                                    mp.y >= InViewportMin.y && mp.y <= InViewportMin.y + InViewportSize.y;
+            if (bOverImage) {
                 bMarqueeSelecting = true;
-                MarqueeStart = io.MousePos;
-                MarqueeEnd = io.MousePos;
+                MarqueeStart = mp;
+                MarqueeEnd = mp;
             }
         }
 
@@ -796,21 +1048,28 @@ namespace Leon::Editor {
             if (ImGui::IsMouseReleased(0)) {
                 bMarqueeSelecting = false;
 
-                glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+                const float dragPx = std::max(std::abs(MarqueeEnd.x - MarqueeStart.x),
+                                              std::abs(MarqueeEnd.y - MarqueeStart.y));
+                if (dragPx < 4.0f) {
+                    if (!io.KeyCtrl && !io.KeyShift && Context) {
+                        Context->ModifyActorSelectionWithUndo(
+                            [&](FEditorSelection& selection) { selection.ClearActorSelection(); });
+                        if (OnActorSelected)
+                            OnActorSelected(nullptr);
+                    }
+                    return;
+                }
+
+                glm::mat4 vp = EditorCamera.GetViewProjectionMatrix();
                 std::vector<AActor*> enclosedActors;
 
                 for (const auto& actor : InWorld.GetAllActors()) {
-                    if (!actor || !actor->template HasComponent<FTransformComponent>())
+                    if (!actor || actor->IsPendingKill() || !actor->template HasComponent<FTransformComponent>())
                         continue;
 
-                    glm::vec3 worldPos = glm::vec3(actor->GetActorWorldMatrix()[3]);
-                    glm::vec4 clip = vp * glm::vec4(worldPos, 1.0f);
-                    if (clip.w <= 0.001f)
+                    ImVec2 screenPos;
+                    if (!ProjectWorld(vp, ActorWorldOrigin(*actor), InViewportMin, InViewportSize, screenPos))
                         continue;
-
-                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                    ImVec2 screenPos(InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x,
-                                     InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y);
 
                     if (screenPos.x >= bMin.x && screenPos.x <= bMax.x && screenPos.y >= bMin.y &&
                         screenPos.y <= bMax.y) {
@@ -838,26 +1097,9 @@ namespace Leon::Editor {
         if (InViewportSize.x <= 0.0f || InViewportSize.y <= 0.0f)
             return nullptr;
 
-        float relX = (InScreenPos.x - InViewportMin.x) / InViewportSize.x;
-        float relY = (InScreenPos.y - InViewportMin.y) / InViewportSize.y;
-
-        if (relX < 0.0f || relX > 1.0f || relY < 0.0f || relY > 1.0f)
+        glm::vec3 rayOrigin, rayDir;
+        if (!UnprojectScreenRay(EditorCamera, InScreenPos, InViewportMin, InViewportSize, rayOrigin, rayDir))
             return nullptr;
-
-        float ndcX = relX * 2.0f - 1.0f;
-        float ndcY = 1.0f - relY * 2.0f;
-
-        glm::mat4 invVP = glm::inverse(EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix());
-        glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
-        glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
-        if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
-            return nullptr;
-
-        nearPoint /= nearPoint.w;
-        farPoint /= farPoint.w;
-
-        glm::vec3 rayOrigin = glm::vec3(nearPoint);
-        glm::vec3 rayDir = glm::normalize(glm::vec3(farPoint - nearPoint));
 
         AActor* closestActor = nullptr;
         float closestDist = 100000.0f;
@@ -922,7 +1164,7 @@ namespace Leon::Editor {
         // hits when a large mesh AABB was slightly missed.
         if (!closestActor) {
             float minScreenDist = 24.0f;
-            glm::mat4 viewProj = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+            glm::mat4 viewProj = EditorCamera.GetViewProjectionMatrix();
 
             for (const auto& actor : InWorld.GetAllActors()) {
                 if (!actor || actor->IsPendingKill() || !actor->template HasComponent<FTransformComponent>())
@@ -935,18 +1177,14 @@ namespace Leon::Editor {
                 if (bHasVolume)
                     continue;
 
-                const auto& tc = actor->template GetComponent<FTransformComponent>();
-                glm::vec4 clip = viewProj * glm::vec4(tc.Translation, 1.0f);
-                if (clip.w > 0.001f) {
-                    glm::vec3 ndc = glm::vec3(clip) / clip.w;
-                    float sx = InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x;
-                    float sy = InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y;
-                    float screenDist = glm::length(glm::vec2(sx, sy) - InScreenPos);
+                ImVec2 screen;
+                if (!ProjectWorld(viewProj, ActorWorldOrigin(*actor), InViewportMin, InViewportSize, screen))
+                    continue;
+                float screenDist = glm::length(glm::vec2(screen.x, screen.y) - InScreenPos);
 
-                    if (screenDist < minScreenDist) {
-                        minScreenDist = screenDist;
-                        closestActor = actor.get();
-                    }
+                if (screenDist < minScreenDist) {
+                    minScreenDist = screenDist;
+                    closestActor = actor.get();
                 }
             }
         }
@@ -956,26 +1194,9 @@ namespace Leon::Editor {
 
     glm::vec3 FViewportPanel::GetWorldRayIntersection(const glm::vec2& InScreenPos, const ImVec2& InViewportMin,
                                                       const ImVec2& InViewportSize) {
-        if (InViewportSize.x <= 0.0f || InViewportSize.y <= 0.0f)
+        glm::vec3 rayOrigin, rayDir;
+        if (!UnprojectScreenRay(EditorCamera, InScreenPos, InViewportMin, InViewportSize, rayOrigin, rayDir))
             return glm::vec3(0.0f);
-
-        float relX = (InScreenPos.x - InViewportMin.x) / InViewportSize.x;
-        float relY = (InScreenPos.y - InViewportMin.y) / InViewportSize.y;
-
-        float ndcX = relX * 2.0f - 1.0f;
-        float ndcY = 1.0f - relY * 2.0f;
-
-        glm::mat4 invVP = glm::inverse(EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix());
-        glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
-        glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
-        if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
-            return glm::vec3(0.0f);
-
-        nearPoint /= nearPoint.w;
-        farPoint /= farPoint.w;
-
-        glm::vec3 rayOrigin = glm::vec3(nearPoint);
-        glm::vec3 rayDir = glm::normalize(glm::vec3(farPoint - nearPoint));
 
         if (std::abs(rayDir.y) > 0.0001f) {
             float t = -rayOrigin.y / rayDir.y;
@@ -992,25 +1213,16 @@ namespace Leon::Editor {
             return;
 
         glm::mat4 model = InSelectedActor->GetActorWorldMatrix();
-        glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+        glm::mat4 vp = EditorCamera.GetViewProjectionMatrix();
 
         glm::vec3 localMin, localMax;
         GetActorEditorLocalBounds(*InSelectedActor, localMin, localMax);
 
-        auto Project3D = [&](const glm::vec3& p, ImVec2& out) -> bool {
-            glm::vec4 clip = vp * glm::vec4(p, 1.0f);
-            if (clip.w <= 0.001f)
-                return false;
-            glm::vec3 ndc = glm::vec3(clip) / clip.w;
-            out = ImVec2(InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x,
-                         InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y);
-            return true;
-        };
+        // Sit just outside the mesh so coincident edges don't vanish into the surface.
+        const glm::vec3 pad = glm::max((localMax - localMin) * 0.012f, glm::vec3(0.02f));
+        localMin -= pad;
+        localMax += pad;
 
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImU32 outlineCol = IM_COL32(255, 175, 20, 240);
-
-        // Oriented bounding wireframe from mesh/local AABB (matches pick volume)
         const glm::vec3 localCorners[8] = {
             {localMin.x, localMin.y, localMin.z}, {localMax.x, localMin.y, localMin.z},
             {localMax.x, localMax.y, localMin.z}, {localMin.x, localMax.y, localMin.z},
@@ -1018,36 +1230,38 @@ namespace Leon::Editor {
             {localMax.x, localMax.y, localMax.z}, {localMin.x, localMax.y, localMax.z},
         };
 
-        ImVec2 p[8];
-        bool v[8];
-        for (int i = 0; i < 8; ++i) {
-            glm::vec3 world = glm::vec3(model * glm::vec4(localCorners[i], 1.0f));
-            v[i] = Project3D(world, p[i]);
-        }
+        glm::vec3 worldCorners[8];
+        for (int i = 0; i < 8; ++i)
+            worldCorners[i] = glm::vec3(model * glm::vec4(localCorners[i], 1.0f));
 
-        int edges[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6},
-                            {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+        const int edges[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6},
+                                  {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->PushClipRect(InViewportMin,
+                               ImVec2(InViewportMin.x + InViewportSize.x, InViewportMin.y + InViewportSize.y), true);
+
+        const ImU32 outlineBack = IM_COL32(20, 12, 0, 230);
+        const ImU32 outlineCol = IM_COL32(255, 175, 20, 255);
 
         for (int i = 0; i < 12; ++i) {
-            int a = edges[i][0], b = edges[i][1];
-            if (v[a] && v[b]) {
-                drawList->AddLine(p[a], p[b], outlineCol, 1.6f);
-            }
+            ImVec2 pa, pb;
+            if (!ClipProjectLine(vp, worldCorners[edges[i][0]], worldCorners[edges[i][1]], InViewportMin,
+                                 InViewportSize, pa, pb))
+                continue;
+            drawList->AddLine(pa, pb, outlineBack, 3.4f);
+            drawList->AddLine(pa, pb, outlineCol, 1.8f);
         }
+
+        drawList->PopClipRect();
     }
 
     void FViewportPanel::DrawPlacementGhost(const glm::vec3& InWorldPos, const ImVec2& InViewportMin,
                                             const ImVec2& InViewportSize, const char* InLabel) {
-        glm::mat4 vp = EditorCamera.GetProjectionMatrix() * EditorCamera.GetViewMatrix();
+        glm::mat4 vp = EditorCamera.GetViewProjectionMatrix();
 
         auto Project3D = [&](const glm::vec3& p, ImVec2& out) -> bool {
-            glm::vec4 clip = vp * glm::vec4(p, 1.0f);
-            if (clip.w <= 0.001f)
-                return false;
-            glm::vec3 ndc = glm::vec3(clip) / clip.w;
-            out = ImVec2(InViewportMin.x + (ndc.x * 0.5f + 0.5f) * InViewportSize.x,
-                         InViewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * InViewportSize.y);
-            return true;
+            return ProjectWorld(vp, p, InViewportMin, InViewportSize, out);
         };
 
         ImVec2 center;
@@ -1080,9 +1294,10 @@ namespace Leon::Editor {
         size_t selCount = Context ? Context->GetSelection().GetSelectedActorCount() : (InSelectedActor ? 1 : 0);
 
         char statsText[256];
-        snprintf(statsText, sizeof(statsText), "Map: %s  |  FPS: %.0f (%.1f ms)  |  Actors: %u  |  Selected: %zu (%s)",
-                 InMapName.empty() ? "Untitled" : InMapName.c_str(), FrameRate, FrameTimeMs, InActorCount, selCount,
-                 selName);
+        snprintf(statsText, sizeof(statsText),
+                 "Map: %s  |  FPS: %.0f (%.1f ms)  |  Speed: %.0f  |  Actors: %u  |  Selected: %zu (%s)",
+                 InMapName.empty() ? "Untitled" : InMapName.c_str(), FrameRate, FrameTimeMs, CameraSpeed, InActorCount,
+                 selCount, selName);
 
         drawList->AddText(ImVec2(overlayPos.x + 8.0f, overlayPos.y + 4.0f), IM_COL32(200, 205, 215, 255), statsText);
     }

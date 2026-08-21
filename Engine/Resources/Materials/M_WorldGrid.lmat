@@ -1,0 +1,16 @@
+# LeonEngine2 Material Asset File (.lmat)
+Material:
+  Type: "PBR_Lit"
+  AlbedoColor: [1, 1, 1]
+  Metallic: 0
+  Roughness: 0.65
+  AO: 1
+  NormalScale: 1
+  OcclusionStrength: 1
+  AlphaMode: "Opaque"
+  AlphaCutoff: 0.5
+  DoubleSided: false
+  UVTiling: [2, 2]
+  UVOffset: [0, 0]
+  AlbedoMap: "Engine/Textures/T_WorldGrid"
+  UsePlanarReflection: false

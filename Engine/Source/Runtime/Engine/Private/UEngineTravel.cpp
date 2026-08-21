@@ -1,4 +1,5 @@
 #include "Engine/UEngine.hpp"
+#include "Engine/FGameplaySession.hpp"
 #include "FGameViewportLayer.hpp"
 #include "Core/FInput.hpp"
 #include "Core/FLog.hpp"
@@ -91,23 +92,23 @@ namespace Leon {
         UAssetManager::UnloadUnused();
         FRenderCommand::InvalidateShaderBindingCache();
 
-        AGameModeBase* gameMode = nullptr;
-        if (ActiveWorld->GetNetMode() != ENetMode::Client) {
-            if (!GameModeConfig.GameModeClass.empty() && UClassRegistry::Get().HasClass(GameModeConfig.GameModeClass)) {
-                gameMode = dynamic_cast<AGameModeBase*>(UClassRegistry::Get().CreateActorOfClass(
-                    GameModeConfig.GameModeClass, ActiveWorld.get(), "GameMode"));
-            }
-            if (!gameMode) {
-                gameMode = ActiveWorld->SpawnActor<AGameModeBase>("GameMode");
-            }
-            ApplyGameModeConfig(gameMode);
-            ActiveWorld->SetGameMode(gameMode);
-        }
-
         if (ViewportLayer)
             FUIRenderer::Init();
-        ActiveWorld->InitWorld();
-        ActiveWorld->BeginPlay();
+
+        {
+            FGameplaySessionParams SessionParams;
+            SessionParams.GameModeConfig = GameModeConfig;
+            SessionParams.NetMode = ActiveWorld->GetNetMode();
+            SessionParams.bSpawnGameMode = (ActiveWorld->GetNetMode() != ENetMode::Client);
+            if (!FGameplaySession::Start(*ActiveWorld, SessionParams)) {
+                LE_CORE_ERROR("UEngine: Travel failed to start gameplay session on '{0}'", InVirtualMapPath);
+                return false;
+            }
+            if (SessionParams.bSpawnGameMode) {
+                GameModeConfig.GameModeClass =
+                    FGameplaySession::ResolveGameModeClassFromWorld(*ActiveWorld, GameModeConfig.GameModeClass);
+            }
+        }
 
         if (ViewportLayer && FApplication::HasInstance()) {
             auto& window = FApplication::Get().GetWindow();

@@ -227,7 +227,9 @@ namespace Leon {
                 }
 
                 auto applyBakeKey = [&](FWorldSettingsComponent& ws, const std::string& key, const std::string& val) {
-                    if (key == "StaticLighting")
+                    if (key == "GameModeClass")
+                        ws.GameModeClass = val;
+                    else if (key == "StaticLighting")
                         ws.bStaticLighting = (val == "true");
                     else if (key == "LightingBuildQuality")
                         ws.LightingBuildQuality = StringToLightingQuality(val);
@@ -860,6 +862,12 @@ namespace Leon {
                 comp.bEnabled = actorData.bSpotLightEnabled;
                 comp.Mobility = actorData.SpotLightMobility;
                 comp.Light.Position = actorData.Translation;
+                // Align actor rotation to authored Direction so rotate gizmo drives aim.
+                if (glm::length(comp.Light.Direction) > 1e-5f) {
+                    auto& xf = entity->GetComponent<FTransformComponent>();
+                    xf.Rotation = SpotLightEulerFromWorldDirection(comp.Light.Direction);
+                    SyncSpotLightFromTransform(comp.Light, xf.Translation, xf.Rotation);
+                }
             }
 
             // Text Component

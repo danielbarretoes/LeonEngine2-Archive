@@ -73,6 +73,8 @@ namespace Leon {
                     DefaultMap = val;
                 } else if (key == "DefaultGameMode") {
                     DefaultGameMode = val;
+                } else if (key == "GameModule") {
+                    GameModule = val;
                 }
             }
         }
@@ -87,7 +89,8 @@ namespace Leon {
         ss << "  \"EngineVersion\": \"" << EngineVersion << "\",\n";
         ss << "  \"ProjectName\": \"" << ProjectName << "\",\n";
         ss << "  \"DefaultMap\": \"" << DefaultMap << "\",\n";
-        ss << "  \"DefaultGameMode\": \"" << DefaultGameMode << "\"\n";
+        ss << "  \"DefaultGameMode\": \"" << DefaultGameMode << "\",\n";
+        ss << "  \"GameModule\": \"" << GameModule << "\"\n";
         ss << "}\n";
         return ss.str();
     }

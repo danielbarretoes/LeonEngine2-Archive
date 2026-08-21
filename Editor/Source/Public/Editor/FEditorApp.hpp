@@ -15,6 +15,9 @@
 #include "Editor/Panels/FToolbarPanel.hpp"
 #include "Editor/Panels/FViewportPanel.hpp"
 #include "Editor/Panels/FWorldSettingsPanel.hpp"
+#include "Editor/Play/FGameModuleLoader.hpp"
+#include "Editor/Play/FPlaySession.hpp"
+#include "Editor/Play/FPlaySettings.hpp"
 #include "Editor/Window/FEditorWindow.hpp"
 #include "Engine/UWorld.hpp"
 
@@ -31,7 +34,7 @@ namespace Leon::Editor {
      */
     class FEditorApp : public FApplication {
     public:
-        FEditorApp();
+        explicit FEditorApp(FApplicationCommandLineArgs InArgs = {});
 
         void OnInit() override;
         void OnUpdate(FTimestep InTs) override;
@@ -42,6 +45,9 @@ namespace Leon::Editor {
         void SaveCurrentMap();
         void BakeLightmaps(bool bInProduction);
         void LaunchGame();
+        void StartPlayInEditor();
+        void StopPlayInEditor();
+        bool SpawnPieClientProcess(const FPlaySettings& InSettings, int InClientIndex);
         void ResetDefaultLayout();
         void RequestResetDefaultLayout();
         void RequestLoadNamedLayout(const std::string& InName);
@@ -84,6 +90,8 @@ namespace Leon::Editor {
         FWorldSettingsPanel WorldSettings;
         FProjectSettingsPanel ProjectSettings;
         FTransformGizmo Gizmo;
+        FPlaySession PlaySession;
+        FPlaySettings PlaySettings;
 
         std::string ActiveProjectPath;
         FProjectDescriptor ActiveProjectDescriptor;
@@ -126,6 +134,13 @@ namespace Leon::Editor {
         std::string ToastMessage;
         float ToastSecondsRemaining = 0.0f;
         bool bToastError = false;
+
+        /** Set when launched as a PIE client child process. */
+        bool bPieClientBootstrap = false;
+        std::string PieClientProject;
+        std::string PieClientMap;
+        std::string PieClientHost = "127.0.0.1";
+        int PieClientPort = 7777;
     };
 
 } // namespace Leon::Editor

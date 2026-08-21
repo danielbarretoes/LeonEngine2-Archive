@@ -16,6 +16,9 @@
 #include "Gameplay/APhysicsVolume.hpp"
 #include "Gameplay/AProjectile.hpp"
 
+#include <algorithm>
+#include <vector>
+
 namespace Leon {
 
     UClassRegistry& UClassRegistry::Get() {
@@ -60,6 +63,25 @@ namespace Leon {
 
     bool UClassRegistry::HasClass(const std::string& InClassName) const {
         return Factories.find(InClassName) != Factories.end();
+    }
+
+    std::vector<std::string> UClassRegistry::GetRegisteredClassNames() const {
+        std::vector<std::string> Names;
+        Names.reserve(Factories.size());
+        for (const auto& Pair : Factories)
+            Names.push_back(Pair.first);
+        std::sort(Names.begin(), Names.end());
+        return Names;
+    }
+
+    std::vector<std::string> UClassRegistry::GetRegisteredClassNamesContaining(const std::string& InSubstring) const {
+        std::vector<std::string> Names;
+        for (const auto& Pair : Factories) {
+            if (Pair.first.find(InSubstring) != std::string::npos)
+                Names.push_back(Pair.first);
+        }
+        std::sort(Names.begin(), Names.end());
+        return Names;
     }
 
 } // namespace Leon

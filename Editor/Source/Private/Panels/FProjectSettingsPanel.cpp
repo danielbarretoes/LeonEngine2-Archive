@@ -3,8 +3,11 @@
 #include "Editor/UI/FEditorTheme.hpp"
 #include "Editor/UI/FEditorWidgets.hpp"
 #include "Editor/UI/FLucideIcons.hpp"
+#include "Gameplay/UClassRegistry.hpp"
 #include <cstring>
 #include <imgui.h>
+#include <string>
+#include <vector>
 
 namespace Leon::Editor {
 
@@ -15,16 +18,13 @@ namespace Leon::Editor {
         try {
             char nameBuf[128];
             char mapBuf[256];
-            char gmBuf[128];
 
 #ifdef _WIN32
             strncpy_s(nameBuf, sizeof(nameBuf), InOutDescriptor.ProjectName.c_str(), _TRUNCATE);
             strncpy_s(mapBuf, sizeof(mapBuf), InOutDescriptor.DefaultMap.c_str(), _TRUNCATE);
-            strncpy_s(gmBuf, sizeof(gmBuf), InOutDescriptor.DefaultGameMode.c_str(), _TRUNCATE);
 #else
             std::strncpy(nameBuf, InOutDescriptor.ProjectName.c_str(), sizeof(nameBuf) - 1);
             std::strncpy(mapBuf, InOutDescriptor.DefaultMap.c_str(), sizeof(mapBuf) - 1);
-            std::strncpy(gmBuf, InOutDescriptor.DefaultGameMode.c_str(), sizeof(gmBuf) - 1);
 #endif
 
             ImGui::TextColored(FEditorTheme::GetTokens().Accent, "General Project Settings");
@@ -46,9 +46,15 @@ namespace Leon::Editor {
                 InOutDescriptor.DefaultMap = mapBuf;
             }
 
-            if (FEditorWidgets::DrawInputText("Default GameMode", "##DefaultGM", gmBuf, sizeof(gmBuf))) {
-                InOutDescriptor.DefaultGameMode = gmBuf;
-            }
+            FEditorWidgets::BeginPropertyGrid();
+            const std::vector<std::string> GameModes =
+                UClassRegistry::Get().GetRegisteredClassNamesContaining("GameMode");
+            static const std::string EngineDefaultGameMode = "AGameModeBase";
+            FEditorWidgets::DrawPropertyClassSelect("Default GameMode", "##DefaultGM",
+                                                    InOutDescriptor.DefaultGameMode, GameModes, nullptr,
+                                                    &EngineDefaultGameMode);
+            FEditorWidgets::EndPropertyGrid();
+            ImGui::TextDisabled("Used by PIE / maps when World Settings GameMode Override is None.");
 
             ImGui::Spacing();
             ImGui::Separator();

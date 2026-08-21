@@ -17,7 +17,20 @@ namespace Leon {
         AspectRatio = InAspectRatio;
         NearClip = InNearClip;
         FarClip = InFarClip;
+        bOrthographic = false;
         RecalculateProjectionMatrix();
+    }
+
+    void FPerspectiveCamera::SetOrthographic(bool bInOrthographic, float InHeight) {
+        bOrthographic = bInOrthographic;
+        OrthoHeight = std::max(InHeight, 0.25f);
+        RecalculateProjectionMatrix();
+    }
+
+    void FPerspectiveCamera::SetOrthoHeight(float InHeight) {
+        OrthoHeight = std::clamp(InHeight, 0.25f, 500.0f);
+        if (bOrthographic)
+            RecalculateProjectionMatrix();
     }
 
     void FPerspectiveCamera::SetViewportSize(uint32_t InWidth, uint32_t InHeight) {
@@ -61,7 +74,13 @@ namespace Leon {
 
     void FPerspectiveCamera::RecalculateProjectionMatrix() {
         float aspect = std::max(AspectRatio, 1e-4f);
-        ProjectionMatrix = glm::perspective(glm::radians(FOV), aspect, NearClip, FarClip);
+        if (bOrthographic) {
+            const float halfH = std::max(OrthoHeight, 0.25f) * 0.5f;
+            const float halfW = halfH * aspect;
+            ProjectionMatrix = glm::ortho(-halfW, halfW, -halfH, halfH, NearClip, FarClip);
+        } else {
+            ProjectionMatrix = glm::perspective(glm::radians(FOV), aspect, NearClip, FarClip);
+        }
         ViewProjectionMatrix = ProjectionMatrix * ViewMatrix;
     }
 

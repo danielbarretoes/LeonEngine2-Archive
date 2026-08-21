@@ -18,7 +18,7 @@ Environment:
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-    LightmapBakeHash: "4d5e704d9a334cb4"
+    LightmapBakeHash: "2c475592f4efbdc9"
   Skybox:
     Enabled: true
     Exposure: 0.95
@@ -302,8 +302,8 @@ Actors:
       Mobility: Static
       LightmapResolution: 64
       LightmapIndex: 0
-      LightmapScale: [0.25, 0.25]
-      LightmapBias: [0.0078125, 0.0078125]
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.00390625, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
     Material:
       Asset: "/Game/Materials/M_LabFloor.lmat"
@@ -331,8 +331,8 @@ Actors:
       Mobility: Static
       LightmapResolution: 64
       LightmapIndex: 1
-      LightmapScale: [0.25, 0.25]
-      LightmapBias: [0.265625, 0.0078125]
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.132812, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
     Material:
       Asset: "/Game/Materials/M_LabWall.lmat"
@@ -360,8 +360,8 @@ Actors:
       Mobility: Static
       LightmapResolution: 64
       LightmapIndex: 2
-      LightmapScale: [0.25, 0.25]
-      LightmapBias: [0.523438, 0.0078125]
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.261719, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
     Material:
       Asset: "/Game/Materials/M_LabWall.lmat"
@@ -389,8 +389,8 @@ Actors:
       Mobility: Static
       LightmapResolution: 64
       LightmapIndex: 3
-      LightmapScale: [0.25, 0.25]
-      LightmapBias: [0.0078125, 0.265625]
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.390625, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
     Material:
       Asset: "/Game/Materials/M_LabWall.lmat"
@@ -418,8 +418,8 @@ Actors:
       Mobility: Static
       LightmapResolution: 64
       LightmapIndex: 4
-      LightmapScale: [0.25, 0.25]
-      LightmapBias: [0.265625, 0.265625]
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.519531, 0.0078125]
       LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
     Material:
       Asset: "Engine/Materials/M_WorldGrid.lmat"
@@ -441,3 +441,124 @@ Actors:
       Scale: [1, 1, 1]
     Material:
       Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "CubeActor"
+    Class: "AActor"
+    GUID: "a964ade5df0e126ee5bcb3fa7647aba0"
+    Transform:
+      Translation: [-5.50774, 0.660648, 2.27036]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Asset: "Engine/Meshes/Cube.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 5
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.648438, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Engine/Materials/M_WorldGrid.lmat"
+    Material:
+      Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "SphereActor"
+    Class: "AActor"
+    GUID: "96d565e88258d4bdcca40403b52219b1"
+    Transform:
+      Translation: [-7.54676, 0.904225, 6.31059]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Asset: "Engine/Meshes/Sphere.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 6
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.777344, 0.0078125]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Engine/Materials/M_WorldGrid.lmat"
+    Material:
+      Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "CylinderActor"
+    Class: "AActor"
+    GUID: "bb11abb972df9baff68a3f7b89a16721"
+    Transform:
+      Translation: [-6.86596, 1.0685, 4.8029]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Asset: "Engine/Meshes/Cylinder.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 7
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.00390625, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Engine/Materials/M_WorldGrid.lmat"
+    Material:
+      Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "PlaneActor"
+    Class: "AActor"
+    GUID: "a914ac657acfcd365a0745e4cc03e716"
+    Transform:
+      Translation: [-6.31315, 0.431967, 7.01824]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Asset: "Engine/Meshes/Plane.lmesh"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 8
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.132812, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+      MaterialOverrides:
+        - Slot: 0
+          Asset: "Engine/Materials/M_WorldGrid.lmat"
+    Material:
+      Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "PointLight"
+    Class: "AActor"
+    GUID: "517eeceeb95064d30c443ef3429a8406"
+    Transform:
+      Translation: [-6.0865, 0.855979, 4.93932]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    PointLight:
+      Enabled: true
+      Color: [1, 0.6, 0.2]
+      Intensity: 8
+      Radius: 10
+      Mobility: Static
+  - Name: "SpotLight"
+    Class: "AActor"
+    GUID: "80ad75198e59a0ae1727e4e94523b6ab"
+    Transform:
+      Translation: [-9.82267, 5.27592, 6.26475]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpotLight:
+      Enabled: true
+      Direction: [0, -1, 0]
+      Color: [0.2, 0.8, 1]
+      Intensity: 10
+      Radius: 15
+      CutOff: 12.5
+      OuterCutOff: 17.5
+      Mobility: Static

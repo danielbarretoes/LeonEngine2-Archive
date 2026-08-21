@@ -7,6 +7,8 @@ namespace Leon {
     /**
      * Engine built-in content (Unreal-style /Engine/... assets).
      * Writes missing files under Engine/Resources and registers them in UAssetManager.
+     * When a matching .fbx exists next to a primitive .lmesh (Blender export, Y-up),
+     * that FBX is imported and rebaked into the .lmesh.
      */
     struct FEngineBuiltins {
         static constexpr const char* kWorldGridMaterial = "Engine/Materials/M_WorldGrid.lmat";

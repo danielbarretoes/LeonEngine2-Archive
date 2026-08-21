@@ -3,9 +3,11 @@
 #include "Editor/UI/FLucideIcons.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <vector>
 
 namespace Leon::Editor {
 
@@ -157,7 +159,38 @@ namespace Leon::Editor {
                                    ELucideIcon::ChevronDown, FEditorTheme::ToU32(FEditorTheme::GetTokens().MutedForeground));
         }
 
+        const FControlStyle* StyleWithResetWidth(const FControlStyle* InStyle, FControlStyle& OutLocal) {
+            const float btn = ImGui::GetFrameHeight();
+            const float gap = 4.0f;
+            OutLocal = InStyle ? *InStyle : FControlStyle{};
+            OutLocal.Width = std::max(40.0f, ImGui::GetContentRegionAvail().x - btn - gap);
+            return &OutLocal;
+        }
+
+        bool NearlyEqualFloat(float A, float B, float Eps = 1e-4f) {
+            return std::fabs(A - B) <= Eps;
+        }
+
     } // namespace
+
+    bool FEditorWidgets::DrawResetToDefaultButton(const char* InId, bool bEnabled, const char* InTooltip) {
+        ImGui::PushID(InId);
+        const float size = ImGui::GetFrameHeight();
+        if (!bEnabled)
+            ImGui::BeginDisabled();
+        const bool clicked = ImGui::Button("##ResetDefault", ImVec2(size, size));
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        FLucideIcons::DrawIcon(ImGui::GetWindowDrawList(), ImVec2(min.x + 2.0f, min.y + 2.0f),
+                               ImVec2(max.x - 2.0f, max.y - 2.0f), ELucideIcon::RefreshCw,
+                               FEditorTheme::ToU32(FEditorTheme::GetTokens().MutedForeground));
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && InTooltip && InTooltip[0] != '\0')
+            ImGui::SetTooltip("%s", InTooltip);
+        if (!bEnabled)
+            ImGui::EndDisabled();
+        ImGui::PopID();
+        return clicked && bEnabled;
+    }
 
     bool FEditorWidgets::BeginPanelWindow(const char* InTitle, bool* bInOutOpen, ELucideIcon InIcon,
                                           ImGuiWindowFlags InFlags) {
@@ -368,9 +401,81 @@ namespace Leon::Editor {
     }
 
     bool FEditorWidgets::DrawPropertySelect(const char* InLabel, const char* InId, int* InOutIndex,
-                                            const char* const* InItems, int InCount, const FControlStyle* InStyle) {
+                                            const char* const* InItems, int InCount, const FControlStyle* InStyle,
+                                            const int* InDefaultIndex) {
         BeginProperty(InLabel);
-        const bool changed = DrawSelect(InId, InOutIndex, InItems, InCount, InStyle);
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultIndex ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawSelect(InId, InOutIndex, InItems, InCount, style);
+        if (InDefaultIndex && InOutIndex) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = (*InOutIndex != *InDefaultIndex);
+            if (DrawResetToDefaultButton("##ResetSelect", canReset)) {
+                *InOutIndex = *InDefaultIndex;
+                changed = true;
+            }
+        }
+        EndProperty();
+        return changed;
+    }
+
+    bool FEditorWidgets::DrawPropertyClassSelect(const char* InLabel, const char* InId, std::string& InOutClassName,
+                                                 const std::vector<std::string>& InClassNames, const char* InNoneLabel,
+                                                 const std::string* InDefaultClassName, const FControlStyle* InStyle) {
+        BeginProperty(InLabel);
+
+        std::vector<std::string> ownedLabels;
+        ownedLabels.reserve(InClassNames.size() + 2);
+        if (InNoneLabel)
+            ownedLabels.emplace_back(InNoneLabel);
+
+        bool bFoundCurrent = InOutClassName.empty();
+        for (const std::string& name : InClassNames) {
+            ownedLabels.push_back(name);
+            if (name == InOutClassName)
+                bFoundCurrent = true;
+        }
+        if (!InOutClassName.empty() && !bFoundCurrent)
+            ownedLabels.insert(ownedLabels.begin() + (InNoneLabel ? 1 : 0), InOutClassName);
+
+        std::vector<const char*> items;
+        items.reserve(ownedLabels.size());
+        for (const std::string& label : ownedLabels)
+            items.push_back(label.c_str());
+
+        int index = 0;
+        if (InOutClassName.empty() && InNoneLabel) {
+            index = 0;
+        } else {
+            for (size_t i = 0; i < ownedLabels.size(); ++i) {
+                if (InNoneLabel && i == 0)
+                    continue;
+                if (ownedLabels[i] == InOutClassName) {
+                    index = static_cast<int>(i);
+                    break;
+                }
+            }
+        }
+
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultClassName ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawSelect(InId, &index, items.data(), static_cast<int>(items.size()), style);
+        if (changed) {
+            if (InNoneLabel && index == 0)
+                InOutClassName.clear();
+            else if (index >= 0 && index < static_cast<int>(ownedLabels.size()))
+                InOutClassName = ownedLabels[static_cast<size_t>(index)];
+        }
+
+        if (InDefaultClassName) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = (InOutClassName != *InDefaultClassName);
+            if (DrawResetToDefaultButton("##ResetClass", canReset)) {
+                InOutClassName = *InDefaultClassName;
+                changed = true;
+            }
+        }
+
         EndProperty();
         return changed;
     }
@@ -414,9 +519,20 @@ namespace Leon::Editor {
     }
 
     bool FEditorWidgets::DrawPropertySliderFloat(const char* InLabel, const char* InId, float* InOutValue, float InMin,
-                                                 float InMax, const char* InFormat, const FControlStyle* InStyle) {
+                                                 float InMax, const char* InFormat, const FControlStyle* InStyle,
+                                                 const float* InDefaultValue) {
         BeginProperty(InLabel);
-        const bool changed = DrawSliderFloat(InId, InOutValue, InMin, InMax, InFormat, InStyle);
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultValue ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawSliderFloat(InId, InOutValue, InMin, InMax, InFormat, style);
+        if (InDefaultValue && InOutValue) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = !NearlyEqualFloat(*InOutValue, *InDefaultValue);
+            if (DrawResetToDefaultButton("##ResetSlider", canReset)) {
+                *InOutValue = *InDefaultValue;
+                changed = true;
+            }
+        }
         EndProperty();
         return changed;
     }
@@ -434,9 +550,19 @@ namespace Leon::Editor {
 
     bool FEditorWidgets::DrawPropertyDragFloat(const char* InLabel, const char* InId, float* InOutValue, float InSpeed,
                                                float InMin, float InMax, const char* InFormat,
-                                               const FControlStyle* InStyle) {
+                                               const FControlStyle* InStyle, const float* InDefaultValue) {
         BeginProperty(InLabel);
-        const bool changed = DrawDragFloat(InId, InOutValue, InSpeed, InMin, InMax, InFormat, InStyle);
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultValue ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawDragFloat(InId, InOutValue, InSpeed, InMin, InMax, InFormat, style);
+        if (InDefaultValue && InOutValue) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = !NearlyEqualFloat(*InOutValue, *InDefaultValue);
+            if (DrawResetToDefaultButton("##ResetDragF", canReset)) {
+                *InOutValue = *InDefaultValue;
+                changed = true;
+            }
+        }
         EndProperty();
         return changed;
     }
@@ -453,9 +579,20 @@ namespace Leon::Editor {
     }
 
     bool FEditorWidgets::DrawPropertyDragInt(const char* InLabel, const char* InId, int* InOutValue, float InSpeed,
-                                             int InMin, int InMax, const FControlStyle* InStyle) {
+                                             int InMin, int InMax, const FControlStyle* InStyle,
+                                             const int* InDefaultValue) {
         BeginProperty(InLabel);
-        const bool changed = DrawDragInt(InId, InOutValue, InSpeed, InMin, InMax, InStyle);
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultValue ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawDragInt(InId, InOutValue, InSpeed, InMin, InMax, style);
+        if (InDefaultValue && InOutValue) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = (*InOutValue != *InDefaultValue);
+            if (DrawResetToDefaultButton("##ResetDragI", canReset)) {
+                *InOutValue = *InDefaultValue;
+                changed = true;
+            }
+        }
         EndProperty();
         return changed;
     }
@@ -472,9 +609,19 @@ namespace Leon::Editor {
     }
 
     bool FEditorWidgets::DrawPropertyCheckbox(const char* InLabel, const char* InId, bool* InOutValue,
-                                              const FControlStyle* InStyle) {
+                                              const FControlStyle* InStyle, const bool* InDefaultValue) {
         BeginProperty(InLabel);
-        const bool changed = DrawCheckbox(InId, InOutValue, nullptr, InStyle);
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultValue ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawCheckbox(InId, InOutValue, nullptr, style);
+        if (InDefaultValue && InOutValue) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = (*InOutValue != *InDefaultValue);
+            if (DrawResetToDefaultButton("##ResetCb", canReset)) {
+                *InOutValue = *InDefaultValue;
+                changed = true;
+            }
+        }
         EndProperty();
         return changed;
     }
@@ -490,9 +637,23 @@ namespace Leon::Editor {
     }
 
     bool FEditorWidgets::DrawPropertyColorEdit3(const char* InLabel, const char* InId, float* InOutRgb,
-                                                const FControlStyle* InStyle) {
+                                                const FControlStyle* InStyle, const float* InDefaultRgb) {
         BeginProperty(InLabel);
-        const bool changed = DrawColorEdit3(InId, InOutRgb, InStyle);
+        FControlStyle localStyle;
+        const FControlStyle* style = InDefaultRgb ? StyleWithResetWidth(InStyle, localStyle) : InStyle;
+        bool changed = DrawColorEdit3(InId, InOutRgb, style);
+        if (InDefaultRgb && InOutRgb) {
+            ImGui::SameLine(0.0f, 4.0f);
+            const bool canReset = !NearlyEqualFloat(InOutRgb[0], InDefaultRgb[0]) ||
+                                  !NearlyEqualFloat(InOutRgb[1], InDefaultRgb[1]) ||
+                                  !NearlyEqualFloat(InOutRgb[2], InDefaultRgb[2]);
+            if (DrawResetToDefaultButton("##ResetColor", canReset)) {
+                InOutRgb[0] = InDefaultRgb[0];
+                InOutRgb[1] = InDefaultRgb[1];
+                InOutRgb[2] = InDefaultRgb[2];
+                changed = true;
+            }
+        }
         EndProperty();
         return changed;
     }

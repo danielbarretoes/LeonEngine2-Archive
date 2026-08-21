@@ -50,6 +50,8 @@ namespace Leon {
     enum class ELightingBuildQuality : uint8_t { Preview = 0, Draft = 1, Production = 2 };
 
     struct FWorldSettingsComponent {
+        /** Optional map override; empty = use project/INI DefaultGameMode. */
+        std::string GameModeClass;
         bool bStaticLighting = false;
         ELightingBuildQuality LightingBuildQuality = ELightingBuildQuality::Draft;
         uint32_t LightmapResolution = 64;

@@ -64,6 +64,10 @@ namespace Leon {
     inline void WriteWorldSettings(std::stringstream& ss, const FWorldSettingsComponent& ws) {
         Indent(ss, 1);
         ss << "WorldSettings:\n";
+        if (!ws.GameModeClass.empty()) {
+            Indent(ss, 2);
+            ss << "GameModeClass: \"" << ws.GameModeClass << "\"\n";
+        }
         Indent(ss, 2);
         ss << "StaticLighting: " << (ws.bStaticLighting ? "true" : "false") << "\n";
         Indent(ss, 2);

@@ -1,34 +1,17 @@
 #include "Engine/UEngine.hpp"
+#include "Engine/IGameModule.hpp"
 #include "Gameplay/UClassRegistry.hpp"
-#include "ALeonTournamentGameMode.hpp"
-#include "ALeonTournamentGameState.hpp"
-#include "ALeonTournamentCharacter.hpp"
-#include "ALeonTournamentPlayerController.hpp"
-#include "ALeonTournamentPlayerState.hpp"
-#include "ALeonTournamentHUD.hpp"
-#include "ALeonTournamentBotController.hpp"
-#include "ALeonTournamentWeapon.hpp"
-#include "ALeonTournamentProjectile.hpp"
-#include "ALeonTournamentPickup.hpp"
-#include "ALeonTournamentDummy.hpp"
-#include "ALeonTournamentAnimLabGameMode.hpp"
-#include "ALeonTournamentRenderLabGameMode.hpp"
-#include "ALeonTournamentTransitionGameMode.hpp"
-#include "ALeonTournamentTransitionHUD.hpp"
-#include "ALeonTournamentCaptureTheFlagGameMode.hpp"
-#include "ALeonTournamentFlag.hpp"
-#include "ALeonTournamentFlagBase.hpp"
-#include "ULeonTournamentGameInstance.hpp"
-#include "Engine/UIpNetDriver.hpp"
 #include "FOpenGLRenderDriver.hpp"
-#include "FJoltPhysicsDriver.hpp" // link Leon::Jolt — auto-registers IPhysicsScene factory
-#include "FENetTransport.hpp"
+#include "FJoltPhysicsDriver.hpp"
+#include "ULeonTournamentGameInstance.hpp"
 
 #include <cstdlib>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
+
+LE_GAME_MODULE_EXPORT void LE_RegisterGameModule(Leon::UClassRegistry& InRegistry, Leon::FGameModuleHooks& OutHooks);
 
 namespace {
 
@@ -77,34 +60,11 @@ namespace {
 int main(int argc, char** argv) {
     Leon::FOpenGLRenderDriver::Register();
     Leon::FJoltPhysicsDriver::Register();
-    Leon::UIpNetDriver::SetTransportFactory([]() { return std::make_unique<Leon::FENetTransport>(); });
 
-    auto& registry = Leon::UClassRegistry::Get();
-    registry.RegisterClass<Leon::ALeonTournamentGameMode>("ALeonTournamentGameMode");
-    registry.RegisterClass<Leon::ALeonTournamentGameState>("ALeonTournamentGameState");
-    registry.RegisterClass<Leon::ALeonTournamentCharacter>("ALeonTournamentCharacter");
-    registry.RegisterClass<Leon::ALeonTournamentPlayerController>("ALeonTournamentPlayerController");
-    registry.RegisterClass<Leon::ALeonTournamentPlayerState>("ALeonTournamentPlayerState");
-    registry.RegisterClass<Leon::ALeonTournamentHUD>("ALeonTournamentHUD");
-    registry.RegisterClass<Leon::ALeonTournamentBotController>("ALeonTournamentBotController");
-    registry.RegisterClass<Leon::ALeonTournamentRifle>("ALeonTournamentRifle");
-    registry.RegisterClass<Leon::ALeonTournamentShotgun>("ALeonTournamentShotgun");
-    registry.RegisterClass<Leon::ALeonTournamentRocketLauncher>("ALeonTournamentRocketLauncher");
-    registry.RegisterClass<Leon::ALeonTournamentLaserRifle>("ALeonTournamentLaserRifle");
-    registry.RegisterClass<Leon::ALeonTournamentFlamethrower>("ALeonTournamentFlamethrower");
-    registry.RegisterClass<Leon::ALeonTournamentWeapon>("ALeonTournamentWeapon");
-    registry.RegisterClass<Leon::ALeonTournamentProjectile>("ALeonTournamentProjectile");
-    registry.RegisterClass<Leon::ALeonTournamentWeaponPickup>("ALeonTournamentWeaponPickup");
-    registry.RegisterClass<Leon::ALeonTournamentHealthPickup>("ALeonTournamentHealthPickup");
-    registry.RegisterClass<Leon::ALeonTournamentJumpPad>("ALeonTournamentJumpPad");
-    registry.RegisterClass<Leon::ALeonTournamentDummy>("ALeonTournamentDummy");
-    registry.RegisterClass<Leon::ALeonTournamentAnimLabGameMode>("ALeonTournamentAnimLabGameMode");
-    registry.RegisterClass<Leon::ALeonTournamentRenderLabGameMode>("ALeonTournamentRenderLabGameMode");
-    registry.RegisterClass<Leon::ALeonTournamentCaptureTheFlagGameMode>("ALeonTournamentCaptureTheFlagGameMode");
-    registry.RegisterClass<Leon::ALeonTournamentFlag>("ALeonTournamentFlag");
-    registry.RegisterClass<Leon::ALeonTournamentFlagBase>("ALeonTournamentFlagBase");
-    registry.RegisterClass<Leon::ALeonTournamentTransitionGameMode>("ALeonTournamentTransitionGameMode");
-    registry.RegisterClass<Leon::ALeonTournamentTransitionHUD>("ALeonTournamentTransitionHUD");
+    Leon::FGameModuleHooks Hooks;
+    LE_RegisterGameModule(Leon::UClassRegistry::Get(), Hooks);
+    if (Hooks.TransportFactorySetup)
+        Hooks.TransportFactorySetup();
 
     bool autoOffline = false;
     bool animLab = false;

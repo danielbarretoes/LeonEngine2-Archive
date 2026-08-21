@@ -28,8 +28,8 @@ namespace Leon {
                                     bool bUsePlanarReflection = false, bool bVisibleInReflection = true);
 
         /**
-         * Editor/placeable procedural shape: Cube, Sphere, Cylinder, or Plane.
-         * Uses FMeshComponent + WorldGrid material (no .obj assets required).
+         * Editor/placeable shape: Cube, Sphere, Cylinder, or Plane.
+         * Prefers Engine builtin .lmesh (authored from Blender FBX when present).
          */
         static AActor* SpawnShape(UWorld* InWorld, const std::string& InShapeType, const std::string& InName,
                                   const glm::vec3& InLocation);

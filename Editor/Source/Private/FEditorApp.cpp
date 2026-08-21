@@ -39,16 +39,73 @@ namespace fs = std::filesystem;
 
 namespace Leon::Editor {
 
-    FEditorApp::FEditorApp()
-        : FApplication([] {
+    namespace {
+        /** Editor cwd is usually out/Editor — walk up from cwd / project to find Scripts/<name>. */
+        fs::path FindRepoScript(const std::string& InScriptName, const std::string& InProjectPath) {
+            std::vector<fs::path> searchRoots = {fs::current_path()};
+            if (!InProjectPath.empty())
+                searchRoots.push_back(fs::path(InProjectPath).parent_path());
+#ifdef _WIN32
+            char exePath[MAX_PATH] = {};
+            if (GetModuleFileNameA(nullptr, exePath, MAX_PATH) > 0)
+                searchRoots.push_back(fs::path(exePath).parent_path());
+#endif
+            for (fs::path r : searchRoots) {
+                for (int up = 0; up < 8 && !r.empty(); ++up) {
+                    fs::path candidate = r / "Scripts" / InScriptName;
+                    std::error_code ec;
+                    if (fs::exists(candidate, ec))
+                        return fs::absolute(candidate);
+                    if (!r.has_parent_path() || r == r.parent_path())
+                        break;
+                    r = r.parent_path();
+                }
+            }
+            return {};
+        }
+    } // namespace
+
+    FEditorApp::FEditorApp(FApplicationCommandLineArgs InArgs)
+        : FApplication([InArgs] {
               FApplicationProps Props;
               Props.Name = "Leon Engine Editor";
               Props.WindowWidth = 1600;
               Props.WindowHeight = 900;
               Props.bMaximized = true;
               Props.bHdClientPolicy = false;
+              Props.CommandLineArgs = InArgs;
               return Props;
-          }()) {}
+          }()) {
+        auto ReadArg = [&](const char* KeyEquals, const char* KeyBare) -> std::string {
+            for (int i = 1; i < InArgs.Count; ++i) {
+                const char* Raw = InArgs.Args ? InArgs.Args[i] : nullptr;
+                if (!Raw)
+                    continue;
+                std::string Arg = Raw;
+                const std::string Prefix = KeyEquals;
+                if (Arg.rfind(Prefix, 0) == 0)
+                    return Arg.substr(Prefix.size());
+                if (Arg == KeyBare && i + 1 < InArgs.Count && InArgs.Args[i + 1])
+                    return InArgs.Args[i + 1];
+            }
+            return {};
+        };
+        for (int i = 1; i < InArgs.Count; ++i) {
+            const char* Raw = InArgs.Args ? InArgs.Args[i] : nullptr;
+            if (Raw && std::string(Raw) == "--pie-role=client")
+                bPieClientBootstrap = true;
+        }
+        if (bPieClientBootstrap) {
+            PieClientProject = ReadArg("--project=", "--project");
+            PieClientMap = ReadArg("--map=", "--map");
+            const std::string Host = ReadArg("--pie-host=", "--pie-host");
+            if (!Host.empty())
+                PieClientHost = Host;
+            const std::string Port = ReadArg("--pie-port=", "--pie-port");
+            if (!Port.empty())
+                PieClientPort = std::atoi(Port.c_str());
+        }
+    }
 
     void FEditorApp::OnInit() {
         GLFWwindow* Native = GetWindow().GetNativeWindow();
@@ -67,10 +124,22 @@ namespace Leon::Editor {
             iconCandidates.push_back(exeDir / "Resources" / "Icons" / "LeonEditor.png");
         }
 #endif
+#ifdef _WIN32
+        {
+            char* envRoot = nullptr;
+            size_t envLen = 0;
+            if (_dupenv_s(&envRoot, &envLen, "LEON_ENGINE_ROOT") == 0 && envRoot && envRoot[0] != '\0') {
+                iconCandidates.push_back(fs::path(envRoot) / "Engine" / "Resources" / "Icon" / "Logo.png");
+                iconCandidates.push_back(fs::path(envRoot) / "Editor" / "Resources" / "Icons" / "LeonEditor.png");
+            }
+            free(envRoot);
+        }
+#else
         if (const char* envRoot = std::getenv("LEON_ENGINE_ROOT"); envRoot && envRoot[0] != '\0') {
             iconCandidates.push_back(fs::path(envRoot) / "Engine" / "Resources" / "Icon" / "Logo.png");
             iconCandidates.push_back(fs::path(envRoot) / "Editor" / "Resources" / "Icons" / "LeonEditor.png");
         }
+#endif
         for (const fs::path& candidate : iconCandidates) {
             std::error_code existsEc;
             if (fs::exists(candidate, existsEc)) {
@@ -184,13 +253,23 @@ namespace Leon::Editor {
             }
         });
 
-        // Setup Toolbar callbacks
-        Toolbar.SetOnOpenHub([this]() { bShowProjectHub = true; });
+        // Setup Toolbar callbacks (Play In Editor)
+        Toolbar.SetPlaySettings(&PlaySettings);
         Toolbar.SetOnSaveMap([this]() { SaveCurrentMap(); });
         Toolbar.SetOnBakeDraft([this]() { BakeLightmaps(false); });
         Toolbar.SetOnBakeProduction([this]() { BakeLightmaps(true); });
-        Toolbar.SetOnRunGame([this]() { LaunchGame(); });
-        Toolbar.SetOnResetLayout([this]() { RequestResetDefaultLayout(); });
+        Toolbar.SetOnPlay([this]() { StartPlayInEditor(); });
+        Toolbar.SetOnStop([this]() { StopPlayInEditor(); });
+
+        PlaySession.SetSaveMapCallback([this]() { SaveCurrentMap(); });
+        PlaySession.SetLogCallback([this](const std::string& Msg, bool bErr) {
+            OutputLog.AddLog(bErr ? ELogLevel::Error : ELogLevel::Info, "PIE", Msg);
+            ShowToast(Msg, bErr);
+        });
+        PlaySession.SetSpawnClientCallback(
+            [this](const FPlaySettings& Settings, int ClientIndex) { return SpawnPieClientProcess(Settings, ClientIndex); });
+
+        PlaySettings.LoadFromFile((fs::path(EditorSavedDir) / "PlaySettings.json").string());
 
         // Mirror engine/editor logs into the Output Log panel (console still prints).
         FLog::SetSink([this](Leon::ELogLevel level, std::string_view tag, std::string_view message) {
@@ -219,7 +298,19 @@ namespace Leon::Editor {
             envProjStr = envVal;
         }
 #endif
-        if (!envProjStr.empty() && fs::exists(envProjStr)) {
+        if (bPieClientBootstrap && !PieClientProject.empty() && fs::exists(PieClientProject)) {
+            OpenProject(PieClientProject);
+            if (!PieClientMap.empty() && fs::exists(PieClientMap))
+                LoadMap(PieClientMap);
+            PlaySettings.NetMode = EPlayNetMode::Client;
+            PlaySettings.NumberOfPlayers = 1;
+            PlaySettings.PlayMode = EPlayMode::SelectedViewport;
+            PlaySettings.ClientAddress = PieClientHost;
+            PlaySettings.ListenPort = PieClientPort;
+            PlaySettings.bAutoSaveMapBeforePlay = false;
+            StartPlayInEditor();
+            bShowProjectHub = false;
+        } else if (!envProjStr.empty() && fs::exists(envProjStr)) {
             OpenProject(envProjStr);
             bShowProjectHub = false;
         } else {
@@ -265,6 +356,12 @@ namespace Leon::Editor {
         Context.SetActiveProjectPath(ActiveProjectPath);
         ProjectHub.AddRecentProject(ActiveProjectPath);
 
+        const std::string ProjectDir = fs::path(ActiveProjectPath).parent_path().string();
+        if (!FGameModuleLoader::LoadForProject(ActiveProjectDescriptor, ActiveProjectPath, ProjectDir)) {
+            OutputLog.AddLog(ELogLevel::Warning, "Project",
+                             "Game module not loaded — PIE may lack project GameModes/classes.");
+        }
+
         // Update Content Browser root to project Content directory
         std::string contentDir = FProjectPaths::ProjectContentDir();
         ContentBrowser.SetContentDirectory(contentDir);
@@ -302,6 +399,10 @@ namespace Leon::Editor {
     }
 
     void FEditorApp::LoadMap(const std::string& InMapPath) {
+        if (PlaySession.IsPlaying()) {
+            ShowToast("Stop Play before loading a map", true);
+            return;
+        }
         if (!InMapPath.empty() && !fs::exists(InMapPath)) {
             LE_CORE_ERROR("FEditorApp: Map file not found '{}'", InMapPath);
             OutputLog.AddLog(ELogLevel::Error, "Map", "Map not found: " + InMapPath);
@@ -404,25 +505,7 @@ namespace Leon::Editor {
         const std::string project = ActiveProjectPath;
         const std::string mapPath = ActiveMapPath;
 
-        // Editor cwd is usually out/Editor — locate Scripts from the repo root.
-        fs::path scriptPath;
-        std::vector<fs::path> searchRoots = {fs::current_path()};
-        if (!ActiveProjectPath.empty())
-            searchRoots.push_back(fs::path(ActiveProjectPath).parent_path());
-        for (fs::path r : searchRoots) {
-            for (int up = 0; up < 8 && !r.empty(); ++up) {
-                fs::path candidate = r / "Scripts" / "bake_lightmaps.py";
-                if (fs::exists(candidate)) {
-                    scriptPath = fs::absolute(candidate);
-                    break;
-                }
-                if (!r.has_parent_path() || r == r.parent_path())
-                    break;
-                r = r.parent_path();
-            }
-            if (!scriptPath.empty())
-                break;
-        }
+        const fs::path scriptPath = FindRepoScript("bake_lightmaps.py", ActiveProjectPath);
         if (scriptPath.empty()) {
             OutputLog.AddLog(ELogLevel::Error, "Build",
                              "Could not find Scripts/bake_lightmaps.py (run the editor from the LeonEngine repo).");
@@ -594,24 +677,109 @@ namespace Leon::Editor {
         ImGui::End();
     }
 
+    void FEditorApp::StartPlayInEditor() {
+        if (PlaySession.IsPlaying())
+            return;
+        if (ActiveProjectPath.empty()) {
+            ShowToast("Cannot play: no active project", true);
+            return;
+        }
+        if (!FGameModuleLoader::IsLoaded()) {
+            ShowToast("Cannot play: game module not loaded", true);
+            OutputLog.AddLog(ELogLevel::Error, "PIE", "Game module required for Play In Editor");
+            return;
+        }
+
+        PlaySettings.Clamp();
+        PlaySettings.SaveToFile((fs::path(EditorSavedDir) / "PlaySettings.json").string());
+
+        if (!PlaySession.Start(PlaySettings, ActiveProjectDescriptor, ActiveMapPath, ActiveMapName))
+            return;
+
+        Toolbar.SetPlaying(true);
+        Viewport.SetPlayingInEditor(true);
+    }
+
+    void FEditorApp::StopPlayInEditor() {
+        PlaySession.Stop();
+        Toolbar.SetPlaying(false);
+        Viewport.SetPlayingInEditor(false);
+    }
+
+    bool FEditorApp::SpawnPieClientProcess(const FPlaySettings& InSettings, int InClientIndex) {
+#ifdef _WIN32
+        char ExePath[MAX_PATH] = {};
+        if (GetModuleFileNameA(nullptr, ExePath, MAX_PATH) == 0)
+            return false;
+
+        std::ostringstream Cmd;
+        Cmd << "\"" << ExePath << "\""
+            << " --pie-role=client"
+            << " --pie-host=" << InSettings.ClientAddress << " --pie-port=" << InSettings.ListenPort
+            << " --project=\"" << ActiveProjectPath << "\""
+            << " --map=\"" << ActiveMapPath << "\""
+            << " --pie-client-index=" << InClientIndex;
+
+        STARTUPINFOA Si{};
+        Si.cb = sizeof(Si);
+        PROCESS_INFORMATION Pi{};
+        std::string CmdLine = Cmd.str();
+        std::vector<char> Mutable(CmdLine.begin(), CmdLine.end());
+        Mutable.push_back('\0');
+
+        if (!CreateProcessA(nullptr, Mutable.data(), nullptr, nullptr, FALSE, CREATE_NEW_CONSOLE, nullptr, nullptr, &Si,
+                            &Pi)) {
+            OutputLog.AddLog(ELogLevel::Error, "PIE", "Failed to spawn PIE client process");
+            return false;
+        }
+        CloseHandle(Pi.hThread);
+        PlaySession.RegisterChildProcess(Pi.hProcess);
+        OutputLog.AddLog(ELogLevel::Info, "PIE", "Spawned PIE client #" + std::to_string(InClientIndex));
+        return true;
+#else
+        (void)InSettings;
+        (void)InClientIndex;
+        return false;
+#endif
+    }
+
     void FEditorApp::LaunchGame() {
         if (ActiveProjectPath.empty()) {
             OutputLog.AddLog(ELogLevel::Warning, "Run", "Cannot launch game: no active project.");
+            ShowToast("Cannot launch: no active project", true);
+            return;
+        }
+
+        const fs::path scriptPath = FindRepoScript("run_project.py", ActiveProjectPath);
+        if (scriptPath.empty()) {
+            OutputLog.AddLog(ELogLevel::Error, "Run",
+                             "Could not find Scripts/run_project.py (run the editor from the LeonEngine repo).");
+            ShowToast("Launch failed: run script not found", true);
             return;
         }
 
         SaveCurrentMap();
 
-        std::string script = (fs::path("Scripts") / "run_project.py").string();
-        std::string cmd = "python " + script + " --project \"" + ActiveProjectPath + "\"";
+        const fs::path repoRoot = scriptPath.parent_path().parent_path();
+        const std::string project = ActiveProjectPath;
+
+        std::ostringstream cmd;
 #if defined(_WIN32)
-        cmd = "start " + cmd;
+        cmd << "cmd /C start \"\" /D \"" << repoRoot.string() << "\" python \"" << scriptPath.string()
+            << "\" --project \"" << project << "\"";
 #else
-        cmd = cmd + " &";
+        cmd << "cd \"" << repoRoot.string() << "\" && python \"" << scriptPath.string() << "\" --project \"" << project
+            << "\" &";
 #endif
-        int res = std::system(cmd.c_str());
-        (void)res;
-        OutputLog.AddLog(ELogLevel::Info, "Run", "Game instance launched.");
+
+        OutputLog.AddLog(ELogLevel::Info, "Run", "Launching packaged game for project: " + project);
+        const int res = std::system(cmd.str().c_str());
+        if (res != 0) {
+            OutputLog.AddLog(ELogLevel::Error, "Run", "Failed to start game process (exit " + std::to_string(res) + ").");
+            ShowToast("Launch failed to start", true);
+            return;
+        }
+        ShowToast("Launching packaged game...");
     }
 
     void FEditorApp::ResetDefaultLayout() {
@@ -698,12 +866,19 @@ namespace Leon::Editor {
     }
 
     void FEditorApp::OnUpdate(FTimestep InTs) {
-        (void)InTs;
         if (!bImGuiReady) {
             return;
         }
 
+        if (PlaySession.IsPlaying())
+            PlaySession.Tick(InTs.GetSeconds());
+        Toolbar.SetPlaying(PlaySession.IsPlaying());
+        Viewport.SetPlayingInEditor(PlaySession.IsPlaying());
+
         BeginImGuiFrame();
+
+        if (PlaySession.IsPlaying() && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+            PlaySession.RequestStop();
 
         auto SafeDrawPanel = [this](const char* PanelName, auto&& DrawFn) {
             try {
@@ -733,7 +908,9 @@ namespace Leon::Editor {
             // Center Viewport
             if (bShowViewport) {
                 SafeDrawPanel("Viewport", [&]() {
-                    Viewport.Draw(EditorWorld.get(), ActiveMapName, SelectedActor, &bShowViewport);
+                    UWorld* DrawWorld =
+                        PlaySession.IsPlaying() ? PlaySession.GetPlayWorld() : EditorWorld.get();
+                    Viewport.Draw(DrawWorld, ActiveMapName, SelectedActor, &bShowViewport);
                 });
             }
 
@@ -745,7 +922,9 @@ namespace Leon::Editor {
                 SafeDrawPanel("Details", [&]() { Details.Draw(SelectedActor, &bShowDetails); });
             }
             if (bShowWorldSettings) {
-                SafeDrawPanel("WorldSettings", [&]() { WorldSettings.Draw(EditorWorld.get(), &bShowWorldSettings); });
+                SafeDrawPanel("WorldSettings", [&]() {
+                    WorldSettings.Draw(EditorWorld.get(), ActiveProjectDescriptor.DefaultGameMode, &bShowWorldSettings);
+                });
             }
             if (bShowProjectSettings) {
                 SafeDrawPanel("ProjectSettings", [&]() {
@@ -809,6 +988,9 @@ namespace Leon::Editor {
     }
 
     void FEditorApp::OnShutdown() {
+        StopPlayInEditor();
+        PlaySettings.SaveToFile((fs::path(EditorSavedDir) / "PlaySettings.json").string());
+        FGameModuleLoader::Unload();
         FLog::ClearSink();
 
         GLFWwindow* native = GetWindow().GetNativeWindow();
@@ -911,18 +1093,34 @@ namespace Leon::Editor {
 
         DrawMenuBar();
 
-        // Fixed top toolbar (Save / Bake / Play) — not part of the docked panel grid.
+        // Fixed top toolbar (Save / Play / Bake) — not part of the docked panel grid.
         {
-            const float toolbarH = 38.0f;
+            constexpr float kMarginX = 10.0f;
+            constexpr float kMarginTop = 6.0f;
+            constexpr float kMarginBottom = 8.0f;
+            constexpr float kInnerPadX = 12.0f;
+            constexpr float kInnerPadY = 7.0f;
+            constexpr float kBtnH = 26.0f;
+            const float toolbarH = kBtnH + kInnerPadY * 2.0f;
+
+            ImGui::Dummy(ImVec2(0.0f, kMarginTop));
+
+            const float availW = ImGui::GetContentRegionAvail().x;
+            const float stripW = (availW > kMarginX * 2.0f) ? (availW - kMarginX * 2.0f) : availW;
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + kMarginX);
+
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.14f, 0.14f, 0.16f, 1.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 6.0f));
-            if (ImGui::BeginChild("##EditorToolbarStrip", ImVec2(0.0f, toolbarH), false,
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(kInnerPadX, kInnerPadY));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+            if (ImGui::BeginChild("##EditorToolbarStrip", ImVec2(stripW, toolbarH), false,
                                   ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
                 Toolbar.Draw(ActiveProjectDescriptor.ProjectName, ActiveMapName, Context.GetStatusMessage());
             }
             ImGui::EndChild();
-            ImGui::PopStyleVar();
+            ImGui::PopStyleVar(2);
             ImGui::PopStyleColor();
+
+            ImGui::Dummy(ImVec2(0.0f, kMarginBottom));
         }
 
         const ImGuiID DockspaceId = ImGui::GetID("LeonEditorDockspaceId");
@@ -1126,6 +1324,10 @@ namespace Leon::Editor {
                 }
                 if (ImGui::MenuItem("Bake Lightmaps (Production)", nullptr, false, !ActiveMapPath.empty())) {
                     BakeLightmaps(true);
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Launch Packaged Game...", nullptr, false, !ActiveProjectPath.empty())) {
+                    LaunchGame();
                 }
                 ImGui::EndMenu();
             }

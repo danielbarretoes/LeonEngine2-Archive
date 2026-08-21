@@ -435,15 +435,24 @@ namespace Leon {
         }
 
         void PersistMissingLightmapUVs(UStaticMesh& Mesh) {
-            if (FLightmapUV::HasLightmapUV(Mesh))
+            if (FLightmapUV::HasLightmapUV(Mesh)) {
+                if (!Mesh.HasUniqueLightmapUV())
+                    Mesh.SetHasUniqueLightmapUV(true);
                 return;
+            }
             FLightmapUV::GenerateBoxPackedLightmapUVs(Mesh);
-            if (Mesh.GetAssetPath().empty())
+            if (Mesh.GetAssetPath().empty()) {
+                Mesh.CreateGPUResources();
                 return;
-            if (Mesh.SaveToFile(Mesh.GetAssetPath()))
-                LogLM("Wrote lightmap UVs to " + Mesh.GetAssetPath());
+            }
+            const std::string disk = UAssetManager::ResolveVirtualPath(Mesh.GetAssetPath());
+            const std::string savePath = !disk.empty() ? disk : Mesh.GetAssetPath();
+            if (Mesh.SaveToFile(savePath))
+                LogLM("Wrote lightmap UVs to " + savePath);
             else
-                LogLM("Warning: failed to persist lightmap UVs to " + Mesh.GetAssetPath());
+                LogLM("Warning: failed to persist lightmap UVs to " + savePath);
+            // Baker mutates CPU verts; re-upload so the viewport samples the same UV1.
+            Mesh.CreateGPUResources();
         }
 
         void PersistWorldLightmapUVs(UWorld& InWorld) {
@@ -911,7 +920,8 @@ namespace Leon {
                 auto& c = actorRef->GetComponent<FSpotLightComponent>();
                 if (c.bEnabled && IsLightmassBakeLight(c.Mobility)) {
                     FSpotLight l = c.Light;
-                    l.Position = actorRef->GetComponent<FTransformComponent>().Translation;
+                    const auto& xf = actorRef->GetComponent<FTransformComponent>();
+                    SyncSpotLightFromTransform(l, xf.Translation, xf.Rotation);
                     scene.SpotLights.push_back({l, DoesLightmassBakeDirect(c.Mobility)});
                 }
             }

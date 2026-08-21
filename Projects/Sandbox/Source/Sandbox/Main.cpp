@@ -1,21 +1,17 @@
 #include "Engine/UEngine.hpp"
+#include "Engine/IGameModule.hpp"
 #include "Gameplay/UClassRegistry.hpp"
-#include "ASandboxGameMode.hpp"
-#include "ASandboxHUD.hpp"
-#include "ASandboxDemoPickup.hpp"
 #include "FOpenGLRenderDriver.hpp"
-#include "FJoltPhysicsDriver.hpp" // link Leon::Jolt — auto-registers IPhysicsScene factory
+#include "FJoltPhysicsDriver.hpp"
 
 #include <cstdlib>
 #include <filesystem>
 #include <string>
 
+LE_GAME_MODULE_EXPORT void LE_RegisterGameModule(Leon::UClassRegistry& InRegistry, Leon::FGameModuleHooks& OutHooks);
+
 namespace {
 
-    /**
-     * Resolve .lproject for this game executable (project-side only; Engine has no product default).
-     * Order: --project= / -project= → LEON_PROJECT → .lproject beside exe → monorepo fallbacks.
-     */
     std::string ResolveSandboxProjectFile(int argc, char** argv) {
         namespace fs = std::filesystem;
 
@@ -36,7 +32,6 @@ namespace {
                 return env;
         }
 
-        // Deploy: .lproject next to the executable
         std::error_code ec;
         fs::path exeDir = fs::absolute(fs::path(argv[0]).parent_path(), ec);
         if (!ec) {
@@ -46,7 +41,6 @@ namespace {
             }
         }
 
-        // Dev monorepo fallbacks (owned by this project, not the Engine)
         const char* candidates[] = {
             "Sandbox.lproject",
             "Projects/Sandbox/Sandbox.lproject",
@@ -65,10 +59,8 @@ int main(int argc, char** argv) {
     Leon::FOpenGLRenderDriver::Register();
     Leon::FJoltPhysicsDriver::Register();
 
-    auto& registry = Leon::UClassRegistry::Get();
-    registry.RegisterClass<Leon::ASandboxGameMode>("ASandboxGameMode");
-    registry.RegisterClass<Leon::ASandboxHUD>("ASandboxHUD");
-    registry.RegisterClass<Leon::ASandboxDemoPickup>("ASandboxDemoPickup");
+    Leon::FGameModuleHooks Hooks;
+    LE_RegisterGameModule(Leon::UClassRegistry::Get(), Hooks);
 
     Leon::FApplicationCommandLineArgs args{argc, argv};
     const std::string projectFile = ResolveSandboxProjectFile(argc, argv);

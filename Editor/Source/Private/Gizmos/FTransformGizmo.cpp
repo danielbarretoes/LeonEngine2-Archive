@@ -56,7 +56,7 @@ namespace Leon::Editor {
         const float ndcX = relX * 2.0f - 1.0f;
         const float ndcY = 1.0f - relY * 2.0f;
 
-        const glm::mat4 invVP = glm::inverse(InCamera.GetProjectionMatrix() * InCamera.GetViewMatrix());
+        const glm::mat4 invVP = glm::inverse(InCamera.GetViewProjectionMatrix());
         glm::vec4 nearPoint = invVP * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
         glm::vec4 farPoint = invVP * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
         if (std::abs(nearPoint.w) < 1e-6f || std::abs(farPoint.w) < 1e-6f)
@@ -145,9 +145,16 @@ namespace Leon::Editor {
 
         ProcessHotkeys();
 
-        if (CurrentOperation == EGizmoOperation::Select) {
+        const bool bRmb = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && ActiveAxis != EGizmoAxis::None) {
+            CommitDragIfNeeded(InHistory);
             ActiveAxis = EGizmoAxis::None;
-            bHovered = false;
+        }
+
+        if (CurrentOperation == EGizmoOperation::Select) {
+            if (ActiveAxis == EGizmoAxis::None)
+                bHovered = false;
             return;
         }
 
@@ -158,7 +165,7 @@ namespace Leon::Editor {
         bool bOriginInFront = false;
         glm::vec2 originScreen =
             WorldToScreen(actorPos, viewProj, InViewportX, InViewportY, InViewportW, InViewportH, bOriginInFront);
-        if (!bOriginInFront) {
+        if (!bOriginInFront && ActiveAxis == EGizmoAxis::None) {
             bHovered = false;
             return;
         }
@@ -220,12 +227,14 @@ namespace Leon::Editor {
             hoveredAxis = EGizmoAxis::Z;
         }
 
-        bHovered = (hoveredAxis != EGizmoAxis::None || ActiveAxis != EGizmoAxis::None);
+        bHovered = (hoveredAxis != EGizmoAxis::None || ActiveAxis != EGizmoAxis::None) && !bRmb;
 
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredAxis != EGizmoAxis::None &&
+        if (!bRmb && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && hoveredAxis != EGizmoAxis::None &&
             ActiveAxis == EGizmoAxis::None) {
             ActiveAxis = hoveredAxis;
             DragStartMouse = mouse;
+            DragOriginScreen = originScreen;
+            DragStartRadius = std::max(glm::length(mouse - originScreen), 4.0f);
             InitialActorLocation = actorPos;
             InitialActorRotation = tc.Rotation;
             InitialActorScale = tc.Scale;
@@ -267,9 +276,7 @@ namespace Leon::Editor {
             bDragRecorded = !DragBefore.empty();
         }
 
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && ActiveAxis != EGizmoAxis::None) {
-            glm::vec2 deltaMouse = mouse - DragStartMouse;
-
+        if (!bRmb && ImGui::IsMouseDown(ImGuiMouseButton_Left) && ActiveAxis != EGizmoAxis::None) {
             if (CurrentOperation == EGizmoOperation::Translate) {
                 glm::vec3 rayOrigin, rayDir, hit;
                 if (ScreenToWorldRay(InCamera, mouse, InViewportX, InViewportY, InViewportW, InViewportH, rayOrigin,
@@ -292,13 +299,22 @@ namespace Leon::Editor {
                 }
 
             } else if (CurrentOperation == EGizmoOperation::Rotate) {
-                float rotAngle = (deltaMouse.x - deltaMouse.y) * 0.5f;
+                glm::vec2 a = DragStartMouse - DragOriginScreen;
+                glm::vec2 b = mouse - DragOriginScreen;
+                const float ang0 = std::atan2(a.y, a.x);
+                const float ang1 = std::atan2(b.y, b.x);
+                float rotAngle = glm::degrees(ang1 - ang0);
+                if (rotAngle > 180.0f)
+                    rotAngle -= 360.0f;
+                if (rotAngle < -180.0f)
+                    rotAngle += 360.0f;
+
                 glm::vec3 rotDelta(0.0f);
                 if (ActiveAxis == EGizmoAxis::X)
                     rotDelta.x = rotAngle;
                 else if (ActiveAxis == EGizmoAxis::Y)
                     rotDelta.y = rotAngle;
-                else if (ActiveAxis == EGizmoAxis::Z)
+                else
                     rotDelta.z = rotAngle;
 
                 for (const auto& before : DragBefore) {
@@ -314,7 +330,9 @@ namespace Leon::Editor {
                 }
 
             } else if (CurrentOperation == EGizmoOperation::Scale) {
-                float scaleFactor = 1.0f + (deltaMouse.x - deltaMouse.y) * 0.01f;
+                const float d1 = glm::length(mouse - DragOriginScreen);
+                float scaleFactor = d1 / DragStartRadius;
+                scaleFactor = std::clamp(scaleFactor, 0.01f, 100.0f);
 
                 for (const auto& before : DragBefore) {
                     if (!before.Actor || before.Actor->IsPendingKill())
@@ -324,7 +342,7 @@ namespace Leon::Editor {
                         newScale.x = std::max(0.01f, before.Scale.x * scaleFactor);
                     else if (ActiveAxis == EGizmoAxis::Y)
                         newScale.y = std::max(0.01f, before.Scale.y * scaleFactor);
-                    else if (ActiveAxis == EGizmoAxis::Z)
+                    else
                         newScale.z = std::max(0.01f, before.Scale.z * scaleFactor);
 
                     if (bSnapEnabled && ScaleSnap > 0.001f) {
@@ -337,10 +355,8 @@ namespace Leon::Editor {
             }
         }
 
-        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && ActiveAxis != EGizmoAxis::None) {
-            CommitDragIfNeeded(InHistory);
-            ActiveAxis = EGizmoAxis::None;
-        }
+        if (!bOriginInFront)
+            return;
 
         ImU32 colX = (ActiveAxis == EGizmoAxis::X || hoveredAxis == EGizmoAxis::X) ? IM_COL32(255, 240, 60, 255)
                                                                                    : IM_COL32(235, 50, 60, 240);
@@ -349,30 +365,43 @@ namespace Leon::Editor {
         ImU32 colZ = (ActiveAxis == EGizmoAxis::Z || hoveredAxis == EGizmoAxis::Z) ? IM_COL32(255, 240, 60, 255)
                                                                                    : IM_COL32(60, 130, 245, 240);
 
-        float lineThick = 2.5f;
+        auto DrawArrowHead = [&](glm::vec2 from, glm::vec2 to, ImU32 col) {
+            glm::vec2 dir = to - from;
+            float len = glm::length(dir);
+            if (len < 1.0f)
+                return;
+            dir /= len;
+            glm::vec2 n(-dir.y, dir.x);
+            ImVec2 p0(to.x, to.y);
+            ImVec2 p1(to.x - dir.x * 10.0f + n.x * 4.5f, to.y - dir.y * 10.0f + n.y * 4.5f);
+            ImVec2 p2(to.x - dir.x * 10.0f - n.x * 4.5f, to.y - dir.y * 10.0f - n.y * 4.5f);
+            drawList->AddTriangleFilled(p0, p1, p2, col);
+        };
 
+        const float lineThick = 2.5f;
         drawList->AddLine(ImVec2(originScreen.x, originScreen.y), ImVec2(posXScreen.x, posXScreen.y), colX, lineThick);
-        if (CurrentOperation == EGizmoOperation::Translate) {
-            drawList->AddCircleFilled(ImVec2(posXScreen.x, posXScreen.y), 4.5f, colX);
-        } else if (CurrentOperation == EGizmoOperation::Scale) {
-            drawList->AddRectFilled(ImVec2(posXScreen.x - 3.5f, posXScreen.y - 3.5f),
-                                    ImVec2(posXScreen.x + 3.5f, posXScreen.y + 3.5f), colX);
-        }
-
         drawList->AddLine(ImVec2(originScreen.x, originScreen.y), ImVec2(posYScreen.x, posYScreen.y), colY, lineThick);
-        if (CurrentOperation == EGizmoOperation::Translate) {
-            drawList->AddCircleFilled(ImVec2(posYScreen.x, posYScreen.y), 4.5f, colY);
-        } else if (CurrentOperation == EGizmoOperation::Scale) {
-            drawList->AddRectFilled(ImVec2(posYScreen.x - 3.5f, posYScreen.y - 3.5f),
-                                    ImVec2(posYScreen.x + 3.5f, posYScreen.y + 3.5f), colY);
-        }
-
         drawList->AddLine(ImVec2(originScreen.x, originScreen.y), ImVec2(posZScreen.x, posZScreen.y), colZ, lineThick);
+
         if (CurrentOperation == EGizmoOperation::Translate) {
-            drawList->AddCircleFilled(ImVec2(posZScreen.x, posZScreen.y), 4.5f, colZ);
+            DrawArrowHead(originScreen, posXScreen, colX);
+            DrawArrowHead(originScreen, posYScreen, colY);
+            DrawArrowHead(originScreen, posZScreen, colZ);
         } else if (CurrentOperation == EGizmoOperation::Scale) {
-            drawList->AddRectFilled(ImVec2(posZScreen.x - 3.5f, posZScreen.y - 3.5f),
-                                    ImVec2(posZScreen.x + 3.5f, posZScreen.y + 3.5f), colZ);
+            drawList->AddRectFilled(ImVec2(posXScreen.x - 4.0f, posXScreen.y - 4.0f),
+                                    ImVec2(posXScreen.x + 4.0f, posXScreen.y + 4.0f), colX);
+            drawList->AddRectFilled(ImVec2(posYScreen.x - 4.0f, posYScreen.y - 4.0f),
+                                    ImVec2(posYScreen.x + 4.0f, posYScreen.y + 4.0f), colY);
+            drawList->AddRectFilled(ImVec2(posZScreen.x - 4.0f, posZScreen.y - 4.0f),
+                                    ImVec2(posZScreen.x + 4.0f, posZScreen.y + 4.0f), colZ);
+        } else if (CurrentOperation == EGizmoOperation::Rotate) {
+            const float radius = glm::length(posXScreen - originScreen);
+            if (radius > 4.0f)
+                drawList->AddCircle(ImVec2(originScreen.x, originScreen.y), radius, IM_COL32(200, 200, 210, 70), 48,
+                                    1.5f);
+            drawList->AddCircleFilled(ImVec2(posXScreen.x, posXScreen.y), 4.5f, colX);
+            drawList->AddCircleFilled(ImVec2(posYScreen.x, posYScreen.y), 4.5f, colY);
+            drawList->AddCircleFilled(ImVec2(posZScreen.x, posZScreen.y), 4.5f, colZ);
         }
 
         drawList->AddCircleFilled(ImVec2(originScreen.x, originScreen.y), 4.0f, IM_COL32(240, 240, 245, 255));

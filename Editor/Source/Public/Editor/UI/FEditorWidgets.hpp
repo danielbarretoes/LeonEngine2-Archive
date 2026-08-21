@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 #include <string>
+#include <vector>
 
 namespace Leon::Editor {
 
@@ -48,6 +49,11 @@ namespace Leon::Editor {
         static bool DrawInputText(const char* InLabel, const char* InId, char* InBuffer, size_t InBufferSize,
                                   const FControlStyle* InStyle = nullptr);
 
+        // --- Reset ---
+        /** Square refresh button (Unreal-style reset-to-default). */
+        static bool DrawResetToDefaultButton(const char* InId, bool bEnabled = true,
+                                             const char* InTooltip = "Reset to Default");
+
         // --- Select / Dropdown ---
         /** Combobox (select). Returns true when selection changes. */
         static bool DrawSelect(const char* InId, int* InOutIndex, const char* const* InItems, int InCount,
@@ -56,7 +62,17 @@ namespace Leon::Editor {
         /** Label + select inside an open property grid (Columns). */
         static bool DrawPropertySelect(const char* InLabel, const char* InId, int* InOutIndex,
                                        const char* const* InItems, int InCount,
-                                       const FControlStyle* InStyle = nullptr);
+                                       const FControlStyle* InStyle = nullptr, const int* InDefaultIndex = nullptr);
+
+        /**
+         * Class-name combobox. If InNoneLabel != nullptr, index 0 is None (empty string).
+         * When InDefaultClassName != nullptr, shows reset (typically empty for map overrides).
+         */
+        static bool DrawPropertyClassSelect(const char* InLabel, const char* InId, std::string& InOutClassName,
+                                            const std::vector<std::string>& InClassNames,
+                                            const char* InNoneLabel = nullptr,
+                                            const std::string* InDefaultClassName = nullptr,
+                                            const FControlStyle* InStyle = nullptr);
 
         /** Dropdown menu triggered by a button; returns selected index or -1. */
         static int DrawDropdown(const char* InId, const char* InPreviewLabel, const char* const* InItems,
@@ -67,29 +83,33 @@ namespace Leon::Editor {
                                     const char* InFormat = "%.2f", const FControlStyle* InStyle = nullptr);
         static bool DrawPropertySliderFloat(const char* InLabel, const char* InId, float* InOutValue, float InMin,
                                             float InMax, const char* InFormat = "%.2f",
-                                            const FControlStyle* InStyle = nullptr);
+                                            const FControlStyle* InStyle = nullptr,
+                                            const float* InDefaultValue = nullptr);
 
         static bool DrawDragFloat(const char* InId, float* InOutValue, float InSpeed = 0.1f, float InMin = 0.0f,
                                   float InMax = 0.0f, const char* InFormat = "%.2f",
                                   const FControlStyle* InStyle = nullptr);
         static bool DrawPropertyDragFloat(const char* InLabel, const char* InId, float* InOutValue,
                                           float InSpeed = 0.1f, float InMin = 0.0f, float InMax = 0.0f,
-                                          const char* InFormat = "%.2f", const FControlStyle* InStyle = nullptr);
+                                          const char* InFormat = "%.2f", const FControlStyle* InStyle = nullptr,
+                                          const float* InDefaultValue = nullptr);
 
         static bool DrawDragInt(const char* InId, int* InOutValue, float InSpeed = 1.0f, int InMin = 0, int InMax = 0,
                                 const FControlStyle* InStyle = nullptr);
         static bool DrawPropertyDragInt(const char* InLabel, const char* InId, int* InOutValue, float InSpeed = 1.0f,
-                                        int InMin = 0, int InMax = 0, const FControlStyle* InStyle = nullptr);
+                                        int InMin = 0, int InMax = 0, const FControlStyle* InStyle = nullptr,
+                                        const int* InDefaultValue = nullptr);
 
         // --- Checkbox / Color / Button ---
         static bool DrawCheckbox(const char* InId, bool* InOutValue, const char* InLabel = nullptr,
                                  const FControlStyle* InStyle = nullptr);
         static bool DrawPropertyCheckbox(const char* InLabel, const char* InId, bool* InOutValue,
-                                         const FControlStyle* InStyle = nullptr);
+                                         const FControlStyle* InStyle = nullptr, const bool* InDefaultValue = nullptr);
 
         static bool DrawColorEdit3(const char* InId, float* InOutRgb, const FControlStyle* InStyle = nullptr);
         static bool DrawPropertyColorEdit3(const char* InLabel, const char* InId, float* InOutRgb,
-                                           const FControlStyle* InStyle = nullptr);
+                                           const FControlStyle* InStyle = nullptr,
+                                           const float* InDefaultRgb = nullptr);
 
         /**
          * Button with required Lucide icon. Pass nullptr/empty InLabel for icon-only.

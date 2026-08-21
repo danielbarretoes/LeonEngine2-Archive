@@ -78,6 +78,14 @@ Editor/
 ## Next Roadmap Phases
 
 1. **Material Graph / Shader Inspector** — visual or node-based material instance authoring with live shader recompilation.
-2. **PIE (Play-In-Editor) In-Process Mode** — toggle viewport between Editor Camera and Game Camera with active ticking simulation.
+2. **PIE polish** — New Editor Window GLFW host, richer client process UI, shared-engine DLL game modules.
 3. **Behavior Tree / AI Blackboard Visualizer** — read/write `.lbt` and view live active execution node highlights during play.
 4. **UMG Canvas Editor** — visual drag-and-drop placement of UI widgets (`UCanvasPanel`, `UButton`, `UTextBlock`).
+
+## Play In Editor (implemented)
+
+- Toolbar **Play / Stop** starts an in-process `FPlaySession` (`PlayWorld`) using the open map and `WorldSettings.GameModeClass`.
+- `FPlaySettings` (1–4 players, NetMode, PlayMode) persists under `Editor/Saved/PlaySettings.json`.
+- Multi-player: host listens; extra clients spawn as `LeonEditor --pie-role=client` processes.
+- `ENetMode::DedicatedServer` skips local Login; clients join via listen port.
+- Packaged run remains under Build → Launch Packaged Game.

@@ -6,12 +6,13 @@
 #include <exception>
 #include <iostream>
 
-int main() {
+int main(int argc, char** argv) {
     try {
         Leon::FOpenGLRenderDriver::Register();
         Leon::FJoltPhysicsDriver::Register();
 
-        Leon::Editor::FEditorApp App;
+        Leon::FApplicationCommandLineArgs Args{argc, argv};
+        Leon::Editor::FEditorApp App(Args);
         App.Run();
         return 0;
     } catch (const std::exception& Ex) {

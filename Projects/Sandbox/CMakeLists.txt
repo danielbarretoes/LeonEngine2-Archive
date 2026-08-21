@@ -3,6 +3,7 @@ add_executable(Sandbox
     Source/Sandbox/Private/ASandboxGameMode.cpp
     Source/Sandbox/Private/ASandboxDemoPickup.cpp
     Source/Sandbox/Private/ASandboxHUD.cpp
+    Source/Sandbox/Private/FSandboxGameModule.cpp
     Source/Sandbox/Private/USandboxRenderLabWidget.cpp
 )
 

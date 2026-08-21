@@ -46,6 +46,8 @@ namespace Leon {
         std::string HUDClass = "AHUD";
         std::string GameStateClass = "AGameStateBase";
         std::string PlayerStateClass = "APlayerState";
+        /** Soft cap for Login (PIE / listen server). 0 = unlimited. */
+        int32_t MaxPlayers = 4;
 
         glm::vec3 DefaultSpawnLocation{0.0f, 3.5f, 10.5f};
         glm::vec3 DefaultSpawnRotation{0.0f, -90.0f, 0.0f};

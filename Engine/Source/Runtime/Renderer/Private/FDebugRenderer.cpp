@@ -182,11 +182,20 @@ namespace Leon {
                                       float InAngleDeg, const glm::vec4& InColor, unsigned int InSegments) {
         constexpr float PI = 3.14159265358979323846f;
         glm::vec3 dir = glm::normalize(InDirection);
+        if (glm::length(InDirection) < 1e-6f)
+            dir = glm::vec3(0.0f, -1.0f, 0.0f);
 
-        // Build orthogonal basis (U, V) perpendicular to dir
-        glm::vec3 up = (std::abs(dir.y) < 0.999f) ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
-        glm::vec3 u = glm::normalize(glm::cross(dir, up));
-        glm::vec3 v = glm::cross(u, dir);
+        // Stable orthonormal basis (Frisvad) — avoids flipping when aim ≈ ±Y (default spot aim).
+        glm::vec3 u, v;
+        if (dir.z < -0.9999999f) {
+            u = glm::vec3(0.0f, -1.0f, 0.0f);
+            v = glm::vec3(-1.0f, 0.0f, 0.0f);
+        } else {
+            const float a = 1.0f / (1.0f + dir.z);
+            const float b = -dir.x * dir.y * a;
+            u = glm::vec3(1.0f - dir.x * dir.x * a, b, -dir.x);
+            v = glm::vec3(b, 1.0f - dir.y * dir.y * a, -dir.y);
+        }
 
         float radius = InRange * std::tan(glm::radians(InAngleDeg));
         glm::vec3 baseCenter = InApex + dir * InRange;
@@ -255,15 +264,16 @@ namespace Leon {
         const float range = glm::max(InLight.Radius, 0.5f);
         glm::vec3 dir = InLight.Direction;
         if (glm::length(dir) < 1e-5f)
-            dir = glm::vec3(0.0f, -1.0f, 0.0f);
+            dir = SpotLightLocalAimAxis();
         else
             dir = glm::normalize(dir);
 
         glm::vec4 innerColor(InLight.Color, 1.0f);
         glm::vec4 outerColor(InLight.Color * 0.6f, 0.5f);
 
-        // Center ray + Unreal-like inner/outer cones using attenuation radius
-        DrawLine(InLight.Position, InLight.Position + dir * range, glm::vec4(1.0f, 1.0f, 1.0f, 0.9f));
+        // Aim ray with arrow tip so the cone direction is unambiguous.
+        const glm::vec3 tip = InLight.Position + dir * range;
+        DrawArrow(InLight.Position, tip, glm::vec4(1.0f, 1.0f, 1.0f, 0.95f), glm::max(0.15f, range * 0.04f));
         DrawWireCone(InLight.Position, dir, range, InLight.CutOff, innerColor, 24);
         DrawWireCone(InLight.Position, dir, range, InLight.OuterCutOff, outerColor, 24);
     }

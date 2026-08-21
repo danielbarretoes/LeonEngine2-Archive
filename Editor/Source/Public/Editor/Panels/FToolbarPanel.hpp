@@ -1,13 +1,14 @@
 #pragma once
 
 #include "Core/Base.hpp"
+#include "Editor/Play/FPlaySettings.hpp"
 #include <functional>
 #include <string>
 
 namespace Leon::Editor {
 
     /**
-     * @brief Editor Toolbar panel for top-level actions (Save Map, Bake, Project Hub, Run, Reset Layout).
+     * @brief Editor Toolbar panel for top-level actions (Save, Play/Stop, Bake).
      */
     class FToolbarPanel {
     public:
@@ -18,20 +19,27 @@ namespace Leon::Editor {
         void SetOnSaveMap(FActionCallback InCb) { OnSaveMap = std::move(InCb); }
         void SetOnBakeDraft(FActionCallback InCb) { OnBakeDraft = std::move(InCb); }
         void SetOnBakeProduction(FActionCallback InCb) { OnBakeProduction = std::move(InCb); }
-        void SetOnOpenHub(FActionCallback InCb) { OnOpenHub = std::move(InCb); }
-        void SetOnRunGame(FActionCallback InCb) { OnRunGame = std::move(InCb); }
-        void SetOnResetLayout(FActionCallback InCb) { OnResetLayout = std::move(InCb); }
+        void SetOnPlay(FActionCallback InCb) { OnPlay = std::move(InCb); }
+        void SetOnStop(FActionCallback InCb) { OnStop = std::move(InCb); }
+        void SetPlaySettings(FPlaySettings* InSettings) { PlaySettings = InSettings; }
+        void SetPlaying(bool bInPlaying) { bPlaying = bInPlaying; }
+
+        /** @deprecated Use SetOnPlay — kept for transitional wiring. */
+        void SetOnRunGame(FActionCallback InCb) { OnPlay = std::move(InCb); }
 
         void Draw(const std::string& InProjectName, const std::string& InMapName,
                   const std::string& InStatusMessage = "");
 
     private:
+        void DrawPlaySettingsPopup();
+
         FActionCallback OnSaveMap;
         FActionCallback OnBakeDraft;
         FActionCallback OnBakeProduction;
-        FActionCallback OnOpenHub;
-        FActionCallback OnRunGame;
-        FActionCallback OnResetLayout;
+        FActionCallback OnPlay;
+        FActionCallback OnStop;
+        FPlaySettings* PlaySettings = nullptr;
+        bool bPlaying = false;
     };
 
 } // namespace Leon::Editor

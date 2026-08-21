@@ -40,7 +40,7 @@ namespace Leon {
         void PushOverlay(FLayer* InOverlay);
 
         virtual void OnInit() {}
-        virtual void OnUpdate(FTimestep InTs) {}
+        virtual void OnUpdate(FTimestep /*InTs*/) {}
         virtual void OnEvent(FEvent& InEvent);
         virtual void OnShutdown() {}
 

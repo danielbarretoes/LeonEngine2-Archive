@@ -38,8 +38,10 @@ namespace Leon::Editor {
                     spawned->AddComponent<FPointLightComponent>();
             } else if (InType == "SpotLight") {
                 spawned = InWorld.SpawnActor("SpotLight");
-                if (spawned)
-                    spawned->AddComponent<FSpotLightComponent>();
+                if (spawned) {
+                    auto& spot = spawned->AddComponent<FSpotLightComponent>();
+                    SyncSpotLightFromTransform(spot.Light, InLocation, spawned->GetActorRotation());
+                }
             } else if (InType == "Cube" || InType == "Sphere" || InType == "Cylinder" || InType == "Plane") {
                 spawned = FProceduralPrimitiveSpawner::SpawnShape(&InWorld, InType, InType + "Actor", InLocation);
                 return spawned;

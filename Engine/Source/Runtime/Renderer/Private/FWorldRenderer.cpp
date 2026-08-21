@@ -320,9 +320,16 @@ namespace Leon {
                     continue;
                 }
                 FSpotLight sl = comp.Light;
-                if (reg.all_of<FTransformComponent>(entity))
-                    sl.Position = reg.get<FTransformComponent>(entity).Translation;
-                spotComps.push_back(comp);
+                if (reg.all_of<FTransformComponent>(entity)) {
+                    const auto& xf = reg.get<FTransformComponent>(entity);
+                    SyncSpotLightFromTransform(sl, xf.Translation, xf.Rotation);
+                    auto& mutableComp = reg.get<FSpotLightComponent>(entity);
+                    mutableComp.Light.Position = sl.Position;
+                    mutableComp.Light.Direction = sl.Direction;
+                    spotComps.push_back(mutableComp);
+                } else {
+                    spotComps.push_back(comp);
+                }
                 spotLights.push_back(sl);
                 bHasSpotLight = true;
             }

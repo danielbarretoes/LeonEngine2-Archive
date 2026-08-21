@@ -27,20 +27,22 @@ namespace Leon {
         }
     }
 
-    void ADefaultPawn::SetupPlayerInputComponent(float DeltaSeconds) {
+        void ADefaultPawn::SetupPlayerInputComponent(float DeltaSeconds) {
         // Respect PlayerController input mode (UIOnly blocks game movement)
-        if (APlayerController* pc = dynamic_cast<APlayerController*>(GetController())) {
-            if (!pc->IsGameInputAllowed()) {
-                bFirstMouse = true;
-                return;
-            }
+        APlayerController* pc = dynamic_cast<APlayerController*>(GetController());
+        if (pc && !pc->IsGameInputAllowed()) {
+            bFirstMouse = true;
+            return;
         }
 
         const FInputSettings& input = FInputSettings::Get();
         auto& transform = GetTransform();
         glm::vec3& position = transform.Translation;
 
-        if (input.bEnableMouseLook && FInput::IsMouseButtonPressed(Mouse::ButtonRight)) {
+        // Unreal DefaultPawn: mouse look while possessed (GameOnly); RMB also works in GameAndUI.
+        const bool bAllowLook = input.bEnableMouseLook && (FInput::IsMouseButtonPressed(Mouse::ButtonRight) ||
+                                                           (pc && pc->GetInputMode() == EInputMode::GameOnly));
+        if (bAllowLook) {
             auto [mx, my] = FInput::GetMousePosition();
             if (bFirstMouse) {
                 LastMousePos = {mx, my};

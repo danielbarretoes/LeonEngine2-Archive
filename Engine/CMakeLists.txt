@@ -95,6 +95,7 @@ set(LEON_ENGINE_SOURCES
     # Engine + Gameplay
     Source/Runtime/Engine/Private/UEngine.cpp
     Source/Runtime/Engine/Private/UEngineTravel.cpp
+    Source/Runtime/Engine/Private/FGameplaySession.cpp
     Source/Runtime/Engine/Private/UWorld.cpp
     Source/Runtime/Engine/Private/FParticleSimulation.cpp
     Source/Runtime/Engine/Private/UGameInstance.cpp

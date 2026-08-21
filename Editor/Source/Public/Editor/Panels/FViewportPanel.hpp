@@ -40,12 +40,19 @@ namespace Leon::Editor {
         void FocusOnActor(AActor* InActor);
         void CancelGizmoInteraction() { Gizmo.CancelInteraction(); }
 
+        void SetPlayingInEditor(bool bInPlaying) { bPlayingInEditor = bInPlaying; }
+        [[nodiscard]] bool IsPlayingInEditor() const { return bPlayingInEditor; }
+
         FPerspectiveCamera& GetCamera() { return EditorCamera; }
         const FPerspectiveCamera& GetCamera() const { return EditorCamera; }
 
     private:
         void EnsureCamera();
         void ProcessCameraInput();
+        void ApplyViewMode();
+        void OrbitAroundPivot(float InYawDelta, float InPitchDelta);
+        void PanCamera(float InDeltaX, float InDeltaY);
+        void DollyCamera(float InAmount);
         void RenderWorld(UWorld& InWorld, uint32_t InWidth, uint32_t InHeight);
         void DrawViewportToolbar();
         void DrawViewportOverlay(const std::string& InMapName, AActor* InSelectedActor, uint32_t InActorCount);
@@ -87,6 +94,17 @@ namespace Leon::Editor {
         bool bShowStatistics = true;
         /** Unreal Show Flags → Gizmos (lights, PlayerStart sprites). */
         bool bShowEditorGizmos = true;
+        bool bPlayingInEditor = false;
+
+        glm::vec3 PivotPoint{0.0f, 0.0f, 0.0f};
+        bool bRmbNavigating = false;
+        bool bMmbPanning = false;
+        bool bAltOrbiting = false;
+        EViewportViewMode AppliedViewMode = EViewportViewMode::Perspective;
+        glm::vec3 SavedPerspPosition{0.0f, 5.0f, 10.0f};
+        float SavedPerspPitch = -20.0f;
+        float SavedPerspYaw = -90.0f;
+        float OrthoHeight = 20.0f;
 
         // Marquee Selection Box State
         bool bMarqueeSelecting = false;

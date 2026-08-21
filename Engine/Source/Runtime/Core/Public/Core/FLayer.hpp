@@ -15,8 +15,8 @@ namespace Leon {
 
         virtual void OnAttach() {}
         virtual void OnDetach() {}
-        virtual void OnUpdate(FTimestep InTs) {}
-        virtual void OnEvent(FEvent& InEvent) {}
+        virtual void OnUpdate(FTimestep /*InTs*/) {}
+        virtual void OnEvent(FEvent& /*InEvent*/) {}
 
         const std::string& GetName() const { return DebugName; }
 

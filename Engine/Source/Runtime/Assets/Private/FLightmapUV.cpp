@@ -8,7 +8,24 @@
 namespace Leon {
 
     bool FLightmapUV::HasLightmapUV(const UStaticMesh& InMesh) {
-        return InMesh.HasUniqueLightmapUV();
+        if (InMesh.HasUniqueLightmapUV())
+            return true;
+
+        // Older .lmesh may already store PackLightmapCell UV1 without the flag set.
+        const auto& verts = InMesh.GetVertices();
+        if (verts.size() < 3)
+            return false;
+        float minU = verts[0].LightmapUV.x;
+        float maxU = minU;
+        float minV = verts[0].LightmapUV.y;
+        float maxV = minV;
+        for (const auto& v : verts) {
+            minU = std::min(minU, v.LightmapUV.x);
+            maxU = std::max(maxU, v.LightmapUV.x);
+            minV = std::min(minV, v.LightmapUV.y);
+            maxV = std::max(maxV, v.LightmapUV.y);
+        }
+        return (maxU - minU) > 0.01f && (maxV - minV) > 0.01f;
     }
 
     bool FLightmapUV::ComputeBarycentric(const glm::vec2& InP, const glm::vec2& InA, const glm::vec2& InB,

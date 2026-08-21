@@ -36,12 +36,13 @@ endif()
 get_filename_component(LEON_REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 set(LEON_ENGINE_ROOT "${LEON_REPO_ROOT}" CACHE PATH "LeonEngine2 repository root")
 
-set(LEON_STACK_WITH_ENET OFF)
+set(LEON_STACK_WITH_ENET ON)
 set(LEON_STACK_WITH_TOOLS OFF)
 set(LEON_STACK_WITH_TESTS OFF)
 include("${LEON_ENGINE_ROOT}/CMake/LeonEngineStack.cmake")
 include("${LEON_ENGINE_ROOT}/CMake/EditorDependencies.cmake")
 include("${LEON_ENGINE_ROOT}/CMake/LeonCompileOptions.cmake")
+include("${LEON_ENGINE_ROOT}/CMake/EditorTournamentModule.cmake")
 
 add_library(LeonEditorCore STATIC
     Source/Private/FEditorApp.cpp
@@ -63,6 +64,9 @@ add_library(LeonEditorCore STATIC
     Source/Private/Panels/FPlaceActorsPanel.cpp
     Source/Private/Panels/FWorldSettingsPanel.cpp
     Source/Private/Panels/FProjectSettingsPanel.cpp
+    Source/Private/Play/FPlaySession.cpp
+    Source/Private/Play/FPlaySettings.cpp
+    Source/Private/Play/FGameModuleLoader.cpp
     Source/Private/Gizmos/FTransformGizmo.cpp
     Source/Private/UI/FEditorTheme.cpp
     Source/Private/UI/FLucideIcons.cpp
@@ -79,6 +83,7 @@ target_include_directories(LeonEditorCore
         "${CMAKE_CURRENT_SOURCE_DIR}/Source/Private"
         "${LEON_ENGINE_ROOT}/Plugins/RHI/OpenGL/Include"
         "${LEON_ENGINE_ROOT}/Plugins/Physics/Jolt/Include"
+        "${LEON_ENGINE_ROOT}/Plugins/Networking/ENet/include"
 )
 
 target_link_libraries(LeonEditorCore PUBLIC
@@ -86,8 +91,12 @@ target_link_libraries(LeonEditorCore PUBLIC
     Leon::Pipeline
     Leon::OpenGL
     Leon::Jolt
+    Leon::ENet
+    LeonTournamentGame
     imgui
 )
+
+target_compile_definitions(LeonEditorCore PUBLIC LEON_EDITOR_HAS_TOURNAMENT_MODULE=1)
 
 if(WIN32)
     target_link_libraries(LeonEditorCore PUBLIC comdlg32 ole32)

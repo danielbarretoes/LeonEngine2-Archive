@@ -15,6 +15,8 @@ namespace Leon {
         std::string ProjectName = "Project";
         std::string DefaultMap = "/Game/Maps/Untitled";
         std::string DefaultGameMode = "AGameModeBase";
+        /** Optional path to game module DLL (relative to project dir or absolute). */
+        std::string GameModule;
 
         bool Load(const std::string& InFilePath);
         bool Save(const std::string& InFilePath) const;

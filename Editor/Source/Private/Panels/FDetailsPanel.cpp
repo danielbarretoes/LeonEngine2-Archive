@@ -28,9 +28,10 @@ namespace Leon::Editor {
             return textLower.find(InFilter) != std::string::npos;
         }
 
-        bool DrawMobilityCombo(const char* InId, int* InOutMobilityIndex) {
+        bool DrawMobilityCombo(const char* InId, int* InOutMobilityIndex, const int* InDefaultIndex = nullptr) {
             const char* mobilityNames[] = {"Static", "Stationary", "Movable"};
-            return FEditorWidgets::DrawPropertySelect("Mobility", InId, InOutMobilityIndex, mobilityNames, 3);
+            return FEditorWidgets::DrawPropertySelect("Mobility", InId, InOutMobilityIndex, mobilityNames, 3, nullptr,
+                                                      InDefaultIndex);
         }
 
     } // namespace
@@ -267,8 +268,9 @@ namespace Leon::Editor {
                     mobility = &InActor.GetComponent<FSpotLightComponent>().Mobility;
 
                 int currentMobility = static_cast<int>(*mobility);
+                const int DefaultLightMobility = static_cast<int>(ELightMobility::Movable);
                 FEditorWidgets::BeginPropertyGrid();
-                if (DrawMobilityCombo("##TransformLightMobility", &currentMobility))
+                if (DrawMobilityCombo("##TransformLightMobility", &currentMobility, &DefaultLightMobility))
                     *mobility = static_cast<ELightMobility>(currentMobility);
                 FEditorWidgets::EndPropertyGrid();
             } else if (InActor.HasComponent<FStaticMeshComponent>() || InActor.HasComponent<FMeshComponent>()) {
@@ -279,8 +281,9 @@ namespace Leon::Editor {
                     mobility = &InActor.GetComponent<FMeshComponent>().Mobility;
 
                 int currentMobility = static_cast<int>(*mobility);
+                const int DefaultMeshMobility = static_cast<int>(EComponentMobility::Static);
                 FEditorWidgets::BeginPropertyGrid();
-                if (DrawMobilityCombo("##TransformMeshMobility", &currentMobility))
+                if (DrawMobilityCombo("##TransformMeshMobility", &currentMobility, &DefaultMeshMobility))
                     *mobility = static_cast<EComponentMobility>(currentMobility);
                 FEditorWidgets::EndPropertyGrid();
             }
@@ -307,11 +310,15 @@ namespace Leon::Editor {
 
             int team = start->GetTeamIndex();
             FEditorWidgets::BeginPropertyGrid();
-            if (FEditorWidgets::DrawPropertyDragInt("Team Index", "##TeamIndex", &team, 1, 0, 32))
+            static const int DefaultTeam = 0;
+            if (FEditorWidgets::DrawPropertyDragInt("Team Index", "##TeamIndex", &team, 1, 0, 32, nullptr,
+                                                    &DefaultTeam))
                 start->SetTeamIndex(team);
 
             bool bEnabled = start->IsEnabled();
-            if (FEditorWidgets::DrawPropertyCheckbox("Enabled", "##PlayerStartEnabled", &bEnabled))
+            static const bool DefaultEnabled = true;
+            if (FEditorWidgets::DrawPropertyCheckbox("Enabled", "##PlayerStartEnabled", &bEnabled, nullptr,
+                                                     &DefaultEnabled))
                 start->SetEnabled(bEnabled);
             FEditorWidgets::EndPropertyGrid();
         }
@@ -344,10 +351,13 @@ namespace Leon::Editor {
             }
             FEditorWidgets::EndProperty();
 
-            FEditorWidgets::DrawPropertyCheckbox("Cast Shadows", "##CastShadowsMesh", &meshComp.bCastShadows);
+            static const bool DefaultCastShadows = true;
+            FEditorWidgets::DrawPropertyCheckbox("Cast Shadows", "##CastShadowsMesh", &meshComp.bCastShadows, nullptr,
+                                                 &DefaultCastShadows);
 
             int mobility = static_cast<int>(meshComp.Mobility);
-            if (DrawMobilityCombo("##StaticMeshMobility", &mobility))
+            const int DefaultMeshMobility = static_cast<int>(EComponentMobility::Static);
+            if (DrawMobilityCombo("##StaticMeshMobility", &mobility, &DefaultMeshMobility))
                 meshComp.Mobility = static_cast<EComponentMobility>(mobility);
 
             FEditorWidgets::EndPropertyGrid();
@@ -390,10 +400,12 @@ namespace Leon::Editor {
             if (MatchesFilter("Directional Light Sun Color Intensity", InFilter)) {
                 if (ImGui::CollapsingHeader("Directional Light Component", ImGuiTreeNodeFlags_DefaultOpen)) {
                     auto& comp = InActor.GetComponent<FDirectionalLightComponent>();
+                    const FDirectionalLightComponent Defaults;
                     FEditorWidgets::BeginPropertyGrid();
 
                     int mobility = static_cast<int>(comp.Mobility);
-                    if (DrawMobilityCombo("##DirMobility", &mobility))
+                    const int DefaultMobility = static_cast<int>(Defaults.Mobility);
+                    if (DrawMobilityCombo("##DirMobility", &mobility, &DefaultMobility))
                         comp.Mobility = static_cast<ELightMobility>(mobility);
                     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
                         ImGui::SetTooltip(
@@ -402,10 +414,12 @@ namespace Leon::Editor {
                             "Movable: fully dynamic.");
                     }
 
-                    FEditorWidgets::DrawPropertyColorEdit3("Light Color", "##DirColor", glm::value_ptr(comp.Light.Color));
+                    FEditorWidgets::DrawPropertyColorEdit3("Light Color", "##DirColor", glm::value_ptr(comp.Light.Color),
+                                                           nullptr, glm::value_ptr(Defaults.Light.Color));
                     FEditorWidgets::DrawPropertyDragFloat("Intensity", "##DirIntensity", &comp.Light.Intensity, 0.1f,
-                                                          0.0f, 100.0f);
-                    FEditorWidgets::DrawPropertyCheckbox("Enabled", "##DirEnabled", &comp.bEnabled);
+                                                          0.0f, 100.0f, "%.2f", nullptr, &Defaults.Light.Intensity);
+                    FEditorWidgets::DrawPropertyCheckbox("Enabled", "##DirEnabled", &comp.bEnabled, nullptr,
+                                                         &Defaults.bEnabled);
 
                     FEditorWidgets::EndPropertyGrid();
                 }
@@ -416,19 +430,23 @@ namespace Leon::Editor {
             if (MatchesFilter("Point Light Color Intensity Radius", InFilter)) {
                 if (ImGui::CollapsingHeader("Point Light Component", ImGuiTreeNodeFlags_DefaultOpen)) {
                     auto& comp = InActor.GetComponent<FPointLightComponent>();
+                    const FPointLightComponent Defaults;
                     FEditorWidgets::BeginPropertyGrid();
 
                     int mobility = static_cast<int>(comp.Mobility);
-                    if (DrawMobilityCombo("##PointMobility", &mobility))
+                    const int DefaultMobility = static_cast<int>(Defaults.Mobility);
+                    if (DrawMobilityCombo("##PointMobility", &mobility, &DefaultMobility))
                         comp.Mobility = static_cast<ELightMobility>(mobility);
 
                     FEditorWidgets::DrawPropertyColorEdit3("Light Color", "##PointColor",
-                                                           glm::value_ptr(comp.Light.Color));
+                                                           glm::value_ptr(comp.Light.Color), nullptr,
+                                                           glm::value_ptr(Defaults.Light.Color));
                     FEditorWidgets::DrawPropertyDragFloat("Intensity", "##PointIntensity", &comp.Light.Intensity, 0.1f,
-                                                          0.0f, 500.0f);
+                                                          0.0f, 500.0f, "%.2f", nullptr, &Defaults.Light.Intensity);
                     FEditorWidgets::DrawPropertyDragFloat("Attenuation Radius", "##PointRadius", &comp.Light.Radius,
-                                                          0.5f, 0.1f, 1000.0f, "%.1f");
-                    FEditorWidgets::DrawPropertyCheckbox("Enabled", "##PointEnabled", &comp.bEnabled);
+                                                          0.5f, 0.1f, 1000.0f, "%.1f", nullptr, &Defaults.Light.Radius);
+                    FEditorWidgets::DrawPropertyCheckbox("Enabled", "##PointEnabled", &comp.bEnabled, nullptr,
+                                                         &Defaults.bEnabled);
 
                     FEditorWidgets::EndPropertyGrid();
                 }
@@ -439,23 +457,29 @@ namespace Leon::Editor {
             if (MatchesFilter("Spot Light Color Intensity Cone Radius", InFilter)) {
                 if (ImGui::CollapsingHeader("Spot Light Component", ImGuiTreeNodeFlags_DefaultOpen)) {
                     auto& comp = InActor.GetComponent<FSpotLightComponent>();
+                    const FSpotLightComponent Defaults;
                     FEditorWidgets::BeginPropertyGrid();
 
                     int mobility = static_cast<int>(comp.Mobility);
-                    if (DrawMobilityCombo("##SpotMobility", &mobility))
+                    const int DefaultMobility = static_cast<int>(Defaults.Mobility);
+                    if (DrawMobilityCombo("##SpotMobility", &mobility, &DefaultMobility))
                         comp.Mobility = static_cast<ELightMobility>(mobility);
 
                     FEditorWidgets::DrawPropertyColorEdit3("Light Color", "##SpotColor",
-                                                           glm::value_ptr(comp.Light.Color));
+                                                           glm::value_ptr(comp.Light.Color), nullptr,
+                                                           glm::value_ptr(Defaults.Light.Color));
                     FEditorWidgets::DrawPropertyDragFloat("Intensity", "##SpotIntensity", &comp.Light.Intensity, 0.1f,
-                                                          0.0f, 500.0f);
+                                                          0.0f, 500.0f, "%.2f", nullptr, &Defaults.Light.Intensity);
                     FEditorWidgets::DrawPropertyDragFloat("Radius", "##SpotRadius", &comp.Light.Radius, 0.5f, 0.1f,
-                                                          1000.0f, "%.1f");
+                                                          1000.0f, "%.1f", nullptr, &Defaults.Light.Radius);
                     FEditorWidgets::DrawPropertySliderFloat("Inner Cone Angle", "##SpotInner", &comp.Light.CutOff, 0.0f,
-                                                            comp.Light.OuterCutOff, "%.1f deg");
+                                                            comp.Light.OuterCutOff, "%.1f deg", nullptr,
+                                                            &Defaults.Light.CutOff);
                     FEditorWidgets::DrawPropertySliderFloat("Outer Cone Angle", "##SpotOuter", &comp.Light.OuterCutOff,
-                                                            comp.Light.CutOff, 89.0f, "%.1f deg");
-                    FEditorWidgets::DrawPropertyCheckbox("Enabled", "##SpotEnabled", &comp.bEnabled);
+                                                            comp.Light.CutOff, 89.0f, "%.1f deg", nullptr,
+                                                            &Defaults.Light.OuterCutOff);
+                    FEditorWidgets::DrawPropertyCheckbox("Enabled", "##SpotEnabled", &comp.bEnabled, nullptr,
+                                                         &Defaults.bEnabled);
 
                     FEditorWidgets::EndPropertyGrid();
                 }
@@ -474,18 +498,22 @@ namespace Leon::Editor {
             FEditorWidgets::BeginPropertyGrid();
 
             float fov = camComp.Camera.GetFOV();
-            if (FEditorWidgets::DrawPropertySliderFloat("FOV", "##CamFOV", &fov, 20.0f, 130.0f, "%.1f deg")) {
+            static const float DefaultFov = 45.0f;
+            if (FEditorWidgets::DrawPropertySliderFloat("FOV", "##CamFOV", &fov, 20.0f, 130.0f, "%.1f deg", nullptr,
+                                                        &DefaultFov)) {
                 camComp.Camera.SetFOV(fov);
             }
 
             float nearClip = camComp.Camera.GetNearClip();
             float farClip = camComp.Camera.GetFarClip();
+            static const float DefaultNear = 0.1f;
+            static const float DefaultFar = 1000.0f;
             if (FEditorWidgets::DrawPropertyDragFloat("Near Plane", "##CamNear", &nearClip, 0.01f, 0.001f, 10.0f,
-                                                     "%.3f")) {
+                                                     "%.3f", nullptr, &DefaultNear)) {
                 camComp.Camera.SetProjection(fov, camComp.Camera.GetAspectRatio(), nearClip, farClip);
             }
             if (FEditorWidgets::DrawPropertyDragFloat("Far Plane", "##CamFar", &farClip, 1.0f, 10.0f, 100000.0f,
-                                                     "%.0f")) {
+                                                     "%.0f", nullptr, &DefaultFar)) {
                 camComp.Camera.SetProjection(fov, camComp.Camera.GetAspectRatio(), nearClip, farClip);
             }
 

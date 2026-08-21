@@ -131,7 +131,30 @@ namespace Leon {
 
         auto staticMesh = UAssetManager::GetStaticMesh(meshPath);
         if (!staticMesh) {
-            LE_CORE_ERROR("FProceduralPrimitiveSpawner: Missing built-in mesh \"{}\"", meshPath);
+            LE_CORE_WARN("FProceduralPrimitiveSpawner: Missing built-in mesh \"{}\", falling back to procedural VA",
+                         meshPath);
+            TRef<FVertexArray> va;
+            if (InShapeType == "Cube" || InShapeType == "Box")
+                va = FMeshPrimitives::CreateBox(1.0f, 1.0f, 1.0f, 1.0f);
+            else if (InShapeType == "Sphere")
+                va = FMeshPrimitives::CreateSphere(0.5f, 32, 16);
+            else if (InShapeType == "Cylinder")
+                va = FMeshPrimitives::CreateCylinder(0.5f, 0.5f, 1.0f, 32);
+            else if (InShapeType == "Plane")
+                va = FMeshPrimitives::CreatePlane(2.0f, 2.0f, 1, 1);
+
+            auto shader = UAssetManager::GetShader("Engine/Resources/Shaders/PBR_Lit.glsl");
+            if (va && shader) {
+                auto& mesh = actor->AddComponent<FMeshComponent>(va, shader);
+                mesh.MeshType = InShapeType;
+                mesh.Mobility = EComponentMobility::Static;
+                mesh.LightmapResolution = 64;
+                mesh.bCastShadows = true;
+                mesh.bReceiveShadows = true;
+                if (auto matInst = UAssetManager::GetWorldGridMaterialInstance()) {
+                    actor->AddComponent<FMaterialComponent>(matInst, FEngineBuiltins::kWorldGridMaterial);
+                }
+            }
             return actor;
         }
 
@@ -178,11 +201,12 @@ namespace Leon {
             return nullptr;
         AActor* actor = InWorld->SpawnActor<AActor>(InName);
         actor->SetActorLocation(InPos);
+        const glm::vec3 dir = glm::length(InDir) > 1e-5f ? glm::normalize(InDir) : SpotLightLocalAimAxis();
+        actor->SetActorRotation(SpotLightEulerFromWorldDirection(dir));
         FSpotLightComponent light;
         light.bEnabled = true;
         light.Mobility = InMobility;
-        light.Light.Position = InPos;
-        light.Light.Direction = glm::normalize(InDir);
+        SyncSpotLightFromTransform(light.Light, InPos, actor->GetActorRotation());
         light.Light.Color = InColor;
         light.Light.Intensity = InIntensity;
         light.Light.Radius = InRadius;
