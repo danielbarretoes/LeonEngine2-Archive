@@ -18,7 +18,7 @@ Environment:
     TexelPadding: 2
     WorldScale: 1
     LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
-    LightmapBakeHash: "9dd3ec0966ed95b6"
+    LightmapBakeHash: "ec9c6094bb5e2c50"
   Skybox:
     Enabled: true
     Exposure: 0.95
@@ -311,7 +311,7 @@ Actors:
     Class: "AActor"
     GUID: "ef36607dce43622c941b8e23421ae557"
     Transform:
-      Translation: [0, 5, -1.11227]
+      Translation: [0, 5, -31.3612]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     StaticMesh:
@@ -585,3 +585,32 @@ Actors:
           Asset: "Engine/Materials/M_WorldGrid.lmat"
     Material:
       Asset: "Engine/Materials/M_WorldGrid.lmat"
+  - Name: "WallS_Copy"
+    Class: "AActor"
+    GUID: "8d0f7034414758ef206189b5290047fd"
+    Transform:
+      Translation: [0.818602, 5, 31.3371]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMesh:
+      Type: "Box"
+      Size: 1
+      Width: 64
+      Height: 10
+      Depth: 0.9
+      Radius: 0.5
+      MetersPerUv: 1.25
+      SubdivisionsX: 24
+      SubdivisionsZ: 24
+      Shader: "Engine/Resources/Shaders/PBR_Lit.glsl"
+      CastShadows: true
+      ReceiveShadows: true
+      VisibleInReflection: true
+      Mobility: Static
+      LightmapResolution: 64
+      LightmapIndex: 10
+      LightmapScale: [0.125, 0.25]
+      LightmapBias: [0.390625, 0.265625]
+      LightmapAsset: "/Game/Lightmaps/TournamentArena.llightmap"
+    Material:
+      Asset: "/Game/Materials/M_LabWall.lmat"
